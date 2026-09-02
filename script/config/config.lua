@@ -3,7 +3,7 @@ local timer    = require 'timer'
 local scope    = require 'workspace.scope'
 local template = require 'config.template'
 
----@alias config.source '"client"'|'"path"'|'"local"'
+---@alias config.source 'client'|'path'|'local'
 ---@alias config.changeEntry { uri: uri, key: string, value: any, oldValue: any }
 
 ---@class config.api

@@ -333,7 +333,7 @@ local function addSpecial(name, obj)
 end
 
 ---@param offset integer
----@param leftOrRight '"left"'|'"right"'
+---@param leftOrRight 'left'|'right'
 ---@return parser.position
 local function getPosition(offset, leftOrRight)
     if not offset or offset > #Lua then
@@ -749,7 +749,7 @@ local function expectAssign(isAction)
     return false
 end
 
----@param kind? '"prefix"'|'"suffix"'
+---@param kind? 'prefix'|'suffix'
 ---@return parser.object?
 local function parseLocalAttrs(kind)
     ---@type parser.object?

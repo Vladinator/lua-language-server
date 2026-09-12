@@ -187,6 +187,79 @@ function vm.getDeprecated(value, deep)
     end
 end
 
+---@param value parser.object
+---@param kind  'doc.secret' | 'doc.secret-check' | 'doc.secret-access-check'
+---@return boolean
+local function hasSecretDoc(value, kind)
+    if not value.bindDocs then
+        return false
+    end
+    for _, doc in ipairs(value.bindDocs) do
+        if doc.type == kind then
+            return true
+        end
+    end
+    return false
+end
+
+---@param value parser.object
+---@param kind  'doc.secret' | 'doc.secret-check' | 'doc.secret-access-check'
+---@return boolean
+local function checkSecretDoc(value, kind)
+    if hasSecretDoc(value, kind) then
+        return true
+    end
+    if value.type == 'function' then
+        return false
+    end
+    local defs = vm.getDefs(value)
+    for _, def in ipairs(defs) do
+        local target = def
+        if def.value and def.value.type == 'function' then
+            target = def.value
+        end
+        if hasSecretDoc(target, kind) then
+            return true
+        end
+    end
+    return false
+end
+
+---@param value parser.object
+---@return boolean
+function vm.isSecret(value)
+    return checkSecretDoc(value, 'doc.secret')
+end
+
+---@param value parser.object
+---@return boolean
+function vm.isSecretCheck(value)
+    return checkSecretDoc(value, 'doc.secret-check')
+end
+
+---@param value parser.object
+---@return boolean
+function vm.isSecretAccessCheck(value)
+    return checkSecretDoc(value, 'doc.secret-access-check')
+end
+
+---@param node vm.node
+---@param uri  uri
+---@return boolean
+function vm.hasSecretType(node, uri)
+    for c in node:eachObject() do
+        if c.type == 'global' and c.cate == 'type' then
+            ---@cast c vm.global
+            for _, set in ipairs(c:getSets(uri)) do
+                if hasSecretDoc(set, 'doc.secret') then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 ---@param  value parser.object
 ---@param  propagate boolean
 ---@param  deepLevel integer?

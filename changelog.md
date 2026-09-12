@@ -2,6 +2,7 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `NEW` Add a `need-check-secret` diagnostic that flags arithmetic, comparison, indexing, table-key, unary-operator (`#`, `-`, `~`), call-as-function, and `pairs`/`ipairs`/`next` iteration use of values marked `@secret` unless first narrowed by a guard function marked `@secret-check` (or `@secret-access-check`, for guards with inverted truthiness, e.g. `canaccesstable`). `@secret` can be applied to a function's return value (including through a `@generic` passthrough), a `@field` (via the `secret` field modifier), a `@class`, or a `@type`-annotated declaration; concatenation and plain truthiness tests on non-boolean secrets remain allowed. Note that this models Blizzard's WoW Lua "secret value" restrictions as if all code were always tainted: the diagnostic has no concept of an untainted execution context in which the restrictions would not apply, so a value is either checked or it isn't, everywhere it's used.
 * `FIX` `need-check-nil` diagnostic is no longer reported on safe navigation access (e.g. `x?.field`, `f?.()`, `t?.[key]`), since the optional access itself already handles the nil check. Note that a non-safe access chained after a safe one (e.g. `x.upper()?.field`) still reports, because the safe access only protects its own result.
 
 ## 3.19.1

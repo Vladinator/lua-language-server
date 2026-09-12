@@ -600,6 +600,8 @@ config.diagnostics['unsupport-named-vararg'] =
 'Unsupported named vararg'
 config.diagnostics['variable-not-declared'] =
 'Using an undeclared variable'
+config.diagnostics['need-check-secret'] =
+'Enable diagnostics for operations on secret values.'
 config.typeFormat.config                    =
 'Configures the formatting behavior while typing Lua code.'
 config.typeFormat.config.auto_complete_end  =

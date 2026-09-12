@@ -623,6 +623,30 @@ local lookIntoChild = util.switch()
             end
             topNode = tracer:lookIntoChild(action.args[1], topNode:copy(), topNode:copy())
         end
+        -- Deliberately vm.isDirectOrAliasedSecretCheck, not
+        -- vm.isSecretCheck/isSecretAccessCheck -- see the comment on that
+        -- function in vm/doc.lua for why the direct call is unsafe here.
+        local isSecretCheck = vm.isDirectOrAliasedSecretCheck(action.node, 'doc.secret-check')
+        local isSecretAccessCheck = not isSecretCheck and vm.isDirectOrAliasedSecretCheck(action.node, 'doc.secret-access-check')
+        if (isSecretCheck or isSecretAccessCheck)
+        and action.args
+        and action.args[1]
+        and tracer.getMap[action.args[1]]
+        then
+            local value = action.args[1]
+            tracer:lookIntoChild(value, topNode, outNode)
+            if isSecretAccessCheck then
+                topNode = topNode:copy():removeSecret()
+                if outNode then
+                    outNode = outNode:copy()
+                end
+            else
+                topNode = topNode:copy()
+                if outNode then
+                    outNode = outNode:copy():removeSecret()
+                end
+            end
+        end
         tracer:lookIntoChild(action.node, topNode)
         tracer:lookIntoChild(action.args, topNode)
         return topNode, outNode
@@ -639,8 +663,15 @@ local lookIntoChild = util.switch()
             return topNode, outNode
         end
         if     action.op.type == 'and' then
-            topNode = tracer:lookIntoChild(action[1], topNode, topNode:copy())
-            topNode = tracer:lookIntoChild(action[2], topNode, topNode:copy())
+            outNode = outNode or topNode:copy()
+            local topNode1, outNode1 = tracer:lookIntoChild(action[1], topNode, outNode)
+            local topNode2, outNode2 = tracer:lookIntoChild(action[2], topNode1, topNode1:copy())
+            topNode = topNode2
+            if vm.compileNode(action[2]):alwaysTruthy() then
+                outNode = outNode1
+            else
+                outNode = vm.createNode(outNode1, outNode2)
+            end
         elseif action.op.type == 'or' then
             outNode = outNode or topNode:copy()
             local topNode1, outNode1 = tracer:lookIntoChild(action[1], topNode, outNode)

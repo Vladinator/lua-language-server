@@ -1089,6 +1089,9 @@ local function selectNode(source, list, index)
                 rtnNode:merge(n)
             end
         end
+        if result:hasSecret() then
+            rtnNode:addSecret()
+        end
         vm.setNode(source, rtnNode)
         return rtnNode
     end
@@ -1517,6 +1520,9 @@ local function compileLocal(source)
     local hasMarkDoc
     if source.bindDocs then
         hasMarkDoc = vm.bindDocs(source)
+        if vm.isSecret(source) then
+            vm.getNode(source):addSecret()
+        end
     end
     local hasMarkParam
     if not hasMarkDoc then
@@ -1705,6 +1711,9 @@ local function bindReturnOfFunction(source, mfunc, index, args)
                 if protoNode:isOptional() then
                     result:addOptional()
                 end
+                if rnode.secret then
+                    result:addSecret()
+                end
                 returnNode = result
             else
                 returnNode = rnode:resolve(guide.getUri(source), resolveArgs)
@@ -1822,6 +1831,9 @@ local function bindReturnOfFunction(source, mfunc, index, args)
         end
         if returnNode:isOptional() then
             vm.getNode(source):addOptional()
+        end
+        if returnNode:hasSecret() or vm.isSecret(mfunc) then
+            vm.getNode(source):addSecret()
         end
     end
 end
@@ -2144,7 +2156,7 @@ local compilerSwitch = util.switch()
                             end
                             if hasGeneric then
                                 ---@cast sign -?
-                                vm.setNode(source, vm.createGeneric(rtn, sign))
+                                vm.setNode(source, vm.createGeneric(rtn, sign, vm.isSecret(func)))
                             else
                                 vm.setNode(source, vm.compileNode(rtn))
                             end
@@ -2195,6 +2207,9 @@ local compilerSwitch = util.switch()
         end
         if not hasMarkDoc and not hasReturn then
             vm.setNode(source, vm.declareGlobal('type', 'nil'))
+        end
+        if vm.isSecret(func) then
+            vm.getNode(source):addSecret()
         end
     end)
     : case 'call.return'
@@ -2375,6 +2390,9 @@ local compilerSwitch = util.switch()
         if not node:isTyped() then
             node = vm.runOperator('call', source.node) or node
         end
+        if vm.isSecret(source.node) then
+            node:addSecret()
+        end
         setNodeCheckSafe(source, node)
     end)
     : case 'doc.type'
@@ -2384,6 +2402,9 @@ local compilerSwitch = util.switch()
         end
         if source.optional then
             vm.getNode(source):addOptional()
+        end
+        if vm.hasSecretType(vm.getNode(source), guide.getUri(source)) then
+            vm.getNode(source):addSecret()
         end
     end)
     : case 'doc.type.integer'
@@ -2477,6 +2498,9 @@ local compilerSwitch = util.switch()
         local fieldNode = vm.compileNode(source.extends)
         if source.optional then
             fieldNode:addOptional()
+        end
+        if source.secret then
+            fieldNode:addSecret()
         end
         vm.setNode(source, fieldNode)
     end)

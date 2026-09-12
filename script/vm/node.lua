@@ -17,6 +17,7 @@ vm.nodeCache = setmetatable({}, util.MODE_K)
 ---@field fields? table<vm.node|string, vm.node>
 ---@field undefinedGlobal boolean?
 ---@field lastInfer? vm.infer
+---@field secret? boolean
 local mt = {}
 mt.__index    = mt
 mt.id         = 0
@@ -31,6 +32,9 @@ mt.originNode = nil
 function mt:merge(node)
     if not node then
         return self
+    end
+    if node.secret then
+        self.secret = true
     end
     self.lastInfer = nil
     if node.type == 'vm.node' then
@@ -95,6 +99,20 @@ end
 function mt:removeOptional()
     self:remove 'nil'
     return self
+end
+
+function mt:addSecret()
+    self.secret = true
+    return self
+end
+
+function mt:removeSecret()
+    self.secret = false
+    return self
+end
+
+function mt:hasSecret()
+    return self.secret == true
 end
 
 ---@return boolean

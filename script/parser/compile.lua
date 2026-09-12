@@ -115,6 +115,7 @@ local Specials = {
     ['xpcall']       = true,
     ['pairs']        = true,
     ['ipairs']       = true,
+    ['next']         = true,
     ['assert']       = true,
     ['error']        = true,
     ['type']         = true,

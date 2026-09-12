@@ -159,6 +159,7 @@ Symbol              <-  ({} {
 ---@field generic?          parser.object
 ---@field docAttr?          parser.object
 ---@field pattern?          string
+---@field secret?           boolean
 
 local function parseTokens(text, offset)
     Ci = 0
@@ -1234,6 +1235,16 @@ local docSwitch = util.switch()
                     result.start = getStart()
                     return true
                 end
+                if value == 'secret' then
+                    local tp2 = peekToken(1)
+                    local tp3 = peekToken(2)
+                    if tp2 == 'name' and not tp3 then
+                        return false
+                    end
+                    result.secret = true
+                    result.start = getStart()
+                    return true
+                end
             end
             return false
         end)
@@ -1350,6 +1361,30 @@ local docSwitch = util.switch()
     : call(function ()
         return {
             type   = 'doc.deprecated',
+            start  = getFinish(),
+            finish = getFinish(),
+        }
+    end)
+    : case 'secret'
+    : call(function ()
+        return {
+            type   = 'doc.secret',
+            start  = getFinish(),
+            finish = getFinish(),
+        }
+    end)
+    : case 'secret-check'
+    : call(function ()
+        return {
+            type   = 'doc.secret-check',
+            start  = getFinish(),
+            finish = getFinish(),
+        }
+    end)
+    : case 'secret-access-check'
+    : call(function ()
+        return {
+            type   = 'doc.secret-access-check',
             start  = getFinish(),
             finish = getFinish(),
         }
@@ -1861,7 +1896,8 @@ local function isContinuedDoc(lastDoc, nextDoc)
         and nextDoc.type ~= 'doc.operator'
         and nextDoc.type ~= 'doc.comment'
         and nextDoc.type ~= 'doc.overload'
-        and nextDoc.type ~= 'doc.source' then
+        and nextDoc.type ~= 'doc.source'
+        and nextDoc.type ~= 'doc.secret' then
             return false
         end
     end
@@ -1964,6 +2000,20 @@ local function bindDoc(source, binded)
             end
             bindDocWithSource(doc, source)
             ok = true
+        elseif doc.type == 'doc.secret' then
+            if isParam then
+                goto CONTINUE
+            end
+            bindDocWithSource(doc, source)
+            ok = true
+        elseif doc.type == 'doc.secret-check'
+        or doc.type == 'doc.secret-access-check' then
+            if source.type == 'function' then
+                bindDocWithSource(doc, source)
+                ok = true
+            else
+                goto CONTINUE
+            end
         elseif doc.type == 'doc.type' then
             if source.type == 'function'
             or isParam
@@ -2120,8 +2170,18 @@ local function bindCommentsAndFields(binded)
     local class
     local comments = {}
     local source
+    local classInGroup
     for _, doc in ipairs(binded) do
         if doc.type == 'doc.class' then
+            classInGroup = doc
+        end
+    end
+    for _, doc in ipairs(binded) do
+        if doc.type == 'doc.secret' then
+            if classInGroup then
+                bindDocWithSource(doc, classInGroup)
+            end
+        elseif doc.type == 'doc.class' then
             -- 多个class连续写在一起，只有最后一个class可以绑定source
             if class then
                 class.bindSource = nil

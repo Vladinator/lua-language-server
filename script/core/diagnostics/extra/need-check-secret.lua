@@ -133,9 +133,62 @@ end
 -- @secret-access-check has inverted truthiness (canaccessvalue(x) being
 -- *true* means x is safe), handled by clearing on the opposite branch.
 
+-- match() below runs for every call expression the tracer's general
+-- sequential flow-narrowing visits -- not just calls inside explicit
+-- if/while conditions, virtually every call anywhere in the codebase --
+-- so it needs to answer "is this callee tagged @secret-check /
+-- @secret-access-check, directly or via a local-variable alias" without
+-- ever calling vm.compileNode/vm.getDefs on the callee: match() runs
+-- before the tracer's own lookIntoChild(action.node, ...) visits that
+-- same node (see the 'call' case in vm/tracer.lua), so calling
+-- vm.compileNode on it here would be re-entrant -- vm.compileNode caches
+-- a fresh empty node *before* populating it precisely to break cycles
+-- like this, so the re-entrant call gets back an incomplete node, and
+-- (confirmed by bisecting) that was corrupting unrelated method
+-- resolution elsewhere in the same compilation pass, regressing
+-- undefined-field's ability to detect an undefined method. Traced back
+-- to the original "secret values" commit that introduced this rule.
+--
+-- isDirectOrAliasedSecretCheck resolves the same "direct reference, a
+-- local variable assigned from one, or a global function declared as
+-- one" shapes vm.getDefs would, but only through vm.getVariableSets and
+-- vm.getGlobal/:getSets -- ID/name-keyed cache lookups, neither ever
+-- calls vm.compileNode -- so both are safe to call here. What this
+-- doesn't (and safely can't) resolve: secrecy of a field/upvalue read
+-- whose own resolution would itself require a fresh vm.compileNode.
+---@param calleeNode parser.object
+---@param kind       'doc.secret-check' | 'doc.secret-access-check'
+---@return boolean
+local function isDirectOrAliasedSecretCheck(calleeNode, kind)
+    if hasSecretDoc(calleeNode, kind) then
+        return true
+    end
+    local sets
+    if calleeNode.type == 'getglobal' then
+        local globalVar = vm.getGlobal('variable', calleeNode[1])
+        sets = globalVar and globalVar:getSets(guide.getUri(calleeNode))
+    else
+        sets = vm.getVariableSets(calleeNode)
+    end
+    if not sets then
+        return false
+    end
+    for _, set in ipairs(sets) do
+        local target = set
+        if set.value and set.value.type == 'function' then
+            target = set.value
+        end
+        if hasSecretDoc(target, kind) then
+            return true
+        end
+    end
+    return false
+end
+
 vm.registerCallNarrowing {
     match = function (calleeNode)
-        return vm.isSecretCheck(calleeNode) or vm.isSecretAccessCheck(calleeNode)
+        return isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-check')
+            or isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-access-check')
     end,
     narrow = function (tracer, action, topNode, outNode)
         if not (action.args and action.args[1] and tracer.getMap[action.args[1]]) then

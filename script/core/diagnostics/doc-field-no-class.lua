@@ -1,5 +1,15 @@
-local files   = require 'files'
-local lang    = require 'language'
+local files           = require 'files'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'The field must be defined after the class.'
+
+protoDiagnostic.register {
+    'doc-field-no-class',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 return function (uri, callback)
     local state = files.getState(uri)
@@ -33,7 +43,7 @@ return function (uri, callback)
             callback {
                 start   = doc.start,
                 finish  = doc.finish,
-                message = lang.script('DIAG_DOC_FIELD_NO_CLASS'),
+                message = MESSAGE,
             }
         end
         ::CONTINUE::

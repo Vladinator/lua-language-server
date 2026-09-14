@@ -59,7 +59,6 @@ m.register {
 
 m.register {
     'undefined-field',
-    'cast-type-mismatch',
     --'unnecessary-assert',
 } {
     group    = 'type-check',
@@ -70,7 +69,6 @@ m.register {
 m.register {
     'undefined-doc-param',
     'duplicate-doc-param',
-    'doc-field-no-class',
     'unknown-diag-code',
     'unknown-cast-variable',
     'unknown-operator',
@@ -78,14 +76,6 @@ m.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
-}
-
-m.register {
-    'codestyle-check'
-} {
-    group    = 'codestyle',
-    severity = 'Warning',
-    status   = 'None',
 }
 
 m.register {
@@ -130,7 +120,6 @@ m.register {
 
 m.register {
     'undefined-global',
-    'global-in-nil-env',
 } {
     group    = 'global',
     severity = 'Warning',
@@ -138,7 +127,6 @@ m.register {
 }
 
 m.register {
-    'close-non-object',
     'discard-returns',
 } {
     group    = 'strict',

@@ -1,7 +1,17 @@
-local files    = require 'files'
-local guide    = require 'parser.guide'
-local lang     = require 'language'
-local vm       = require 'vm'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Cannot close a value of this type. (Unless set `__close` meta method)'
+
+protoDiagnostic.register {
+    'close-non-object',
+} {
+    group    = 'strict',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 return function (uri, callback)
     local state = files.getState(uri)
@@ -20,7 +30,7 @@ return function (uri, callback)
             callback {
                 start   = source.start,
                 finish  = source.finish,
-                message = lang.script.DIAG_COSE_NON_OBJECT,
+                message = MESSAGE,
             }
             return
         end
@@ -33,7 +43,7 @@ return function (uri, callback)
             callback {
                 start   = source.value.start,
                 finish  = source.value.finish,
-                message = lang.script.DIAG_COSE_NON_OBJECT,
+                message = MESSAGE,
             }
         end
     end)

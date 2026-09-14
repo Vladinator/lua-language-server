@@ -4,8 +4,6 @@ DIAG_UNDEF_FIELD        =
 'Undefined field `{}`.'
 DIAG_UNDEF_FENV_CHILD   =
 'Undefined variable `{}` (inside module).'
-DIAG_GLOBAL_IN_NIL_ENV  =
-'Invalid global (`_ENV` is `nil`).'
 DIAG_GLOBAL_IN_NIL_FENV =
 'Invalid global (module environment is `nil`).'
 DIAG_UNUSED_LABEL       =
@@ -56,8 +54,6 @@ DIAG_SET_FOR_STATE      =
 'Assignment to for-state variable.'
 DIAG_REQUIRE_LIKE       =
 'You can treat `{}` as `require` by setting.'
-DIAG_COSE_NON_OBJECT    =
-'Cannot close a value of this type. (Unless set `__close` meta method)'
 DIAG_UNKNOWN            =
 'Cannot infer type.'
 DIAG_REDUNDANT_RETURN   =
@@ -66,8 +62,6 @@ DIAG_AWAIT_IN_SYNC      =
 'Async function can only be called in async function.'
 DIAG_DISCARD_RETURNS    =
 'The return values of this function cannot be discarded.'
-DIAG_DOC_FIELD_NO_CLASS               =
-'The field must be defined after the class.'
 DIAG_DUPLICATE_DOC_PARAM              =
 'Duplicate params `{}`.'
 DIAG_UNDEFINED_DOC_PARAM              =
@@ -80,8 +74,6 @@ DIAG_CAST_FIELD_TYPE                  =
 'This field is defined as type `{def}`. Cannot convert its type to `{ref}`.'
 DIAG_UNKNOWN_CAST_VARIABLE            =
 'Unknown type conversion variable `{}`.'
-DIAG_CAST_TYPE_MISMATCH               =
-'Cannot convert `{def}` to `{ref}`。'
 DIAG_UNKNOWN_OPERATOR                 =
 'Unknown operator `{}`.'
 MWS_NOT_SUPPORT         =

@@ -61,6 +61,11 @@ require 'core.diagnostics.undefined-env-child'
 require 'core.diagnostics.unbalanced-assignments'
 require 'core.diagnostics.newfield-call'
 require 'core.diagnostics.undefined-doc-class'
+require 'core.diagnostics.cast-type-mismatch'
+require 'core.diagnostics.global-in-nil-env'
+require 'core.diagnostics.doc-field-no-class'
+require 'core.diagnostics.codestyle-check'
+require 'core.diagnostics.close-non-object'
 
 local sleepRest = 0.0
 

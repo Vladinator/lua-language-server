@@ -420,8 +420,6 @@ config.docScriptPath                     =
 'The regular expression engine used for matching documentation scope names.'
 config.diagnostics['undefined-global']      =
 'Enable undefined global variable diagnostics.'
-config.diagnostics['global-in-nil-env']     =
-'Enable cannot use global variables （ `_ENV` is set to `nil`） diagnostics.'
 config.diagnostics['unused-label']          =
 'Enable unused label diagnostics.'
 config.diagnostics['unused-vararg']         =
@@ -434,18 +432,10 @@ config.diagnostics['await-in-sync']         =
 'Enable diagnostics for calls of asynchronous functions within a synchronous function.'
 config.diagnostics['cast-local-type']    =
 'Enable diagnostics for casts of local variables where the target type does not match the defined type.'
-config.diagnostics['cast-type-mismatch']    =
-'Enable diagnostics for casts where the target type does not match the initial type.'
 config.diagnostics['circular-doc-class']    =
 'Enable diagnostics for two classes inheriting from each other introducing a circular relation.'
-config.diagnostics['close-non-object']      =
-'Enable diagnostics for attempts to close a variable with a non-object.'
-config.diagnostics['codestyle-check']       =
-'Enable diagnostics for incorrectly styled lines.'
 config.diagnostics['discard-returns']       =
 'Enable diagnostics for calls of functions annotated with `---@nodiscard` where the return values are ignored.'
-config.diagnostics['doc-field-no-class']    =
-'Enable diagnostics to highlight a field annotation without a defining class annotation.'
 config.diagnostics['duplicate-doc-param']   =
 'Enable diagnostics for a duplicated param annotation name.'
 config.diagnostics['missing-parameter']     =

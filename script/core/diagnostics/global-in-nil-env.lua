@@ -1,6 +1,16 @@
-local files    = require 'files'
-local guide    = require 'parser.guide'
-local lang     = require 'language'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Invalid global (`_ENV` is `nil`).'
+
+protoDiagnostic.register {
+    'global-in-nil-env',
+} {
+    group    = 'global',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 return function (uri, callback)
     local state = files.getState(uri)
@@ -25,7 +35,7 @@ return function (uri, callback)
                 start   = source.start,
                 finish  = source.finish,
                 uri     = uri,
-                message = lang.script.DIAG_GLOBAL_IN_NIL_ENV,
+                message = MESSAGE,
                 related = {
                     {
                         start  = node.start,

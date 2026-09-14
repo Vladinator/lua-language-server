@@ -426,8 +426,6 @@ config.diagnostics['unused-label']          =
 'Enable unused label diagnostics.'
 config.diagnostics['unused-vararg']         =
 'Enable unused vararg diagnostics.'
-config.diagnostics['trailing-space']        =
-'Enable trailing space diagnostics.'
 config.diagnostics['redefined-local']       =
 'Enable redefined local variable diagnostics.'
 config.diagnostics['newfield-call']         =
@@ -450,22 +448,14 @@ config.diagnostics['codestyle-check']       =
 'Enable diagnostics for incorrectly styled lines.'
 config.diagnostics['count-down-loop']       =
 'Enable diagnostics for `for` loops which will never reach their max/limit because the loop is incrementing instead of decrementing.'
-config.diagnostics['different-requires']    =
-'Enable diagnostics for files which are required by two different paths.'
 config.diagnostics['discard-returns']       =
 'Enable diagnostics for calls of functions annotated with `---@nodiscard` where the return values are ignored.'
 config.diagnostics['doc-field-no-class']    =
 'Enable diagnostics to highlight a field annotation without a defining class annotation.'
 config.diagnostics['duplicate-doc-param']   =
 'Enable diagnostics for a duplicated param annotation name.'
-config.diagnostics['missing-global-doc']    =
-'Missing annotations for globals! Global functions must have a comment and annotations for all parameters and return values.'
-config.diagnostics['missing-local-export-doc'] =
-'Missing annotations for exported locals! Exported local functions must have a comment and annotations for all parameters and return values.'
 config.diagnostics['missing-parameter']     =
 'Enable diagnostics for function calls where the number of arguments is less than the number of annotated function parameters.'
-config.diagnostics['missing-return-value']  =
-'Enable diagnostics for return statements without values although the containing function declares returns.'
 config.diagnostics['unnecessary-assert']    =
 'Enable diagnostics for redundant assertions on truthy values.'
 config.diagnostics['no-unknown']            =

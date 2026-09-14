@@ -1,7 +1,3 @@
-DIAG_LINE_ONLY_SPACE    =
-'Line with spaces only.'
-DIAG_LINE_POST_SPACE    =
-'Line with trailing space.'
 DIAG_UNDEF_GLOBAL       =
 'Undefined global `{}`.'
 DIAG_UNDEF_FIELD        =
@@ -72,8 +68,6 @@ DIAG_COUNT_DOWN_LOOP    =
 'Do you mean `{}` ?'
 DIAG_UNKNOWN            =
 'Cannot infer type.'
-DIAG_DIFFERENT_REQUIRES =
-'The same file is required with different names.'
 DIAG_REDUNDANT_RETURN   =
 'Redundant return.'
 DIAG_AWAIT_IN_SYNC      =
@@ -88,18 +82,6 @@ DIAG_UNDEFINED_DOC_CLASS              =
 'Undefined class `{}`.'
 DIAG_UNDEFINED_DOC_PARAM              =
 'Undefined param `{}`.'
-DIAG_MISSING_GLOBAL_DOC_COMMENT       =
-'Missing comment for global function `{}`.'
-DIAG_MISSING_GLOBAL_DOC_PARAM         =
-'Missing @param annotation for parameter `{}` in global function `{}`.'
-DIAG_MISSING_GLOBAL_DOC_RETURN        =
-'Missing @return annotation at index `{}` in global function `{}`.'
-DIAG_MISSING_LOCAL_EXPORT_DOC_COMMENT  =
-'Missing comment for exported local function `{}`.'
-DIAG_MISSING_LOCAL_EXPORT_DOC_PARAM    =
-'Missing @param annotation for parameter `{}` in exported local function `{}`.'
-DIAG_MISSING_LOCAL_EXPORT_DOC_RETURN   =
-'Missing @return annotation at index `{}` in exported local function `{}`.'
 DIAG_UNKNOWN_DIAG_CODE                =
 'Unknown diagnostic code `{}`.'
 DIAG_CAST_LOCAL_TYPE                  =
@@ -110,10 +92,6 @@ DIAG_UNKNOWN_CAST_VARIABLE            =
 'Unknown type conversion variable `{}`.'
 DIAG_CAST_TYPE_MISMATCH               =
 'Cannot convert `{def}` to `{ref}`。'
-DIAG_MISSING_RETURN_VALUE             =
-'Annotations specify that at least {min} return value(s) are required, found {rmax} returned here instead.'
-DIAG_MISSING_RETURN_VALUE_RANGE       =
-'Annotations specify that at least {min} return value(s) are required, found {rmin} to {rmax} returned here instead.'
 DIAG_UNKNOWN_OPERATOR                 =
 'Unknown operator `{}`.'
 MWS_NOT_SUPPORT         =

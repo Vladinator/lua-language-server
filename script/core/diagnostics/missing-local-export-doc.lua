@@ -1,7 +1,20 @@
-local files   = require 'files'
-local guide   = require "parser.guide"
-local await   = require 'await'
-local helper  = require 'core.diagnostics.helper.missing-doc-helper'
+local files           = require 'files'
+local guide           = require "parser.guide"
+local await           = require 'await'
+local helper          = require 'core.diagnostics.helper.missing-doc-helper'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local COMMENT_MESSAGE = 'Missing comment for exported local function `%s`.'
+local PARAM_MESSAGE   = 'Missing @param annotation for parameter `%s` in exported local function `%s`.'
+local RETURN_MESSAGE  = 'Missing @return annotation at index `%d` in exported local function `%s`.'
+
+protoDiagnostic.register {
+    'missing-local-export-doc',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'None',
+}
 
 ---@async
 local function findSetField(ast, name, callback)
@@ -18,7 +31,7 @@ local function findSetField(ast, name, callback)
                 return
             end
             if funcPtr.type == 'local' and func.type == 'function' then
-                helper.CheckFunction(func, callback, 'DIAG_MISSING_LOCAL_EXPORT_DOC_COMMENT', 'DIAG_MISSING_LOCAL_EXPORT_DOC_PARAM', 'DIAG_MISSING_LOCAL_EXPORT_DOC_RETURN')
+                helper.CheckFunction(func, callback, COMMENT_MESSAGE, PARAM_MESSAGE, RETURN_MESSAGE)
             end
         end
     end)

@@ -1,8 +1,18 @@
-local files   = require 'files'
-local guide   = require 'parser.guide'
-local lang    = require 'language'
-local vm      = require 'vm'
-local rpath   = require 'workspace.require-path'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local rpath           = require 'workspace.require-path'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'The same file is required with different names.'
+
+protoDiagnostic.register {
+    'different-requires',
+} {
+    group    = 'ambiguity',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 return function (uri, callback)
     local state = files.getState(uri)
@@ -47,7 +57,7 @@ return function (uri, callback)
                         uri    = guide.getUri(other.source),
                     }
                 },
-                message = lang.script('DIAG_DIFFERENT_REQUIRES'),
+                message = MESSAGE,
             }
         end
     end)

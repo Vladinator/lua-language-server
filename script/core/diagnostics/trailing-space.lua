@@ -1,7 +1,18 @@
-local files = require 'files'
-local lang  = require 'language'
-local guide = require 'parser.guide'
-local await = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local ONLY_SPACE_MESSAGE = 'Line with spaces only.'
+local POST_SPACE_MESSAGE = 'Line with trailing space.'
+
+protoDiagnostic.register {
+    'trailing-space',
+} {
+    group    = 'unused',
+    severity = 'Hint',
+    status   = 'Opened',
+}
 
 ---@async
 return function (uri, callback)
@@ -39,13 +50,13 @@ return function (uri, callback)
             callback {
                 start   = firstPos,
                 finish  = lastPos,
-                message = lang.script.DIAG_LINE_ONLY_SPACE,
+                message = ONLY_SPACE_MESSAGE,
             }
         else
             callback {
                 start   = firstPos,
                 finish  = lastPos,
-                message = lang.script.DIAG_LINE_POST_SPACE,
+                message = POST_SPACE_MESSAGE,
             }
         end
         ::NEXT_LINE::

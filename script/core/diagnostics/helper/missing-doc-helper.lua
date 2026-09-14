@@ -1,5 +1,3 @@
-local lang    = require 'language'
-
 local m = {}
 
 local function findParam(docs, param)
@@ -36,7 +34,11 @@ local function findReturn(docs, index)
     return false
 end
 
-local function checkFunction(source, callback, commentId, paramId, returnId)
+-- commentMessage/paramMessage/returnMessage are Lua string:format templates:
+--   commentMessage: format(functionName)
+--   paramMessage:   format(argName, functionName)
+--   returnMessage:  format(index, functionName)
+local function checkFunction(source, callback, commentMessage, paramMessage, returnMessage)
     local functionName = source.parent[1]
     local argCount = source.args and #source.args or 0
 
@@ -44,7 +46,7 @@ local function checkFunction(source, callback, commentId, paramId, returnId)
         callback {
             start   = source.start,
             finish  = source.finish,
-            message = lang.script(commentId, functionName),
+            message = commentMessage:format(functionName),
         }
     end
 
@@ -57,7 +59,7 @@ local function checkFunction(source, callback, commentId, paramId, returnId)
                     callback {
                         start   = arg.start,
                         finish  = arg.finish,
-                        message = lang.script(paramId, argName, functionName),
+                        message = paramMessage:format(argName, functionName),
                     }
                 end
             end
@@ -71,7 +73,7 @@ local function checkFunction(source, callback, commentId, paramId, returnId)
                     callback {
                         start   = expr.start,
                         finish  = expr.finish,
-                        message = lang.script(returnId, index, functionName),
+                        message = returnMessage:format(index, functionName),
                     }
                 end
             end

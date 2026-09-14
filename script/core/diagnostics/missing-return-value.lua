@@ -1,8 +1,19 @@
-local files  = require 'files'
-local guide  = require 'parser.guide'
-local vm     = require 'vm'
-local lang   = require 'language'
-local await  = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE       = 'Annotations specify that at least %d return value(s) are required, found %d returned here instead.'
+local MESSAGE_RANGE = 'Annotations specify that at least %d return value(s) are required, found %d to %d returned here instead.'
+
+protoDiagnostic.register {
+    'missing-return-value',
+} {
+    group    = 'unbalanced',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -29,20 +40,13 @@ return function (uri, callback)
                     callback {
                         start   = ret.start,
                         finish  = ret.start + #'return',
-                        message = lang.script('DIAG_MISSING_RETURN_VALUE', {
-                            min  = min,
-                            rmax = rmax,
-                        }),
+                        message = MESSAGE:format(min, rmax),
                     }
                 else
                     callback {
                         start   = ret.start,
                         finish  = ret.start + #'return',
-                        message = lang.script('DIAG_MISSING_RETURN_VALUE_RANGE', {
-                            min  = min,
-                            rmin = rmin,
-                            rmax = rmax,
-                        }),
+                        message = MESSAGE_RANGE:format(min, rmin, rmax),
                     }
                 end
             end

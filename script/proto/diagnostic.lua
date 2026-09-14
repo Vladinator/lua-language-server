@@ -41,7 +41,6 @@ end
 m.register {
     'unused-label',
     'unused-vararg',
-    'trailing-space',
     'redundant-return',
 } {
     group    = 'unused',
@@ -53,7 +52,6 @@ m.register {
     'redundant-value',
     'unbalanced-assignments',
     'missing-parameter',
-    'missing-return-value',
 } {
     group    = 'unbalanced',
     severity = 'Warning',
@@ -62,7 +60,6 @@ m.register {
 
 m.register {
     'undefined-field',
-    'cast-local-type',
     'cast-type-mismatch',
     --'unnecessary-assert',
 } {
@@ -83,15 +80,6 @@ m.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
-}
-
-m.register {
-    'missing-global-doc',
-    'missing-local-export-doc',
-} {
-    group    = 'luadoc',
-    severity = 'Warning',
-    status   = 'None',
 }
 
 m.register {
@@ -121,7 +109,6 @@ m.register {
 m.register {
     'newfield-call',
     'count-down-loop',
-    'different-requires',
 } {
     group    = 'ambiguity',
     severity = 'Warning',

@@ -1,8 +1,17 @@
-local files = require 'files'
-local lang  = require 'language'
-local guide = require 'parser.guide'
-local vm    = require 'vm'
-local await = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local lang            = require 'language'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+protoDiagnostic.register {
+    'cast-local-type',
+} {
+    group    = 'type-check',
+    severity = 'Warning',
+    status   = 'Opened',
+}
 
 ---@async
 return function (uri, callback)

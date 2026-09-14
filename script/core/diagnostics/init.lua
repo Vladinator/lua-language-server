@@ -50,6 +50,12 @@ require 'core.diagnostics.newline-call'
 require 'core.diagnostics.need-check-nil'
 require 'core.diagnostics.empty-block'
 require 'core.diagnostics.duplicate-doc-alias'
+require 'core.diagnostics.different-requires'
+require 'core.diagnostics.cast-local-type'
+require 'core.diagnostics.trailing-space'
+require 'core.diagnostics.missing-return-value'
+require 'core.diagnostics.missing-local-export-doc'
+require 'core.diagnostics.missing-global-doc'
 
 local sleepRest = 0.0
 

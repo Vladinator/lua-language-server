@@ -22,7 +22,13 @@ local customPlugins = require 'core.diagnostics.custom-plugins'
 -- before that snapshot without risking a require cycle. getSeverity/
 -- getStatus/buildDiagList below fall back to proto.diagnostic's live
 -- registry instead, so registration order here doesn't matter.
-require 'core.diagnostics.need-check-secret'
+--
+-- Anything non-standard or specialized enough that it shouldn't need a
+-- line added and removed here doesn't belong in this list at all --
+-- drop it in core/diagnostics/extra/ instead (see need-check-secret.lua
+-- there), which custom-plugins.lua above scans and loads on its own,
+-- with no eager-require line to maintain: adding or deleting a file
+-- there is the whole story, no edits needed anywhere else.
 require 'core.diagnostics.deprecated'
 require 'core.diagnostics.code-after-break'
 require 'core.diagnostics.param-type-mismatch'

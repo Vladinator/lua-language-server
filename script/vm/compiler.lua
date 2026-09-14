@@ -1829,7 +1829,11 @@ local function bindReturnOfFunction(source, mfunc, index, args)
         if returnNode:isOptional() then
             vm.getNode(source):addOptional()
         end
-        if returnNode:hasSecret() or vm.isSecret(mfunc) then
+        -- vm.isSecret only exists when core/diagnostics/extra/need-check-secret.lua
+        -- is loaded (it's the only thing that defines it) -- guard so deleting
+        -- that file doesn't crash compilation, it just stops propagating
+        -- secrecy through this specific generic-return-type path.
+        if returnNode:hasSecret() or (vm.isSecret and vm.isSecret(mfunc)) then
             vm.getNode(source):addSecret()
         end
     end
@@ -2153,7 +2157,8 @@ local compilerSwitch = util.switch()
                             end
                             if hasGeneric then
                                 ---@cast sign -?
-                                vm.setNode(source, vm.createGeneric(rtn, sign, vm.isSecret(func)))
+                                -- see the vm.isSecret guard note further down this file
+                                vm.setNode(source, vm.createGeneric(rtn, sign, vm.isSecret and vm.isSecret(func)))
                             else
                                 vm.setNode(source, vm.compileNode(rtn))
                             end

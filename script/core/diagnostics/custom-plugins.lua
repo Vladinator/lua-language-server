@@ -1,22 +1,36 @@
--- Loads user-provided diagnostic plugin files from a directory configured
--- via `Lua.diagnostics.pluginsDir` (blank by default -- opt-in). Each
--- `.lua` file directly inside that directory is loaded and run exactly
+-- Loads diagnostic plugin files from a directory. Each is run exactly
 -- like a built-in core/diagnostics/*.lua plugin: it self-registers via
--- proto.diagnostic.register and returns a `function(uri, callback)` check
--- function -- see core/diagnostics/need-check-secret.lua for what a full
--- self-contained plugin looks like. The one convention a custom plugin
--- must follow that built-ins don't have to: its filename (without .lua)
--- must be the name it registers, since that's how this loader locates
--- the check function core/diagnostics/init.lua's check() needs to call
--- for it (a custom plugin isn't reachable via the normal
--- require('core.diagnostics.'..name) convention, since it doesn't live
--- under script/core/diagnostics/).
+-- proto.diagnostic.register and returns a `function(uri, callback)`
+-- check function -- see core/diagnostics/extra/need-check-secret.lua for
+-- what a full self-contained plugin looks like. The one convention a
+-- plugin loaded this way must follow that a plain core/diagnostics/*.lua
+-- file (wired in through init.lua's eager-require list) doesn't: its
+-- filename (without .lua) must be the name it registers, since that's
+-- how this loader locates the check function core/diagnostics/init.lua's
+-- check() needs to call for it later -- a plugin loaded from here isn't
+-- reachable via the normal require('core.diagnostics.'..name)
+-- convention.
 --
--- Mirrors plugin.lua's existing Lua.runtime.plugin loading (same
--- load/xpcall/trust-prompt shape, same trusted-paths file) rather than
--- introducing a second pattern for "run arbitrary Lua from a configured
--- path" -- loading a directory of files is still loading arbitrary code
--- the language server didn't ship with.
+-- Two directories are loaded this way, both through loadDirectoryFiles()
+-- below:
+--   - script/core/diagnostics/extra/ -- shipped with the server, always
+--     scanned once at load (see loadBuiltinExtras below, called at the
+--     bottom of this file), no trust prompt: it's part of the software
+--     the user already installed, same trust level as
+--     core/diagnostics/*.lua itself. A diagnostic here doesn't need a
+--     matching line in init.lua's eager-require list to be added or
+--     removed -- drop a file in, it's live on the next start; delete
+--     it, it's gone, no errors anywhere else. Use this for anything
+--     non-standard or specialized enough that it doesn't belong in the
+--     eager-require list, e.g. need-check-secret.lua's secret-value
+--     tracking.
+--   - Lua.diagnostics.pluginsDir -- user/workspace-configured, blank by
+--     default. Same self-contained-file contract, but since it can
+--     point anywhere on disk, loading from it goes through the same
+--     trust-prompt flow as plugin.lua's existing Lua.runtime.plugin
+--     (same load/xpcall shape, same trusted-paths file) rather than
+--     introducing a second pattern for "run arbitrary Lua from a
+--     configured path".
 
 local config = require 'config'
 local util   = require 'utility'
@@ -43,9 +57,10 @@ local registry = {}
 ---@type table<string, string> # diagnostic name -> the plugin file path that currently owns it
 local owner = {}
 
---- Look up the check function a custom plugin registered under `name`, if
---- any. core/diagnostics/init.lua's check() calls this before falling
---- back to require('core.diagnostics.'..name) for built-ins.
+--- Look up the check function a plugin loaded from either directory
+--- registered under `name`, if any. core/diagnostics/init.lua's check()
+--- calls this before falling back to require('core.diagnostics.'..name)
+--- for eager-required built-ins.
 ---@param name string
 ---@return core.diagnostics.checkFn?
 function m.get(name)
@@ -98,16 +113,12 @@ local function checkTrustLoad(dirPath)
     return true
 end
 
----@async
+--- Loads every `.lua` file directly inside `dirPath` (already confirmed
+--- to exist) as a diagnostic plugin. Purely synchronous file I/O -- no
+--- trust gating here, callers decide whether that's needed first.
 ---@param dirPath string absolute filesystem path to scan
-local function loadDirectory(dirPath)
+local function loadDirectoryFiles(dirPath)
     local dir = fs.path(dirPath)
-    if not fs.exists(dir) or not fs.is_directory(dir) then
-        return
-    end
-    if not checkTrustLoad(dirPath) then
-        return
-    end
     for path in fs.pairs(dir) do
         if not fs.is_directory(path) and path:extension() == '.lua' then
             local filePath = path:string()
@@ -116,38 +127,38 @@ local function loadDirectory(dirPath)
 
             local src, readErr = util.loadFile(filePath)
             if not src then
-                log.warn(('Custom diagnostic plugin: failed to read [%s]: %s'):format(filePath, readErr))
+                log.warn(('Diagnostic plugin: failed to read [%s]: %s'):format(filePath, readErr))
                 goto CONTINUE
             end
 
             local f, loadErr = load(src, '@' .. filePath, 't')
             if not f then
-                log.error(('Custom diagnostic plugin: failed to parse [%s]: %s'):format(filePath, loadErr))
+                log.error(('Diagnostic plugin: failed to parse [%s]: %s'):format(filePath, loadErr))
                 showError(dirPath, loadErr)
                 goto CONTINUE
             end
 
             local suc, result = xpcall(f, debug.traceback)
             if not suc then
-                log.error(('Custom diagnostic plugin: error running [%s]: %s'):format(filePath, result))
+                log.error(('Diagnostic plugin: error running [%s]: %s'):format(filePath, result))
                 showError(dirPath, result)
                 diag.diagnosticDatas[name] = before
                 goto CONTINUE
             end
 
             if before and owner[name] ~= filePath then
-                log.warn(('Custom diagnostic plugin [%s] registers %q, which collides with an existing diagnostic of the same name. Skipped.'):format(filePath, name))
+                log.warn(('Diagnostic plugin [%s] registers %q, which collides with an existing diagnostic of the same name. Skipped.'):format(filePath, name))
                 diag.diagnosticDatas[name] = before
                 goto CONTINUE
             end
 
             if not diag.diagnosticDatas[name] then
-                log.warn(('Custom diagnostic plugin [%s] must self-register as %q (its own filename) via proto.diagnostic.register -- see core/diagnostics/need-check-secret.lua for the expected shape.'):format(filePath, name))
+                log.warn(('Diagnostic plugin [%s] must self-register as %q (its own filename) via proto.diagnostic.register -- see core/diagnostics/extra/need-check-secret.lua for the expected shape.'):format(filePath, name))
                 goto CONTINUE
             end
 
             if type(result) ~= 'function' then
-                log.warn(('Custom diagnostic plugin [%s] must `return function(uri, callback) ... end`.'):format(filePath))
+                log.warn(('Diagnostic plugin [%s] must `return function(uri, callback) ... end`.'):format(filePath))
                 diag.diagnosticDatas[name] = before
                 goto CONTINUE
             end
@@ -159,6 +170,23 @@ local function loadDirectory(dirPath)
         end
     end
 end
+
+--- Scans script/core/diagnostics/extra/ -- shipped with the server, no
+--- trust prompt needed (same trust level as core/diagnostics/*.lua
+--- itself), no workspace-scoping (it's the same everywhere). Called once
+--- below, at this module's own load time -- the same timing
+--- core/diagnostics/init.lua's eager-require list already runs at, since
+--- that list requires this module before it requires any built-in.
+local function loadBuiltinExtras()
+    local dirPath = (ROOT / 'script' / 'core' / 'diagnostics' / 'extra'):string()
+    local dir = fs.path(dirPath)
+    if not fs.exists(dir) or not fs.is_directory(dir) then
+        return
+    end
+    loadDirectoryFiles(dirPath)
+end
+
+loadBuiltinExtras()
 
 ws.watch(function (ev, uri) ---@async
     if ev ~= 'startReload' then
@@ -173,7 +201,14 @@ ws.watch(function (ev, uri) ---@async
         return
     end
     await.call(function () ---@async
-        loadDirectory(dirPath)
+        local dir = fs.path(dirPath)
+        if not fs.exists(dir) or not fs.is_directory(dir) then
+            return
+        end
+        if not checkTrustLoad(dirPath) then
+            return
+        end
+        loadDirectoryFiles(dirPath)
     end)
 end)
 

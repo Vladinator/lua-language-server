@@ -1,8 +1,18 @@
-local files    = require 'files'
-local guide    = require 'parser.guide'
-local lang     = require 'language'
-local define   = require 'proto.define'
-local await    = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local define          = require 'proto.define'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Duplicate index `%s`.'
+
+protoDiagnostic.register {
+    'duplicate-index',
+} {
+    group    = 'duplicate',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -45,7 +55,7 @@ return function (uri, callback)
                         start   = def.start,
                         finish  = def.finish,
                         related = related,
-                        message = lang.script('DIAG_DUPLICATE_INDEX', name),
+                        message = MESSAGE:format(name),
                         level   = define.DiagnosticSeverity.Hint,
                         tags    = { define.DiagnosticTag.Unnecessary },
                     }
@@ -56,7 +66,7 @@ return function (uri, callback)
                         start   = def.start,
                         finish  = def.finish,
                         related = related,
-                        message = lang.script('DIAG_DUPLICATE_INDEX', name),
+                        message = MESSAGE:format(name),
                     }
                 end
             end

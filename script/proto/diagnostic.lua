@@ -53,10 +53,8 @@ m.register {
 m.register {
     'redundant-value',
     'unbalanced-assignments',
-    'redundant-parameter',
     'missing-parameter',
     'missing-return-value',
-    'redundant-return-value',
 } {
     group    = 'unbalanced',
     severity = 'Warning',
@@ -137,7 +135,6 @@ m.register {
 
 m.register {
     'await-in-sync',
-    'not-yieldable',
 } {
     group    = 'await',
     severity = 'Warning',
@@ -178,17 +175,8 @@ m.register {
 }
 
 m.register {
-    'duplicate-index',
-} {
-    group    = 'duplicate',
-    severity = 'Warning',
-    status   = 'Any',
-}
-
-m.register {
     'close-non-object',
     'discard-returns',
-    'invisible',
 } {
     group    = 'strict',
     severity = 'Warning',

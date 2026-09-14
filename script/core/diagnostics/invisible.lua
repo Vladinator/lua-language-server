@@ -1,8 +1,20 @@
-local files    = require 'files'
-local guide    = require 'parser.guide'
-local lang     = require 'language'
-local vm       = require 'vm.vm'
-local await    = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm.vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local PRIVATE_MESSAGE   = 'Field `%s` is private, it can only be accessed in class `%s`.'
+local PROTECTED_MESSAGE = 'Field `%s` is protected, it can only be accessed in class `%s` and its subclasses.'
+local PACKAGE_MESSAGE   = 'Field `%s` can only be accessed in same file `%s`.'
+
+protoDiagnostic.register {
+    'invisible',
+} {
+    group    = 'strict',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 local checkTypes = {'getfield', 'setfield', 'getmethod', 'setmethod', 'getindex', 'setindex'}
 
@@ -32,30 +44,21 @@ return function (uri, callback)
                         start   = child.start,
                         finish  = child.finish,
                         uri     = uri,
-                        message = lang.script('DIAG_INVISIBLE_PRIVATE', {
-                            field = key,
-                            class = vm.getParentClass(def):getName(),
-                        }),
+                        message = PRIVATE_MESSAGE:format(key, vm.getParentClass(def):getName()),
                     }
                 elseif vm.getVisibleType(def) == 'protected' then
                     callback {
                         start   = child.start,
                         finish  = child.finish,
                         uri     = uri,
-                        message = lang.script('DIAG_INVISIBLE_PROTECTED', {
-                            field = key,
-                            class = vm.getParentClass(def):getName(),
-                        }),
+                        message = PROTECTED_MESSAGE:format(key, vm.getParentClass(def):getName()),
                     }
                 elseif vm.getVisibleType(def) == 'package' then
                     callback {
                         start   = child.start,
                         finish  = child.finish,
                         uri     = uri,
-                        message = lang.script('DIAG_INVISIBLE_PACKAGE', {
-                            field = key,
-                            uri   = guide.getUri(def),
-                        }),
+                        message = PACKAGE_MESSAGE:format(key, guide.getUri(def)),
                     }
                 else
                     error('Unknown visible type: ' .. vm.getVisibleType(def))

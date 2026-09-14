@@ -20,16 +20,12 @@ DIAG_UNUSED_VARARG      =
 'Unused vararg.'
 DIAG_REDEFINED_LOCAL    =
 'Redefined local `{}`.'
-DIAG_DUPLICATE_INDEX    =
-'Duplicate index `{}`.'
 DIAG_DUPLICATE_METHOD   =
 'Duplicate method `{}`.'
 DIAG_PREVIOUS_CALL      =
 'Will be interpreted as `{}{}`. It may be necessary to add a `,`.'
 DIAG_PREFIELD_CALL      =
 'Will be interpreted as `{}{}`. It may be necessary to add a `,` or `;`.'
-DIAG_OVER_MAX_ARGS      =
-'This function expects a maximum of {:d} argument(s) but instead it is receiving {:d}.'
 DIAG_MISS_ARGS          =
 'This function requires {:d} argument(s) but instead it is receiving {:d}.'
 DIAG_UNNECESSARY_ASSERT =
@@ -86,8 +82,6 @@ DIAG_REDUNDANT_RETURN   =
 'Redundant return.'
 DIAG_AWAIT_IN_SYNC      =
 'Async function can only be called in async function.'
-DIAG_NOT_YIELDABLE      =
-'The {}th parameter of this function was not marked as yieldable, but an async function was passed in. (Use `---@param name async fun()` to mark as yieldable)'
 DIAG_DISCARD_RETURNS    =
 'The return values of this function cannot be discarded.'
 DIAG_NEED_CHECK_NIL     =
@@ -130,18 +124,8 @@ DIAG_MISSING_RETURN_VALUE             =
 'Annotations specify that at least {min} return value(s) are required, found {rmax} returned here instead.'
 DIAG_MISSING_RETURN_VALUE_RANGE       =
 'Annotations specify that at least {min} return value(s) are required, found {rmin} to {rmax} returned here instead.'
-DIAG_REDUNDANT_RETURN_VALUE           =
-'Annotations specify that at most {max} return value(s) are required, found {rmax} returned here instead.'
-DIAG_REDUNDANT_RETURN_VALUE_RANGE     =
-'Annotations specify that at most {max} return value(s) are required, found {rmin} to {rmax} returned here instead.'
 DIAG_UNKNOWN_OPERATOR                 =
 'Unknown operator `{}`.'
-DIAG_INVISIBLE_PRIVATE                =
-'Field `{field}` is private, it can only be accessed in class `{class}`.'
-DIAG_INVISIBLE_PROTECTED              =
-'Field `{field}` is protected, it can only be accessed in class `{class}` and its subclasses.'
-DIAG_INVISIBLE_PACKAGE                =
-'Field `{field}` can only be accessed in same file `{uri}`.'
 MWS_NOT_SUPPORT         =
 '{} does not support multi workspace for now, I may need to restart to support the new workspace ...'
 MWS_RESTART             =

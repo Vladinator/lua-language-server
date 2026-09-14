@@ -434,12 +434,8 @@ config.diagnostics['newline-call']          =
 'Enable newline call diagnostics. It\'s raised when a line starting with `(` is encountered, which is syntactically parsed as a function call on the previous line.'
 config.diagnostics['newfield-call']         =
 'Enable newfield call diagnostics. It is raised when the parenthesis of a function call appear on the following line when defining a field in a table.'
-config.diagnostics['redundant-parameter']   =
-'Enable redundant function parameter diagnostics.'
 config.diagnostics['undefined-env-child']   =
 'Enable undefined environment variable diagnostics. It\'s raised when `_ENV` table is set to a new literal table, but the used global variable is no longer present in the global environment.'
-config.diagnostics['duplicate-index']       =
-'Enable duplicate table index diagnostics.'
 config.diagnostics['empty-block']           =
 'Enable empty code block diagnostics.'
 config.diagnostics['redundant-value']       =
@@ -468,8 +464,6 @@ config.diagnostics['duplicate-doc-alias']   =
 'Enable diagnostics for a duplicated alias annotation name.'
 config.diagnostics['duplicate-doc-param']   =
 'Enable diagnostics for a duplicated param annotation name.'
-config.diagnostics['invisible']             =
-'Enable diagnostics for accesses to fields which are invisible.'
 config.diagnostics['missing-global-doc']    =
 'Missing annotations for globals! Global functions must have a comment and annotations for all parameters and return values.'
 config.diagnostics['missing-local-export-doc'] =
@@ -484,12 +478,8 @@ config.diagnostics['unnecessary-assert']    =
 'Enable diagnostics for redundant assertions on truthy values.'
 config.diagnostics['no-unknown']            =
 'Enable diagnostics for cases in which the type cannot be inferred.'
-config.diagnostics['not-yieldable']         =
-'Enable diagnostics for calls to `coroutine.yield()` when it is not permitted.'
 config.diagnostics['redundant-return']      =
 'Enable diagnostics for return statements which are not needed because the function would exit on its own.'
-config.diagnostics['redundant-return-value']=
-'Enable diagnostics for return statements which return an extra value which is not specified by a return annotation.'
 config.diagnostics['spell-check']           =
 'Enable diagnostics for typos in strings.'
 config.diagnostics['name-style-check']      =

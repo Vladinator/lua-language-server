@@ -1,8 +1,18 @@
-local files  = require 'files'
-local guide  = require 'parser.guide'
-local vm     = require 'vm'
-local lang   = require 'language'
-local await  = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'This function expects a maximum of %d argument(s) but instead it is receiving %d.'
+
+protoDiagnostic.register {
+    'redundant-parameter',
+} {
+    group    = 'unbalanced',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -39,7 +49,7 @@ return function (uri, callback)
             callback {
                 start   = lastArg.start,
                 finish  = lastArg.finish,
-                message = lang.script('DIAG_OVER_MAX_ARGS', funcArgs, callArgs)
+                message = MESSAGE:format(funcArgs, callArgs)
             }
         else
             for i = funcArgs + 1, #source.args do
@@ -47,7 +57,7 @@ return function (uri, callback)
                 callback {
                     start   = arg.start,
                     finish  = arg.finish,
-                    message = lang.script('DIAG_OVER_MAX_ARGS', funcArgs, callArgs)
+                    message = MESSAGE:format(funcArgs, callArgs)
                 }
             end
         end
@@ -66,7 +76,7 @@ return function (uri, callback)
             callback {
                 start   = arg.start,
                 finish  = arg.finish,
-                message = lang.script('DIAG_OVER_MAX_ARGS', funcArgs, myArgs),
+                message = MESSAGE:format(funcArgs, myArgs),
             }
         end
     end)

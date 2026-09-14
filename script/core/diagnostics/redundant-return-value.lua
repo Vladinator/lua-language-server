@@ -1,8 +1,19 @@
-local files  = require 'files'
-local guide  = require 'parser.guide'
-local vm     = require 'vm'
-local lang   = require 'language'
-local await  = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE       = 'Annotations specify that at most %d return value(s) are required, found %d returned here instead.'
+local MESSAGE_RANGE = 'Annotations specify that at most %d return value(s) are required, found %d to %d returned here instead.'
+
+protoDiagnostic.register {
+    'redundant-return-value',
+} {
+    group    = 'unbalanced',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -26,30 +37,20 @@ return function (uri, callback)
                     callback {
                         start   = ret[i].start,
                         finish  = ret[i].finish,
-                        message = lang.script('DIAG_REDUNDANT_RETURN_VALUE', {
-                            max  = max,
-                            rmax = i,
-                        }),
+                        message = MESSAGE:format(max, i),
                     }
                 end
                 if #ret == rmax then
                     callback {
                         start   = ret[#ret].start,
                         finish  = ret[#ret].finish,
-                        message = lang.script('DIAG_REDUNDANT_RETURN_VALUE', {
-                            max  = max,
-                            rmax = rmax,
-                        }),
+                        message = MESSAGE:format(max, rmax),
                     }
                 else
                     callback {
                         start   = ret[#ret].start,
                         finish  = ret[#ret].finish,
-                        message = lang.script('DIAG_REDUNDANT_RETURN_VALUE_RANGE', {
-                            max  = max,
-                            rmin = #ret,
-                            rmax = rmax,
-                        }),
+                        message = MESSAGE_RANGE:format(max, #ret, rmax),
                     }
                 end
             end

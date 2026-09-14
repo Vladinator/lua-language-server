@@ -40,6 +40,11 @@ require 'core.diagnostics.unreachable-code'
 require 'core.diagnostics.ambiguity-1'
 require 'core.diagnostics.missing-return'
 require 'core.diagnostics.global-element'
+require 'core.diagnostics.redundant-parameter'
+require 'core.diagnostics.invisible'
+require 'core.diagnostics.duplicate-index'
+require 'core.diagnostics.not-yieldable'
+require 'core.diagnostics.redundant-return-value'
 
 local sleepRest = 0.0
 

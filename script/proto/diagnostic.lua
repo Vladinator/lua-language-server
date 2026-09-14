@@ -42,7 +42,6 @@ end
 
 m.register {
     'undefined-field',
-    --'unnecessary-assert',
 } {
     group    = 'type-check',
     severity = 'Warning',

@@ -6,8 +6,6 @@ DIAG_GLOBAL_IN_NIL_FENV =
 'Invalid global (module environment is `nil`).'
 DIAG_DUPLICATE_METHOD   =
 'Duplicate method `{}`.'
-DIAG_UNNECESSARY_ASSERT =
-'Unnecessary assert: this expression is always truthy.'
 ASSIGN_CONST_GLOBAL     =
 'Cannot assign to <const> global variable `{}`.'
 

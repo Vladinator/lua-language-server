@@ -83,6 +83,9 @@ require 'core.diagnostics.redundant-return'
 require 'core.diagnostics.redundant-value'
 require 'core.diagnostics.undefined-doc-param'
 require 'core.diagnostics.unused-label'
+-- unnecessary-assert.lua is NOT required here: it's disabled upstream
+-- (09900e7daf) and its own protoDiagnostic.register call is commented
+-- out, so requiring it would have nothing to trigger.
 
 local sleepRest = 0.0
 

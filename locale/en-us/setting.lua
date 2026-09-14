@@ -430,26 +430,16 @@ config.diagnostics['circular-doc-class']    =
 'Enable diagnostics for two classes inheriting from each other introducing a circular relation.'
 config.diagnostics['discard-returns']       =
 'Enable diagnostics for calls of functions annotated with `---@nodiscard` where the return values are ignored.'
-config.diagnostics['missing-parameter']     =
-'Enable diagnostics for function calls where the number of arguments is less than the number of annotated function parameters.'
 config.diagnostics['unnecessary-assert']    =
 'Enable diagnostics for redundant assertions on truthy values.'
 config.diagnostics['redundant-return']      =
 'Enable diagnostics for return statements which are not needed because the function would exit on its own.'
-config.diagnostics['spell-check']           =
-'Enable diagnostics for typos in strings.'
-config.diagnostics['name-style-check']      =
-'Enable diagnostics for name style.'
 config.diagnostics['undefined-doc-param']   =
 'Enable diagnostics for cases in which a parameter annotation is given without declaring the parameter in the function definition.'
 config.diagnostics['undefined-field']       =
 'Enable diagnostics for cases in which an undefined field of a variable is read.'
 config.diagnostics['unknown-cast-variable'] =
 'Enable diagnostics for casts of undefined variables.'
-config.diagnostics['unknown-diag-code']     =
-'Enable diagnostics in cases in which an unknown diagnostics code is entered.'
-config.diagnostics['unknown-operator']      =
-'Enable diagnostics for unknown operators.'
 config.diagnostics['action-after-return'] =
 'Code after a `return` statement'
 config.diagnostics['ambiguous-syntax'] =

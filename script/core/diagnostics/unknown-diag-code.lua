@@ -1,6 +1,15 @@
 local files   = require 'files'
-local lang    = require 'language'
 local diag    = require 'proto.diagnostic'
+
+local MESSAGE = 'Unknown diagnostic code `%s`.'
+
+diag.register {
+    'unknown-diag-code',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 return function (uri, callback)
     local state = files.getState(uri)
@@ -21,7 +30,7 @@ return function (uri, callback)
                         callback {
                             start   = nameUnit.start,
                             finish  = nameUnit.finish,
-                            message = lang.script('DIAG_UNKNOWN_DIAG_CODE', code),
+                            message = MESSAGE:format(code),
                         }
                     end
                 end

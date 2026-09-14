@@ -1,6 +1,16 @@
-local files   = require 'files'
-local lang    = require 'language'
-local vm      = require 'vm'
+local files           = require 'files'
+local vm              = require 'vm'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Unknown operator `%s`.'
+
+protoDiagnostic.register {
+    'unknown-operator',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -24,7 +34,7 @@ return function (uri, callback)
                     callback {
                         start   = doc.op.start,
                         finish  = doc.op.finish,
-                        message = lang.script('DIAG_UNKNOWN_OPERATOR', opName)
+                        message = MESSAGE:format(opName)
                     }
                 end
             end

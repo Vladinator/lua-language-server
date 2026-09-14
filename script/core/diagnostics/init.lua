@@ -71,6 +71,11 @@ require 'core.diagnostics.undefined-global'
 require 'core.diagnostics.redefined-local'
 require 'core.diagnostics.duplicate-doc-param'
 require 'core.diagnostics.no-unknown'
+require 'core.diagnostics.spell-check'
+require 'core.diagnostics.name-style-check'
+require 'core.diagnostics.unknown-operator'
+require 'core.diagnostics.missing-parameter'
+require 'core.diagnostics.unknown-diag-code'
 
 local sleepRest = 0.0
 

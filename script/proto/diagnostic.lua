@@ -49,7 +49,6 @@ m.register {
 
 m.register {
     'redundant-value',
-    'missing-parameter',
 } {
     group    = 'unbalanced',
     severity = 'Warning',
@@ -67,29 +66,11 @@ m.register {
 
 m.register {
     'undefined-doc-param',
-    'unknown-diag-code',
     'unknown-cast-variable',
-    'unknown-operator',
 } {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
-}
-
-m.register {
-    'spell-check'
-} {
-    group    = 'codestyle',
-    severity = 'Information',
-    status   = 'None',
-}
-
-m.register {
-    'name-style-check'
-} {
-    group    = 'codestyle',
-    severity = 'Warning',
-    status   = 'None',
 }
 
 m.register {
@@ -155,13 +136,19 @@ m.getGroups = util.cacheReturn(function (name)
     return groups
 end)
 
+-- Diagnostics that self-register from within their own file (see
+-- core/diagnostics/init.lua) aren't necessarily required yet the first
+-- time this is called -- config/template.lua reaches it very early,
+-- transitively from `require 'files'`, well before core.diagnostics'
+-- eager-require list runs. So only the syntax-error names (read once
+-- from the parser source files below) are cached; the diagnostic names
+-- themselves come from proto.diagnostic's live diagnosticDatas table
+-- on every call, same fix as core/diagnostics/init.lua's getSeverity/
+-- getStatus/buildDiagList.
 ---@return table<string, true>
 function m.getDiagAndErrNameMap()
-    if not m._diagAndErrNames then
+    if not m._errNames then
         local names = {}
-        for name in pairs(m.getDefaultSeverity()) do
-            names[name] = true
-        end
         for _, fileName in ipairs {'parser.compile', 'parser.luadoc'} do
             local path = package.searchpath(fileName, package.path)
             if path then
@@ -178,10 +165,16 @@ function m.getDiagAndErrNameMap()
                 end
             end
         end
-        table.sort(names)
-        m._diagAndErrNames = names
+        m._errNames = names
     end
-    return m._diagAndErrNames
+    local names = {}
+    for name in pairs(m._errNames) do
+        names[name] = true
+    end
+    for name in pairs(m.getDefaultSeverity()) do
+        names[name] = true
+    end
+    return names
 end
 
 return m

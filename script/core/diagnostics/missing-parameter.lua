@@ -1,8 +1,18 @@
-local files  = require 'files'
-local guide  = require 'parser.guide'
-local vm     = require 'vm'
-local lang   = require 'language'
-local await  = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'This function requires %d argument(s) but instead it is receiving %d.'
+
+protoDiagnostic.register {
+    'missing-parameter',
+} {
+    group    = 'unbalanced',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -26,7 +36,7 @@ return function (uri, callback)
         callback {
             start  = source.start,
             finish = source.finish,
-            message = lang.script('DIAG_MISS_ARGS', funcArgs, callArgs),
+            message = MESSAGE:format(funcArgs, callArgs),
         }
     end)
 end

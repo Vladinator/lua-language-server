@@ -1,8 +1,16 @@
-local files     = require 'files'
-local converter = require 'proto.converter'
-local log       = require 'log'
-local nameStyle = require 'provider.name-style'
+local files           = require 'files'
+local converter       = require 'proto.converter'
+local log             = require 'log'
+local nameStyle       = require 'provider.name-style'
+local protoDiagnostic = require 'proto.diagnostic'
 
+protoDiagnostic.register {
+    'name-style-check',
+} {
+    group    = 'codestyle',
+    severity = 'Warning',
+    status   = 'None',
+}
 
 ---@async
 return function (uri, callback)

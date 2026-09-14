@@ -1,8 +1,16 @@
-local files     = require 'files'
-local converter = require 'proto.converter'
-local log       = require 'log'
-local spell     = require 'provider.spell'
+local files           = require 'files'
+local converter       = require 'proto.converter'
+local log             = require 'log'
+local spell           = require 'provider.spell'
+local protoDiagnostic = require 'proto.diagnostic'
 
+protoDiagnostic.register {
+    'spell-check',
+} {
+    group    = 'codestyle',
+    severity = 'Information',
+    status   = 'None',
+}
 
 ---@async
 return function(uri, callback)

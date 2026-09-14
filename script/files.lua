@@ -1,6 +1,5 @@
 local platform = require 'bee.platform'
 local fs       = require 'bee.filesystem'
-local sys      = require 'bee.sys'
 local config   = require 'config'
 local glob     = require 'glob'
 local furi     = require 'file-uri'
@@ -60,21 +59,6 @@ m.reset()
 local fileID = util.counter()
 
 local uriMap = {}
-
----@param path fs.path
----@return fs.path
-local function getRealParent(path)
-    local parent = path:parent_path()
-    if parent:string():gsub('^%w+:', string.lower)
-    == path  :string():gsub('^%w+:', string.lower) then
-        return path
-    end
-    local res = sys.fullpath(path)
-    if not res then
-        return path
-    end
-    return getRealParent(parent) / res:filename()
-end
 
 -- 获取文件的真实uri，但不穿透软链接
 ---@param uri uri
@@ -695,10 +679,12 @@ function m.compileState(uri)
 end
 
 ---@class parser.state.comm
----@field type   string
----@field start  integer
----@field finish integer
----@field text   string
+---@field type    string
+---@field start   integer
+---@field finish  integer
+---@field text    string
+---@field virtual? boolean
+---@field mark?   string -- only set for 'comment.long' (see parser/compile.lua's skipComment)
 
 ---@class parser.state
 ---@field diffInfo? table[]
@@ -730,17 +716,6 @@ end
 function m.getFile(uri)
     return m.fileMap[uri]
         or m.dllMap[uri]
-end
-
----@param text string
-local function isNameChar(text)
-    if text:match '^[\xC2-\xFD][\x80-\xBF]*$' then
-        return true
-    end
-    if text:match '^[%w_]+$' then
-        return true
-    end
-    return false
 end
 
 --- 将应用差异前的offset转换为应用差异后的offset

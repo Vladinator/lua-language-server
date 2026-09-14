@@ -145,29 +145,31 @@ local function makeSignatures(text, call, pos)
         end
         local uri   = guide.getUri(call)
         local state = files.getState(uri)
-        for i, arg in ipairs(args) do
-            local startOffset = guide.positionToOffset(state, arg.start)
-            startOffset =  lookback.findTargetSymbol(text, startOffset, '(')
-                        or lookback.findTargetSymbol(text, startOffset, ',')
-                        or startOffset
-            local startPos = guide.offsetToPosition(state, startOffset)
-            if startPos > pos then
-                index = i - 1
-                break
+        if state then
+            for i, arg in ipairs(args) do
+                local startOffset = guide.positionToOffset(state, arg.start)
+                startOffset =  lookback.findTargetSymbol(text, startOffset, '(')
+                            or lookback.findTargetSymbol(text, startOffset, ',')
+                            or startOffset
+                local startPos = guide.offsetToPosition(state, startOffset)
+                if startPos > pos then
+                    index = i - 1
+                    break
+                end
+                if pos <= arg.finish then
+                    index = i
+                    break
+                end
             end
-            if pos <= arg.finish then
-                index = i
-                break
-            end
-        end
-        if not index then
-            local offset     = guide.positionToOffset(state, pos)
-            local backSymbol = lookback.findSymbol(text, offset)
-            if backSymbol == ','
-            or backSymbol == '(' then
-                index = #args + 1
-            else
-                index = #args
+            if not index then
+                local offset     = guide.positionToOffset(state, pos)
+                local backSymbol = lookback.findSymbol(text, offset)
+                if backSymbol == ','
+                or backSymbol == '(' then
+                    index = #args + 1
+                else
+                    index = #args
+                end
             end
         end
     end

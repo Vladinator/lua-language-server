@@ -1,5 +1,4 @@
 local parser  = require 'parser'
-local config  = require 'config'
 local util    = require 'utility'
 
 rawset(_G, 'TEST', true)
@@ -12,11 +11,6 @@ function TEST(script)
 end
 
 local function startCollectDiagTimes()
-    for name in pairs(config.get(nil, 'Lua.diagnostics.neededFileStatus')) do
-        if name ~= 'no-implicit-any' then
-            --config.get(nil, 'Lua.diagnostics.neededFileStatus')[name] = 'Any'
-        end
-    end
     DIAGTIMES = {}
 end
 

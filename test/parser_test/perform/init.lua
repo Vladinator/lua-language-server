@@ -31,8 +31,10 @@ local function performTest()
     for path in scanDirectory(targetPath) do
         if path:extension() == '.lua' then
             local buf = utility.loadFile(path:string())
-            files[path] = buf
-            size = size + #buf
+            if buf then
+                files[path] = buf
+                size = size + #buf
+            end
         end
     end
     local clock = os.clock()

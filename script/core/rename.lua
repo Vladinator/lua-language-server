@@ -58,18 +58,6 @@ local function isValidFunctionName(uri, str)
         and isValidName(uri, trim(str:sub(offset+1)))
 end
 
-local function isFunctionGlobalName(source)
-    local parent = source.parent
-    if parent.type ~= 'setglobal' then
-        return false
-    end
-    local value = parent.value
-    if not value.type ~= 'function' then
-        return false
-    end
-    return value.start <= parent.start
-end
-
 local function renameLocal(source, newname, callback)
     if isValidName(guide.getUri(source), newname) then
         callback(source, source.start, source.finish, newname)

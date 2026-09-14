@@ -169,7 +169,7 @@ end
 
 export.makeDocObject['doc.class'] = function(source, obj, has_seen)
     local extends = source.extends or source.value --doc.class or other
-    local field = source.field or source.method 
+    local field = source.field or source.method
     obj.name = type(field) == 'table' and field[1] or nil
     obj.file = export.getLocalPath(guide.getUri(source))
     obj.extends = extends and export.documentObject(extends, has_seen)

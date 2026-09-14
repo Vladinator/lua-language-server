@@ -13,6 +13,10 @@ config.set(nil, 'Lua.diagnostics.neededFileStatus', {
 })
 
 ---@diagnostic disable: await-in-sync
+-- doProjects is a manual, ad-hoc benchmarking helper -- see the two
+-- commented-out example calls below, meant to be uncommented and pointed
+-- at a large local Lua project on demand, not called from anywhere else
+---@diagnostic disable-next-line: unused-function
 local function doProjects(pathname)
     local path = fs.path(pathname)
     if not fs.exists(path) then

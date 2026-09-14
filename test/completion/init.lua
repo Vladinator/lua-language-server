@@ -55,6 +55,7 @@ function TEST(script)
 
         files.setText(TESTURI, newScript)
         local state = files.getState(TESTURI)
+        assert(state)
         local inputPos = catched['?'][1][2]
         if ContinueTyping then
             local triggerCharacter = script:sub(inputPos - 1, inputPos - 1)

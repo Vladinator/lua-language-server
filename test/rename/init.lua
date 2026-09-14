@@ -7,6 +7,7 @@ local config = require 'config'
 
 local function replace(text, positions)
     local state = files.getState(TESTURI)
+    assert(state)
     local buf = {}
     table.sort(positions, function (a, b)
         return a.start < b.start
@@ -28,6 +29,7 @@ function TEST(oldName, newName)
         return function (expectScript)
             files.setText(TESTURI, oldScript)
             local state = files.getState(TESTURI)
+            assert(state)
             local offset = oldScript:find('[^%w_]'..oldName..'[^%w_]')
             assert(offset)
             local position = guide.offsetToPosition(state, offset)

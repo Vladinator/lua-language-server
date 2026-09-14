@@ -1064,6 +1064,12 @@ function m.getKeyName(obj)
     or     tp == 'tableindex' then
         return m.getKeyNameOfLiteral(obj.index)
     elseif tp == 'tableexp' then
+        -- Genuinely returns the raw integer here (not a string) -- callers
+        -- that key a table by position (e.g. vm/compiler.lua's field
+        -- lookups) rely on getting the same integer back that indexed the
+        -- table literal in the first place; stringifying it here broke
+        -- those lookups (`t["1"]` is not `t[1]`) when tried.
+        ---@diagnostic disable-next-line: return-type-mismatch
         return obj.tindex
     elseif tp == 'field'
     or     tp == 'method' then

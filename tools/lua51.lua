@@ -193,7 +193,7 @@ function lua51.module(name, ...)
         local err
         mod, err = findTable(name)
         if not mod then
-            error('name conflict for module ' .. err)
+            error('name conflict for module ' .. tostring(err))
         end
         loaded[name] = mod
     end
@@ -327,6 +327,8 @@ function lua51.math.frexp(x)
     end
     local m = tonumber(mstr)
     local e = tonumber(estr)
+    assert(m)
+    assert(e)
     if m == 0 then
         return m, e
     end

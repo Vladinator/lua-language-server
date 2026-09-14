@@ -6,14 +6,6 @@ local selector = select.create()
 local SELECT_READ <const> = select.SELECT_READ
 local SELECT_WRITE <const> = select.SELECT_WRITE
 
-local function fd_set_read(s)
-    if s._flags & SELECT_READ ~= 0 then
-        return
-    end
-    s._flags = s._flags | SELECT_READ
-    selector:event_mod(s._fd, s._flags)
-end
-
 local function fd_clr_read(s)
     if s._flags & SELECT_READ == 0 then
         return

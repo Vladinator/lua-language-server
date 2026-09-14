@@ -1565,6 +1565,7 @@ local function trySymbol(state, position, results)
     if not symbol then
         return nil
     end
+    assert(start)
     if guide.isInString(state.ast, position) then
         return nil
     end

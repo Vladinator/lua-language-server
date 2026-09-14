@@ -29,7 +29,7 @@ elseif platform.os == 'linux' then
         local wrapper = lm.workdir .. '/zig-cc-wrapper.sh'
         lm.cc = wrapper
         lm.ar = 'zig ar'
-        
+
         if     lm.platform == nil then
             -- Auto-detect and set target
         elseif lm.platform == "linux-x64" then

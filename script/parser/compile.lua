@@ -2088,6 +2088,9 @@ local function parseTable()
         skipSpace()
         tbl.bfinish = getPosition(Tokens[Index], 'left')
         break
+        -- unreachable by fallthrough, but still a valid `goto CONTINUE`
+        -- target from earlier in the loop body above
+        ---@diagnostic disable-next-line: code-after-break
         ::CONTINUE::
     end
     tbl.finish = lastRightPosition()

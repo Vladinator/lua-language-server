@@ -759,7 +759,7 @@ cpp.parse_context = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(cont
             end
         end,
         close = function ()
-            
+
         end
     }
 

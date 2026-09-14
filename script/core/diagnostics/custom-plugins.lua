@@ -56,7 +56,7 @@ local m = {}
 -- call arguments a function doesn't declare params for, so this is
 -- harmless, but the alias includes it to match the real call site
 -- instead of just narrowly matching what plugins happen to read.
----@alias core.diagnostics.checkFn async fun(uri: uri, callback: fun(result: any), name?: string)
+---@alias core.diagnostics.checkFn async fun(uri: uri, callback: async fun(result: any), name?: string)
 
 ---@type table<string, core.diagnostics.checkFn>
 local registry = {}

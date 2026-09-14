@@ -5,11 +5,6 @@ local Symbol = m.S',{}[]*?/\\'
 local Char   = 1 - Symbol
 local Path   = (1 - m.S[[\/*?"<>|]])^1 * Slash
 local NoWord = #(m.P(-1) + Symbol)
-local function whatHappened()
-    return m.Cmt(m.P(1)^1, function (...)
-        print(...)
-    end)
-end
 
 local mt = {}
 mt.__index = mt

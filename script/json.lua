@@ -324,6 +324,7 @@ local function expect_byte(c)
     if not pos then
         decode_error(string_format("expected '%s'", string_sub(c, #c)))
     end
+    assert(pos)
     statusPos = pos
 end
 
@@ -338,6 +339,7 @@ end
 local function decode_string()
     local has_unicode_escape = false
     local has_escape = false
+    ---@type integer?
     local i = statusPos + 1
     while true do
         i = string_find(statusBuf, '[%z\1-\31\\"]', i)

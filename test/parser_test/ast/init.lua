@@ -4,38 +4,6 @@ local utility = require 'utility'
 
 EXISTS = {}
 
-local function eq(a, b)
-    local tp1, tp2 = type(a), type(b)
-    if tp1 ~= tp2 then
-        return false
-    end
-    if a == '<LOOP>' and tp1 == 'table' then
-        return true
-    end
-    if b == '<LOOP>' and tp2 == 'table' then
-        return true
-    end
-    if tp1 == 'table' then
-        local checked = {}
-        for k in pairs(a) do
-            if not eq(a[k], b[k]) then
-                return false
-            end
-            checked[k] = true
-        end
-        for k in pairs(b) do
-            if not checked[k] then
-                return false
-            end
-        end
-        return true
-    end
-    if tp1 == 'number' then
-        return ('%q'):format(a) == ('%q'):format(b)
-    end
-    return a == b
-end
-
 ---@type {[string]: integer, [integer]: string}
 local sortList = {
     'specials',
@@ -143,6 +111,7 @@ local function autoFix(myBuf, targetBuf)
     local fileBuf = utility.loadFile(filename)
     assert(fileBuf)
     local pos = fileBuf:find(targetBuf, 1, true)
+    assert(pos)
     local newFileBuf = fileBuf:sub(1, pos-1) .. myBuf .. fileBuf:sub(pos + #targetBuf)
     utility.saveFile(filename, newFileBuf)
 end

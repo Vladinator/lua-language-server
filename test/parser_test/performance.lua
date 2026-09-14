@@ -40,8 +40,10 @@ local files = {}
 local size = 0
 for _, fileName in ipairs(fileNames) do
     local file = util.loadFile(fileName)
-    files[#files+1] = file
-    size = size + #file
+    if file then
+        files[#files+1] = file
+        size = size + #file
+    end
 end
 
 print(('Loaded %d files, total size = %.3f KB'):format(#files, size / 1000))

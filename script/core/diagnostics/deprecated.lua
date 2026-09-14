@@ -1,11 +1,35 @@
-local files    = require 'files'
-local vm       = require 'vm'
-local lang     = require 'language'
-local guide    = require 'parser.guide'
-local config   = require 'config'
-local define   = require 'proto.define'
-local await    = require 'await'
-local util     = require 'utility'
+local files           = require 'files'
+local vm              = require 'vm'
+local lang            = require 'language'
+local guide           = require 'parser.guide'
+local config          = require 'config'
+local define          = require 'proto.define'
+local await           = require 'await'
+local util             = require 'utility'
+local protoDiagnostic = require 'proto.diagnostic'
+local docTags         = require 'parser.docTags'
+
+local MESSAGE = 'Deprecated.'
+
+protoDiagnostic.register {
+    'deprecated',
+} {
+    group    = 'strict',
+    severity = 'Warning',
+    status   = 'Any',
+}
+
+-- The @deprecated LuaDoc tag itself (a bare marker, like @secret). Its
+-- *recognition* by vm.getDeprecated stays shared in vm/doc.lua, since
+-- that function also recognizes the unrelated, more widely-used @version
+-- tag (semantic-tokens.lua, provider.lua and guide.lua all read it too) --
+-- only the tag's parsing and binding are exclusive to this diagnostic.
+
+docTags.registerMarkerTag('deprecated', 'doc.deprecated')
+
+docTags.registerBindRule('doc.deprecated', function (doc, source, isParam)
+    return not (source.type == 'function' or isParam)
+end)
 
 local types = {'getglobal', 'getfield', 'getindex', 'getmethod'}
 ---@async
@@ -41,7 +65,7 @@ return function (uri, callback)
 
         await.delay()
 
-        local message = lang.script.DIAG_DEPRECATED
+        local message = MESSAGE
         local versions
         if deprecated.type == 'doc.version' then
             local validVersions = vm.getValidVersions(deprecated)

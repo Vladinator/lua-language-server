@@ -218,7 +218,6 @@ m.register {
 
 m.register {
     'close-non-object',
-    'deprecated',
     'discard-returns',
     'invisible',
 } {

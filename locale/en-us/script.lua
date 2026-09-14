@@ -93,8 +93,6 @@ DIAG_COUNT_DOWN_LOOP    =
 'Do you mean `{}` ?'
 DIAG_UNKNOWN            =
 'Cannot infer type.'
-DIAG_DEPRECATED         =
-'Deprecated.'
 DIAG_DIFFERENT_REQUIRES =
 'The same file is required with different names.'
 DIAG_REDUNDANT_RETURN   =

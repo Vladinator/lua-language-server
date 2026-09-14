@@ -1358,14 +1358,6 @@ local docSwitch = util.switch()
         result.finish = result.overload.finish
         return result
     end)
-    : case 'deprecated'
-    : call(function ()
-        return {
-            type   = 'doc.deprecated',
-            start  = getFinish(),
-            finish = getFinish(),
-        }
-    end)
     : case 'meta'
     : call(function ()
         local meta = {
@@ -1972,7 +1964,6 @@ local function bindDoc(source, binded)
             goto CONTINUE
         end
         if doc.type == 'doc.class'
-        or doc.type == 'doc.deprecated'
         or doc.type == 'doc.version'
         or doc.type == 'doc.module'
         or doc.type == 'doc.source'

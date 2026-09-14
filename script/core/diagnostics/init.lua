@@ -22,6 +22,7 @@ local diagd  = require 'proto.diagnostic'
 -- getStatus/buildDiagList below fall back to proto.diagnostic's live
 -- registry instead, so registration order here doesn't matter.
 require 'core.diagnostics.need-check-secret'
+require 'core.diagnostics.deprecated'
 
 local sleepRest = 0.0
 

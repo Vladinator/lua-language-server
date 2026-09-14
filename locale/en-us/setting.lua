@@ -470,8 +470,6 @@ config.diagnostics['codestyle-check']       =
 'Enable diagnostics for incorrectly styled lines.'
 config.diagnostics['count-down-loop']       =
 'Enable diagnostics for `for` loops which will never reach their max/limit because the loop is incrementing instead of decrementing.'
-config.diagnostics['deprecated']            =
-'Enable diagnostics to highlight deprecated API.'
 config.diagnostics['different-requires']    =
 'Enable diagnostics for files which are required by two different paths.'
 config.diagnostics['discard-returns']       =

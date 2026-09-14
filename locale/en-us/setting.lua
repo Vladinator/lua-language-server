@@ -418,28 +418,14 @@ config.doc.regengine.lua                 =
 'Full Lua-style regular expressions.'
 config.docScriptPath                     =
 'The regular expression engine used for matching documentation scope names.'
-config.diagnostics['unused-label']          =
-'Enable unused label diagnostics.'
-config.diagnostics['redundant-value']       =
-'Enable the redundant values assigned diagnostics. It\'s raised during assignment operation, when the number of values is higher than the number of objects being assigned.'
-config.diagnostics['await-in-sync']         =
-'Enable diagnostics for calls of asynchronous functions within a synchronous function.'
 config.diagnostics['cast-local-type']    =
 'Enable diagnostics for casts of local variables where the target type does not match the defined type.'
 config.diagnostics['circular-doc-class']    =
 'Enable diagnostics for two classes inheriting from each other introducing a circular relation.'
-config.diagnostics['discard-returns']       =
-'Enable diagnostics for calls of functions annotated with `---@nodiscard` where the return values are ignored.'
 config.diagnostics['unnecessary-assert']    =
 'Enable diagnostics for redundant assertions on truthy values.'
-config.diagnostics['redundant-return']      =
-'Enable diagnostics for return statements which are not needed because the function would exit on its own.'
-config.diagnostics['undefined-doc-param']   =
-'Enable diagnostics for cases in which a parameter annotation is given without declaring the parameter in the function definition.'
 config.diagnostics['undefined-field']       =
 'Enable diagnostics for cases in which an undefined field of a variable is read.'
-config.diagnostics['unknown-cast-variable'] =
-'Enable diagnostics for casts of undefined variables.'
 config.diagnostics['action-after-return'] =
 'Code after a `return` statement'
 config.diagnostics['ambiguous-syntax'] =

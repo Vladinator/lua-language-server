@@ -39,54 +39,12 @@ function m.register(names)
 end
 
 m.register {
-    'unused-label',
-    'redundant-return',
-} {
-    group    = 'unused',
-    severity = 'Hint',
-    status   = 'Opened',
-}
-
-m.register {
-    'redundant-value',
-} {
-    group    = 'unbalanced',
-    severity = 'Warning',
-    status   = 'Any',
-}
-
-m.register {
     'undefined-field',
     --'unnecessary-assert',
 } {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
-}
-
-m.register {
-    'undefined-doc-param',
-    'unknown-cast-variable',
-} {
-    group    = 'luadoc',
-    severity = 'Warning',
-    status   = 'Any',
-}
-
-m.register {
-    'await-in-sync',
-} {
-    group    = 'await',
-    severity = 'Warning',
-    status   = 'None',
-}
-
-m.register {
-    'discard-returns',
-} {
-    group    = 'strict',
-    severity = 'Warning',
-    status   = 'Any',
 }
 
 ---@return table<string, DiagnosticSeverity>

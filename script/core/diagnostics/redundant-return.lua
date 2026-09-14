@@ -1,7 +1,17 @@
-local files   = require 'files'
-local guide   = require 'parser.guide'
-local lang    = require 'language'
-local define  = require 'proto.define'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local define          = require 'proto.define'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Redundant return.'
+
+protoDiagnostic.register {
+    'redundant-return',
+} {
+    group    = 'unused',
+    severity = 'Hint',
+    status   = 'Opened',
+}
 
 -- reports 'return' without any return values at the end of functions
 return function (uri, callback)
@@ -21,7 +31,7 @@ return function (uri, callback)
             start   = source.start,
             finish  = source.finish,
             tags    = { define.DiagnosticTag.Unnecessary },
-            message = lang.script.DIAG_REDUNDANT_RETURN,
+            message = MESSAGE,
         }
     end)
 end

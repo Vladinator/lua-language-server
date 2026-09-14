@@ -1,5 +1,15 @@
-local files   = require 'files'
-local lang    = require 'language'
+local files           = require 'files'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Undefined param `%s`.'
+
+protoDiagnostic.register {
+    'undefined-doc-param',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 return function (uri, callback)
     local state = files.getState(uri)
@@ -17,7 +27,7 @@ return function (uri, callback)
             callback {
                 start   = doc.param.start,
                 finish  = doc.param.finish,
-                message = lang.script('DIAG_UNDEFINED_DOC_PARAM', doc.param[1])
+                message = MESSAGE:format(doc.param[1])
             }
         end
     end

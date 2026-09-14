@@ -76,6 +76,13 @@ require 'core.diagnostics.name-style-check'
 require 'core.diagnostics.unknown-operator'
 require 'core.diagnostics.missing-parameter'
 require 'core.diagnostics.unknown-diag-code'
+require 'core.diagnostics.unknown-cast-variable'
+require 'core.diagnostics.discard-returns'
+require 'core.diagnostics.await-in-sync'
+require 'core.diagnostics.redundant-return'
+require 'core.diagnostics.redundant-value'
+require 'core.diagnostics.undefined-doc-param'
+require 'core.diagnostics.unused-label'
 
 local sleepRest = 0.0
 

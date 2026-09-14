@@ -1,7 +1,17 @@
-local files   = require 'files'
-local lang    = require 'language'
-local vm      = require 'vm'
-local await   = require 'await'
+local files           = require 'files'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Unknown type conversion variable `%s`.'
+
+protoDiagnostic.register {
+    'unknown-cast-variable',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -23,7 +33,7 @@ return function (uri, callback)
                 callback {
                     start   = doc.name.start,
                     finish  = doc.name.finish,
-                    message = lang.script('DIAG_UNKNOWN_CAST_VARIABLE', doc.name[1])
+                    message = MESSAGE:format(doc.name[1])
                 }
             end
         end

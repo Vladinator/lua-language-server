@@ -1,8 +1,18 @@
-local files = require 'files'
-local guide = require 'parser.guide'
-local vm    = require 'vm'
-local await = require 'await'
-local lang  = require 'language'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'The return values of this function cannot be discarded.'
+
+protoDiagnostic.register {
+    'discard-returns',
+} {
+    group    = 'strict',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -23,7 +33,7 @@ return function (uri, callback)
             callback {
                 start   = source.start,
                 finish  = source.finish,
-                message = lang.script('DIAG_DISCARD_RETURNS'),
+                message = MESSAGE,
             }
         end
     end)

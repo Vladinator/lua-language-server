@@ -4,14 +4,10 @@ DIAG_UNDEF_FENV_CHILD   =
 'Undefined variable `{}` (inside module).'
 DIAG_GLOBAL_IN_NIL_FENV =
 'Invalid global (module environment is `nil`).'
-DIAG_UNUSED_LABEL       =
-'Unused label `{}`.'
 DIAG_DUPLICATE_METHOD   =
 'Duplicate method `{}`.'
 DIAG_UNNECESSARY_ASSERT =
 'Unnecessary assert: this expression is always truthy.'
-DIAG_OVER_MAX_VALUES    =
-'Only has {} variables, but you set {} values.'
 ASSIGN_CONST_GLOBAL     =
 'Cannot assign to <const> global variable `{}`.'
 
@@ -44,20 +40,10 @@ DIAG_SET_CONST          =
 'Assignment to const variable.'
 DIAG_SET_FOR_STATE      =
 'Assignment to for-state variable.'
-DIAG_REDUNDANT_RETURN   =
-'Redundant return.'
-DIAG_AWAIT_IN_SYNC      =
-'Async function can only be called in async function.'
-DIAG_DISCARD_RETURNS    =
-'The return values of this function cannot be discarded.'
-DIAG_UNDEFINED_DOC_PARAM              =
-'Undefined param `{}`.'
 DIAG_CAST_LOCAL_TYPE                  =
 'This variable is defined as type `{def}`. Cannot convert its type to `{ref}`.'
 DIAG_CAST_FIELD_TYPE                  =
 'This field is defined as type `{def}`. Cannot convert its type to `{ref}`.'
-DIAG_UNKNOWN_CAST_VARIABLE            =
-'Unknown type conversion variable `{}`.'
 MWS_NOT_SUPPORT         =
 '{} does not support multi workspace for now, I may need to restart to support the new workspace ...'
 MWS_RESTART             =

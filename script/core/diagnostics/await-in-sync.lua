@@ -1,8 +1,18 @@
-local files = require 'files'
-local guide = require 'parser.guide'
-local vm    = require 'vm'
-local lang  = require 'language'
-local await = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Async function can only be called in async function.'
+
+protoDiagnostic.register {
+    'await-in-sync',
+} {
+    group    = 'await',
+    severity = 'Warning',
+    status   = 'None',
+}
 
 ---@async
 return function (uri, callback)
@@ -22,7 +32,7 @@ return function (uri, callback)
             callback {
                 start   = source.node.start,
                 finish  = source.node.finish,
-                message = lang.script('DIAG_AWAIT_IN_SYNC'),
+                message = MESSAGE,
             }
             return
         end

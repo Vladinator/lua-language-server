@@ -1,8 +1,18 @@
-local files  = require 'files'
-local define = require 'proto.define'
-local lang   = require 'language'
-local guide  = require 'parser.guide'
-local await  = require 'await'
+local files           = require 'files'
+local define          = require 'proto.define'
+local guide           = require 'parser.guide'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Only has %s variables, but you set %s values.'
+
+protoDiagnostic.register {
+    'redundant-value',
+} {
+    group    = 'unbalanced',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -19,7 +29,7 @@ return function (uri, callback)
                 start   = src.start,
                 finish  = src.finish,
                 tags    = { define.DiagnosticTag.Unnecessary },
-                message = lang.script('DIAG_OVER_MAX_VALUES', src.redundant.max, src.redundant.passed)
+                message = MESSAGE:format(src.redundant.max, src.redundant.passed)
             }
         end
     end)

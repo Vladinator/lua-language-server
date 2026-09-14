@@ -31,6 +31,7 @@ return function(uri, callback)
     end
 
     if diagnosticInfos then
+        ---@cast diagnosticInfos provider.spell.diagnosticInfo[] -- status was true above, so this can't be the error-message string
         for _, diagnosticInfo in ipairs(diagnosticInfos) do
             callback {
                 start   = converter.unpackPosition(state, diagnosticInfo.range.start),

@@ -9,6 +9,15 @@ local m = {}
 
 m.loaded = false
 
+---@class provider.nameStyle.diagnosticInfo
+---@field range   { start: position, ["end"]: position }
+---@field message string
+---@field data?    any
+
+---@param uri  uri
+---@param text string?
+---@return boolean status
+---@return provider.nameStyle.diagnosticInfo[]|string|nil diagnosticInfos # a list of findings when status is true, an error message (or nothing) when false
 function m.nameStyleCheck(uri, text)
     if not m.loaded then
         local value = config.get(uri, "Lua.nameStyle.config")

@@ -21,6 +21,15 @@ function m.addWord(word)
     return codeFormat.spell_load_dictionary_from_buffer(word)
 end
 
+---@class provider.spell.diagnosticInfo
+---@field range   { start: position, ["end"]: position }
+---@field message string
+---@field data?    any
+
+---@param uri  uri
+---@param text string?
+---@return boolean status
+---@return provider.spell.diagnosticInfo[]|string|nil diagnosticInfos # a list of findings when status is true, an error message (or nothing) when false
 function m.spellCheck(uri, text)
     if not m._dictionaryLoaded then
         m.initDictionary()

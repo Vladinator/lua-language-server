@@ -17,7 +17,7 @@ vm.nodeCache = setmetatable({}, util.MODE_K)
 ---@field fields? table<vm.node|string, vm.node>
 ---@field undefinedGlobal boolean?
 ---@field lastInfer? vm.infer
----@field secret? boolean
+---@field flags? table<string, boolean>
 local mt = {}
 mt.__index    = mt
 mt.id         = 0
@@ -27,14 +27,47 @@ mt.data       = nil
 mt.hasDefined = nil
 mt.originNode = nil
 
+--- Generic, registrable boolean flags -- a taint-style bit that plugins
+--- can add without editing this file, carried through merge()/copy() the
+--- same way built-in flags like .secret already are. Not a fit for every
+--- flag: .optional, for instance, has merge-independent side effects
+--- (removeOptional actually strips a 'nil' type member) that a plain
+--- OR-on-merge bit can't express, so it stays as its own field.
+---@param name string
+---@return vm.node
+function mt:setFlag(name)
+    self.flags = self.flags or {}
+    self.flags[name] = true
+    return self
+end
+
+---@param name string
+---@return vm.node
+function mt:clearFlag(name)
+    if self.flags then
+        self.flags[name] = false
+    end
+    return self
+end
+
+---@param name string
+---@return boolean
+function mt:hasFlag(name)
+    return self.flags ~= nil and self.flags[name] == true
+end
+
 ---@param node vm.node | vm.node.object
 ---@return vm.node
 function mt:merge(node)
     if not node then
         return self
     end
-    if node.secret then
-        self.secret = true
+    if node.flags then
+        for name, value in pairs(node.flags) do
+            if value then
+                self:setFlag(name)
+            end
+        end
     end
     self.lastInfer = nil
     if node.type == 'vm.node' then
@@ -102,17 +135,15 @@ function mt:removeOptional()
 end
 
 function mt:addSecret()
-    self.secret = true
-    return self
+    return self:setFlag('secret')
 end
 
 function mt:removeSecret()
-    self.secret = false
-    return self
+    return self:clearFlag('secret')
 end
 
 function mt:hasSecret()
-    return self.secret == true
+    return self:hasFlag('secret')
 end
 
 ---@return boolean

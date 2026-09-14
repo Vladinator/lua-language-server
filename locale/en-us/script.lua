@@ -516,6 +516,19 @@ PLUGIN_TRUST_NO                  =
 [[
 Don't load this plugin
 ]]
+DIAG_PLUGIN_RUNTIME_ERROR        =
+[[
+An error occurred in a custom diagnostic plugin, please report it to the plugin author.
+Please check the details in the output or log.
+Plugin directory: {}
+Error: {}
+]]
+DIAG_PLUGIN_TRUST_LOAD           =
+[[
+The current settings try to load custom diagnostic plugins from this location:{}
+
+Note that a malicious plugin may harm your computer
+]]
 
 CLI_CHECK_ERROR_TYPE =
 'The argument of CHECK must be a string, but got {}'

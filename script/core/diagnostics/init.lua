@@ -1,10 +1,11 @@
-local files  = require 'files'
-local define = require 'proto.define'
-local config = require 'config'
-local await  = require 'await'
-local vm     = require "vm.vm"
-local util   = require 'utility'
-local diagd  = require 'proto.diagnostic'
+local files         = require 'files'
+local define        = require 'proto.define'
+local config        = require 'config'
+local await         = require 'await'
+local vm            = require "vm.vm"
+local util          = require 'utility'
+local diagd         = require 'proto.diagnostic'
+local customPlugins = require 'core.diagnostics.custom-plugins'
 
 -- Diagnostics that fully self-register (LuaDoc tags, narrowing/genesis
 -- rules, proto registration, their own message text) from within their
@@ -201,8 +202,13 @@ local function check(uri, name, isScopeDiag, response, ignoreFileOpenState)
     local level = define.DiagnosticSeverity[severity]
     local clock = os.clock()
     local mark = {}
+    -- Custom plugins loaded from Lua.diagnostics.pluginsDir aren't
+    -- reachable via require('core.diagnostics.'..name) -- they don't
+    -- live under script/core/diagnostics/ -- so check that registry
+    -- first and only fall back to the require() convention for built-ins.
+    local diagnosticFn = customPlugins.get(name) or require('core.diagnostics.' .. name)
     ---@async
-    require('core.diagnostics.' .. name)(uri, function (result)
+    diagnosticFn(uri, function (result)
         if vm.isDiagDisabledAt(uri, result.start, name) then
             return
         end

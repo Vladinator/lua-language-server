@@ -227,14 +227,6 @@ m.register {
     status   = 'Any',
 }
 
-m.register {
-    'need-check-secret',
-} {
-    group    = 'secret',
-    severity = 'Warning',
-    status   = 'Opened',
-}
-
 ---@return table<string, DiagnosticSeverity>
 function m.getDefaultSeverity()
     local severity = {}

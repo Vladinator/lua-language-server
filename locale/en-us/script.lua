@@ -107,8 +107,6 @@ DIAG_DISCARD_RETURNS    =
 'The return values of this function cannot be discarded.'
 DIAG_NEED_CHECK_NIL     =
 'Need check nil.'
-DIAG_NEED_CHECK_SECRET  =
-'Need check secret value.'
 DIAG_CIRCLE_DOC_CLASS                 =
 'Circularly inherited classes.'
 DIAG_DOC_FIELD_NO_CLASS               =

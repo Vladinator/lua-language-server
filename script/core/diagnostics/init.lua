@@ -6,6 +6,23 @@ local vm     = require "vm.vm"
 local util   = require 'utility'
 local diagd  = require 'proto.diagnostic'
 
+-- Diagnostics that fully self-register (LuaDoc tags, narrowing/genesis
+-- rules, proto registration, their own message text) from within their
+-- own file, instead of being wired in from proto/diagnostic.lua and
+-- friends. Required here once, purely to run that top-level registration
+-- code -- the actual per-check dispatch still goes through
+-- require('core.diagnostics.'..name) as normal further down, which Lua's
+-- require cache makes a no-op re-load.
+--
+-- Deliberately NOT relied on to run before `define` above takes its
+-- one-time snapshot of the registered diagnostics: `define` is reached
+-- transitively from `require 'files'`, itself required from vm/node.lua,
+-- so a self-registering diagnostic that needs `vm` cannot safely load
+-- before that snapshot without risking a require cycle. getSeverity/
+-- getStatus/buildDiagList below fall back to proto.diagnostic's live
+-- registry instead, so registration order here doesn't matter.
+require 'core.diagnostics.need-check-secret'
+
 local sleepRest = 0.0
 
 ---@async
@@ -37,6 +54,9 @@ end
 local function getSeverity(uri, name)
     local severity =   config.get(uri, 'Lua.diagnostics.severity')[name]
                     or define.DiagnosticDefaultSeverity[name]
+                    -- fallback for a diagnostic that self-registered after
+                    -- `define` took its one-time startup snapshot
+                    or (diagd.diagnosticDatas[name] and diagd.diagnosticDatas[name].severity)
     if severity:sub(-1) == '!' then
         return severity:sub(1, -2)
     end
@@ -66,6 +86,7 @@ end
 local function getStatus(uri, name)
     local status = config.get(uri, 'Lua.diagnostics.neededFileStatus')[name]
                 or define.DiagnosticDefaultNeededFileStatus[name]
+                or (diagd.diagnosticDatas[name] and diagd.diagnosticDatas[name].status)
     if status:sub(-1) == '!' then
         return status:sub(1, -2)
     end
@@ -151,8 +172,17 @@ local diagCount = {}
 local function buildDiagList()
     if not diagList then
         diagList = {}
+        local seen = {}
         for name in pairs(define.DiagnosticDefaultSeverity) do
+            seen[name] = true
             diagList[#diagList+1] = name
+        end
+        -- names registered after `define`'s one-time startup snapshot
+        -- (see the self-registering diagnostics note above)
+        for name in pairs(diagd.diagnosticDatas) do
+            if not seen[name] then
+                diagList[#diagList+1] = name
+            end
         end
     end
     table.sort(diagList, function (a, b)

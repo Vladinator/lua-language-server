@@ -1,5 +1,6 @@
 local tokens     = require 'parser.tokens'
 local guide      = require 'parser.guide'
+local specials   = require 'parser.specials'
 
 local sbyte      = string.byte
 local sfind      = string.find
@@ -115,7 +116,6 @@ local Specials = {
     ['xpcall']       = true,
     ['pairs']        = true,
     ['ipairs']       = true,
-    ['next']         = true,
     ['assert']       = true,
     ['error']        = true,
     ['type']         = true,
@@ -2141,7 +2141,7 @@ local function checkAmbiguityCall(call, parenPos)
 end
 
 local function bindSpecial(source, name)
-    if Specials[name] then
+    if Specials[name] or specials.has(name) then
         addSpecial(name, source)
     else
         local ospeicals = State.options.special

@@ -1164,7 +1164,11 @@ local function compileCallArgNode(arg, call, callNode, fixIndex, myIndex)
     local function dealDocFunc(n)
         local myEvent
         if n.args[eventIndex] then
-            if eventMap and myIndex > eventIndex then
+            -- eventIndex is only ever set in the same branch that sets
+            -- eventMap (see the loop above), so checking eventIndex here
+            -- (rather than eventMap) is equivalent and also narrows it
+            -- for the `myIndex > eventIndex` comparison below
+            if eventIndex and myIndex > eventIndex then
                 -- if call param has literal types, then also check if function def param has literal types
                 -- 1. has no literal values => not enough info, thus allowed by default
                 -- 2. has literal values and >= 1 matches call param's literal types => allowed
@@ -1189,6 +1193,7 @@ local function compileCallArgNode(arg, call, callNode, fixIndex, myIndex)
         end
         if not myEvent
         or not eventMap
+        or not eventIndex
         or myIndex <= eventIndex
         or myEvent.type ~= 'doc.type.string'
         or eventMap[myEvent[1]] then

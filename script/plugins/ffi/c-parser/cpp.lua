@@ -320,7 +320,7 @@ local parse_expression = typed("{string} -> Exp?", function(tokens)
     local text = table.concat(tokens, " ")
     local exp, err, _, _, fragment = c99.match_preprocessing_expression_grammar(text)
     if not exp then
-        print("Error parsing expression: " .. tostring(err) .. ": " .. text .. " AT " .. fragment)
+        print("Error parsing expression: " .. tostring(err) .. ": " .. text .. " AT " .. tostring(fragment))
     end
     return exp
 end)
@@ -697,7 +697,7 @@ cpp.parse_file = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(filenam
                     inc_filename, inc_fd, err = find_file(ctx, name, "system", is_next)
                 end
                 if not inc_filename then
-                    return nil, name..":"..err
+                    return nil, name..":"..tostring(err)
                 end
                 cpp.parse_file(inc_filename, inc_fd, ctx)
             else
@@ -819,7 +819,7 @@ cpp.parse_context = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(cont
                     inc_filename, inc_fd, err = find_file(ctx, name, "system", is_next)
                 end
                 if not inc_filename then
-                    return nil, name..":"..err
+                    return nil, name..":"..tostring(err)
                 end
                 cpp.parse_file(inc_filename, inc_fd, ctx)
             else

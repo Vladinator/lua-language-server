@@ -76,7 +76,9 @@ for k, v in next, encode_escape_map do
     decode_escape_set[string_byte(v, 2)] = true
 end
 
+---@type string
 local statusBuf
+---@type integer
 local statusPos
 local statusTop
 local statusAry = {}
@@ -164,6 +166,7 @@ local function decode_string()
         if not i then
             decode_error "expected closing quote for string"
         end
+        assert(i)
         local x = string_byte(statusBuf, i)
         if x < 32 then
             statusPos = i

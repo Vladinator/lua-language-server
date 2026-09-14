@@ -491,7 +491,7 @@ end
 
 local function parseLongString()
     local start, finish, mark = sfind(Lua, '^(%[%=*%[)', Tokens[Index])
-    if not start then
+    if not start or not finish then
         return nil
     end
     fastForwardToken(finish + 1)
@@ -3392,7 +3392,7 @@ function parseExp(asAction, level, noMethod, noTernary)
     while true do
         skipSpace()
         local bop, bopLevel = parseBinaryOP(asAction, level)
-        if not bop then
+        if not bop or not bopLevel then
             break
         end
 

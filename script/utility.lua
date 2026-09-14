@@ -553,6 +553,7 @@ function m.utf8Len(str, start, finish)
             len = len + clen
             break
         else
+            assert(pos)
             len = len + 1 + utf8Len(str, start, pos - 1, true)
             start = pos + 1
         end
@@ -1259,7 +1260,7 @@ function m.split(str, sep)
     local offset = 1
     while offset <= #str do
         local s, e = str:find(sep, offset, true)
-        if not s then
+        if not s or not e then
             result[#result+1] = str:sub(offset)
             break
         end
@@ -1280,7 +1281,7 @@ function m.replaceInside(str, left, right, callback)
     local offset = 1
     while offset <= #str do
         local ls, le = str:find(left, offset, true)
-        if not ls then
+        if not ls or not le then
             if offset <= #str then
                 result[#result+1] = callback(str:sub(offset), false)
             end
@@ -1291,7 +1292,7 @@ function m.replaceInside(str, left, right, callback)
         end
 
         local rs, re = str:find(right, le + 1, true)
-        if not rs then
+        if not rs or not re then
             if ls < #str then
                 result[#result+1] = callback(str:sub(ls), true)
             end

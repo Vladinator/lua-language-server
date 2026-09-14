@@ -96,7 +96,7 @@ function export.runCLI()
 	local file = _G['VISUALIZE']
 	local code, err = io.open(file)
 	if not code then
-		io.stderr:write('failed to open ' .. file .. ': ' .. err)
+		io.stderr:write('failed to open ' .. file .. ': ' .. (err or '?'))
 		return 1
 	end
 	code = code:read('a')

@@ -24,6 +24,9 @@ return function (state, position, accept)
             end
         end
         local start, finish = guide.getStartFinish(source)
+        if not start or not finish then
+            return
+        end
         if finish - start <= len and accept[source.type] then
             result = source
             len = finish - start

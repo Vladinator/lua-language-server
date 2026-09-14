@@ -635,7 +635,7 @@ end
 --- 判断source是否包含position
 function m.isContain(source, position)
     local start, finish = m.getStartFinish(source)
-    if not start then
+    if not start or not finish then
         return false
     end
     return start <= position and finish >= position
@@ -646,7 +646,7 @@ end
 --- 主要针对赋值等语句时，key包含value
 function m.isInRange(source, position)
     local start, finish = m.getRange(source)
-    if not start then
+    if not start or not finish then
         return false
     end
     return start <= position and finish >= position
@@ -654,7 +654,7 @@ end
 
 function m.isBetween(source, tStart, tFinish)
     local start, finish = m.getStartFinish(source)
-    if not start then
+    if not start or not finish then
         return false
     end
     return start <= tFinish and finish >= tStart
@@ -662,7 +662,7 @@ end
 
 function m.isBetweenRange(source, tStart, tFinish)
     local start, finish = m.getRange(source)
-    if not start then
+    if not start or not finish then
         return false
     end
     return start <= tFinish and finish >= tStart

@@ -137,8 +137,8 @@ function encode_map.table(t)
             encode(t[count])
             count = count + 1
         end
-        if next(t, count-1) ~= nil then
-            local k = next(t, count-1)
+        local k = next(t, count-1)
+        if k ~= nil then
             if type(k) == "number" then
                 error("invalid table: sparse array is not supported")
             else

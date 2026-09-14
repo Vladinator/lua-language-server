@@ -48,7 +48,7 @@ local function buildArgs(minIndex, numThreads, threadId, format, quiet)
 end
 
 function export.runCLI()
-    local numThreads = tonumber(NUM_THREADS or 1)
+    local numThreads = tonumber(NUM_THREADS or 1) or 1
 
     local exe
     local minIndex = -1

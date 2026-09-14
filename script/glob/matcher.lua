@@ -39,6 +39,7 @@ end
 
 function mt:word(exp, state, index)
     local current = self:exp(exp.value, 1)
+    assert(current)
     local after = self:exp(state, index)
     if after then
         return current * Slash * after

@@ -191,6 +191,9 @@ end
 local function getAnonymousID(t)
     local v = tostring(t)
     local _, e = v:find("table: 0x", 0, true)
+    if not e then
+        return v
+    end
     return v:sub(e + 1)
 end
 

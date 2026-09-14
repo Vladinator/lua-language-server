@@ -1515,6 +1515,7 @@ local function tryWord(state, position, triggerCharacter, results)
         word = ''
         startPos = position
     else
+        assert(start)
         startPos = guide.offsetToPosition(state, start - 1)
     end
     local hasSpace = triggerCharacter ~= nil and finish ~= offset

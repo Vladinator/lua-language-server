@@ -178,8 +178,8 @@ end
 function export.runCLI()
     lang(LOCALE)
 
-    local numThreads = tonumber(NUM_THREADS or 1)
-    local threadId = tonumber(THREAD_ID or 1)
+    local numThreads = tonumber(NUM_THREADS or 1) or 1
+    local threadId = tonumber(THREAD_ID or 1) or 1
     local quiet = QUIET or numThreads > 1
 
     if type(CHECK_WORKER) ~= 'string' then

@@ -233,8 +233,8 @@ function encode_map.table(t)
             encode(t[count])
             count = count + 1
         end
-        if next(t, count-1) ~= nil then
-            local k = next(t, count-1)
+        local k = next(t, count-1)
+        if k ~= nil then
             if type(k) == "number" then
                 error("invalid table: sparse array is not supported")
             else
@@ -269,7 +269,9 @@ json._encode_string = encode_string
 
 -- json.decode --
 
+---@type string
 local statusBuf
+---@type integer
 local statusPos
 local statusTop
 local statusAry = {}
@@ -342,6 +344,7 @@ local function decode_string()
         if not i then
             decode_error "expected closing quote for string"
         end
+        assert(i)
         local x = string_byte(statusBuf, i)
         if x < 32 then
             statusPos = i

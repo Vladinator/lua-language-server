@@ -22,6 +22,8 @@ local m = {}
 m.diagnosticDatas  = {}
 m.diagnosticGroups = {}
 
+---@param names string[]
+---@return fun(info: proto.diagnostic.info)
 function m.register(names)
     ---@param info proto.diagnostic.info
     return function (info)

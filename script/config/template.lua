@@ -31,8 +31,20 @@ end
 
 function mt:checker(v)
     if self.enums then
+        -- `enums` is usually a frozen array built once at schema-construction
+        -- time (this whole file's own module load), but some enums are
+        -- diagnostic names -- and diagnostics that self-register from their
+        -- own file (see core/diagnostics/init.lua's eager-require list and
+        -- core/diagnostics/extra/) aren't necessarily loaded yet the first
+        -- time this module runs, so a frozen snapshot of their names goes
+        -- stale. Supporting a function here lets those specific entries
+        -- re-resolve the live set on every check instead.
+        local enums = self.enums
+        if type(enums) == 'function' then
+            enums = enums()
+        end
         local ok
-        for _, enum in ipairs(self.enums) do
+        for _, enum in ipairs(enums) do
             if util.equal(enum, v) then
                 ok = true
                 break
@@ -267,9 +279,22 @@ local template = {
     ['Lua.diagnostics.enable']              = Type.Boolean >> true,
     ['Lua.diagnostics.globals']             = Type.Array(Type.String),
     ['Lua.diagnostics.globalsRegex']        = Type.Array(Type.String),
-    ['Lua.diagnostics.disable']             = Type.Array(Type.String << util.getTableKeys(diag.getDiagAndErrNameMap(), true)),
+    -- The four functions below re-resolve their key sets live, on every
+    -- check, instead of baking in a snapshot of define.DiagnosticDefaultXxx
+    -- taken at this module's own load time: diagnostics that self-register
+    -- from their own file (core/diagnostics/init.lua's eager-require list,
+    -- core/diagnostics/extra/) aren't necessarily loaded yet the first time
+    -- this module runs, so a frozen snapshot of their names/groups goes
+    -- stale and rejects perfectly valid values (e.g. `disable: [
+    -- "undefined-global"]` -- undefined-global self-registers, so it was
+    -- silently missing from the frozen list). diag.diagnosticDatas/
+    -- diagnosticGroups are populated by every protoDiagnostic.register call,
+    -- self-registering or not, so by the time a check actually runs
+    -- (validating a config value someone is setting, always after startup)
+    -- they're the complete, current set.
+    ['Lua.diagnostics.disable']             = Type.Array(Type.String << function () return util.getTableKeys(diag.getDiagAndErrNameMap(), true) end),
     ['Lua.diagnostics.severity']            = Type.Hash(
-                                                Type.String << util.getTableKeys(define.DiagnosticDefaultNeededFileStatus, true),
+                                                Type.String << function () return util.getTableKeys(diag.diagnosticDatas, true) end,
                                                 Type.String << {
                                                     'Error',
                                                     'Warning',
@@ -283,7 +308,7 @@ local template = {
                                             )
                                             >> util.deepCopy(define.DiagnosticDefaultSeverity),
     ['Lua.diagnostics.neededFileStatus']    = Type.Hash(
-                                                Type.String << util.getTableKeys(define.DiagnosticDefaultNeededFileStatus, true),
+                                                Type.String << function () return util.getTableKeys(diag.diagnosticDatas, true) end,
                                                 Type.String << {
                                                     'Any',
                                                     'Opened',
@@ -295,7 +320,7 @@ local template = {
                                             )
                                             >> util.deepCopy(define.DiagnosticDefaultNeededFileStatus),
     ['Lua.diagnostics.groupSeverity']       = Type.Hash(
-                                                Type.String << util.getTableKeys(define.DiagnosticDefaultGroupSeverity, true),
+                                                Type.String << function () return util.getTableKeys(diag.diagnosticGroups, true) end,
                                                 Type.String << {
                                                     'Error',
                                                     'Warning',
@@ -306,7 +331,7 @@ local template = {
                                             )
                                             >> util.deepCopy(define.DiagnosticDefaultGroupSeverity),
     ['Lua.diagnostics.groupFileStatus']     = Type.Hash(
-                                                Type.String << util.getTableKeys(define.DiagnosticDefaultGroupFileStatus, true),
+                                                Type.String << function () return util.getTableKeys(diag.diagnosticGroups, true) end,
                                                 Type.String << {
                                                     'Any',
                                                     'Opened',

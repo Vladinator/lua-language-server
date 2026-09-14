@@ -59,7 +59,7 @@ local type         = type
 ---@field assignIndex           integer
 ---@field docIndex              integer
 ---@field docs                  parser.object
----@field state                 table
+---@field state                 parser.state
 ---@field comment               table
 ---@field optional              boolean
 ---@field max                   parser.object
@@ -870,6 +870,11 @@ function m.positionOf(row, col)
     return row * 10000 + math.min(col, 10000 - 1)
 end
 
+---@alias parser.guide.lines { [integer]: integer, size: integer }
+
+---@param lines    parser.guide.lines
+---@param position integer
+---@return integer
 function m.positionToOffsetByLines(lines, position)
     local row, col = m.rowColOf(position)
     if row < 0 then
@@ -888,14 +893,16 @@ function m.positionToOffsetByLines(lines, position)
 end
 
 --- 返回全文光标位置
----@param state any
+---@param state    parser.state
 ---@param position integer
+---@return integer
 function m.positionToOffset(state, position)
     return m.positionToOffsetByLines(state.lines, position)
 end
 
----@param lines integer[]
+---@param lines  parser.guide.lines
 ---@param offset integer
+---@return integer
 function m.offsetToPositionByLines(lines, offset)
     local left  = 0
     local right = #lines
@@ -921,6 +928,9 @@ function m.offsetToPositionByLines(lines, offset)
     return m.positionOf(row, col)
 end
 
+---@param state  parser.state
+---@param offset integer
+---@return integer
 function m.offsetToPosition(state, offset)
     return m.offsetToPositionByLines(state.lines, offset)
 end
@@ -1023,6 +1033,7 @@ function m.getKeyNameOfLiteral(obj)
     end
 end
 
+---@param obj parser.object?
 ---@return string?
 function m.getKeyName(obj)
     if not obj then
@@ -1200,6 +1211,9 @@ function m.isGlobal(source)
     return false
 end
 
+---@param ast      parser.object
+---@param position integer
+---@return boolean? # true if in range, nil (not false) otherwise -- matches eachSourceContain's callback-return-passthrough
 function m.isInString(ast, position)
     return m.eachSourceContain(ast, position, function (source)
         if  source.type == 'string'
@@ -1209,6 +1223,9 @@ function m.isInString(ast, position)
     end)
 end
 
+---@param ast    parser.object
+---@param offset integer
+---@return boolean
 function m.isInComment(ast, offset)
     for _, com in ipairs(ast.state.comms) do
         if offset >= com.start and offset <= com.finish then

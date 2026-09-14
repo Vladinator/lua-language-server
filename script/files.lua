@@ -694,11 +694,20 @@ function m.compileState(uri)
     return state
 end
 
+---@class parser.state.comm
+---@field type   string
+---@field start  integer
+---@field finish integer
+---@field text   string
+
 ---@class parser.state
 ---@field diffInfo? table[]
 ---@field originLines? integer[]
 ---@field originText? string
 ---@field lua? string
+---@field ast parser.object
+---@field comms parser.state.comm[]
+---@field specials? table<string, parser.object[]>
 
 --- 获取文件语法树
 ---@param uri uri

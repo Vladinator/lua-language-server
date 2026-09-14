@@ -5081,10 +5081,11 @@ local function initState(lua, version, options)
     Index               = 1
     ---@class parser.state
     ---@field uri uri
-    ---@field lines integer[]
+    ---@field lines { [integer]: integer, size: integer }
     local state = {
         version = version,
         lua     = lua,
+        ---@diagnostic disable-next-line: missing-fields -- ast starts empty, populated incrementally by the parser below
         ast     = {},
         errs    = {},
         comms   = {},

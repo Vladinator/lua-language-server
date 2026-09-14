@@ -5,7 +5,9 @@
             "close-non-object",
             "incomplete-signature-doc",
             "missing-global-doc",
-            "missing-local-export-doc"
+            "missing-local-export-doc",
+            "redefined-local",
+            "unused-local"
         ],
         "groupFileStatus": {
             "ambiguity": "Any",
@@ -21,7 +23,7 @@
         },
         "ignoredFiles": "Disable",
         "libraryFiles": "Disable",
-        "unusedLocalExclude": [ "_*" ]
+        "unusedLocalExclude": [ "_*", "self" ]
     },
     "runtime": {
         "version": "Lua 5.5",

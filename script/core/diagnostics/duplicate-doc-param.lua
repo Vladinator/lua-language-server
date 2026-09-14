@@ -1,5 +1,15 @@
-local files   = require 'files'
-local lang    = require 'language'
+local files           = require 'files'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Duplicate params `%s`.'
+
+protoDiagnostic.register {
+    'duplicate-doc-param',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 return function (uri, callback)
     local state = files.getState(uri)
@@ -27,7 +37,7 @@ return function (uri, callback)
                 callback {
                     start   = doc.param.start,
                     finish  = doc.param.finish,
-                    message = lang.script('DIAG_DUPLICATE_DOC_PARAM', name)
+                    message = MESSAGE:format(name)
                 }
                 goto CONTINUE
             end

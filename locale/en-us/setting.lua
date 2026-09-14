@@ -418,14 +418,8 @@ config.doc.regengine.lua                 =
 'Full Lua-style regular expressions.'
 config.docScriptPath                     =
 'The regular expression engine used for matching documentation scope names.'
-config.diagnostics['undefined-global']      =
-'Enable undefined global variable diagnostics.'
 config.diagnostics['unused-label']          =
 'Enable unused label diagnostics.'
-config.diagnostics['unused-vararg']         =
-'Enable unused vararg diagnostics.'
-config.diagnostics['redefined-local']       =
-'Enable redefined local variable diagnostics.'
 config.diagnostics['redundant-value']       =
 'Enable the redundant values assigned diagnostics. It\'s raised during assignment operation, when the number of values is higher than the number of objects being assigned.'
 config.diagnostics['await-in-sync']         =
@@ -436,14 +430,10 @@ config.diagnostics['circular-doc-class']    =
 'Enable diagnostics for two classes inheriting from each other introducing a circular relation.'
 config.diagnostics['discard-returns']       =
 'Enable diagnostics for calls of functions annotated with `---@nodiscard` where the return values are ignored.'
-config.diagnostics['duplicate-doc-param']   =
-'Enable diagnostics for a duplicated param annotation name.'
 config.diagnostics['missing-parameter']     =
 'Enable diagnostics for function calls where the number of arguments is less than the number of annotated function parameters.'
 config.diagnostics['unnecessary-assert']    =
 'Enable diagnostics for redundant assertions on truthy values.'
-config.diagnostics['no-unknown']            =
-'Enable diagnostics for cases in which the type cannot be inferred.'
 config.diagnostics['redundant-return']      =
 'Enable diagnostics for return statements which are not needed because the function would exit on its own.'
 config.diagnostics['spell-check']           =

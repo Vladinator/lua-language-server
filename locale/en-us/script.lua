@@ -1,5 +1,3 @@
-DIAG_UNDEF_GLOBAL       =
-'Undefined global `{}`.'
 DIAG_UNDEF_FIELD        =
 'Undefined field `{}`.'
 DIAG_UNDEF_FENV_CHILD   =
@@ -8,10 +6,6 @@ DIAG_GLOBAL_IN_NIL_FENV =
 'Invalid global (module environment is `nil`).'
 DIAG_UNUSED_LABEL       =
 'Unused label `{}`.'
-DIAG_UNUSED_VARARG      =
-'Unused vararg.'
-DIAG_REDEFINED_LOCAL    =
-'Redefined local `{}`.'
 DIAG_DUPLICATE_METHOD   =
 'Duplicate method `{}`.'
 DIAG_MISS_ARGS          =
@@ -52,18 +46,12 @@ DIAG_SET_CONST          =
 'Assignment to const variable.'
 DIAG_SET_FOR_STATE      =
 'Assignment to for-state variable.'
-DIAG_REQUIRE_LIKE       =
-'You can treat `{}` as `require` by setting.'
-DIAG_UNKNOWN            =
-'Cannot infer type.'
 DIAG_REDUNDANT_RETURN   =
 'Redundant return.'
 DIAG_AWAIT_IN_SYNC      =
 'Async function can only be called in async function.'
 DIAG_DISCARD_RETURNS    =
 'The return values of this function cannot be discarded.'
-DIAG_DUPLICATE_DOC_PARAM              =
-'Duplicate params `{}`.'
 DIAG_UNDEFINED_DOC_PARAM              =
 'Undefined param `{}`.'
 DIAG_UNKNOWN_DIAG_CODE                =

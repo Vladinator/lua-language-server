@@ -40,7 +40,6 @@ end
 
 m.register {
     'unused-label',
-    'unused-vararg',
     'redundant-return',
 } {
     group    = 'unused',
@@ -68,7 +67,6 @@ m.register {
 
 m.register {
     'undefined-doc-param',
-    'duplicate-doc-param',
     'unknown-diag-code',
     'unknown-cast-variable',
     'unknown-operator',
@@ -100,30 +98,6 @@ m.register {
     group    = 'await',
     severity = 'Warning',
     status   = 'None',
-}
-
-m.register {
-    'no-unknown',
-} {
-    group    = 'strong',
-    severity = 'Warning',
-    status   = 'None',
-}
-
-m.register {
-    'redefined-local',
-} {
-    group    = 'redefined',
-    severity = 'Hint',
-    status   = 'Opened',
-}
-
-m.register {
-    'undefined-global',
-} {
-    group    = 'global',
-    severity = 'Warning',
-    status   = 'Any',
 }
 
 m.register {

@@ -66,6 +66,11 @@ require 'core.diagnostics.global-in-nil-env'
 require 'core.diagnostics.doc-field-no-class'
 require 'core.diagnostics.codestyle-check'
 require 'core.diagnostics.close-non-object'
+require 'core.diagnostics.unused-vararg'
+require 'core.diagnostics.undefined-global'
+require 'core.diagnostics.redefined-local'
+require 'core.diagnostics.duplicate-doc-param'
+require 'core.diagnostics.no-unknown'
 
 local sleepRest = 0.0
 

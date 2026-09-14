@@ -1,8 +1,18 @@
-local files   = require 'files'
-local guide   = require 'parser.guide'
-local lang    = require 'language'
-local vm      = require 'vm'
-local await   = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Cannot infer type.'
+
+protoDiagnostic.register {
+    'no-unknown',
+} {
+    group    = 'strong',
+    severity = 'Warning',
+    status   = 'None',
+}
 
 local types = {
     'local',
@@ -29,7 +39,7 @@ return function (uri, callback)
             callback {
                 start   = source.start,
                 finish  = source.finish,
-                message = lang.script('DIAG_UNKNOWN'),
+                message = MESSAGE,
             }
         end
     end)

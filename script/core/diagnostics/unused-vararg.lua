@@ -1,8 +1,18 @@
-local files  = require 'files'
-local guide  = require 'parser.guide'
-local define = require 'proto.define'
-local lang   = require 'language'
-local vm     = require 'vm'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local define          = require 'proto.define'
+local vm              = require 'vm'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Unused vararg.'
+
+protoDiagnostic.register {
+    'unused-vararg',
+} {
+    group    = 'unused',
+    severity = 'Hint',
+    status   = 'Opened',
+}
 
 return function (uri, callback)
     local ast = files.getState(uri)
@@ -30,7 +40,7 @@ return function (uri, callback)
                         start   = arg.start,
                         finish  = arg.finish,
                         tags    = { define.DiagnosticTag.Unnecessary },
-                        message = lang.script.DIAG_UNUSED_VARARG,
+                        message = MESSAGE,
                     }
                 end
             end

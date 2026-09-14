@@ -1,7 +1,17 @@
-local files = require 'files'
-local guide = require 'parser.guide'
-local lang  = require 'language'
-local await = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Redefined local `%s`.'
+
+protoDiagnostic.register {
+    'redefined-local',
+} {
+    group    = 'redefined',
+    severity = 'Hint',
+    status   = 'Opened',
+}
 
 ---@async
 return function (uri, callback)
@@ -23,7 +33,7 @@ return function (uri, callback)
             callback {
                 start   = source.start,
                 finish  = source.finish,
-                message = lang.script('DIAG_REDEFINED_LOCAL', name),
+                message = MESSAGE:format(name),
                 related = {
                     {
                         start  = exist.start,

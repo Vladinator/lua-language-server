@@ -1,13 +1,24 @@
-local files     = require 'files'
-local vm        = require 'vm'
-local lang      = require 'language'
-local guide     = require 'parser.guide'
+local files           = require 'files'
+local vm              = require 'vm'
+local guide           = require 'parser.guide'
+local protoDiagnostic = require 'proto.diagnostic'
 
 local requireLike = {
     ['include'] = true,
     ['import']  = true,
     ['require'] = true,
     ['load']    = true,
+}
+
+local UNDEF_GLOBAL_MESSAGE = 'Undefined global `%s`.'
+local REQUIRE_LIKE_MESSAGE = 'You can treat `%s` as `require` by setting.'
+
+protoDiagnostic.register {
+    'undefined-global',
+} {
+    group    = 'global',
+    severity = 'Warning',
+    status   = 'Any',
 }
 
 ---@async
@@ -21,9 +32,9 @@ return function (uri, callback)
     guide.eachSourceType(state.ast, 'getglobal', function (src) ---@async
         if vm.isUndefinedGlobal(src) then
             local key = src[1]
-            local message = lang.script('DIAG_UNDEF_GLOBAL', key)
+            local message = UNDEF_GLOBAL_MESSAGE:format(key)
             if requireLike[key:lower()] then
-                message = ('%s(%s)'):format(message, lang.script('DIAG_REQUIRE_LIKE', key))
+                message = ('%s(%s)'):format(message, REQUIRE_LIKE_MESSAGE:format(key))
             end
 
             callback {

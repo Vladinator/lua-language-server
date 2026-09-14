@@ -30,6 +30,11 @@ require 'core.diagnostics.undefined-doc-name'
 require 'core.diagnostics.unused-local'
 require 'core.diagnostics.unused-function'
 require 'core.diagnostics.assign-type-mismatch'
+require 'core.diagnostics.missing-fields'
+require 'core.diagnostics.incomplete-signature-doc'
+require 'core.diagnostics.duplicate-set-field'
+require 'core.diagnostics.return-type-mismatch'
+require 'core.diagnostics.duplicate-doc-field'
 
 local sleepRest = 0.0
 

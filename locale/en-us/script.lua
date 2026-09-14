@@ -71,8 +71,6 @@ DIAG_DUPLICATE_PARAM    =
 'Duplicate param.'
 DIAG_NEED_CLASS         =
 'Class needs to be defined first.'
-DIAG_DUPLICATE_SET_FIELD=
-'Duplicate field `{}`.'
 DIAG_SET_CONST          =
 'Assignment to const variable.'
 DIAG_SET_FOR_STATE      =
@@ -105,8 +103,6 @@ DIAG_DOC_FIELD_NO_CLASS               =
 'The field must be defined after the class.'
 DIAG_DUPLICATE_DOC_ALIAS              =
 'Duplicate defined alias `{}`.'
-DIAG_DUPLICATE_DOC_FIELD              =
-'Duplicate defined fields `{}`.'
 DIAG_DUPLICATE_DOC_PARAM              =
 'Duplicate params `{}`.'
 DIAG_UNDEFINED_DOC_CLASS              =
@@ -125,10 +121,6 @@ DIAG_MISSING_LOCAL_EXPORT_DOC_PARAM    =
 'Missing @param annotation for parameter `{}` in exported local function `{}`.'
 DIAG_MISSING_LOCAL_EXPORT_DOC_RETURN   =
 'Missing @return annotation at index `{}` in exported local function `{}`.'
-DIAG_INCOMPLETE_SIGNATURE_DOC_PARAM   =
-'Incomplete signature. Missing @param annotation for parameter `{}`.'
-DIAG_INCOMPLETE_SIGNATURE_DOC_RETURN  =
-'Incomplete signature. Missing @return annotation at index `{}`.'
 DIAG_UNKNOWN_DIAG_CODE                =
 'Unknown diagnostic code `{}`.'
 DIAG_CAST_LOCAL_TYPE                  =
@@ -149,8 +141,6 @@ DIAG_REDUNDANT_RETURN_VALUE_RANGE     =
 'Annotations specify that at most {max} return value(s) are required, found {rmin} to {rmax} returned here instead.'
 DIAG_MISSING_RETURN                   =
 'Annotations specify that a return value is required here.'
-DIAG_RETURN_TYPE_MISMATCH             =
-'Annotations specify that return value #{index} has a type of `{def}`, returning value of type `{ref}` here instead.'
 DIAG_UNKNOWN_OPERATOR                 =
 'Unknown operator `{}`.'
 DIAG_UNREACHABLE_CODE                 =
@@ -163,8 +153,6 @@ DIAG_INVISIBLE_PACKAGE                =
 'Field `{field}` can only be accessed in same file `{uri}`.'
 DIAG_GLOBAL_ELEMENT                   =
 'Element is global.'
-DIAG_MISSING_FIELDS                   =
-'Missing required fields in type `{1}`: {2}'
 MWS_NOT_SUPPORT         =
 '{} does not support multi workspace for now, I may need to restart to support the new workspace ...'
 MWS_RESTART             =

@@ -1,8 +1,18 @@
-local files   = require 'files'
-local lang    = require 'language'
-local vm      = require 'vm.vm'
-local await   = require 'await'
-local guide   = require 'parser.guide'
+local files           = require 'files'
+local vm              = require 'vm.vm'
+local await           = require 'await'
+local guide           = require 'parser.guide'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Duplicate defined fields `%s`.'
+
+protoDiagnostic.register {
+    'duplicate-doc-field',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 local function isDocFunc(doc)
     if not doc.extends then
@@ -72,7 +82,7 @@ return function (uri, callback)
                 callback {
                     start   = myField.field.start,
                     finish  = myField.field.finish,
-                    message = lang.script('DIAG_DUPLICATE_DOC_FIELD', myView),
+                    message = MESSAGE:format(myView),
                     related = {{
                         start  = field.field.start,
                         finish = field.field.finish,

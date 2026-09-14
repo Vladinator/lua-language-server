@@ -3,10 +3,24 @@ local files  = require 'files'
 local config = require 'config'
 local util   = require 'utility'
 local catch  = require 'catch'
+local diagd  = require 'proto.diagnostic'
 
 local status = config.get(nil, 'Lua.diagnostics.neededFileStatus')
 
 for key in pairs(status) do
+    status[key] = 'Any!'
+end
+
+-- Diagnostics that self-register from within their own file (see the
+-- eager-require list in core/diagnostics/init.lua) aren't present as
+-- keys in `status` above -- that table's schema is frozen by
+-- config/template.lua before `require 'core.diagnostics'` on line 1 ever
+-- runs, the same one-time-snapshot timing issue documented in
+-- core/diagnostics/init.lua's getSeverity/getStatus/buildDiagList. Force
+-- them open here too, straight from proto.diagnostic's live registry,
+-- so a diagnostic whose own default status is 'None' (e.g.
+-- incomplete-signature-doc) still actually runs under TEST.
+for key in pairs(diagd.diagnosticDatas) do
     status[key] = 'Any!'
 end
 

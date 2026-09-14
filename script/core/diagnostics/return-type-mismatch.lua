@@ -1,9 +1,19 @@
-local files = require 'files'
-local lang  = require 'language'
-local guide = require 'parser.guide'
-local vm    = require 'vm'
-local await = require 'await'
-local util  = require 'utility'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local util            = require 'utility'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Annotations specify that return value #%s has a type of `%s`, returning value of type `%s` here instead.'
+
+protoDiagnostic.register {
+    'return-type-mismatch',
+} {
+    group    = 'type-check',
+    severity = 'Warning',
+    status   = 'Opened',
+}
 
 ---@param func parser.object
 ---@return vm.node[]?
@@ -66,11 +76,11 @@ return function (uri, callback)
                 callback {
                     start   = exp.start,
                     finish  = exp.finish,
-                    message = lang.script('DIAG_RETURN_TYPE_MISMATCH', {
-                        def   = vm.getInfer(docRet):view(uri),
-                        ref   = vm.getInfer(retNode):view(uri),
-                        index = i,
-                    }) .. '\n' .. vm.viewTypeErrorMessage(uri, errs),
+                    message = MESSAGE:format(
+                        i,
+                        vm.getInfer(docRet):view(uri),
+                        vm.getInfer(retNode):view(uri)
+                    ) .. '\n' .. vm.viewTypeErrorMessage(uri, errs),
                 }
             end
         end

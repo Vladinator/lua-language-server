@@ -1,8 +1,18 @@
-local vm    = require 'vm'
-local files = require 'files'
-local guide = require 'parser.guide'
-local await = require 'await'
-local lang  = require 'language'
+local vm              = require 'vm'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Missing required fields in type `%s`: %s'
+
+protoDiagnostic.register {
+    'missing-fields',
+} {
+    group    = 'unbalanced',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -103,7 +113,7 @@ return function (uri, callback)
                 return
             end
 
-            warnings[#warnings+1] = lang.script('DIAG_MISSING_FIELDS', className, table.concat(missedKeys, ', '))
+            warnings[#warnings+1] = MESSAGE:format(className, table.concat(missedKeys, ', '))
         end
 
         if #warnings == 0 then

@@ -470,14 +470,8 @@ config.diagnostics['doc-field-no-class']    =
 'Enable diagnostics to highlight a field annotation without a defining class annotation.'
 config.diagnostics['duplicate-doc-alias']   =
 'Enable diagnostics for a duplicated alias annotation name.'
-config.diagnostics['duplicate-doc-field']   =
-'Enable diagnostics for a duplicated field annotation name.'
 config.diagnostics['duplicate-doc-param']   =
 'Enable diagnostics for a duplicated param annotation name.'
-config.diagnostics['duplicate-set-field']   =
-'Enable diagnostics for setting the same field in a class more than once.'
-config.diagnostics['incomplete-signature-doc']    =
-'Incomplete @param or @return annotations for functions.'
 config.diagnostics['invisible']             =
 'Enable diagnostics for accesses to fields which are invisible.'
 config.diagnostics['missing-global-doc']    =
@@ -502,8 +496,6 @@ config.diagnostics['redundant-return']      =
 'Enable diagnostics for return statements which are not needed because the function would exit on its own.'
 config.diagnostics['redundant-return-value']=
 'Enable diagnostics for return statements which return an extra value which is not specified by a return annotation.'
-config.diagnostics['return-type-mismatch']  =
-'Enable diagnostics for return values whose type does not match the type declared in the corresponding return annotation.'
 config.diagnostics['spell-check']           =
 'Enable diagnostics for typos in strings.'
 config.diagnostics['name-style-check']      =
@@ -560,8 +552,6 @@ config.diagnostics['lua-doc-miss-sign'] =
 'LuaDoc comment missing a sign'
 config.diagnostics['malformed-number'] =
 'Malformed number literal'
-config.diagnostics['missing-fields'] =
-'Missing fields'
 config.diagnostics['multi-close'] =
 'Multiple close operations'
 config.diagnostics['need-paren'] =

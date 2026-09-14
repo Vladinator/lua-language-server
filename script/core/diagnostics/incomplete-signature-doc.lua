@@ -1,8 +1,19 @@
 -- incomplete-signature-doc
-local files   = require 'files'
-local lang    = require 'language'
-local guide   = require "parser.guide"
-local await   = require 'await'
+local files           = require 'files'
+local guide           = require "parser.guide"
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local PARAM_MESSAGE  = 'Incomplete signature. Missing @param annotation for parameter `%s`.'
+local RETURN_MESSAGE = 'Incomplete signature. Missing @return annotation at index `%s`.'
+
+protoDiagnostic.register {
+    'incomplete-signature-doc',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'None',
+}
 
 local function findParam(docs, param)
     if not docs then
@@ -85,7 +96,7 @@ return function (uri, callback)
                         callback {
                             start   = arg.start,
                             finish  = arg.finish,
-                            message = lang.script('DIAG_INCOMPLETE_SIGNATURE_DOC_PARAM', argName),
+                            message = PARAM_MESSAGE:format(argName),
                         }
                     end
                 end
@@ -99,7 +110,7 @@ return function (uri, callback)
                         callback {
                             start   = expr.start,
                             finish  = expr.finish,
-                            message = lang.script('DIAG_INCOMPLETE_SIGNATURE_DOC_RETURN', index),
+                            message = RETURN_MESSAGE:format(index),
                         }
                     end
                 end

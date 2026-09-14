@@ -59,7 +59,6 @@ m.register {
     'missing-return-value',
     'redundant-return-value',
     'missing-return',
-    'missing-fields',
 } {
     group    = 'unbalanced',
     severity = 'Warning',
@@ -71,7 +70,6 @@ m.register {
     'undefined-field',
     'cast-local-type',
     'cast-type-mismatch',
-    'return-type-mismatch',
     --'unnecessary-assert',
 } {
     group    = 'type-check',
@@ -86,7 +84,6 @@ m.register {
     'undefined-doc-param',
     'duplicate-doc-param',
     'doc-field-no-class',
-    'duplicate-doc-field',
     'unknown-diag-code',
     'unknown-cast-variable',
     'unknown-operator',
@@ -97,7 +94,6 @@ m.register {
 }
 
 m.register {
-    'incomplete-signature-doc',
     'missing-global-doc',
     'missing-local-export-doc',
 } {
@@ -199,14 +195,6 @@ m.register {
     group    = 'duplicate',
     severity = 'Warning',
     status   = 'Any',
-}
-
-m.register {
-    'duplicate-set-field',
-} {
-    group    = 'duplicate',
-    severity = 'Warning',
-    status   = 'Opened',
 }
 
 m.register {

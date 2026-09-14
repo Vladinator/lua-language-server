@@ -1,10 +1,19 @@
-local files    = require 'files'
-local lang     = require 'language'
-local guide    = require 'parser.guide'
-local vm       = require 'vm'
-local await    = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
 
 local DIAG_NAME = 'duplicate-set-field'
+local MESSAGE   = 'Duplicate field `%s`.'
+
+protoDiagnostic.register {
+    DIAG_NAME,
+} {
+    group    = 'duplicate',
+    severity = 'Warning',
+    status   = 'Opened',
+}
 
 local sourceTypes = {
     'setfield',
@@ -94,7 +103,7 @@ return function (uri, callback)
                 start   = src.start,
                 finish  = src.finish,
                 related = related,
-                message = lang.script('DIAG_DUPLICATE_SET_FIELD', name),
+                message = MESSAGE:format(name),
             }
         end
     end)

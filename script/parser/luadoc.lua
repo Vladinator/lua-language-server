@@ -3,6 +3,7 @@ local re         = require 'parser.relabel'
 local guide      = require 'parser.guide'
 local compile    = require 'parser.compile'
 local util       = require 'utility'
+local docTags    = require 'parser.docTags'
 
 local TokenTypes, TokenStarts, TokenFinishs, TokenContents, TokenMarks
 ---@type integer
@@ -1365,30 +1366,6 @@ local docSwitch = util.switch()
             finish = getFinish(),
         }
     end)
-    : case 'secret'
-    : call(function ()
-        return {
-            type   = 'doc.secret',
-            start  = getFinish(),
-            finish = getFinish(),
-        }
-    end)
-    : case 'secret-check'
-    : call(function ()
-        return {
-            type   = 'doc.secret-check',
-            start  = getFinish(),
-            finish = getFinish(),
-        }
-    end)
-    : case 'secret-access-check'
-    : call(function ()
-        return {
-            type   = 'doc.secret-access-check',
-            start  = getFinish(),
-            finish = getFinish(),
-        }
-    end)
     : case 'meta'
     : call(function ()
         local meta = {
@@ -1775,6 +1752,16 @@ local function convertTokens(doc)
         }
         return nil
     end
+    if not docSwitch:has(text) then
+        local docType = docTags.getMarkerTagType(text)
+        if docType then
+            return {
+                type   = docType,
+                start  = getFinish(),
+                finish = getFinish(),
+            }
+        end
+    end
     return docSwitch(text, doc)
 end
 
@@ -1897,7 +1884,7 @@ local function isContinuedDoc(lastDoc, nextDoc)
         and nextDoc.type ~= 'doc.comment'
         and nextDoc.type ~= 'doc.overload'
         and nextDoc.type ~= 'doc.source'
-        and nextDoc.type ~= 'doc.secret' then
+        and not docTags.continuesAfterClassGroup(nextDoc.type) then
             return false
         end
     end
@@ -2000,20 +1987,6 @@ local function bindDoc(source, binded)
             end
             bindDocWithSource(doc, source)
             ok = true
-        elseif doc.type == 'doc.secret' then
-            if isParam then
-                goto CONTINUE
-            end
-            bindDocWithSource(doc, source)
-            ok = true
-        elseif doc.type == 'doc.secret-check'
-        or doc.type == 'doc.secret-access-check' then
-            if source.type == 'function' then
-                bindDocWithSource(doc, source)
-                ok = true
-            else
-                goto CONTINUE
-            end
         elseif doc.type == 'doc.type' then
             if source.type == 'function'
             or isParam
@@ -2084,6 +2057,16 @@ local function bindDoc(source, binded)
         elseif doc.type == 'doc.comment' then
             bindDocWithSource(doc, source)
             ok = true
+        else
+            local rule = docTags.getBindRule(doc.type)
+            if rule then
+                if rule(doc, source, isParam) then
+                    bindDocWithSource(doc, source)
+                    ok = true
+                else
+                    goto CONTINUE
+                end
+            end
         end
         ::CONTINUE::
     end
@@ -2177,7 +2160,7 @@ local function bindCommentsAndFields(binded)
         end
     end
     for _, doc in ipairs(binded) do
-        if doc.type == 'doc.secret' then
+        if docTags.isClassGroupDoc(doc.type) then
             if classInGroup then
                 bindDocWithSource(doc, classInGroup)
             end

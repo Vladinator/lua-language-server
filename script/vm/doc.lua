@@ -1,9 +1,27 @@
-local files  = require 'files'
+local files   = require 'files'
 local await  = require 'await'
 local guide  = require 'parser.guide'
+local docTags = require 'parser.docTags'
 ---@class vm
 local vm     = require 'vm.vm'
 local config = require 'config'
+
+docTags.registerMarkerTag('secret',              'doc.secret')
+docTags.registerMarkerTag('secret-check',        'doc.secret-check')
+docTags.registerMarkerTag('secret-access-check', 'doc.secret-access-check')
+
+docTags.registerContinuesAfterClassGroup('doc.secret')
+docTags.registerClassGroupDoc('doc.secret')
+
+docTags.registerBindRule('doc.secret', function (doc, source, isParam)
+    return not isParam
+end)
+docTags.registerBindRule('doc.secret-check', function (doc, source, isParam)
+    return source.type == 'function'
+end)
+docTags.registerBindRule('doc.secret-access-check', function (doc, source, isParam)
+    return source.type == 'function'
+end)
 
 ---@class parser.object
 ---@field package _castTargetHead? parser.object | vm.global | false

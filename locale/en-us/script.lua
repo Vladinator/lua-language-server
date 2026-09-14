@@ -1,5 +1,3 @@
-DIAG_UNDEF_FIELD        =
-'Undefined field `{}`.'
 DIAG_UNDEF_FENV_CHILD   =
 'Undefined variable `{}` (inside module).'
 DIAG_GLOBAL_IN_NIL_FENV =

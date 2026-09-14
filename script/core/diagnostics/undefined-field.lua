@@ -1,8 +1,18 @@
-local files   = require 'files'
-local vm      = require 'vm'
-local lang    = require 'language'
-local guide   = require 'parser.guide'
-local await   = require 'await'
+local files           = require 'files'
+local vm              = require 'vm'
+local guide           = require 'parser.guide'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Undefined field `%s`.'
+
+protoDiagnostic.register {
+    'undefined-field',
+} {
+    group    = 'type-check',
+    severity = 'Warning',
+    status   = 'Opened',
+}
 
 local skipCheckClass = {
     ['unknown']       = true,
@@ -37,7 +47,7 @@ return function (uri, callback)
                 return
             end
         end
-        local message = lang.script('DIAG_UNDEF_FIELD', guide.getKeyName(src))
+        local message = MESSAGE:format(guide.getKeyName(src))
         if     src.type == 'getfield' and src.field then
             callback {
                 start   = src.field.start,
@@ -77,7 +87,7 @@ return function (uri, callback)
         if not keyName then
             return
         end
-        local message = lang.script('DIAG_UNDEF_FIELD', guide.getKeyName(src))
+        local message = MESSAGE:format(guide.getKeyName(src))
         callback {
             start   = src.index.start,
             finish  = src.index.finish,

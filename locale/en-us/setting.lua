@@ -422,8 +422,6 @@ config.diagnostics['cast-local-type']    =
 'Enable diagnostics for casts of local variables where the target type does not match the defined type.'
 config.diagnostics['circular-doc-class']    =
 'Enable diagnostics for two classes inheriting from each other introducing a circular relation.'
-config.diagnostics['undefined-field']       =
-'Enable diagnostics for cases in which an undefined field of a variable is read.'
 config.diagnostics['action-after-return'] =
 'Code after a `return` statement'
 config.diagnostics['ambiguous-syntax'] =

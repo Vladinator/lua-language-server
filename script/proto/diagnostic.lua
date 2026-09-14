@@ -40,14 +40,6 @@ function m.register(names)
     end
 end
 
-m.register {
-    'undefined-field',
-} {
-    group    = 'type-check',
-    severity = 'Warning',
-    status   = 'Opened',
-}
-
 ---@return table<string, DiagnosticSeverity>
 function m.getDefaultSeverity()
     local severity = {}

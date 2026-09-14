@@ -1,10 +1,20 @@
-local files  = require 'files'
-local guide  = require 'parser.guide'
-local define = require 'proto.define'
-local lang   = require 'language'
-local vm     = require 'vm.vm'
-local config = require 'config.config'
-local glob   = require 'glob'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local define          = require 'proto.define'
+local vm              = require 'vm.vm'
+local config          = require 'config.config'
+local glob            = require 'glob'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Unused local `%s`.'
+
+protoDiagnostic.register {
+    'unused-local',
+} {
+    group    = 'unused',
+    severity = 'Hint',
+    status   = 'Opened',
+}
 
 local function hasGet(loc)
     if not loc.ref then
@@ -114,7 +124,7 @@ return function (uri, callback)
             start   = source.start,
             finish  = source.finish,
             tags    = { define.DiagnosticTag.Unnecessary },
-            message = lang.script('DIAG_UNUSED_LOCAL', name),
+            message = MESSAGE:format(name),
         }
         if source.ref then
             for _, ref in ipairs(source.ref) do
@@ -122,7 +132,7 @@ return function (uri, callback)
                     start   = ref.start,
                     finish  = ref.finish,
                     tags    = { define.DiagnosticTag.Unnecessary },
-                    message = lang.script('DIAG_UNUSED_LOCAL', name),
+                    message = MESSAGE:format(name),
                 }
             end
         end

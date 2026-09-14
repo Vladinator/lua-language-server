@@ -1,11 +1,21 @@
-local files   = require 'files'
-local guide   = require 'parser.guide'
-local vm      = require 'vm'
-local define  = require 'proto.define'
-local lang    = require 'language'
-local await   = require 'await'
-local client  = require 'client'
-local util    = require 'utility'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local define          = require 'proto.define'
+local await           = require 'await'
+local client          = require 'client'
+local util            = require 'utility'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Unused functions.'
+
+protoDiagnostic.register {
+    'unused-function',
+} {
+    group    = 'unused',
+    severity = 'Hint',
+    status   = 'Opened',
+}
 
 local function isToBeClosed(source)
     if not source.attrs then
@@ -115,14 +125,14 @@ return function (uri, callback)
                 start   = source.start,
                 finish  = source.finish,
                 tags    = { define.DiagnosticTag.Unnecessary },
-                message = lang.script.DIAG_UNUSED_FUNCTION,
+                message = MESSAGE,
             }
         else
             callback {
                 start   = source.keyword[1],
                 finish  = source.keyword[2],
                 tags    = { define.DiagnosticTag.Unnecessary },
-                message = lang.script.DIAG_UNUSED_FUNCTION,
+                message = MESSAGE,
             }
         end
     end

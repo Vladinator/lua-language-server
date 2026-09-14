@@ -1,8 +1,18 @@
-local files = require 'files'
-local lang  = require 'language'
-local guide = require 'parser.guide'
-local vm    = require 'vm'
-local await = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Cannot assign `%s` to `%s`.'
+
+protoDiagnostic.register {
+    'assign-type-mismatch',
+} {
+    group    = 'type-check',
+    severity = 'Warning',
+    status   = 'Opened',
+}
 
 local checkTypes = {
     'local',
@@ -112,10 +122,10 @@ return function (uri, callback)
         callback {
             start   = source.start,
             finish  = source.finish,
-            message = lang.script('DIAG_ASSIGN_TYPE_MISMATCH', {
-                def = vm.getInfer(varNode):view(uri),
-                ref = vm.getInfer(valueNode):view(uri),
-            }) .. '\n' .. vm.viewTypeErrorMessage(uri, errs),
+            message = MESSAGE:format(
+                vm.getInfer(valueNode):view(uri),
+                vm.getInfer(varNode):view(uri)
+            ) .. '\n' .. vm.viewTypeErrorMessage(uri, errs),
         }
     end)
 end

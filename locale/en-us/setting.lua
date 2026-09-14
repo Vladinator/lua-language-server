@@ -418,10 +418,6 @@ config.doc.regengine.lua                 =
 'Full Lua-style regular expressions.'
 config.docScriptPath                     =
 'The regular expression engine used for matching documentation scope names.'
-config.diagnostics['unused-local']          =
-'Enable unused local variable diagnostics.'
-config.diagnostics['unused-function']       =
-'Enable unused function diagnostics.'
 config.diagnostics['undefined-global']      =
 'Enable undefined global variable diagnostics.'
 config.diagnostics['global-in-nil-env']     =
@@ -452,8 +448,6 @@ config.diagnostics['empty-block']           =
 'Enable empty code block diagnostics.'
 config.diagnostics['redundant-value']       =
 'Enable the redundant values assigned diagnostics. It\'s raised during assignment operation, when the number of values is higher than the number of objects being assigned.'
-config.diagnostics['assign-type-mismatch']  =
-'Enable diagnostics for assignments in which the value\'s type does not match the type of the assigned variable.'
 config.diagnostics['await-in-sync']         =
 'Enable diagnostics for calls of asynchronous functions within a synchronous function.'
 config.diagnostics['cast-local-type']    =
@@ -518,8 +512,6 @@ config.diagnostics['unbalanced-assignments']=
 'Enable diagnostics on multiple assignments if not all variables obtain a value (e.g., `local x,y = 1`).'
 config.diagnostics['undefined-doc-class']   =
 'Enable diagnostics for class annotations in which an undefined class is referenced.'
-config.diagnostics['undefined-doc-name']    =
-'Enable diagnostics for type annotations referencing an undefined type or alias.'
 config.diagnostics['undefined-doc-param']   =
 'Enable diagnostics for cases in which a parameter annotation is given without declaring the parameter in the function definition.'
 config.diagnostics['undefined-field']       =
@@ -558,8 +550,6 @@ config.diagnostics['global-close-attribute'] =
 'Close attribute on a global variable'
 config.diagnostics['index-in-func-name'] =
 'Index in a function name'
-config.diagnostics['inject-field'] =
-'Injecting a field into an object'
 config.diagnostics['jump-local-scope'] =
 'Jumping into a local variable scope'
 config.diagnostics['keyword'] =

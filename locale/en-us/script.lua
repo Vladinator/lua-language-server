@@ -2,8 +2,6 @@ DIAG_LINE_ONLY_SPACE    =
 'Line with spaces only.'
 DIAG_LINE_POST_SPACE    =
 'Line with trailing space.'
-DIAG_UNUSED_LOCAL       =
-'Unused local `{}`.'
 DIAG_UNDEF_GLOBAL       =
 'Undefined global `{}`.'
 DIAG_UNDEF_FIELD        =
@@ -18,8 +16,6 @@ DIAG_GLOBAL_IN_NIL_FENV =
 'Invalid global (module environment is `nil`).'
 DIAG_UNUSED_LABEL       =
 'Unused label `{}`.'
-DIAG_UNUSED_FUNCTION    =
-'Unused functions.'
 DIAG_UNUSED_VARARG      =
 'Unused vararg.'
 DIAG_REDEFINED_LOCAL    =
@@ -115,8 +111,6 @@ DIAG_DUPLICATE_DOC_PARAM              =
 'Duplicate params `{}`.'
 DIAG_UNDEFINED_DOC_CLASS              =
 'Undefined class `{}`.'
-DIAG_UNDEFINED_DOC_NAME               =
-'Undefined type or alias `{}`.'
 DIAG_UNDEFINED_DOC_PARAM              =
 'Undefined param `{}`.'
 DIAG_MISSING_GLOBAL_DOC_COMMENT       =
@@ -141,8 +135,6 @@ DIAG_CAST_LOCAL_TYPE                  =
 'This variable is defined as type `{def}`. Cannot convert its type to `{ref}`.'
 DIAG_CAST_FIELD_TYPE                  =
 'This field is defined as type `{def}`. Cannot convert its type to `{ref}`.'
-DIAG_ASSIGN_TYPE_MISMATCH             =
-'Cannot assign `{ref}` to `{def}`.'
 DIAG_UNKNOWN_CAST_VARIABLE            =
 'Unknown type conversion variable `{}`.'
 DIAG_CAST_TYPE_MISMATCH               =
@@ -173,13 +165,6 @@ DIAG_GLOBAL_ELEMENT                   =
 'Element is global.'
 DIAG_MISSING_FIELDS                   =
 'Missing required fields in type `{1}`: {2}'
-DIAG_INJECT_FIELD                     =
-'Fields cannot be injected into the reference of `{class}` for `{field}`. {fix}'
-DIAG_INJECT_FIELD_FIX_CLASS           =
-'To do so, use `---@class` for `{node}`.'
-DIAG_INJECT_FIELD_FIX_TABLE           =
-'To allow injection, add `{fix}` to the definition.'
-
 MWS_NOT_SUPPORT         =
 '{} does not support multi workspace for now, I may need to restart to support the new workspace ...'
 MWS_RESTART             =

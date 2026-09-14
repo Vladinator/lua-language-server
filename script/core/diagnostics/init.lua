@@ -25,6 +25,11 @@ require 'core.diagnostics.need-check-secret'
 require 'core.diagnostics.deprecated'
 require 'core.diagnostics.code-after-break'
 require 'core.diagnostics.param-type-mismatch'
+require 'core.diagnostics.inject-field'
+require 'core.diagnostics.undefined-doc-name'
+require 'core.diagnostics.unused-local'
+require 'core.diagnostics.unused-function'
+require 'core.diagnostics.assign-type-mismatch'
 
 local sleepRest = 0.0
 

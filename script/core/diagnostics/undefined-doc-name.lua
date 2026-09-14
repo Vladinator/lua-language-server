@@ -1,7 +1,17 @@
-local files   = require 'files'
-local guide   = require 'parser.guide'
-local lang    = require 'language'
-local vm      = require 'vm'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Undefined type or alias `%s`.'
+
+protoDiagnostic.register {
+    'undefined-doc-name',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 --- Check if name is a generic parameter from a class context
 ---@param source parser.object  The doc.type.name source
@@ -128,7 +138,7 @@ return function (uri, callback)
         callback {
             start   = source.start,
             finish  = source.finish,
-            message = lang.script('DIAG_UNDEFINED_DOC_NAME', name)
+            message = MESSAGE:format(name)
         }
     end)
 end

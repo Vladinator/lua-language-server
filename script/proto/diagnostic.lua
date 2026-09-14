@@ -39,8 +39,6 @@ function m.register(names)
 end
 
 m.register {
-    'unused-local',
-    'unused-function',
     'unused-label',
     'unused-vararg',
     'trailing-space',
@@ -72,10 +70,8 @@ m.register {
     'need-check-nil',
     'undefined-field',
     'cast-local-type',
-    'assign-type-mismatch',
     'cast-type-mismatch',
     'return-type-mismatch',
-    'inject-field',
     --'unnecessary-assert',
 } {
     group    = 'type-check',
@@ -86,7 +82,6 @@ m.register {
 m.register {
     'duplicate-doc-alias',
     'undefined-doc-class',
-    'undefined-doc-name',
     'circle-doc-class',
     'undefined-doc-param',
     'duplicate-doc-param',

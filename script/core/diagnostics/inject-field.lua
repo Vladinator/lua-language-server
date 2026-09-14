@@ -1,9 +1,21 @@
-local files   = require 'files'
-local vm      = require 'vm'
-local lang    = require 'language'
-local guide   = require 'parser.guide'
-local await   = require 'await'
-local hname   = require 'core.hover.name'
+local files           = require 'files'
+local vm              = require 'vm'
+local guide           = require 'parser.guide'
+local await           = require 'await'
+local hname           = require 'core.hover.name'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE           = 'Fields cannot be injected into the reference of `%s` for `%s`. %s'
+local FIX_CLASS_MESSAGE = 'To do so, use `---@class` for `%s`.'
+local FIX_TABLE_MESSAGE = 'To allow injection, add `%s` to the definition.'
+
+protoDiagnostic.register {
+    'inject-field',
+} {
+    group    = 'type-check',
+    severity = 'Warning',
+    status   = 'Opened',
+}
 
 local skipCheckClass = {
     ['unknown']       = true,
@@ -75,25 +87,20 @@ return function (uri, callback)
 
         local howToFix = ''
         if not isExact then
-            howToFix = lang.script('DIAG_INJECT_FIELD_FIX_CLASS', {
-                node = hname(node),
-                fix  = '---@class',
-            })
+            howToFix = FIX_CLASS_MESSAGE:format(hname(node))
             for _, ndef in ipairs(vm.getDefs(node)) do
                 if ndef.type == 'doc.type.table' then
-                    howToFix = lang.script('DIAG_INJECT_FIELD_FIX_TABLE', {
-                        fix   = '[any]: any',
-                    })
+                    howToFix = FIX_TABLE_MESSAGE:format('[any]: any')
                     break
                 end
             end
         end
 
-        local message = lang.script('DIAG_INJECT_FIELD', {
-            class = vm.getInfer(node):view(uri),
-            field = guide.getKeyName(src),
-            fix   = howToFix,
-        })
+        local message = MESSAGE:format(
+            vm.getInfer(node):view(uri),
+            guide.getKeyName(src),
+            howToFix
+        )
         if     src.type == 'setfield' and src.field then
             callback {
                 start   = src.field.start,
@@ -132,11 +139,11 @@ return function (uri, callback)
                     goto nextField
                 end
             end
-            local message = lang.script('DIAG_INJECT_FIELD', {
-                class = vm.getInfer(src):view(uri),
-                field = guide.getKeyName(field),
-                fix   = '',
-            })
+            local message = MESSAGE:format(
+                vm.getInfer(src):view(uri),
+                guide.getKeyName(field),
+                ''
+            )
             callback {
                 start   = field.start,
                 finish  = field.finish,

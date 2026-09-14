@@ -15,6 +15,9 @@ protoDiagnostic.register {
     status   = 'None',
 }
 
+---@param docs  parser.object[]?
+---@param param string
+---@return boolean
 local function findParam(docs, param)
     if not docs then
         return false
@@ -31,6 +34,9 @@ local function findParam(docs, param)
     return false
 end
 
+---@param docs  parser.object[]?
+---@param index integer
+---@return boolean
 local function findReturn(docs, index)
     if not docs then
         return false
@@ -50,6 +56,8 @@ local function findReturn(docs, index)
 end
 
 --- check if there's any signature doc (@param or @return), or just comments, @async, ...
+---@param docs parser.object[]?
+---@return boolean
 local function findSignatureDoc(docs)
     if not docs then
         return false

@@ -7,8 +7,9 @@
 -- core/diagnostics/init.lua's eager-load list) removes the feature
 -- completely, and no other diagnostic is affected.
 
-local files          = require 'files'
+local files           = require 'files'
 local guide           = require 'parser.guide'
+---@class vm
 local vm              = require 'vm'
 local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
@@ -204,11 +205,15 @@ local ALLOWED_BINARY_OPS = {
     ['or']  = true,
 }
 
+---@param t string
+---@return boolean
 local function isIndexNode(t)
     return t == 'getfield' or t == 'getmethod' or t == 'getindex'
         or t == 'setfield' or t == 'setmethod' or t == 'setindex'
 end
 
+---@param node vm.node
+---@return boolean
 local function isBooleanNode(node)
     for c in node:eachObject() do
         if c.type == 'boolean'
@@ -221,6 +226,9 @@ local function isBooleanNode(node)
     return false
 end
 
+---@param parent parser.object
+---@param src    parser.object
+---@return boolean
 local function isDirectCondition(parent, src)
     if parent.filter == src then
         return true

@@ -231,9 +231,13 @@ local function check(uri, name, isScopeDiag, response, ignoreFileOpenState)
     return true
 end
 
+---@type string[]?
 local diagList
+---@type table<string, number>
 local diagCosts = {}
+---@type table<string, integer>
 local diagCount = {}
+---@return string[]
 local function buildDiagList()
     if not diagList then
         diagList = {}

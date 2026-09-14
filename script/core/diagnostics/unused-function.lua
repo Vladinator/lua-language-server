@@ -17,6 +17,8 @@ protoDiagnostic.register {
     status   = 'Opened',
 }
 
+---@param source parser.object
+---@return boolean
 local function isToBeClosed(source)
     if not source.attrs then
         return false
@@ -52,7 +54,21 @@ local function isValidFunction(source)
     return true
 end
 
+-- Small reachability graph over local-function declarations: a function
+-- starts "white" (candidate-unused) unless something outside the local
+-- functions it's reachable from calls it; turnBlack below flood-fills
+-- reachability from each root to clear white off everything it reaches.
+---@alias unused-function.mark  table<parser.object, true>
+---@alias unused-function.links table<parser.object, parser.object[]>
+
 ---@async
+---@param ast   parser.object
+---@param white unused-function.mark
+---@param roots unused-function.mark
+---@param links unused-function.links
+---@return unused-function.mark white
+---@return unused-function.mark roots
+---@return unused-function.links links
 local function collect(ast, white, roots, links)
     ---@async
     guide.eachSourceType(ast, 'function', function (src)
@@ -83,6 +99,10 @@ local function collect(ast, white, roots, links)
     return white, roots, links
 end
 
+---@param source parser.object
+---@param black  unused-function.mark
+---@param white  unused-function.mark
+---@param links  unused-function.links
 local function turnBlack(source, black, white, links)
     if black[source] then
         return

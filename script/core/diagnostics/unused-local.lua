@@ -16,6 +16,8 @@ protoDiagnostic.register {
     status   = 'Opened',
 }
 
+---@param loc parser.object
+---@return 'strong'|'weak'|false|nil
 local function hasGet(loc)
     if not loc.ref then
         return false
@@ -43,6 +45,8 @@ local function hasGet(loc)
     end
 end
 
+---@param loc parser.object
+---@return boolean
 local function isMyTable(loc)
     local value = loc.value
     if value and value.type == 'table' then
@@ -51,6 +55,8 @@ local function isMyTable(loc)
     return false
 end
 
+---@param source parser.object
+---@return boolean
 local function isToBeClosed(source)
     if not source.attrs then
         return false
@@ -63,6 +69,8 @@ local function isToBeClosed(source)
     return false
 end
 
+---@param source parser.object
+---@return boolean
 local function isDocClass(source)
     if not source.bindDocs then
         return false

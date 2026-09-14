@@ -14,6 +14,9 @@ protoDiagnostic.register {
     status   = 'None',
 }
 
+---@param defs parser.object[]
+---@param i    integer
+---@return boolean
 local function isYieldAble(defs, i)
     local hasFuncDef
     for _, def in ipairs(defs) do

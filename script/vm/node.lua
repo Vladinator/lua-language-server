@@ -129,19 +129,23 @@ function mt:addOptional()
     self.optional = true
 end
 
+---@return vm.node
 function mt:removeOptional()
     self:remove 'nil'
     return self
 end
 
+---@return vm.node
 function mt:addSecret()
     return self:setFlag('secret')
 end
 
+---@return vm.node
 function mt:removeSecret()
     return self:clearFlag('secret')
 end
 
+---@return boolean
 function mt:hasSecret()
     return self:hasFlag('secret')
 end
@@ -311,6 +315,7 @@ function mt:setFalsy()
 end
 
 ---@param name string
+---@return vm.node
 function mt:remove(name)
     if name == 'nil' and self.optional == true then
         self.optional = nil

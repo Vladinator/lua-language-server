@@ -15,6 +15,8 @@ protoDiagnostic.register {
     status   = 'Any',
 }
 
+---@param source parser.object
+---@return boolean
 local function isDocClass(source)
     if not source.bindDocs then
         return false
@@ -27,6 +29,9 @@ local function isDocClass(source)
     return false
 end
 
+---@param name string
+---@param definedGlobalRegex string[]?
+---@return boolean
 local function isGlobalRegex(name, definedGlobalRegex)
     if not definedGlobalRegex then
         return false

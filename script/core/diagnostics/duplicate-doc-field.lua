@@ -14,6 +14,8 @@ protoDiagnostic.register {
     status   = 'Any',
 }
 
+---@param doc parser.object
+---@return boolean
 local function isDocFunc(doc)
     if not doc.extends then
         return false

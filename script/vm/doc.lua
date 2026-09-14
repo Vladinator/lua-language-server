@@ -243,6 +243,32 @@ function vm.isSecretAccessCheck(value)
     return checkSecretDoc(value, 'doc.secret-access-check')
 end
 
+vm.registerCallNarrowing {
+    match = function (calleeNode)
+        return vm.isSecretCheck(calleeNode) or vm.isSecretAccessCheck(calleeNode)
+    end,
+    narrow = function (tracer, action, topNode, outNode)
+        if not (action.args and action.args[1] and tracer.getMap[action.args[1]]) then
+            return topNode, outNode
+        end
+        local isSecretAccessCheck = not vm.isSecretCheck(action.node) and vm.isSecretAccessCheck(action.node)
+        local value = action.args[1]
+        tracer:lookIntoChild(value, topNode, outNode)
+        if isSecretAccessCheck then
+            topNode = topNode:copy():removeSecret()
+            if outNode then
+                outNode = outNode:copy()
+            end
+        else
+            topNode = topNode:copy()
+            if outNode then
+                outNode = outNode:copy():removeSecret()
+            end
+        end
+        return topNode, outNode
+    end,
+}
+
 ---@param node vm.node
 ---@param uri  uri
 ---@return boolean
@@ -259,6 +285,42 @@ function vm.hasSecretType(node, uri)
     end
     return false
 end
+
+for _, sourceType in ipairs { 'local', 'self' } do
+    vm.registerGenesisRule(sourceType, function (source, node)
+        -- only when `source` carries its own doc comment (e.g. `---@secret`
+        -- directly on this declaration) -- vm.isSecret(source)'s fallback
+        -- resolves through vm.getDefs(), which is unsound to call on every
+        -- plain local (it can match through an unrelated assigned value).
+        if source.bindDocs and vm.isSecret(source) then
+            node:addSecret()
+        end
+    end)
+end
+
+vm.registerGenesisRule('call', function (source, node)
+    if vm.isSecret(source.node) then
+        node:addSecret()
+    end
+end)
+
+vm.registerGenesisRule('doc.type', function (source, node)
+    if vm.hasSecretType(node, guide.getUri(source)) then
+        node:addSecret()
+    end
+end)
+
+vm.registerGenesisRule('doc.field', function (source, node)
+    if source.secret then
+        node:addSecret()
+    end
+end)
+
+vm.registerGenesisRule('function.return', function (source, node)
+    if vm.isSecret(source.parent) then
+        node:addSecret()
+    end
+end)
 
 ---@param  value parser.object
 ---@param  propagate boolean

@@ -1520,9 +1520,6 @@ local function compileLocal(source)
     local hasMarkDoc
     if source.bindDocs then
         hasMarkDoc = vm.bindDocs(source)
-        if vm.isSecret(source) then
-            vm.getNode(source):addSecret()
-        end
     end
     local hasMarkParam
     if not hasMarkDoc then
@@ -2208,9 +2205,6 @@ local compilerSwitch = util.switch()
         if not hasMarkDoc and not hasReturn then
             vm.setNode(source, vm.declareGlobal('type', 'nil'))
         end
-        if vm.isSecret(func) then
-            vm.getNode(source):addSecret()
-        end
     end)
     : case 'call.return'
     ---@param source parser.object
@@ -2390,9 +2384,6 @@ local compilerSwitch = util.switch()
         if not node:isTyped() then
             node = vm.runOperator('call', source.node) or node
         end
-        if vm.isSecret(source.node) then
-            node:addSecret()
-        end
         setNodeCheckSafe(source, node)
     end)
     : case 'doc.type'
@@ -2402,9 +2393,6 @@ local compilerSwitch = util.switch()
         end
         if source.optional then
             vm.getNode(source):addOptional()
-        end
-        if vm.hasSecretType(vm.getNode(source), guide.getUri(source)) then
-            vm.getNode(source):addSecret()
         end
     end)
     : case 'doc.type.integer'
@@ -2498,9 +2486,6 @@ local compilerSwitch = util.switch()
         local fieldNode = vm.compileNode(source.extends)
         if source.optional then
             fieldNode:addOptional()
-        end
-        if source.secret then
-            fieldNode:addSecret()
         end
         vm.setNode(source, fieldNode)
     end)
@@ -2764,5 +2749,6 @@ function vm.compileNode(source)
 
     local node = vm.getNode(source)
     ---@cast node -?
+    vm.runGenesisRules(source, node)
     return node
 end

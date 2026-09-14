@@ -9,6 +9,22 @@ local util      = require 'utility'
 
 ---@alias tracer.mode 'local' | 'global'
 
+vm.registerCallNarrowing {
+    match = function (calleeNode)
+        return calleeNode.special == 'assert'
+    end,
+    narrow = function (tracer, action, topNode, outNode)
+        if not action.args or not action.args[1] then
+            return topNode, outNode
+        end
+        for i = 2, #action.args do
+            tracer:lookIntoChild(action.args[i], topNode, topNode:copy())
+        end
+        topNode = tracer:lookIntoChild(action.args[1], topNode:copy(), topNode:copy())
+        return topNode, outNode
+    end,
+}
+
 ---@class vm.tracer
 ---@field mode      tracer.mode
 ---@field name      string
@@ -298,6 +314,129 @@ local function getNodeTypesWithLiteralField(uri, source, fieldName, literal)
 
     return tys
 end
+
+vm.registerEqualityNarrowing {
+    -- if x == y then
+    match = function (tracer, handler, checker)
+        return tracer.getMap[handler] == true
+    end,
+    narrow = function (tracer, action, topNode, outNode, handler, checker)
+        topNode = tracer:lookIntoChild(handler, topNode, outNode)
+        local checkerNode = vm.compileNode(checker)
+        local checkerName = vm.getNodeName(checker)
+        if checkerName then
+            topNode = topNode:copy()
+            if action.op.type == '==' then
+                topNode:narrow(tracer.uri, checkerName)
+                if outNode then
+                    outNode:removeNode(checkerNode)
+                end
+            else
+                topNode:removeNode(checkerNode)
+                if outNode then
+                    outNode:narrow(tracer.uri, checkerName)
+                end
+            end
+        end
+        return topNode, outNode
+    end,
+}
+
+vm.registerEqualityNarrowing {
+    -- if x.kind == 'literal' then (narrow by a class field declared with a literal type)
+    match = function (tracer, handler, checker)
+        return handler.type == 'getfield'
+           and handler.node.type == 'getlocal'
+    end,
+    narrow = function (tracer, action, topNode, outNode, handler, checker)
+        local tys
+        if handler.field then
+            tys = getNodeTypesWithLiteralField(tracer.uri, handler.node, handler.field[1], checker)
+        end
+        -- TODO: handle more types
+        if tys and #tys == 1 then
+            -- If the type is in a union (e.g. 'lit' | foo), then the type
+            -- cannot be removed from the node.
+            local ty, tyInUnion = tys[1][1], tys[1][2]
+            topNode = topNode:copy()
+            if action.op.type == '==' then
+                topNode:narrow(tracer.uri, ty)
+                if not tyInUnion and outNode then
+                    outNode:remove(ty)
+                end
+            else
+                if not tyInUnion then
+                    topNode:remove(ty)
+                end
+                if outNode then
+                    outNode:narrow(tracer.uri, ty)
+                end
+            end
+        end
+        return topNode, outNode
+    end,
+}
+
+vm.registerEqualityNarrowing {
+    -- if type(x) == 'string' then
+    match = function (tracer, handler, checker)
+        return handler.type == 'call'
+           and checker.type == 'string'
+           and handler.node.special == 'type'
+           and handler.args
+           and handler.args[1]
+           and tracer.getMap[handler.args[1]] == true
+    end,
+    narrow = function (tracer, action, topNode, outNode, handler, checker)
+        tracer:lookIntoChild(handler, topNode)
+        topNode = topNode:copy()
+        if action.op.type == '==' then
+            topNode:narrow(tracer.uri, checker[1])
+            if outNode then
+                outNode:remove(checker[1])
+            end
+        else
+            topNode:remove(checker[1])
+            if outNode then
+                outNode:narrow(tracer.uri, checker[1])
+            end
+        end
+        return topNode, outNode
+    end,
+}
+
+vm.registerEqualityNarrowing {
+    -- local tp = type(x); if tp == 'string' then
+    match = function (tracer, handler, checker)
+        if not (handler.type == 'getlocal' and checker.type == 'string') then
+            return false
+        end
+        local nodeValue = vm.getObjectValue(handler.node)
+        if not (nodeValue and nodeValue.type == 'select' and nodeValue.sindex == 1) then
+            return false
+        end
+        local call = nodeValue.vararg
+        return call ~= nil
+           and call.type == 'call'
+           and call.node.special == 'type'
+           and call.args ~= nil
+           and tracer.getMap[call.args[1]] == true
+    end,
+    narrow = function (tracer, action, topNode, outNode, handler, checker)
+        if action.op.type == '==' then
+            topNode:narrow(tracer.uri, checker[1])
+            if outNode then
+                outNode:remove(checker[1])
+            end
+        else
+            topNode:remove(checker[1])
+            if outNode then
+                outNode:narrow(tracer.uri, checker[1])
+            end
+        end
+        return topNode, outNode
+    end,
+}
 
 local lookIntoChild = util.switch()
     : case 'getlocal'
@@ -617,33 +756,7 @@ local lookIntoChild = util.switch()
     ---@param topNode  vm.node
     ---@param outNode? vm.node
     : call(function (tracer, action, topNode, outNode)
-        if action.node.special == 'assert' and action.args and action.args[1] then
-            for i = 2, #action.args do
-                tracer:lookIntoChild(action.args[i], topNode, topNode:copy())
-            end
-            topNode = tracer:lookIntoChild(action.args[1], topNode:copy(), topNode:copy())
-        end
-        local isSecretCheck = vm.isSecretCheck(action.node)
-        local isSecretAccessCheck = not isSecretCheck and vm.isSecretAccessCheck(action.node)
-        if (isSecretCheck or isSecretAccessCheck)
-        and action.args
-        and action.args[1]
-        and tracer.getMap[action.args[1]]
-        then
-            local value = action.args[1]
-            tracer:lookIntoChild(value, topNode, outNode)
-            if isSecretAccessCheck then
-                topNode = topNode:copy():removeSecret()
-                if outNode then
-                    outNode = outNode:copy()
-                end
-            else
-                topNode = topNode:copy()
-                if outNode then
-                    outNode = outNode:copy():removeSecret()
-                end
-            end
-        end
+        topNode, outNode = vm.runCallNarrowing(tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.node, topNode)
         tracer:lookIntoChild(action.args, topNode)
         return topNode, outNode
@@ -689,99 +802,7 @@ local lookIntoChild = util.switch()
                 tracer:lookIntoChild(action[2], topNode)
                 return topNode, outNode
             end
-            if tracer.getMap[handler] then
-                -- if x == y then
-                topNode = tracer:lookIntoChild(handler, topNode, outNode)
-                local checkerNode = vm.compileNode(checker)
-                local checkerName = vm.getNodeName(checker)
-                if checkerName then
-                    topNode = topNode:copy()
-                    if action.op.type == '==' then
-                        topNode:narrow(tracer.uri, checkerName)
-                        if outNode then
-                            outNode:removeNode(checkerNode)
-                        end
-                    else
-                        topNode:removeNode(checkerNode)
-                        if outNode then
-                            outNode:narrow(tracer.uri, checkerName)
-                        end
-                    end
-                end
-            elseif handler.type == 'getfield'
-            and    handler.node.type == 'getlocal' then
-                local tys
-                if handler.field then
-                    tys = getNodeTypesWithLiteralField(tracer.uri, handler.node, handler.field[1], checker)
-                end
-
-                -- TODO: handle more types
-                if tys and #tys == 1 then
-                    -- If the type is in a union (e.g. 'lit' | foo), then the type
-                    -- cannot be removed from the node.
-                    local ty, tyInUnion = tys[1][1], tys[1][2]
-                    topNode = topNode:copy()
-                    if action.op.type == '==' then
-                        topNode:narrow(tracer.uri, ty)
-                        if not tyInUnion and outNode then
-                            outNode:remove(ty)
-                        end
-                    else
-                        if not tyInUnion then
-                            topNode:remove(ty)
-                        end
-                        if outNode then
-                            outNode:narrow(tracer.uri, ty)
-                        end
-                    end
-                end
-            elseif handler.type == 'call'
-            and    checker.type == 'string'
-            and    handler.node.special == 'type'
-            and    handler.args
-            and    handler.args[1]
-            and    tracer.getMap[handler.args[1]] then
-                -- if type(x) == 'string' then
-                tracer:lookIntoChild(handler, topNode)
-                topNode = topNode:copy()
-                if action.op.type == '==' then
-                    topNode:narrow(tracer.uri, checker[1])
-                    if outNode then
-                        outNode:remove(checker[1])
-                    end
-                else
-                    topNode:remove(checker[1])
-                    if outNode then
-                        outNode:narrow(tracer.uri, checker[1])
-                    end
-                end
-            elseif handler.type == 'getlocal'
-            and    checker.type == 'string' then
-                -- `local tp = type(x);if tp == 'string' then`
-                local nodeValue = vm.getObjectValue(handler.node)
-                if  nodeValue
-                and nodeValue.type == 'select'
-                and nodeValue.sindex == 1 then
-                    local call = nodeValue.vararg
-                    if  call
-                    and call.type == 'call'
-                    and call.node.special == 'type'
-                    and call.args
-                    and tracer.getMap[call.args[1]] then
-                        if action.op.type == '==' then
-                            topNode:narrow(tracer.uri, checker[1])
-                            if outNode then
-                                outNode:remove(checker[1])
-                            end
-                        else
-                            topNode:remove(checker[1])
-                            if outNode then
-                                outNode:narrow(tracer.uri, checker[1])
-                            end
-                        end
-                    end
-                end
-            end
+            topNode, outNode = vm.runEqualityNarrowing(tracer, action, topNode, outNode, handler, checker)
         end
         tracer:lookIntoChild(action[1], topNode)
         tracer:lookIntoChild(action[2], topNode)

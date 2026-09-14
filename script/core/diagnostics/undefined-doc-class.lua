@@ -1,6 +1,16 @@
-local files   = require 'files'
-local lang    = require 'language'
-local vm      = require 'vm'
+local files           = require 'files'
+local vm              = require 'vm'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Undefined class `%s`.'
+
+protoDiagnostic.register {
+    'undefined-doc-class',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 return function (uri, callback)
     local state = files.getState(uri)
@@ -37,7 +47,7 @@ return function (uri, callback)
                             start   = ext.start,
                             finish  = ext.finish,
                             related = cache,
-                            message = lang.script('DIAG_UNDEFINED_DOC_CLASS', name)
+                            message = MESSAGE:format(name)
                         }
                     end
                 end

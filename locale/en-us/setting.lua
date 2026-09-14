@@ -428,10 +428,6 @@ config.diagnostics['unused-vararg']         =
 'Enable unused vararg diagnostics.'
 config.diagnostics['redefined-local']       =
 'Enable redefined local variable diagnostics.'
-config.diagnostics['newfield-call']         =
-'Enable newfield call diagnostics. It is raised when the parenthesis of a function call appear on the following line when defining a field in a table.'
-config.diagnostics['undefined-env-child']   =
-'Enable undefined environment variable diagnostics. It\'s raised when `_ENV` table is set to a new literal table, but the used global variable is no longer present in the global environment.'
 config.diagnostics['redundant-value']       =
 'Enable the redundant values assigned diagnostics. It\'s raised during assignment operation, when the number of values is higher than the number of objects being assigned.'
 config.diagnostics['await-in-sync']         =
@@ -446,8 +442,6 @@ config.diagnostics['close-non-object']      =
 'Enable diagnostics for attempts to close a variable with a non-object.'
 config.diagnostics['codestyle-check']       =
 'Enable diagnostics for incorrectly styled lines.'
-config.diagnostics['count-down-loop']       =
-'Enable diagnostics for `for` loops which will never reach their max/limit because the loop is incrementing instead of decrementing.'
 config.diagnostics['discard-returns']       =
 'Enable diagnostics for calls of functions annotated with `---@nodiscard` where the return values are ignored.'
 config.diagnostics['doc-field-no-class']    =
@@ -466,10 +460,6 @@ config.diagnostics['spell-check']           =
 'Enable diagnostics for typos in strings.'
 config.diagnostics['name-style-check']      =
 'Enable diagnostics for name style.'
-config.diagnostics['unbalanced-assignments']=
-'Enable diagnostics on multiple assignments if not all variables obtain a value (e.g., `local x,y = 1`).'
-config.diagnostics['undefined-doc-class']   =
-'Enable diagnostics for class annotations in which an undefined class is referenced.'
 config.diagnostics['undefined-doc-param']   =
 'Enable diagnostics for cases in which a parameter annotation is given without declaring the parameter in the function definition.'
 config.diagnostics['undefined-field']       =

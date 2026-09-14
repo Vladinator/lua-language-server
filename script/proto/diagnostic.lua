@@ -50,7 +50,6 @@ m.register {
 
 m.register {
     'redundant-value',
-    'unbalanced-assignments',
     'missing-parameter',
 } {
     group    = 'unbalanced',
@@ -69,7 +68,6 @@ m.register {
 }
 
 m.register {
-    'undefined-doc-class',
     'undefined-doc-param',
     'duplicate-doc-param',
     'doc-field-no-class',
@@ -107,15 +105,6 @@ m.register {
 }
 
 m.register {
-    'newfield-call',
-    'count-down-loop',
-} {
-    group    = 'ambiguity',
-    severity = 'Warning',
-    status   = 'Any',
-}
-
-m.register {
     'await-in-sync',
 } {
     group    = 'await',
@@ -145,14 +134,6 @@ m.register {
 } {
     group    = 'global',
     severity = 'Warning',
-    status   = 'Any',
-}
-
-m.register {
-    'undefined-env-child',
-} {
-    group    = 'global',
-    severity = 'Information',
     status   = 'Any',
 }
 

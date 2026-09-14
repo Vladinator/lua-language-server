@@ -2,8 +2,6 @@ DIAG_UNDEF_GLOBAL       =
 'Undefined global `{}`.'
 DIAG_UNDEF_FIELD        =
 'Undefined field `{}`.'
-DIAG_UNDEF_ENV_CHILD    =
-'Undefined variable `{}` (overloaded `_ENV` ).'
 DIAG_UNDEF_FENV_CHILD   =
 'Undefined variable `{}` (inside module).'
 DIAG_GLOBAL_IN_NIL_ENV  =
@@ -18,8 +16,6 @@ DIAG_REDEFINED_LOCAL    =
 'Redefined local `{}`.'
 DIAG_DUPLICATE_METHOD   =
 'Duplicate method `{}`.'
-DIAG_PREFIELD_CALL      =
-'Will be interpreted as `{}{}`. It may be necessary to add a `,` or `;`.'
 DIAG_MISS_ARGS          =
 'This function requires {:d} argument(s) but instead it is receiving {:d}.'
 DIAG_UNNECESSARY_ASSERT =
@@ -58,14 +54,10 @@ DIAG_SET_CONST          =
 'Assignment to const variable.'
 DIAG_SET_FOR_STATE      =
 'Assignment to for-state variable.'
-DIAG_UNBALANCED_ASSIGNMENTS =
-'The value is assigned as `nil` because the number of values is not enough. In Lua, `x, y = 1 ` is equivalent to `x, y = 1, nil` .'
 DIAG_REQUIRE_LIKE       =
 'You can treat `{}` as `require` by setting.'
 DIAG_COSE_NON_OBJECT    =
 'Cannot close a value of this type. (Unless set `__close` meta method)'
-DIAG_COUNT_DOWN_LOOP    =
-'Do you mean `{}` ?'
 DIAG_UNKNOWN            =
 'Cannot infer type.'
 DIAG_REDUNDANT_RETURN   =
@@ -78,8 +70,6 @@ DIAG_DOC_FIELD_NO_CLASS               =
 'The field must be defined after the class.'
 DIAG_DUPLICATE_DOC_PARAM              =
 'Duplicate params `{}`.'
-DIAG_UNDEFINED_DOC_CLASS              =
-'Undefined class `{}`.'
 DIAG_UNDEFINED_DOC_PARAM              =
 'Undefined param `{}`.'
 DIAG_UNKNOWN_DIAG_CODE                =

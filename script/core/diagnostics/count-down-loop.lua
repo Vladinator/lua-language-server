@@ -1,6 +1,16 @@
-local files    = require "files"
-local guide    = require "parser.guide"
-local lang     = require 'language'
+local files           = require "files"
+local guide           = require "parser.guide"
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Do you mean `%s` ?'
+
+protoDiagnostic.register {
+    'count-down-loop',
+} {
+    group    = 'ambiguity',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 return function (uri, callback)
     local state = files.getState(uri)
@@ -25,8 +35,8 @@ return function (uri, callback)
             callback {
                 start   = source.init.start,
                 finish  = source.max.finish,
-                message = lang.script('DIAG_COUNT_DOWN_LOOP'
-                    , ('%s, %s'):format(text:sub(
+                message = MESSAGE:format(
+                    ('%s, %s'):format(text:sub(
                         guide.positionToOffset(state, source.init.start + 1),
                         guide.positionToOffset(state, source.max.finish)
                     ), '-1')
@@ -38,8 +48,8 @@ return function (uri, callback)
                 callback {
                     start   = source.init.start,
                     finish  = source.step.finish,
-                    message = lang.script('DIAG_COUNT_DOWN_LOOP'
-                        , ('%s, -%s'):format(text:sub(
+                    message = MESSAGE:format(
+                        ('%s, -%s'):format(text:sub(
                             guide.positionToOffset(state, source.init.start + 1),
                             guide.positionToOffset(state, source.max.finish)
                         ), source.step[1])

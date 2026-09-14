@@ -56,6 +56,11 @@ require 'core.diagnostics.trailing-space'
 require 'core.diagnostics.missing-return-value'
 require 'core.diagnostics.missing-local-export-doc'
 require 'core.diagnostics.missing-global-doc'
+require 'core.diagnostics.count-down-loop'
+require 'core.diagnostics.undefined-env-child'
+require 'core.diagnostics.unbalanced-assignments'
+require 'core.diagnostics.newfield-call'
+require 'core.diagnostics.undefined-doc-class'
 
 local sleepRest = 0.0
 

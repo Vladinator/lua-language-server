@@ -1,7 +1,17 @@
-local files = require 'files'
-local guide = require 'parser.guide'
-local lang  = require 'language'
-local vm    = require "vm.vm"
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require "vm.vm"
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Undefined variable `%s` (overloaded `_ENV` ).'
+
+protoDiagnostic.register {
+    'undefined-env-child',
+} {
+    group    = 'global',
+    severity = 'Information',
+    status   = 'Any',
+}
 
 ---@param source parser.object
 ---@return boolean
@@ -44,7 +54,7 @@ return function (uri, callback)
         callback {
             start   = source.start,
             finish  = source.finish,
-            message = lang.script('DIAG_UNDEF_ENV_CHILD', key),
+            message = MESSAGE:format(key),
         }
     end)
 end

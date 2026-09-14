@@ -1,7 +1,17 @@
-local files  = require 'files'
-local lang   = require 'language'
-local guide  = require 'parser.guide'
-local await  = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'The value is assigned as `nil` because the number of values is not enough. In Lua, `x, y = 1 ` is equivalent to `x, y = 1, nil` .'
+
+protoDiagnostic.register {
+    'unbalanced-assignments',
+} {
+    group    = 'unbalanced',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 local types = {
     'local',
@@ -32,7 +42,7 @@ return function (uri, callback)
                 callback {
                     start   = source.start,
                     finish  = source.finish,
-                    message = lang.script('DIAG_UNBALANCED_ASSIGNMENTS')
+                    message = MESSAGE
                 }
             else
                 last = nil

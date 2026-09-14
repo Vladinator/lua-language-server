@@ -143,8 +143,6 @@ DIAG_CAST_FIELD_TYPE                  =
 'This field is defined as type `{def}`. Cannot convert its type to `{ref}`.'
 DIAG_ASSIGN_TYPE_MISMATCH             =
 'Cannot assign `{ref}` to `{def}`.'
-DIAG_PARAM_TYPE_MISMATCH              =
-'Cannot assign `{ref}` to parameter `{def}`.'
 DIAG_UNKNOWN_CAST_VARIABLE            =
 'Unknown type conversion variable `{}`.'
 DIAG_CAST_TYPE_MISMATCH               =

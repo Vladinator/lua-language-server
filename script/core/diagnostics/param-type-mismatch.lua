@@ -1,8 +1,18 @@
-local files = require 'files'
-local lang  = require 'language'
-local guide = require 'parser.guide'
-local vm    = require 'vm'
-local await = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Cannot assign `%s` to parameter `%s`.'
+
+protoDiagnostic.register {
+    'param-type-mismatch',
+} {
+    group    = 'type-check',
+    severity = 'Warning',
+    status   = 'Opened',
+}
 
 ---@param defNode  vm.node
 ---@param classGenericMap table<string, vm.node>?
@@ -164,10 +174,10 @@ return function (uri, callback)
                 callback {
                     start   = arg.start,
                     finish  = arg.finish,
-                    message = lang.script('DIAG_PARAM_TYPE_MISMATCH', {
-                        def = vm.getInfer(rawDefNode):view(uri),
-                        ref = vm.getInfer(refNode):view(uri),
-                    }) .. '\n' .. vm.viewTypeErrorMessage(uri, errs),
+                    message = MESSAGE:format(
+                        vm.getInfer(refNode):view(uri),
+                        vm.getInfer(rawDefNode):view(uri)
+                    ) .. '\n' .. vm.viewTypeErrorMessage(uri, errs),
                 }
             end
             ::CONTINUE::

@@ -504,8 +504,6 @@ config.diagnostics['no-unknown']            =
 'Enable diagnostics for cases in which the type cannot be inferred.'
 config.diagnostics['not-yieldable']         =
 'Enable diagnostics for calls to `coroutine.yield()` when it is not permitted.'
-config.diagnostics['param-type-mismatch']   =
-'Enable diagnostics for function calls where the type of a provided parameter does not match the type of the annotated function definition.'
 config.diagnostics['redundant-return']      =
 'Enable diagnostics for return statements which are not needed because the function would exit on its own.'
 config.diagnostics['redundant-return-value']=

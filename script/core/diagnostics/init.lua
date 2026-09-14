@@ -24,6 +24,7 @@ local diagd  = require 'proto.diagnostic'
 require 'core.diagnostics.need-check-secret'
 require 'core.diagnostics.deprecated'
 require 'core.diagnostics.code-after-break'
+require 'core.diagnostics.param-type-mismatch'
 
 local sleepRest = 0.0
 

@@ -73,7 +73,6 @@ m.register {
     'undefined-field',
     'cast-local-type',
     'assign-type-mismatch',
-    'param-type-mismatch',
     'cast-type-mismatch',
     'return-type-mismatch',
     'inject-field',

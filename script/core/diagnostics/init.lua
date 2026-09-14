@@ -23,6 +23,7 @@ local diagd  = require 'proto.diagnostic'
 -- registry instead, so registration order here doesn't matter.
 require 'core.diagnostics.need-check-secret'
 require 'core.diagnostics.deprecated'
+require 'core.diagnostics.code-after-break'
 
 local sleepRest = 0.0
 

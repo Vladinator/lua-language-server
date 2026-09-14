@@ -464,8 +464,6 @@ config.diagnostics['circular-doc-class']    =
 'Enable diagnostics for two classes inheriting from each other introducing a circular relation.'
 config.diagnostics['close-non-object']      =
 'Enable diagnostics for attempts to close a variable with a non-object.'
-config.diagnostics['code-after-break']      =
-'Enable diagnostics for code placed after a break statement in a loop.'
 config.diagnostics['codestyle-check']       =
 'Enable diagnostics for incorrectly styled lines.'
 config.diagnostics['count-down-loop']       =

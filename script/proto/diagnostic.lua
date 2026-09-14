@@ -46,7 +46,6 @@ m.register {
     'trailing-space',
     'redundant-return',
     'empty-block',
-    'code-after-break',
     'unreachable-code',
 } {
     group    = 'unused',

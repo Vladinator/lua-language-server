@@ -1,8 +1,18 @@
-local files    = require 'files'
-local guide    = require 'parser.guide'
-local lang     = require 'language'
-local define   = require 'proto.define'
-local await    = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local define          = require 'proto.define'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Unable to execute code after `break`.'
+
+protoDiagnostic.register {
+    'code-after-break',
+} {
+    group    = 'unused',
+    severity = 'Hint',
+    status   = 'Opened',
+}
 
 ---@async
 return function (uri, callback)
@@ -30,7 +40,7 @@ return function (uri, callback)
                     start   = list[i+1].start,
                     finish  = list[#list].range or list[#list].finish,
                     tags    = { define.DiagnosticTag.Unnecessary },
-                    message = lang.script.DIAG_CODE_AFTER_BREAK,
+                    message = MESSAGE,
                 }
             end
         end

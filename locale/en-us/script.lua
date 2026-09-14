@@ -81,8 +81,6 @@ DIAG_SET_CONST          =
 'Assignment to const variable.'
 DIAG_SET_FOR_STATE      =
 'Assignment to for-state variable.'
-DIAG_CODE_AFTER_BREAK   =
-'Unable to execute code after `break`.'
 DIAG_UNBALANCED_ASSIGNMENTS =
 'The value is assigned as `nil` because the number of values is not enough. In Lua, `x, y = 1 ` is equivalent to `x, y = 1, nil` .'
 DIAG_REQUIRE_LIKE       =

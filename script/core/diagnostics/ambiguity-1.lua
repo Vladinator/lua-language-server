@@ -1,6 +1,16 @@
-local files = require 'files'
-local guide = require 'parser.guide'
-local lang  = require 'language'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Compute `%s` first. You may need to add brackets.'
+
+protoDiagnostic.register {
+    'ambiguity-1',
+} {
+    group    = 'ambiguity',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 local opMap = {
     ['+']  = true,
@@ -51,7 +61,7 @@ return function (uri, callback)
                 callback {
                     start   = source.start,
                     finish  = source.finish,
-                    message = lang.script('DIAG_AMBIGUITY_1', text:sub(
+                    message = MESSAGE:format(text:sub(
                                 guide.positionToOffset(state, first.start + 1),
                                 guide.positionToOffset(state, first.finish)
                               ))
@@ -68,7 +78,7 @@ return function (uri, callback)
                 callback {
                     start   = source.start,
                     finish  = source.finish,
-                    message = lang.script('DIAG_AMBIGUITY_1', text:sub(
+                    message = MESSAGE:format(text:sub(
                                 guide.positionToOffset(state, second.start + 1),
                                 guide.positionToOffset(state, second.finish)
                               ))

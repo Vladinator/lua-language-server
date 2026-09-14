@@ -44,7 +44,6 @@ m.register {
     'trailing-space',
     'redundant-return',
     'empty-block',
-    'unreachable-code',
 } {
     group    = 'unused',
     severity = 'Hint',
@@ -58,7 +57,6 @@ m.register {
     'missing-parameter',
     'missing-return-value',
     'redundant-return-value',
-    'missing-return',
 } {
     group    = 'unbalanced',
     severity = 'Warning',
@@ -129,7 +127,6 @@ m.register {
 m.register {
     'newline-call',
     'newfield-call',
-    'ambiguity-1',
     'count-down-loop',
     'different-requires',
 } {
@@ -173,20 +170,11 @@ m.register {
 }
 
 m.register {
-    'lowercase-global',
     'undefined-env-child',
 } {
     group    = 'global',
     severity = 'Information',
     status   = 'Any',
-}
-
-m.register {
-    'global-element',
-} {
-    group   = 'conventions',
-    severity = 'Warning',
-    status = 'None'
 }
 
 m.register {

@@ -1,8 +1,18 @@
-local files  = require 'files'
-local guide  = require 'parser.guide'
-local vm     = require 'vm'
-local lang   = require 'language'
-local await  = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Annotations specify that a return value is required here.'
+
+protoDiagnostic.register {
+    'missing-return',
+} {
+    group    = 'unbalanced',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@param block parser.object
 ---@return boolean
@@ -70,7 +80,7 @@ return function (uri, callback)
         callback {
             start   = pos,
             finish  = pos,
-            message = lang.script('DIAG_MISSING_RETURN'),
+            message = MESSAGE,
         }
     end)
 end

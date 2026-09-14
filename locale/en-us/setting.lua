@@ -436,10 +436,6 @@ config.diagnostics['newfield-call']         =
 'Enable newfield call diagnostics. It is raised when the parenthesis of a function call appear on the following line when defining a field in a table.'
 config.diagnostics['redundant-parameter']   =
 'Enable redundant function parameter diagnostics.'
-config.diagnostics['ambiguity-1']           =
-'Enable ambiguous operator precedence diagnostics. For example, the `num or 0 + 1` expression will be suggested `(num or 0) + 1` instead.'
-config.diagnostics['lowercase-global']      =
-'Enable lowercase global variable definition diagnostics.'
 config.diagnostics['undefined-env-child']   =
 'Enable undefined environment variable diagnostics. It\'s raised when `_ENV` table is set to a new literal table, but the used global variable is no longer present in the global environment.'
 config.diagnostics['duplicate-index']       =
@@ -480,8 +476,6 @@ config.diagnostics['missing-local-export-doc'] =
 'Missing annotations for exported locals! Exported local functions must have a comment and annotations for all parameters and return values.'
 config.diagnostics['missing-parameter']     =
 'Enable diagnostics for function calls where the number of arguments is less than the number of annotated function parameters.'
-config.diagnostics['missing-return']        =
-'Enable diagnostics for functions with return annotations which have no return statement.'
 config.diagnostics['missing-return-value']  =
 'Enable diagnostics for return statements without values although the containing function declares returns.'
 config.diagnostics['need-check-nil']        =
@@ -514,10 +508,6 @@ config.diagnostics['unknown-diag-code']     =
 'Enable diagnostics in cases in which an unknown diagnostics code is entered.'
 config.diagnostics['unknown-operator']      =
 'Enable diagnostics for unknown operators.'
-config.diagnostics['unreachable-code']      =
-'Enable diagnostics for unreachable code.'
-config.diagnostics['global-element']       =
-'Enable diagnostics to warn about global elements.'
 config.diagnostics['action-after-return'] =
 'Code after a `return` statement'
 config.diagnostics['ambiguous-syntax'] =

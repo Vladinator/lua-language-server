@@ -36,11 +36,6 @@ DIAG_UNNECESSARY_ASSERT =
 'Unnecessary assert: this expression is always truthy.'
 DIAG_OVER_MAX_VALUES    =
 'Only has {} variables, but you set {} values.'
-DIAG_AMBIGUITY_1        =
-'Compute `{}` first. You may need to add brackets.'
-DIAG_LOWERCASE_GLOBAL   =
-'Global variable in lowercase initial, Did you miss `local` or misspell it?'
-
 ASSIGN_CONST_GLOBAL     =
 'Cannot assign to <const> global variable `{}`.'
 
@@ -139,20 +134,14 @@ DIAG_REDUNDANT_RETURN_VALUE           =
 'Annotations specify that at most {max} return value(s) are required, found {rmax} returned here instead.'
 DIAG_REDUNDANT_RETURN_VALUE_RANGE     =
 'Annotations specify that at most {max} return value(s) are required, found {rmin} to {rmax} returned here instead.'
-DIAG_MISSING_RETURN                   =
-'Annotations specify that a return value is required here.'
 DIAG_UNKNOWN_OPERATOR                 =
 'Unknown operator `{}`.'
-DIAG_UNREACHABLE_CODE                 =
-'Unreachable code.'
 DIAG_INVISIBLE_PRIVATE                =
 'Field `{field}` is private, it can only be accessed in class `{class}`.'
 DIAG_INVISIBLE_PROTECTED              =
 'Field `{field}` is protected, it can only be accessed in class `{class}` and its subclasses.'
 DIAG_INVISIBLE_PACKAGE                =
 'Field `{field}` can only be accessed in same file `{uri}`.'
-DIAG_GLOBAL_ELEMENT                   =
-'Element is global.'
 MWS_NOT_SUPPORT         =
 '{} does not support multi workspace for now, I may need to restart to support the new workspace ...'
 MWS_RESTART             =

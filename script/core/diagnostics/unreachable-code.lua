@@ -1,9 +1,19 @@
-local files  = require 'files'
-local guide  = require 'parser.guide'
-local vm     = require 'vm'
-local lang   = require 'language'
-local await  = require 'await'
-local define = require 'proto.define'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local define          = require 'proto.define'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Unreachable code.'
+
+protoDiagnostic.register {
+    'unreachable-code',
+} {
+    group    = 'unused',
+    severity = 'Hint',
+    status   = 'Opened',
+}
 
 ---@param source parser.object
 ---@return boolean
@@ -74,7 +84,7 @@ return function (uri, callback)
                         start   = source[i+1].start,
                         finish  = source[#source].finish,
                         tags    = { define.DiagnosticTag.Unnecessary },
-                        message = lang.script('DIAG_UNREACHABLE_CODE'),
+                        message = MESSAGE,
                     }
                 end
                 return

@@ -1,9 +1,19 @@
-local files     = require 'files'
-local guide     = require 'parser.guide'
-local lang      = require 'language'
-local config    = require 'config'
-local vm        = require 'vm'
-local util      = require 'utility'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local config          = require 'config'
+local vm              = require 'vm'
+local util            = require 'utility'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Global variable in lowercase initial, Did you miss `local` or misspell it?'
+
+protoDiagnostic.register {
+    'lowercase-global',
+} {
+    group    = 'global',
+    severity = 'Information',
+    status   = 'Any',
+}
 
 local function isDocClass(source)
     if not source.bindDocs then
@@ -79,7 +89,7 @@ return function (uri, callback)
         callback {
             start   = source.start,
             finish  = source.finish,
-            message = lang.script.DIAG_LOWERCASE_GLOBAL,
+            message = MESSAGE,
         }
     end)
 end

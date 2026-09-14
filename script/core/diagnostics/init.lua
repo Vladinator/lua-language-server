@@ -35,6 +35,11 @@ require 'core.diagnostics.incomplete-signature-doc'
 require 'core.diagnostics.duplicate-set-field'
 require 'core.diagnostics.return-type-mismatch'
 require 'core.diagnostics.duplicate-doc-field'
+require 'core.diagnostics.lowercase-global'
+require 'core.diagnostics.unreachable-code'
+require 'core.diagnostics.ambiguity-1'
+require 'core.diagnostics.missing-return'
+require 'core.diagnostics.global-element'
 
 local sleepRest = 0.0
 

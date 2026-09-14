@@ -2,10 +2,13 @@
 -- needs -- diagnostic registration, LuaDoc tag parsing/binding, flow
 -- narrowing, and secrecy propagation -- lives in this one file, wired in
 -- purely through the registries in vm/narrow.lua, vm/genesis.lua,
--- parser/docTags.lua and parser/specials.lua. No other core file
--- references "secret" at all: deleting this file (and its one line in
--- core/diagnostics/init.lua's eager-load list) removes the feature
--- completely, and no other diagnostic is affected.
+-- vm/flags.lua, parser/docTags.lua and parser/specials.lua. No other
+-- core file references "secret" at all, and none of this plugin's own
+-- functions are exposed on the shared `vm`/`docTags` tables under a
+-- secret-specific name -- everything they need to plug into is a
+-- generic, string-keyed registry, so deleting this file (and its one
+-- line in core/diagnostics/init.lua's eager-load list) removes the
+-- feature completely, and no other diagnostic is affected.
 
 local files           = require 'files'
 local guide           = require 'parser.guide'
@@ -15,6 +18,16 @@ local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
 local docTags         = require 'parser.docTags'
 local specials        = require 'parser.specials'
+
+--- Extends parser.object (defined in parser/luadoc.lua) with the field
+--- this plugin's own `---@field name secret string` keyword sets -- see
+--- the docTags.registerFieldKeyword call below. Written as ["secret"]
+--- rather than a bare `secret?`: that registration makes `secret` itself
+--- a reserved `@field` keyword (like the built-in public/private/etc.),
+--- so a bare `---@field secret? boolean` here would parse as *using*
+--- the keyword rather than naming a field called "secret".
+---@class parser.object
+---@field ["secret"]? boolean
 
 local MESSAGE = 'Need check secret value.'
 
@@ -44,6 +57,11 @@ end)
 docTags.registerBindRule('doc.secret-access-check', function (doc, source, isParam)
     return source.type == 'function'
 end)
+
+-- `---@field name secret string` -- an additional bare keyword alongside
+-- the built-in public/protected/private/package, consumed by the
+-- 'doc.field' genesis rule below.
+docTags.registerFieldKeyword('secret', 'secret')
 
 -- Recognize `next` as an iteration entry point, alongside the parser's
 -- own built-in pairs/ipairs, so `next(secretTable)` can be banned below.
@@ -93,19 +111,19 @@ end
 
 ---@param value parser.object
 ---@return boolean
-function vm.isSecret(value)
+local function isSecret(value)
     return checkSecretDoc(value, 'doc.secret')
 end
 
 ---@param value parser.object
 ---@return boolean
-function vm.isSecretCheck(value)
+local function isSecretCheck(value)
     return checkSecretDoc(value, 'doc.secret-check')
 end
 
 ---@param value parser.object
 ---@return boolean
-function vm.isSecretAccessCheck(value)
+local function isSecretAccessCheck(value)
     return checkSecretDoc(value, 'doc.secret-access-check')
 end
 
@@ -114,7 +132,7 @@ end
 ---@param node vm.node
 ---@param uri  uri
 ---@return boolean
-function vm.hasSecretType(node, uri)
+local function hasSecretType(node, uri)
     for c in node:eachObject() do
         if c.type == 'global' and c.cate == 'type' then
             ---@cast c vm.global
@@ -194,18 +212,18 @@ vm.registerCallNarrowing {
         if not (action.args and action.args[1] and tracer.getMap[action.args[1]]) then
             return topNode, outNode
         end
-        local isSecretAccessCheck = not vm.isSecretCheck(action.node) and vm.isSecretAccessCheck(action.node)
+        local isAccessCheck = not isSecretCheck(action.node) and isSecretAccessCheck(action.node)
         local value = action.args[1]
         tracer:lookIntoChild(value, topNode, outNode)
-        if isSecretAccessCheck then
-            topNode = topNode:copy():removeSecret()
+        if isAccessCheck then
+            topNode = topNode:copy():clearFlag('secret')
             if outNode then
                 outNode = outNode:copy()
             end
         else
             topNode = topNode:copy()
             if outNode then
-                outNode = outNode:copy():removeSecret()
+                outNode = outNode:copy():clearFlag('secret')
             end
         end
         return topNode, outNode
@@ -217,38 +235,45 @@ vm.registerCallNarrowing {
 for _, sourceType in ipairs { 'local', 'self' } do
     vm.registerGenesisRule(sourceType, function (source, node)
         -- only when `source` carries its own doc comment (e.g. `---@secret`
-        -- directly on this declaration) -- vm.isSecret(source)'s fallback
+        -- directly on this declaration) -- isSecret(source)'s fallback
         -- resolves through vm.getDefs(), which is unsound to call on every
         -- plain local (it can match through an unrelated assigned value).
-        if source.bindDocs and vm.isSecret(source) then
-            node:addSecret()
+        if source.bindDocs and isSecret(source) then
+            node:setFlag('secret')
         end
     end)
 end
 
 vm.registerGenesisRule('call', function (source, node)
-    if vm.isSecret(source.node) then
-        node:addSecret()
+    if isSecret(source.node) then
+        node:setFlag('secret')
     end
 end)
 
 vm.registerGenesisRule('doc.type', function (source, node)
-    if vm.hasSecretType(node, guide.getUri(source)) then
-        node:addSecret()
+    if hasSecretType(node, guide.getUri(source)) then
+        node:setFlag('secret')
     end
 end)
 
 vm.registerGenesisRule('doc.field', function (source, node)
     if source.secret then
-        node:addSecret()
+        node:setFlag('secret')
     end
 end)
 
 vm.registerGenesisRule('function.return', function (source, node)
-    if vm.isSecret(source.parent) then
-        node:addSecret()
+    if isSecret(source.parent) then
+        node:setFlag('secret')
     end
 end)
+
+-- Node-reconstruction paths in vm/compiler.lua and vm/generic.lua that
+-- don't go through vm.node:merge() (which already carries every flag
+-- automatically) ask these two generic registries instead of ever naming
+-- "secret" themselves -- see vm/flags.lua.
+vm.registerPropagatingFlag('secret')
+vm.registerFlagDeriver('secret', isSecret)
 
 -- The diagnostic itself.
 
@@ -316,7 +341,7 @@ return function (uri, callback)
         end
 
         local node = vm.compileNode(src)
-        if not node:hasSecret() then
+        if not node:hasFlag('secret') then
             return
         end
 

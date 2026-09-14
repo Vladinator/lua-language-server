@@ -1089,9 +1089,7 @@ local function selectNode(source, list, index)
                 rtnNode:merge(n)
             end
         end
-        if result:hasSecret() then
-            rtnNode:addSecret()
-        end
+        vm.propagateFlags(result, rtnNode)
         vm.setNode(source, rtnNode)
         return rtnNode
     end
@@ -1165,10 +1163,11 @@ local function compileCallArgNode(arg, call, callNode, fixIndex, myIndex)
         local myEvent
         if n.args[eventIndex] then
             -- eventIndex is only ever set in the same branch that sets
-            -- eventMap (see the loop above), so checking eventIndex here
-            -- (rather than eventMap) is equivalent and also narrows it
-            -- for the `myIndex > eventIndex` comparison below
-            if eventIndex and myIndex > eventIndex then
+            -- eventMap (see the loop above), so this is redundant with
+            -- `eventMap and` in principle -- but keeping both narrows
+            -- each variable for its own use below (eventIndex for the
+            -- `myIndex > eventIndex` comparison, eventMap for pairs())
+            if eventMap and eventIndex and myIndex > eventIndex then
                 -- if call param has literal types, then also check if function def param has literal types
                 -- 1. has no literal values => not enough info, thus allowed by default
                 -- 2. has literal values and >= 1 matches call param's literal types => allowed
@@ -1713,9 +1712,7 @@ local function bindReturnOfFunction(source, mfunc, index, args)
                 if protoNode:isOptional() then
                     result:addOptional()
                 end
-                if rnode.secret then
-                    result:addSecret()
-                end
+                vm.applyFlagsTable(rnode.flags, result)
                 returnNode = result
             else
                 returnNode = rnode:resolve(guide.getUri(source), resolveArgs)
@@ -1834,13 +1831,13 @@ local function bindReturnOfFunction(source, mfunc, index, args)
         if returnNode:isOptional() then
             vm.getNode(source):addOptional()
         end
-        -- vm.isSecret only exists when core/diagnostics/extra/need-check-secret.lua
-        -- is loaded (it's the only thing that defines it) -- guard so deleting
-        -- that file doesn't crash compilation, it just stops propagating
-        -- secrecy through this specific generic-return-type path.
-        if returnNode:hasSecret() or (vm.isSecret and vm.isSecret(mfunc)) then
-            vm.getNode(source):addSecret()
-        end
+        -- vm.propagateFlags/vm.applyDerivedFlags are no-ops for any flag
+        -- no plugin has registered, so this stays correct whether or not
+        -- e.g. core/diagnostics/extra/need-check-secret.lua is loaded.
+        local resultNode = vm.getNode(source)
+        assert(resultNode)
+        vm.propagateFlags(returnNode, resultNode)
+        vm.applyDerivedFlags(mfunc, resultNode)
     end
 end
 
@@ -2162,8 +2159,7 @@ local compilerSwitch = util.switch()
                             end
                             if hasGeneric then
                                 ---@cast sign -?
-                                -- see the vm.isSecret guard note further down this file
-                                vm.setNode(source, vm.createGeneric(rtn, sign, vm.isSecret and vm.isSecret(func)))
+                                vm.setNode(source, vm.createGeneric(rtn, sign, vm.deriveFlags(func)))
                             else
                                 vm.setNode(source, vm.compileNode(rtn))
                             end

@@ -1,3 +1,8 @@
+-- Lives next to need-check-secret.lua on purpose: this test only runs if
+-- its plugin does too (see the checkPluginDir scan in
+-- test/diagnostics/init.lua), so deleting the plugin also removes its
+-- test with nothing left over to update elsewhere.
+
 TEST [[
 ---@secret
 ---@return number

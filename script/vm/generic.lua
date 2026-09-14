@@ -9,7 +9,7 @@ local guide   = require 'parser.guide'
 ---@class vm.generic
 ---@field sign   vm.sign
 ---@field proto  vm.object
----@field secret boolean?
+---@field flags  table<string, boolean>?
 local mt = {}
 mt.__index = mt
 mt.type = 'generic'
@@ -214,9 +214,7 @@ function mt:resolve(uri, args)
     if protoNode:isOptional() then
         result:addOptional()
     end
-    if self.secret then
-        result:addSecret()
-    end
+    vm.applyFlagsTable(self.flags, result)
     return result
 end
 
@@ -263,15 +261,15 @@ function vm.getGeneric(source)
     return source._generic
 end
 
----@param proto  vm.object
----@param sign   vm.sign
----@param secret boolean?
+---@param proto vm.object
+---@param sign  vm.sign
+---@param flags table<string, boolean>?
 ---@return vm.generic
-function vm.createGeneric(proto, sign, secret)
+function vm.createGeneric(proto, sign, flags)
     local generic = setmetatable({
         sign   = sign,
         proto  = proto,
-        secret = secret,
+        flags  = flags,
     }, mt)
     return generic
 end

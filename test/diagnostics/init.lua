@@ -4,6 +4,7 @@ local config = require 'config'
 local util   = require 'utility'
 local catch  = require 'catch'
 local diagd  = require 'proto.diagnostic'
+local fs     = require 'bee.filesystem'
 
 local status = config.get(nil, 'Lua.diagnostics.neededFileStatus')
 
@@ -89,6 +90,32 @@ local function check(name)
     require('diagnostics.' .. name)
 end
 
+--- Extra/custom diagnostic plugins ship their tests right alongside their
+--- implementation, as a `<name>.test.lua` file next to `<name>.lua` --
+--- both travel together, so deleting a plugin also removes its test, with
+--- no leftover reference here to update (unlike the `check 'x'` lines
+--- below, one per built-in diagnostic). A test only runs if its plugin's
+--- implementation file is still there to run it against.
+---@param dirPath string
+local function checkPluginDir(dirPath)
+    local dir = fs.path(dirPath)
+    if not fs.exists(dir) or not fs.is_directory(dir) then
+        return
+    end
+    for path in fs.pairs(dir) do
+        local fileName = path:filename():string()
+        local name = fileName:match('^(.+)%.test%.lua$')
+        if name then
+            local implPath = dir / (name .. '.lua')
+            if fs.exists(implPath) then
+                DIAG_CARE = name
+                local testFn = assert(loadfile(path:string()))
+                testFn()
+            end
+        end
+    end
+end
+
 check 'ambiguity-1'
 check 'assign-type-mismatch'
 check 'await-in-sync'
@@ -120,7 +147,6 @@ check 'missing-parameter'
 check 'missing-return-value'
 check 'missing-return'
 check 'need-check-nil'
-check 'need-check-secret'
 check 'unnecessary-assert'
 check 'newfield-call'
 check 'newline-call'
@@ -148,3 +174,5 @@ check 'unused-function'
 check 'unused-label'
 check 'unused-local'
 check 'unused-vararg'
+
+checkPluginDir((ROOT / 'script' / 'core' / 'diagnostics' / 'extra'):string())

@@ -62,6 +62,25 @@ function m.getBindRule(docType)
     return bindRules[docType]
 end
 
+---@type table<string, string>
+local fieldKeywords = {}
+
+--- Register an additional bare keyword usable right after `---@field`,
+--- alongside the built-in visibility keywords (public/protected/private/
+--- package) -- e.g. `---@field name mykeyword string` sets
+--- `result[resultField] = true` on the produced doc.field node.
+---@param keyword     string
+---@param resultField string
+function m.registerFieldKeyword(keyword, resultField)
+    fieldKeywords[keyword] = resultField
+end
+
+---@param keyword string
+---@return string?
+function m.getFieldKeyword(keyword)
+    return fieldKeywords[keyword]
+end
+
 ---@type table<string, true>
 local classGroupDocTypes = {}
 

@@ -11,6 +11,12 @@
 -- reachable via the normal require('core.diagnostics.'..name)
 -- convention.
 --
+-- A plugin can optionally ship its own tests right alongside it, as
+-- `<name>.test.lua` (see need-check-secret.test.lua) -- this loader
+-- skips those (they're not plugins themselves), and
+-- test/diagnostics/init.lua's checkPluginDir runs one only if its
+-- `<name>.lua` is still there next to it.
+--
 -- Two directories are loaded this way, both through loadDirectoryFiles()
 -- below:
 --   - script/core/diagnostics/extra/ -- shipped with the server, always
@@ -115,12 +121,16 @@ end
 
 --- Loads every `.lua` file directly inside `dirPath` (already confirmed
 --- to exist) as a diagnostic plugin. Purely synchronous file I/O -- no
---- trust gating here, callers decide whether that's needed first.
+--- trust gating here, callers decide whether that's needed first. Skips
+--- `*.test.lua` -- that's a plugin's own test file (see
+--- test/diagnostics/init.lua's checkPluginDir), not part of the plugin
+--- itself, so it must never run here.
 ---@param dirPath string absolute filesystem path to scan
 local function loadDirectoryFiles(dirPath)
     local dir = fs.path(dirPath)
     for path in fs.pairs(dir) do
-        if not fs.is_directory(path) and path:extension() == '.lua' then
+        if not fs.is_directory(path) and path:extension() == '.lua'
+        and not path:filename():string():match('%.test%.lua$') then
             local filePath = path:string()
             local name     = path:stem():string()
             local before   = diag.diagnosticDatas[name]

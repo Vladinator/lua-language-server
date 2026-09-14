@@ -160,7 +160,6 @@ Symbol              <-  ({} {
 ---@field generic?          parser.object
 ---@field docAttr?          parser.object
 ---@field pattern?          string
----@field secret?           boolean
 
 local function parseTokens(text, offset)
     Ci = 0
@@ -1223,6 +1222,7 @@ local docSwitch = util.switch()
         try(function ()
             local tp, value = nextToken()
             if tp == 'name' then
+                assert(value)
                 if value == 'public'
                 or value == 'protected'
                 or value == 'private'
@@ -1236,13 +1236,18 @@ local docSwitch = util.switch()
                     result.start = getStart()
                     return true
                 end
-                if value == 'secret' then
+                local fieldResultKey = docTags.getFieldKeyword(value)
+                if fieldResultKey then
                     local tp2 = peekToken(1)
                     local tp3 = peekToken(2)
                     if tp2 == 'name' and not tp3 then
                         return false
                     end
-                    result.secret = true
+                    -- fieldResultKey is a plugin-supplied string (see
+                    -- docTags.registerFieldKeyword), so its actual name
+                    -- can't be known statically here
+                    ---@diagnostic disable-next-line: assign-type-mismatch
+                    result[fieldResultKey] = true
                     result.start = getStart()
                     return true
                 end
@@ -1744,6 +1749,7 @@ local function convertTokens(doc)
         }
         return nil
     end
+    assert(text)
     if not docSwitch:has(text) then
         local docType = docTags.getMarkerTagType(text)
         if docType then

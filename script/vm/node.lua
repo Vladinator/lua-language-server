@@ -28,9 +28,9 @@ mt.hasDefined = nil
 mt.originNode = nil
 
 --- Generic, registrable boolean flags -- a taint-style bit that plugins
---- can add without editing this file, carried through merge()/copy() the
---- same way built-in flags like .secret already are. Not a fit for every
---- flag: .optional, for instance, has merge-independent side effects
+--- can add without editing this file, carried through merge()/copy()
+--- automatically. Not a fit for every flag: .optional, for instance, has
+--- merge-independent side effects
 --- (removeOptional actually strips a 'nil' type member) that a plain
 --- OR-on-merge bit can't express, so it stays as its own field.
 ---@param name string
@@ -133,21 +133,6 @@ end
 function mt:removeOptional()
     self:remove 'nil'
     return self
-end
-
----@return vm.node
-function mt:addSecret()
-    return self:setFlag('secret')
-end
-
----@return vm.node
-function mt:removeSecret()
-    return self:clearFlag('secret')
-end
-
----@return boolean
-function mt:hasSecret()
-    return self:hasFlag('secret')
 end
 
 ---@return boolean

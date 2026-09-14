@@ -45,6 +45,11 @@ require 'core.diagnostics.invisible'
 require 'core.diagnostics.duplicate-index'
 require 'core.diagnostics.not-yieldable'
 require 'core.diagnostics.redundant-return-value'
+require 'core.diagnostics.circle-doc-class'
+require 'core.diagnostics.newline-call'
+require 'core.diagnostics.need-check-nil'
+require 'core.diagnostics.empty-block'
+require 'core.diagnostics.duplicate-doc-alias'
 
 local sleepRest = 0.0
 

@@ -430,14 +430,10 @@ config.diagnostics['trailing-space']        =
 'Enable trailing space diagnostics.'
 config.diagnostics['redefined-local']       =
 'Enable redefined local variable diagnostics.'
-config.diagnostics['newline-call']          =
-'Enable newline call diagnostics. It\'s raised when a line starting with `(` is encountered, which is syntactically parsed as a function call on the previous line.'
 config.diagnostics['newfield-call']         =
 'Enable newfield call diagnostics. It is raised when the parenthesis of a function call appear on the following line when defining a field in a table.'
 config.diagnostics['undefined-env-child']   =
 'Enable undefined environment variable diagnostics. It\'s raised when `_ENV` table is set to a new literal table, but the used global variable is no longer present in the global environment.'
-config.diagnostics['empty-block']           =
-'Enable empty code block diagnostics.'
 config.diagnostics['redundant-value']       =
 'Enable the redundant values assigned diagnostics. It\'s raised during assignment operation, when the number of values is higher than the number of objects being assigned.'
 config.diagnostics['await-in-sync']         =
@@ -460,8 +456,6 @@ config.diagnostics['discard-returns']       =
 'Enable diagnostics for calls of functions annotated with `---@nodiscard` where the return values are ignored.'
 config.diagnostics['doc-field-no-class']    =
 'Enable diagnostics to highlight a field annotation without a defining class annotation.'
-config.diagnostics['duplicate-doc-alias']   =
-'Enable diagnostics for a duplicated alias annotation name.'
 config.diagnostics['duplicate-doc-param']   =
 'Enable diagnostics for a duplicated param annotation name.'
 config.diagnostics['missing-global-doc']    =
@@ -472,8 +466,6 @@ config.diagnostics['missing-parameter']     =
 'Enable diagnostics for function calls where the number of arguments is less than the number of annotated function parameters.'
 config.diagnostics['missing-return-value']  =
 'Enable diagnostics for return statements without values although the containing function declares returns.'
-config.diagnostics['need-check-nil']        =
-'Enable diagnostics for variable usages if `nil` or an optional (potentially `nil`) value was assigned to the variable before.'
 config.diagnostics['unnecessary-assert']    =
 'Enable diagnostics for redundant assertions on truthy values.'
 config.diagnostics['no-unknown']            =

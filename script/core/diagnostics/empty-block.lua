@@ -1,10 +1,20 @@
-local files   = require 'files'
-local guide   = require 'parser.guide'
-local lang    = require 'language'
-local define  = require 'proto.define'
-local await   = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local define          = require 'proto.define'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
 
--- 检查空代码块  
+local MESSAGE = 'Empty block.'
+
+protoDiagnostic.register {
+    'empty-block',
+} {
+    group    = 'unused',
+    severity = 'Hint',
+    status   = 'Opened',
+}
+
+-- 检查空代码块
 -- 但是排除忙等待（repeat/while)
 ---@async
 return function (uri, callback)
@@ -24,7 +34,7 @@ return function (uri, callback)
             start   = source.start,
             finish  = source.finish,
             tags    = { define.DiagnosticTag.Unnecessary },
-            message = lang.script.DIAG_EMPTY_BLOCK,
+            message = MESSAGE,
         }
     end)
     await.delay()
@@ -36,7 +46,7 @@ return function (uri, callback)
             start   = source.start,
             finish  = source.finish,
             tags    = { define.DiagnosticTag.Unnecessary },
-            message = lang.script.DIAG_EMPTY_BLOCK,
+            message = MESSAGE,
         }
     end)
     await.delay()
@@ -48,7 +58,7 @@ return function (uri, callback)
             start   = source.start,
             finish  = source.finish,
             tags    = { define.DiagnosticTag.Unnecessary },
-            message = lang.script.DIAG_EMPTY_BLOCK,
+            message = MESSAGE,
         }
     end)
 end

@@ -1,8 +1,18 @@
-local files = require 'files'
-local guide = require 'parser.guide'
-local vm    = require 'vm'
-local lang  = require 'language'
-local await = require 'await'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local vm              = require 'vm'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Need check nil.'
+
+protoDiagnostic.register {
+    'need-check-nil',
+} {
+    group    = 'type-check',
+    severity = 'Warning',
+    status   = 'Opened',
+}
 
 ---@async
 return function (uri, callback)
@@ -47,7 +57,7 @@ return function (uri, callback)
             callback {
                 start   = src.start,
                 finish  = src.finish,
-                message = lang.script('DIAG_NEED_CHECK_NIL'),
+                message = MESSAGE,
             }
         end
     end)

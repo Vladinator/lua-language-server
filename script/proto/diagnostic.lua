@@ -43,7 +43,6 @@ m.register {
     'unused-vararg',
     'trailing-space',
     'redundant-return',
-    'empty-block',
 } {
     group    = 'unused',
     severity = 'Hint',
@@ -62,7 +61,6 @@ m.register {
 }
 
 m.register {
-    'need-check-nil',
     'undefined-field',
     'cast-local-type',
     'cast-type-mismatch',
@@ -74,9 +72,7 @@ m.register {
 }
 
 m.register {
-    'duplicate-doc-alias',
     'undefined-doc-class',
-    'circle-doc-class',
     'undefined-doc-param',
     'duplicate-doc-param',
     'doc-field-no-class',
@@ -123,7 +119,6 @@ m.register {
 }
 
 m.register {
-    'newline-call',
     'newfield-call',
     'count-down-loop',
     'different-requires',

@@ -1,8 +1,18 @@
-local files    = require 'files'
-local lang     = require 'language'
-local vm       = require 'vm'
-local guide    = require 'parser.guide'
-local await    = require 'await'
+local files           = require 'files'
+local vm              = require 'vm'
+local guide           = require 'parser.guide'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Duplicate defined alias `%s`.'
+
+protoDiagnostic.register {
+    'duplicate-doc-alias',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -46,7 +56,7 @@ return function (uri, callback)
                     start   = (doc.alias or doc.enum).start,
                     finish  = (doc.alias or doc.enum).finish,
                     related = cache,
-                    message = lang.script('DIAG_DUPLICATE_DOC_ALIAS', name)
+                    message = MESSAGE:format(name)
                 }
             end
         end

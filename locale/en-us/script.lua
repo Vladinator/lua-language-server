@@ -22,8 +22,6 @@ DIAG_REDEFINED_LOCAL    =
 'Redefined local `{}`.'
 DIAG_DUPLICATE_METHOD   =
 'Duplicate method `{}`.'
-DIAG_PREVIOUS_CALL      =
-'Will be interpreted as `{}{}`. It may be necessary to add a `,`.'
 DIAG_PREFIELD_CALL      =
 'Will be interpreted as `{}{}`. It may be necessary to add a `,` or `;`.'
 DIAG_MISS_ARGS          =
@@ -38,8 +36,6 @@ ASSIGN_CONST_GLOBAL     =
 VARIABLE_NOT_DECLARED =
 'Variable `{}` not declared (global declarations active).'
 
-DIAG_EMPTY_BLOCK        =
-'Empty block.'
 DIAG_DIAGNOSTICS        =
 'Lua Diagnostics.'
 DIAG_SYNTAX_CHECK       =
@@ -84,14 +80,8 @@ DIAG_AWAIT_IN_SYNC      =
 'Async function can only be called in async function.'
 DIAG_DISCARD_RETURNS    =
 'The return values of this function cannot be discarded.'
-DIAG_NEED_CHECK_NIL     =
-'Need check nil.'
-DIAG_CIRCLE_DOC_CLASS                 =
-'Circularly inherited classes.'
 DIAG_DOC_FIELD_NO_CLASS               =
 'The field must be defined after the class.'
-DIAG_DUPLICATE_DOC_ALIAS              =
-'Duplicate defined alias `{}`.'
 DIAG_DUPLICATE_DOC_PARAM              =
 'Duplicate params `{}`.'
 DIAG_UNDEFINED_DOC_CLASS              =

@@ -1,8 +1,18 @@
-local files    = require 'files'
-local lang     = require 'language'
-local vm       = require 'vm'
-local guide    = require 'parser.guide'
-local await    = require 'await'
+local files           = require 'files'
+local vm              = require 'vm'
+local guide           = require 'parser.guide'
+local await           = require 'await'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Circularly inherited classes.'
+
+protoDiagnostic.register {
+    'circle-doc-class',
+} {
+    group    = 'luadoc',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -36,7 +46,7 @@ return function (uri, callback)
                             callback {
                                 start   = doc.start,
                                 finish  = doc.finish,
-                                message = lang.script('DIAG_CIRCLE_DOC_CLASS', myName)
+                                message = MESSAGE
                             }
                             goto CONTINUE
                         end

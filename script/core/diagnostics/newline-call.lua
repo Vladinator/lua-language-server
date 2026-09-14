@@ -1,8 +1,18 @@
-local files = require 'files'
-local guide = require 'parser.guide'
-local lang  = require 'language'
-local await = require 'await'
-local sub   = require 'core.substring'
+local files           = require 'files'
+local guide           = require 'parser.guide'
+local await           = require 'await'
+local sub             = require 'core.substring'
+local protoDiagnostic = require 'proto.diagnostic'
+
+local MESSAGE = 'Will be interpreted as `%s%s`. It may be necessary to add a `,`.'
+
+protoDiagnostic.register {
+    'newline-call',
+} {
+    group    = 'ambiguity',
+    severity = 'Warning',
+    status   = 'Any',
+}
 
 ---@async
 return function (uri, callback)
@@ -44,9 +54,9 @@ return function (uri, callback)
             callback {
                 start   = node.start,
                 finish  = args.finish,
-                message = lang.script('DIAG_PREVIOUS_CALL'
-                    , sub(state)(node.start + 1, node.finish)
-                    , sub(state)(args.start + 1, args.finish)
+                message = MESSAGE:format(
+                    sub(state)(node.start + 1, node.finish),
+                    sub(state)(args.start + 1, args.finish)
                 ),
             }
         end

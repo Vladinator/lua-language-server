@@ -14,6 +14,19 @@ protoDiagnostic.register {
     status   = 'Opened',
 }
 
+-- Binary/unary operators that raise a runtime error when given a nil
+-- operand (unlike `and`/`or`/`==`/`~=`/`not`, which all handle nil without
+-- erroring, so are deliberately excluded).
+local UNSAFE_BINARY_OPS = {
+    ['+']  = true, ['-']  = true, ['*']  = true, ['/']  = true,
+    ['%']  = true, ['//'] = true, ['^']  = true, ['..'] = true,
+    ['<']  = true, ['>']  = true, ['<='] = true, ['>='] = true,
+    ['&']  = true, ['|']  = true, ['~']  = true, ['<<'] = true, ['>>'] = true,
+}
+local UNSAFE_UNARY_OPS = {
+    ['-'] = true, ['#'] = true, ['~'] = true,
+}
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -38,16 +51,35 @@ return function (uri, callback)
                 end
             end
         end
-        local call = src.parent
-        if call and call.type == 'call' and call.node == src then
-            -- 安全导航调用（f?.()）：已判空，无需再次检查
-            if not call.safe then
+        local parent = src.parent
+        if parent then
+            if parent.type == 'call' and parent.node == src then
+                -- 安全导航调用（f?.()）：已判空，无需再次检查
+                if not parent.safe then
+                    checkNil = true
+                end
+            elseif parent.type == 'setindex' and parent.index == src then
                 checkNil = true
+            elseif parent.type == 'binary'
+            and parent.op and UNSAFE_BINARY_OPS[parent.op.type]
+            and (parent[1] == src or parent[2] == src) then
+                -- 二元运算符（算术/比较/拼接/位运算）对 nil 操作数会直接报错
+                checkNil = true
+            elseif parent.type == 'unary'
+            and parent.op and UNSAFE_UNARY_OPS[parent.op.type] then
+                -- 一元运算符（取负/取长度/按位取反）对 nil 操作数会直接报错
+                checkNil = true
+            else
+                -- 数值 for 循环的初值/终值/步长节点的 parent 是内部的
+                -- expList，而非 loop 本身（见 parser/compile.lua 里
+                -- `value.parent = expList` / `expList.parent = action`），
+                -- 所以要看祖父节点
+                local loop = parent.parent
+                if loop and loop.type == 'loop'
+                and (loop.init == src or loop.max == src or loop.step == src) then
+                    checkNil = true
+                end
             end
-        end
-        local setIndex = src.parent
-        if setIndex and setIndex.type == 'setindex' and setIndex.index == src then
-            checkNil = true
         end
         if not checkNil then
             return

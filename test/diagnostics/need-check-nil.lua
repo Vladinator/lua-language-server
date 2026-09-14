@@ -144,3 +144,124 @@ local x
 
 local s = x?:upper()
 ]]
+
+-- 算术/比较/拼接/位运算/一元运算/数值 for 循环对 nil 操作数会直接报错
+TEST [[
+---@type number?
+local n
+
+print(<!n!> + 5)
+]]
+
+TEST [[
+---@type number?
+local n
+
+print(5 + <!n!>)
+]]
+
+TEST [[
+---@type number?
+local n
+
+print(<!n!> - 1)
+print(<!n!> * 1)
+print(<!n!> / 1)
+print(<!n!> % 1)
+print(<!n!> // 1)
+print(<!n!> ^ 1)
+]]
+
+TEST [[
+---@type number?
+local n
+
+print(-<!n!>)
+]]
+
+TEST [[
+---@type number?
+local n
+
+print(<!n!> < 5)
+print(<!n!> > 5)
+print(<!n!> <= 5)
+print(<!n!> >= 5)
+]]
+
+TEST [[
+---@type string?
+local s
+
+print(<!s!> .. "x")
+]]
+
+TEST [[
+---@type table?
+local t
+
+print(#<!t!>)
+]]
+
+TEST [[
+---@type integer?
+local n
+
+print(<!n!> & 1)
+print(<!n!> | 1)
+print(<!n!> ~ 1)
+print(<!n!> << 1)
+print(<!n!> >> 1)
+print(~<!n!>)
+]]
+
+TEST [[
+---@type number?
+local n
+
+for i = <!n!>, 10 do end
+]]
+
+TEST [[
+---@type number?
+local n
+
+for i = 1, <!n!> do end
+]]
+
+TEST [[
+---@type number?
+local n
+
+for i = 1, 10, <!n!> do end
+]]
+
+-- `and`/`or`/`==`/`~=`/`not`/条件判断对 nil 是安全的：不应触发 need-check-nil
+TEST [[
+---@type boolean?
+local b
+
+if b then end
+print(b == true)
+print(b ~= true)
+print(b and 1 or 2)
+print(not b)
+]]
+
+-- 经过窄化后不应再触发 need-check-nil
+TEST [[
+---@type number?
+local n
+
+if n then
+    print(n + 1)
+end
+]]
+
+TEST [[
+---@type number?
+local n
+
+n = n or 0
+print(n + 1)
+]]

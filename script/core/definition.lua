@@ -7,8 +7,11 @@ local rpath      = require 'workspace.require-path'
 local jumpSource = require 'core.jump-source'
 local wssymbol   = require 'core.workspace-symbol'
 
+---@param results core.reference.result[]
 local function sortResults(results)
     -- 先按照顺序排序
+    ---@param a core.reference.result
+    ---@param b core.reference.result
     table.sort(results, function (a, b)
         local u1 = guide.getUri(a.target)
         local u2 = guide.getUri(b.target)
@@ -19,6 +22,7 @@ local function sortResults(results)
         end
     end)
     -- 如果2个结果处于嵌套状态，则取范围小的那个
+    ---@type integer?, uri?
     local lf, lu
     for i = #results, 1, -1 do
         local res = results[i].target
@@ -27,8 +31,8 @@ local function sortResults(results)
         if lf and f > lf and uri == lu then
             table.remove(results, i)
         else
-            lu = uri
-            lf = f
+            lu = uri --[[@as uri]]
+            lf = f --[[@as integer]]
         end
     end
 end
@@ -59,6 +63,8 @@ local accept = {
     ['doc.field.name']   = true,
 }
 
+---@param source parser.object
+---@return uri[]?
 local function checkRequire(source)
     if source.type ~= 'string' then
         return nil
@@ -86,6 +92,8 @@ local function checkRequire(source)
     return nil
 end
 
+---@param source parser.object?
+---@return parser.object?
 local function convertIndex(source)
     if not source then
         return
@@ -109,12 +117,12 @@ end
 
 ---@async
 ---@param source parser.object
----@param results table
+---@param results core.reference.result[]
 local function checkSee(source, results)
     if source.type ~= 'doc.see.name' then
         return
     end
-    local symbols = wssymbol(source[1], guide.getUri(source))
+    local symbols = wssymbol(source[1] --[[@as string]], guide.getUri(source))
     for _, symbol in ipairs(symbols) do
         if symbol.name == source[1] then
             results[#results+1] = {
@@ -138,6 +146,7 @@ return function (uri, offset)
         return nil
     end
 
+    ---@type core.reference.result[]
     local results = {}
     local uris = checkRequire(source)
     if uris then
@@ -170,11 +179,11 @@ return function (uri, offset)
         if src.type == 'self' then
             goto CONTINUE
         end
-        src = src.field or src.method or src
+        src = (src.field or src.method or src) --[[@as parser.object]]
         if src.type == 'getindex'
         or src.type == 'setindex'
         or src.type == 'tableindex' then
-            src = src.index
+            src = src.index --[[@as parser.object]]
             if not src then
                 goto CONTINUE
             end
@@ -190,16 +199,16 @@ return function (uri, offset)
             end
         end
         if src.type == 'doc.class' then
-            src = src.class
+            src = src.class --[[@as parser.object]]
         end
         if src.type == 'doc.alias' then
-            src = src.alias
+            src = src.alias --[[@as parser.object]]
         end
         if src.type == 'doc.enum' then
-            src = src.enum
+            src = src.enum --[[@as parser.object]]
         end
         if src.type == 'doc.type.field' then
-            src = src.name
+            src = src.name --[[@as parser.object]]
         end
         if src.type == 'doc.class.name'
         or src.type == 'doc.alias.name'

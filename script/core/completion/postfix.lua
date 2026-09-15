@@ -6,8 +6,17 @@ local define       = require 'proto.define'
 local markdown     = require 'provider.markdown'
 local config       = require 'config'
 
+---@alias core.completion.postfix.handler fun(state: parser.state, source: parser.object, callback: fun(newText: string))
+
+---@class core.completion.postfix.action
+---@field key string
+---@field data core.completion.postfix.handler[]
+
+---@type core.completion.postfix.action[]
 local actions = {}
 
+---@param key string
+---@return fun(data: core.completion.postfix.handler[])
 local function register(key)
     return function (data)
         actions[#actions+1] = {
@@ -17,6 +26,7 @@ local function register(key)
     end
 end
 
+---@param source parser.object
 local function hasNonFieldInNode(source)
     local block = guide.getParentBlock(source)
     while source ~= block do
@@ -25,7 +35,7 @@ local function hasNonFieldInNode(source)
         or source.type == 'getmethod' then
             return true
         end
-        source = source.parent
+        source = source.parent --[[@as parser.object]]
     end
     return false
 end
@@ -335,7 +345,14 @@ local accepts = {
     ['table']     = true,
 }
 
+---@param state parser.state
+---@param word string
+---@param wordPosition integer
+---@param position integer
+---@param symbol string
+---@param results table[]
 local function checkPostFix(state, word, wordPosition, position, symbol, results)
+    ---@type parser.object?
     local source = guide.eachSourceContain(state.ast, wordPosition, function (source)
         if  accepts[source.type]
         and source.finish == wordPosition then
@@ -378,11 +395,14 @@ local function checkPostFix(state, word, wordPosition, position, symbol, results
     end
 end
 
+---@param state parser.state
+---@param position integer
+---@param results table[]
 return function (state, position, results)
     if guide.isInString(state.ast, position) then
         return false
     end
-    local text = state.lua
+    local text = state.lua or ''
     local offset = guide.positionToOffset(state, position)
     local word, newOffset = lookback.findWord(text, offset)
     if newOffset then

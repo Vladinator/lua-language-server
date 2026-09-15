@@ -208,6 +208,10 @@ vm.registerCallNarrowing {
         return isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-check')
             or isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-access-check')
     end,
+    ---@param tracer vm.tracer
+    ---@param action parser.object
+    ---@param topNode vm.node
+    ---@param outNode? vm.node
     narrow = function (tracer, action, topNode, outNode)
         if not (action.args and action.args[1] and tracer.getMap[action.args[1]]) then
             return topNode, outNode
@@ -216,14 +220,14 @@ vm.registerCallNarrowing {
         local value = action.args[1]
         tracer:lookIntoChild(value, topNode, outNode)
         if isAccessCheck then
-            topNode = topNode:copy():clearFlag('secret')
+            topNode = topNode:copy():clearFlag('secret') --[[@as vm.node]]
             if outNode then
                 outNode = outNode:copy()
             end
         else
             topNode = topNode:copy()
             if outNode then
-                outNode = outNode:copy():clearFlag('secret')
+                outNode = outNode:copy():clearFlag('secret') --[[@as vm.node]]
             end
         end
         return topNode, outNode

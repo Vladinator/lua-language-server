@@ -1,5 +1,7 @@
 local m = {}
 
+---@param docs parser.object[]?
+---@param param string|integer
 local function findParam(docs, param)
     if not docs then
         return false
@@ -16,6 +18,8 @@ local function findParam(docs, param)
     return false
 end
 
+---@param docs parser.object[]?
+---@param index integer
 local function findReturn(docs, index)
     if not docs then
         return false
@@ -38,8 +42,13 @@ end
 --   commentMessage: format(functionName)
 --   paramMessage:   format(argName, functionName)
 --   returnMessage:  format(index, functionName)
+---@param source parser.object
+---@param callback fun(result: { start: integer, finish: integer, message: string })
+---@param commentMessage string
+---@param paramMessage string
+---@param returnMessage string
 local function checkFunction(source, callback, commentMessage, paramMessage, returnMessage)
-    local functionName = source.parent[1]
+    local functionName = source.parent[1] --[[@as string]]
     local argCount = source.args and #source.args or 0
 
     if argCount == 0 and not source.returns and not source.bindDocs then
@@ -52,7 +61,7 @@ local function checkFunction(source, callback, commentMessage, paramMessage, ret
 
     if argCount > 0 then
         for _, arg in ipairs(source.args) do
-            local argName = arg[1]
+            local argName = arg[1] --[[@as string|integer]]
             if  argName ~= 'self'
             and argName ~= '_' then
                 if not findParam(source.bindDocs, argName) then

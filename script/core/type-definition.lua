@@ -6,8 +6,11 @@ local guide      = require 'parser.guide'
 local rpath      = require 'workspace.require-path'
 local jumpSource = require 'core.jump-source'
 
+---@param results core.reference.result[]
 local function sortResults(results)
     -- 先按照顺序排序
+    ---@param a core.reference.result
+    ---@param b core.reference.result
     table.sort(results, function (a, b)
         local u1 = guide.getUri(a.target)
         local u2 = guide.getUri(b.target)
@@ -18,6 +21,7 @@ local function sortResults(results)
         end
     end)
     -- 如果2个结果处于嵌套状态，则取范围小的那个
+    ---@type integer?, uri?
     local lf, lu
     for i = #results, 1, -1 do
         local res  = results[i].target
@@ -26,8 +30,8 @@ local function sortResults(results)
         if lf and f > lf and uri == lu then
             table.remove(results, i)
         else
-            lu = uri
-            lf = f
+            lu = uri --[[@as uri]]
+            lf = f --[[@as integer]]
         end
     end
 end
@@ -57,6 +61,8 @@ local accept = {
     ['doc.field.name']   = true,
 }
 
+---@param source parser.object
+---@return uri[]?
 local function checkRequire(source)
     if source.type ~= 'string' then
         return nil
@@ -84,6 +90,8 @@ local function checkRequire(source)
     return nil
 end
 
+---@param source parser.object?
+---@return parser.object?
 local function convertIndex(source)
     if not source then
         return
@@ -116,6 +124,7 @@ return function (uri, offset)
         return nil
     end
 
+    ---@type core.reference.result[]
     local results = {}
     local uris = checkRequire(source)
     if uris then
@@ -140,15 +149,15 @@ return function (uri, offset)
         if not root then
             goto CONTINUE
         end
-        src = src.field or src.method or src.index or src
+        src = (src.field or src.method or src.index or src) --[[@as parser.object]]
         if src.type == 'doc.class' then
-            src = src.class
+            src = src.class --[[@as parser.object]]
         end
         if src.type == 'doc.alias' then
-            src = src.alias
+            src = src.alias --[[@as parser.object]]
         end
         if src.type == 'doc.enum' then
-            src = src.enum
+            src = src.enum --[[@as parser.object]]
         end
         if src.type == 'doc.class.name'
         or src.type == 'doc.alias.name'

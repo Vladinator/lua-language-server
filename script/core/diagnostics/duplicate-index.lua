@@ -21,8 +21,10 @@ return function (uri, callback)
         return
     end
     ---@async
+    ---@param source parser.object
     guide.eachSourceType(ast.ast, 'table', function (source)
         await.delay()
+        ---@type table<string, parser.object[]>
         local mark = {}
         for _, obj in ipairs(source) do
             if obj.type == 'tablefield'
@@ -40,6 +42,7 @@ return function (uri, callback)
 
         for name, defs in pairs(mark) do
             if #defs > 1 and name then
+                ---@type { start: integer, finish: integer, uri: uri }[]
                 local related = {}
                 for i = 1, #defs do
                     local def = defs[i]

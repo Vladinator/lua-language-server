@@ -41,7 +41,10 @@ function m.spellCheck(uri, text)
     return codeFormat.spell_analysis(uri, text, tempDict)
 end
 
+---@param word string
+---@return string[]?
 function m.getSpellSuggest(word)
+    ---@type boolean, string[]
     local status, result = codeFormat.spell_suggest(word)
     if status then
         return result

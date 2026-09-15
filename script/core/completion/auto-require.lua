@@ -35,6 +35,12 @@ function m.getTargetSource(state)
     return targetSource
 end
 
+---@alias core.completion.auto-require.callback fun(moduleFile: uri, stemname: string?, targetSource: parser.object?, fullKeyPath: string?)
+
+---@param state parser.state
+---@param word string
+---@param position integer
+---@param callback core.completion.auto-require.callback
 function m.check(state, word, position, callback)
     local globals = util.arrayToHash(config.get(state.uri, 'Lua.diagnostics.globals'))
     local locals = guide.getVisibleLocals(state.ast, position)

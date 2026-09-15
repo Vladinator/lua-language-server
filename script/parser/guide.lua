@@ -753,6 +753,7 @@ end
 ---@param start number
 ---@param finish number
 ---@param callback fun(src: parser.object): any
+---@return any
 function m.eachSourceBetween(ast, start, finish, callback)
     ---@type parser.object[]
     local list = { ast }
@@ -853,7 +854,7 @@ function m.eachSource(ast, callback)
             if not obj then
                 break
             end
-            index = index + 1
+            index = index + 1 --[[@as integer]]
             if not mark[obj] then
                 mark[obj] = true
                 addChilds(cache, obj)

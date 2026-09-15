@@ -8,10 +8,25 @@ local rpath     = require 'workspace.require-path'
 local furi      = require 'file-uri'
 local vm        = require 'vm'
 
+---@class core.code-action.diag
+---@field code string
+---@field source? string
+---@field range range
+---@field data? any
+
+---@class core.code-action.result
+---@field title string
+---@field kind string
+---@field command? table
+---@field edit? { changes: table<uri, vm.completion.edit[]> }
+
+---@alias core.code-action.results core.code-action.result[]
+
 ---@param uri  uri
 ---@param row  integer
 ---@param mode string
 ---@param code string
+---@return vm.completion.edit?
 local function checkDisableByLuaDocExits(uri, row, mode, code)
     if row < 0 then
         return nil
@@ -49,6 +64,11 @@ local function checkDisableByLuaDocExits(uri, row, mode, code)
     return nil
 end
 
+---@param _uri uri
+---@param row  integer
+---@param mode string
+---@param code string
+---@return vm.completion.edit
 local function checkDisableByLuaDocInsert(_uri, row, mode, code)
     return {
         start   = guide.positionOf(row, 0),
@@ -57,6 +77,10 @@ local function checkDisableByLuaDocInsert(_uri, row, mode, code)
     }
 end
 
+---@param uri uri
+---@param code string
+---@param start integer
+---@param results core.code-action.results
 local function disableDiagnostic(uri, code, start, results)
     local row = guide.rowColOf(start)
     results[#results+1] = {
@@ -95,6 +119,9 @@ local function disableDiagnostic(uri, code, start, results)
         or checkDisableByLuaDocInsert(uri, 0,   'disable',           code))
 end
 
+---@param uri uri
+---@param name string?
+---@param results core.code-action.results
 local function markGlobal(uri, name, results)
     results[#results+1] = {
         title   = lang.script('ACTION_MARK_GLOBAL', name),
@@ -114,6 +141,9 @@ local function markGlobal(uri, name, results)
     }
 end
 
+---@param uri uri
+---@param version string
+---@param results core.code-action.results
 local function changeVersion(uri, version, results)
     results[#results+1] = {
         title   = lang.script('ACTION_RUNTIME_VERSION', version),
@@ -133,6 +163,9 @@ local function changeVersion(uri, version, results)
     }
 end
 
+---@param uri uri
+---@param diag core.code-action.diag
+---@param results core.code-action.results
 local function solveUndefinedGlobal(uri, diag, results)
     local state = files.getState(uri)
     if not state then
@@ -149,12 +182,15 @@ local function solveUndefinedGlobal(uri, diag, results)
     end)
 
     if diag.data and diag.data.versions then
-        for _, version in ipairs(diag.data.versions) do
+        for _, version in ipairs(diag.data.versions --[[@as string[] ]]) do
             changeVersion(uri, version, results)
         end
     end
 end
 
+---@param uri uri
+---@param diag core.code-action.diag
+---@param results core.code-action.results
 local function solveLowercaseGlobal(uri, diag, results)
     local state = files.getState(uri)
     if not state then
@@ -171,6 +207,9 @@ local function solveLowercaseGlobal(uri, diag, results)
     end)
 end
 
+---@param uri uri
+---@param diag core.code-action.diag
+---@return parser.state.err?
 local function findSyntax(uri, diag)
     local state = files.getState(uri)
     if not state then
@@ -187,6 +226,9 @@ local function findSyntax(uri, diag)
     return nil
 end
 
+---@param uri uri
+---@param err parser.state.err
+---@param results core.code-action.results
 local function solveSyntaxByChangeVersion(uri, err, results)
     if type(err.version) == 'table' then
         for _, version in ipairs(err.version) do
@@ -197,6 +239,9 @@ local function solveSyntaxByChangeVersion(uri, err, results)
     end
 end
 
+---@param uri uri
+---@param err parser.state.err
+---@param results core.code-action.results
 local function solveSyntaxByAddDoEnd(uri, err, results)
     results[#results+1] = {
         title = lang.script.ACTION_ADD_DO_END,
@@ -220,9 +265,16 @@ local function solveSyntaxByAddDoEnd(uri, err, results)
     }
 end
 
+---@param uri uri
+---@param err parser.state.err
+---@param results core.code-action.results
 local function solveSyntaxByFix(uri, err, results)
+    if not err.fix then
+        return
+    end
+    ---@type vm.completion.edit[]
     local changes = {}
-    for _, fix in ipairs(err.fix) do
+    for _, fix in ipairs(err.fix --[[@as parser.state.err.fix.edit[] ]]) do
         changes[#changes+1] = {
             start   = fix.start,
             finish  = fix.finish,
@@ -240,6 +292,9 @@ local function solveSyntaxByFix(uri, err, results)
     }
 end
 
+---@param uri uri
+---@param _err parser.state.err
+---@param results core.code-action.results
 local function solveSyntaxUnicodeName(uri, _err, results)
     results[#results+1] = {
         title   = lang.script('ACTION_RUNTIME_UNICODE_NAME'),
@@ -259,6 +314,9 @@ local function solveSyntaxUnicodeName(uri, _err, results)
     }
 end
 
+---@param uri uri
+---@param diag core.code-action.diag
+---@param results core.code-action.results
 local function solveSyntax(uri, diag, results)
     local err = findSyntax(uri, diag)
     if not err then
@@ -278,6 +336,9 @@ local function solveSyntax(uri, diag, results)
     end
 end
 
+---@param uri uri
+---@param diag core.code-action.diag
+---@param results core.code-action.results
 local function solveNewlineCall(uri, diag, results)
     local state = files.getState(uri)
     if not state then
@@ -301,6 +362,9 @@ local function solveNewlineCall(uri, diag, results)
     }
 end
 
+---@param uri uri
+---@param diag core.code-action.diag
+---@param results core.code-action.results
 local function solveAmbiguity1(uri, diag, results)
     results[#results+1] = {
         title = lang.script.ACTION_ADD_BRACKETS,
@@ -319,6 +383,9 @@ local function solveAmbiguity1(uri, diag, results)
     }
 end
 
+---@param uri uri
+---@param _diag core.code-action.diag
+---@param results core.code-action.results
 local function solveTrailingSpace(uri, _diag, results)
     results[#results+1] = {
         title = lang.script.ACTION_REMOVE_SPACE,
@@ -335,12 +402,16 @@ local function solveTrailingSpace(uri, _diag, results)
     }
 end
 
+---@param uri uri
+---@param diag core.code-action.diag
+---@param results core.code-action.results
 local function solveAwaitInSync(uri, diag, results)
     local state = files.getState(uri)
     if not state then
         return
     end
     local start, finish = converter.unpackRange(state, diag.range)
+    ---@type parser.object?
     local parentFunction
     guide.eachSourceType(state.ast, 'function', function (source)
         if source.start > finish
@@ -376,6 +447,9 @@ local function solveAwaitInSync(uri, diag, results)
     }
 end
 
+---@param uri uri
+---@param diag core.code-action.diag
+---@param results core.code-action.results
 local function solveSpell(uri, diag, results)
     local state = files.getState(uri)
     if not state then
@@ -405,6 +479,9 @@ local function solveSpell(uri, diag, results)
     }
 
     local suggests = spell.getSpellSuggest(word)
+    if not suggests then
+        return
+    end
     for _, suggest in ipairs(suggests) do
         results[#results+1] = {
             title = suggest,
@@ -425,6 +502,10 @@ local function solveSpell(uri, diag, results)
 
 end
 
+---@param uri uri
+---@param diag core.code-action.diag
+---@param start integer
+---@param results core.code-action.results
 local function solveDiagnostic(uri, diag, start, results)
     if diag.source == lang.script.DIAG_SYNTAX_CHECK then
         solveSyntax(uri, diag, results)
@@ -451,6 +532,10 @@ local function solveDiagnostic(uri, diag, start, results)
     disableDiagnostic(uri, diag.code, start, results)
 end
 
+---@param results core.code-action.results
+---@param uri uri
+---@param start integer
+---@param diagnostics core.code-action.diag[]?
 local function checkQuickFix(results, uri, start, diagnostics)
     if not diagnostics then
         return
@@ -460,18 +545,24 @@ local function checkQuickFix(results, uri, start, diagnostics)
     end
 end
 
+---@param results core.code-action.results
+---@param uri uri
+---@param start integer
+---@param finish integer
 local function checkSwapParams(results, uri, start, finish)
     local state = files.getState(uri)
     local text  = files.getText(uri)
     if not state or not text then
         return
     end
+    ---@type { source: parser.object, index: integer, node: string }[]
     local args = {}
     guide.eachSourceBetween(state.ast, start, finish, function (source)
         if source.type == 'callargs'
         or source.type == 'funcargs' then
+            ---@type integer?
             local targetIndex
-            for index, arg in ipairs(source) do
+            for index, arg in ipairs(source --[[@as parser.object[] ]]) do
                 if arg.start <= finish and arg.finish >= start then
                     -- should select only one param
                     if targetIndex then
@@ -483,6 +574,7 @@ local function checkSwapParams(results, uri, start, finish)
             if not targetIndex then
                 return
             end
+            ---@type string?
             local node
             if source.type == 'callargs' then
                 node = text:sub(
@@ -490,13 +582,14 @@ local function checkSwapParams(results, uri, start, finish)
                     guide.positionToOffset(state, source.parent.node.finish)
                 )
             elseif source.type == 'funcargs' then
+                ---@type parser.object
                 local var = source.parent.parent
                 if guide.isAssign(var) then
                     if var.type == 'tablefield' then
-                        var = var.field
+                        var = var.field --[[@as parser.object]]
                     end
                     if var.type == 'tableindex' then
-                        var = var.index
+                        var = var.index --[[@as parser.object]]
                     end
                     node = text:sub(
                         guide.positionToOffset(state, var.start) + 1,
@@ -508,8 +601,8 @@ local function checkSwapParams(results, uri, start, finish)
             end
             args[#args+1] = {
                 source = source,
-                index  = targetIndex,
-                node   = node,
+                index  = targetIndex --[[@as integer]],
+                node   = node --[[@as string]],
             }
         end
     end)
@@ -628,6 +721,10 @@ end
 --    end
 --end
 
+---@param results core.code-action.results
+---@param uri uri
+---@param start integer
+---@param finish integer
 local function checkJsonToLua(results, uri, start, finish)
     local text         = files.getText(uri)
     local state        = files.getState(uri)
@@ -640,7 +737,10 @@ local function checkJsonToLua(results, uri, start, finish)
     if not jsonStart then
         return
     end
-    local jsonFinish, finishChar
+    ---@type integer?
+    local jsonFinish
+    ---@type string?
+    local finishChar
     for i = math.min(finishOffset, #text), jsonStart + 1, -1 do
         local char = text:sub(i, i)
         if char == ']'
@@ -680,7 +780,10 @@ local function checkJsonToLua(results, uri, start, finish)
     }
 end
 
+---@param visiblePaths require-manager.visibleResult[]
+---@return string[]
 local function findRequireTargets(visiblePaths)
+    ---@type string[]
     local targets = {}
     for _, visible in ipairs(visiblePaths) do
         targets[#targets+1] = visible.name
@@ -688,6 +791,10 @@ local function findRequireTargets(visiblePaths)
     return targets
 end
 
+---@param results core.code-action.results
+---@param uri uri
+---@param start integer
+---@param finish integer
 local function checkMissingRequire(results, uri, start, finish)
     local state = files.getState(uri)
     local text  = files.getText(uri)
@@ -695,6 +802,8 @@ local function checkMissingRequire(results, uri, start, finish)
         return
     end
 
+    ---@param globalVar string?
+    ---@param endpos integer
     local function addRequires(globalVar, endpos)
         if not globalVar then
             return
@@ -727,17 +836,23 @@ local function checkMissingRequire(results, uri, start, finish)
 
     guide.eachSourceBetween(state.ast, start, finish, function (source)
         if vm.isUndefinedGlobal(source) then
-            addRequires(source[1], source.finish)
+            addRequires(source[1] --[[@as string?]], source.finish)
         end
     end)
 end
 
+---@param uri uri
+---@param start integer
+---@param finish integer
+---@param diagnostics core.code-action.diag[]?
+---@return core.code-action.results?
 return function (uri, start, finish, diagnostics)
     local ast = files.getState(uri)
     if not ast then
         return nil
     end
 
+    ---@type core.code-action.results
     local results = {}
 
     checkQuickFix(results, uri, start, diagnostics)

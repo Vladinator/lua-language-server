@@ -277,12 +277,21 @@ local function isLuaJITExt(symbol)
     return State.luaJITExtensions or State.options.nonstandardSymbol[symbol]
 end
 
+---@class parser.state.err.fix.edit
+---@field start parser.position
+---@field finish parser.position
+---@field text string
+
+---@class parser.state.err.fix
+---@field title string
+---@field [integer] parser.state.err.fix.edit
+
 ---@class parser.state.err
 ---@field type string
 ---@field start? parser.position
 ---@field finish? parser.position
 ---@field info? table
----@field fix? table
+---@field fix? parser.state.err.fix
 ---@field version? string[]|string
 ---@field level? string | 'Error' | 'Warning'
 

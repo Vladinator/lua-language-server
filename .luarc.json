@@ -17,6 +17,7 @@
             "luadoc": "Any",
             "redefined": "Any",
             "strict": "Any",
+            "strong": "Any",
             "type-check": "Any",
             "unbalanced": "Any",
             "unused": "Any"

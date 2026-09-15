@@ -12,6 +12,8 @@ local type         = type
 ---@field tag                   string
 ---@field args                  { [integer]: parser.object, start: integer, finish: integer, type: string }
 ---@field locals                parser.object[]
+---@field globals?              parser.object[]
+---@field gotos?                parser.object[]
 ---@field returns?              parser.object[]
 ---@field breaks?               parser.object[]
 ---@field exps                  parser.object[]

@@ -236,7 +236,31 @@ local ListFinishMap = {
     ['while']    = true,
 }
 
-local State, Lua, Line, LineOffset, Chunk, Tokens, Index, LastTokenFinish, Mode, LocalCount, LocalLimited
+---@type parser.state
+local State
+---@type string
+local Lua
+---@type integer
+local Line
+---@type integer
+local LineOffset
+---@type parser.object[]
+local Chunk
+--- Flat array alternating token offset (integer) at odd indices and
+--- token text (string) at even indices -- not expressible as a single
+--- element type without forcing false param-type-mismatch positives at
+--- every read site, so left untyped.
+local Tokens
+---@type integer
+local Index
+---@type integer
+local LastTokenFinish
+---@type string
+local Mode
+---@type integer
+local LocalCount
+---@type boolean
+local LocalLimited
 
 local LocalLimit = 200
 
@@ -263,13 +287,17 @@ end
 local pushError
 
 local function addSpecial(name, obj)
-    if not State.specials then
-        State.specials = {}
+    local specials = State.specials
+    if not specials then
+        specials = {}
+        State.specials = specials
     end
-    if not State.specials[name] then
-        State.specials[name] = {}
+    local list = specials[name]
+    if not list then
+        list = {}
+        specials[name] = list
     end
-    State.specials[name][#State.specials[name]+1] = obj
+    list[#list+1] = obj
     obj.special = name
 end
 
@@ -4159,10 +4187,12 @@ local function parseReturn()
         local block = Chunk[i]
         if block.type == 'function'
         or block.type == 'main' then
-            if not block.returns then
-                block.returns = {}
+            local returns = block.returns
+            if not returns then
+                returns = {}
+                block.returns = returns
             end
-            block.returns[#block.returns+1] = rtn
+            returns[#returns+1] = rtn
             break
         end
     end
@@ -4266,10 +4296,12 @@ local function parseGoTo()
         local chunk = Chunk[i]
         if chunk.type == 'function'
         or chunk.type == 'main' then
-            if not chunk.gotos then
-                chunk.gotos = {}
+            local gotos = chunk.gotos
+            if not gotos then
+                gotos = {}
+                chunk.gotos = gotos
             end
-            chunk.gotos[#chunk.gotos+1] = action
+            gotos[#gotos+1] = action
             break
         end
     end
@@ -4883,10 +4915,12 @@ local function parseBreak()
         or chunk.type == 'loop'
         or chunk.type == 'repeat'
         or chunk.type == 'for' then
-            if not chunk.breaks then
-                chunk.breaks = {}
+            local breaks = chunk.breaks
+            if not breaks then
+                breaks = {}
+                chunk.breaks = breaks
             end
-            chunk.breaks[#chunk.breaks+1] = action
+            breaks[#breaks+1] = action
             ok = true
             break
         end
@@ -5149,6 +5183,11 @@ return function (lua, mode, version, options)
     Mode = mode
     initState(lua, version, options)
     skipSpace()
+    -- parser.state.ast is declared non-optional (its normal, post-compile
+    -- contract), but here -- the one place it's actually built -- a failed
+    -- parse can genuinely leave it nil, which the `if State.ast then` guard
+    -- right below handles before anything else can observe it.
+    ---@diagnostic disable: assign-type-mismatch
     if     mode == 'Lua' then
         State.ast = parseLua()
     elseif mode == 'Nil' then
@@ -5166,6 +5205,7 @@ return function (lua, mode, version, options)
     elseif mode == 'Action' then
         State.ast = parseAction()
     end
+    ---@diagnostic enable: assign-type-mismatch
 
     if State.ast then
         State.ast.state = State

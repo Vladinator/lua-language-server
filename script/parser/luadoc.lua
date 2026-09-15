@@ -1133,9 +1133,9 @@ function parseType(parent)
                         -- doc.resume nodes store a plain string here, unlike the usual
                         -- table-shaped { type = 'doc.tailcomment', ... } comment node
                         if comments then
-                            resume.comment = table.concat(comments, '\n') --[[@as table]]
+                            resume.comment = table.concat(comments, '\n')
                         else
-                            resume.comment = nextComm.text:match('%s*#?%s*(.+)', resume.finish - nextComm.start) --[[@as table]]
+                            resume.comment = nextComm.text:match('%s*#?%s*(.+)', resume.finish - nextComm.start) --[[@as string]]
                         end
                         result.types[#result.types+1] = resume
                         result.finish = resume.finish

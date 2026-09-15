@@ -9,7 +9,14 @@ local rpath    = require 'workspace.require-path'
 local furi     = require 'file-uri'
 local wssymbol = require 'core.workspace-symbol'
 
+---@class parser.object
+---@field text? string -- set on a 'doc.tailcomment' node (see luadoc.lua's buildLuaDoc)
+
+---@param mode string
+---@param literal string
+---@param uri uri
 local function collectRequire(mode, literal, uri)
+    ---@type uri[]?, table<uri, string>?
     local result, searchers
     if     mode == 'require' then
         result, searchers = rpath.findUrisByRequireName(uri, literal)
@@ -18,14 +25,15 @@ local function collectRequire(mode, literal, uri)
         result = ws.findUrisByDofile(literal, uri)
     end
     if result and #result > 0 then
+        ---@type string[]
         local shows = {}
         for i, uri0 in ipairs(result) do
-            local searcher = searchers and searchers[uri0]
+            local searcher = searchers and searchers[uri0] --[[@as string?]]
             local path = ws.getRelativePath(uri0)
             if vm.isMetaFile(uri0) then
                 shows[i] = ('* [[meta]](%s)'):format(uri0)
             elseif searcher then
-                searcher = searcher:gsub('^[/\\]+', '')
+                searcher = searcher:gsub('^[/\\]+', '') --[[@as string]]
                 shows[i] = ('* [%s](%s) %s'):format(path, uri0, lang.script('HOVER_USE_LUA_PATH', searcher))
             else
                 shows[i] = ('* [%s](%s)'):format(path, uri0)
@@ -38,6 +46,8 @@ local function collectRequire(mode, literal, uri)
     end
 end
 
+---@param source parser.object
+---@param literal string
 local function asStringInRequire(source, literal)
     local parent = source.parent
     if parent and parent.type == 'callargs' then
@@ -55,19 +65,23 @@ local function asStringInRequire(source, literal)
     end
 end
 
+---@param source parser.object
+---@param literal string
 local function asStringView(source, literal)
     -- 内部包含转义符？
     if not source[2] then
         return
     end
-    local rawLen = source.finish - source.start - 2 * #source[2]
+    local quote = source[2] --[[@as string]]
+    ---@type integer
+    local rawLen = source.finish - source.start - 2 * #quote
     if  config.get(guide.getUri(source), 'Lua.hover.viewString')
-    and (source[2] == '"' or source[2] == "'")
+    and (quote == '"' or quote == "'")
     and rawLen > #literal then
         local view = literal
         local max = config.get(guide.getUri(source), 'Lua.hover.viewStringMax')
         if #view > max then
-            view = view:sub(1, max) .. '...'
+            view = view:sub(1, max) .. '...' --[[@as string]]
         end
         local md = markdown()
         md:add('txt', view)
@@ -75,6 +89,7 @@ local function asStringView(source, literal)
     end
 end
 
+---@param source parser.object
 local function asString(source)
     local literal = guide.getLiteral(source)
     if type(literal) ~= 'string' then
@@ -114,11 +129,25 @@ local function normalizeComment(comment, suri)
     return comment
 end
 
+---@param source parser.object
 local function getBindComment(source)
     local uri = guide.getUri(source)
+    -- normalizeComment can return nil, but `lines[#lines+1] = nil` is then a
+    -- no-op (doesn't grow the array), so lines never actually holds a nil
+    ---@type string[]
     local lines = {}
     for _, docComment in ipairs(source.bindComments) do
-        lines[#lines+1] = normalizeComment(docComment.comment.text, uri)
+        -- .comment here is always the object-shaped comment (not the plain
+        -- string used only on 'doc.resume' enum-default/additional nodes),
+        -- and its .text is always set
+        local comment = docComment.comment --[[@as parser.state.comm|parser.object]]
+        ---@type string
+        ---@diagnostic disable-next-line: need-check-nil
+        local text = comment.text
+        local normalized = normalizeComment(text, uri)
+        if normalized then
+            lines[#lines+1] = normalized
+        end
     end
     if not lines or #lines == 0 then
         return nil
@@ -127,9 +156,12 @@ local function getBindComment(source)
 end
 
 ---@async
+---@param see parser.object
 local function packSee(see)
-    local name = see.name[1]
+    local name = see.name[1] --[[@as string]]
+    ---@type string[]
     local buf  = {}
+    ---@type parser.object?
     local target
     for _, symbol in ipairs(wssymbol(name, guide.getUri(see))) do
         if symbol.name == name then
@@ -151,7 +183,10 @@ local function packSee(see)
 end
 
 ---@async
+---@param lines string[]
+---@param docGroup parser.object[]
 local function lookUpDocSees(lines, docGroup)
+    ---@type parser.object[]
     local sees = {}
     for _, doc in ipairs(docGroup) do
         if doc.type == 'doc.see' then
@@ -172,6 +207,7 @@ local function lookUpDocSees(lines, docGroup)
 end
 
 ---@async
+---@param source parser.object
 local function lookUpDocComments(source)
     local docGroup = source.bindDocs
     if not docGroup then
@@ -185,6 +221,7 @@ local function lookUpDocComments(source)
         return
     end
     local uri = guide.getUri(source)
+    ---@type string[]
     local lines = {}
     for _, doc in ipairs(docGroup) do
         if doc.type == 'doc.comment' then
@@ -212,6 +249,7 @@ local function lookUpDocComments(source)
     return table.concat(lines, '\n')
 end
 
+---@param source parser.object
 local function tryDocClassComment(source)
     for _, def in ipairs(vm.getDefs(source)) do
         if def.type == 'doc.class'
@@ -225,6 +263,7 @@ local function tryDocClassComment(source)
     end
 end
 
+---@param source parser.object
 local function tryDocModule(source)
     if not source.module then
         return
@@ -232,12 +271,18 @@ local function tryDocModule(source)
     return collectRequire('require', source.module, guide.getUri(source))
 end
 
+---@param docType parser.object?
+---@param name string
+---@param uri uri
 local function buildEnumChunk(docType, name, uri)
     if not docType then
         return nil
     end
+    ---@type parser.object[]
     local enums = {}
+    ---@type string[]
     local types = {}
+    ---@type string[]
     local lines = {}
     for _, tp in ipairs(vm.getDefs(docType)) do
         types[#types+1] = vm.getInfer(tp):view(guide.getUri(docType))
@@ -260,15 +305,15 @@ local function buildEnumChunk(docType, name, uri)
     lines[#lines+1] = ('%s:'):format(name)
     for _, enum in ipairs(enums) do
         local enumDes = ('   %s %s'):format(
-                (enum.default    and '->')
+            ((enum.default    and '->')
             or  (enum.additional and '+>')
-            or  ' |',
+            or  ' |') --[[@as string]],
             vm.getInfer(enum):view(uri)
         )
         if enum.comment then
             local first = true
             local len = #enumDes
-            for comm in enum.comment:gmatch '[^\r\n]+' do
+            for comm in (enum.comment --[[@as string]]):gmatch '[^\r\n]+' do
                 if first then
                     first = false
                     enumDes = ('%s -- %s'):format(enumDes, comm)
@@ -282,18 +327,22 @@ local function buildEnumChunk(docType, name, uri)
     return table.concat(lines, '\n')
 end
 
+---@param source parser.object
+---@param docGroup parser.object[]
 local function getBindEnums(source, docGroup)
     if source.type ~= 'function' then
         return
     end
 
     local uri = guide.getUri(source)
+    ---@type table<string, boolean>
     local mark = {}
+    ---@type string[]
     local chunks = {}
     local returnIndex = 0
     for _, doc in ipairs(docGroup) do
         if     doc.type == 'doc.param' then
-            local name = doc.param[1]
+            local name = doc.param[1] --[[@as string]]
             if name == '...' then
                 name = '...(param)'
             end
@@ -304,8 +353,8 @@ local function getBindEnums(source, docGroup)
             chunks[#chunks+1] = buildEnumChunk(doc.extends, name, uri)
         elseif doc.type == 'doc.return' then
             for _, rtn in ipairs(doc.returns) do
-                returnIndex = returnIndex + 1
-                local name = rtn.name and rtn.name[1] or ('return #%d'):format(returnIndex)
+                returnIndex = returnIndex + 1 --[[@as integer]]
+                local name = (rtn.name and rtn.name[1] or ('return #%d'):format(returnIndex)) --[[@as string]]
                 if name == '...' then
                     name = '...(return)'
                 end
@@ -324,6 +373,7 @@ local function getBindEnums(source, docGroup)
     return table.concat(chunks, '\n\n')
 end
 
+---@param source parser.object
 local function tryDocFieldComment(source)
     if source.type ~= 'doc.field' then
         return
@@ -336,6 +386,8 @@ local function tryDocFieldComment(source)
     end
 end
 
+---@param source parser.object
+---@param raw boolean?
 local function getFunctionCommentMarkdown(source, raw)
     local docGroup = source.bindDocs
     if not docGroup then
@@ -365,10 +417,11 @@ local function getFunctionCommentMarkdown(source, raw)
             end
         elseif doc.type == 'doc.return' and not raw then
             if hasReturnComment then
+                ---@type string[]
                 local name = {}
                 for _, rtn in ipairs(doc.returns) do
                     if rtn.name then
-                        name[#name+1] = rtn.name[1]
+                        name[#name+1] = rtn.name[1] --[[@as string]]
                     end
                 end
                 if doc.comment then
@@ -397,6 +450,8 @@ local function getFunctionCommentMarkdown(source, raw)
 end
 
 ---@async
+---@param source parser.object
+---@param raw boolean?
 local function tryDocComment(source, raw)
     local md = markdown()
     if source.value and source.value.type == 'function' then
@@ -409,11 +464,11 @@ local function tryDocComment(source, raw)
     local comment = lookUpDocComments(source)
     md:add('md', comment)
     if source.type == 'doc.alias' then
-        local enums = buildEnumChunk(source, source.alias[1], guide.getUri(source))
+        local enums = buildEnumChunk(source, source.alias[1] --[[@as string]], guide.getUri(source))
         md:add('lua', enums)
     end
     if source.type == 'doc.enum' then
-        local enums = buildEnumChunk(source, source.enum[1], guide.getUri(source))
+        local enums = buildEnumChunk(source, source.enum[1] --[[@as string]], guide.getUri(source))
         md:add('lua', enums)
     end
     local result = md:string()
@@ -424,6 +479,8 @@ local function tryDocComment(source, raw)
 end
 
 ---@async
+---@param source parser.object
+---@param raw boolean?
 local function tryDocOverloadToComment(source, raw)
     if source.type ~= 'doc.type.function' then
         return
@@ -439,6 +496,7 @@ local function tryDocOverloadToComment(source, raw)
     end
 end
 
+---@param source parser.object
 local function tyrDocParamComment(source)
     if source.type == 'setlocal'
     or source.type == 'getlocal' then
@@ -475,6 +533,7 @@ local function tryDocEnum(source)
     end
     if vm.docHasAttr(source, 'key') then
         local md = markdown()
+        ---@type string[]
         local keys = {}
         for _, field in ipairs(tbl) do
             if field.type == 'tablefield'
@@ -507,7 +566,7 @@ local function tryDocEnum(source)
                 end
                 if field.value.type == 'integer'
                 or field.value.type == 'string' then
-                    md:add('lua', ('    %s: %s = %q,'):format(key, field.value.type, field.value[1]))
+                    md:add('lua', ('    %s: %s = %q,'):format(key, field.value.type, field.value[1] --[[@as string|integer]]))
                 end
                 if field.value.type == 'binary'
                 or field.value.type == 'unary' then
@@ -525,6 +584,8 @@ local function tryDocEnum(source)
 end
 
 ---@async
+---@param source parser.object
+---@param raw boolean?
 return function (source, raw)
     if source.type == 'string' then
         return asString(source)

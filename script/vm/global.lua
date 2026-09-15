@@ -58,6 +58,7 @@ function mt:getSets(suri)
         return setsCache[cacheUri]
     end
     local clock = os.clock()
+    ---@type parser.object[]
     local cache = {}
     setsCache[cacheUri] = cache
     for uri, link in pairs(self.links) do
@@ -142,6 +143,7 @@ function mt:getParentBase(uri)
     if not parentID then
         return nil
     end
+    ---@type string
     local parentName = self.cate .. '|' .. parentID
     local globalVar = allGlobals[parentName]
     if not globalVar then
@@ -178,9 +180,11 @@ end
 ---@field package _globalNode vm.global|false
 ---@field package _enums?     parser.object[]
 
+---@type fun(source: parser.object)
 local compileObject
 local compilerGlobalSwitch = util.switch()
     : case 'local'
+    ---@param source parser.object
     : call(function (source)
         if source.special ~= '_G' then
             return
@@ -192,6 +196,7 @@ local compilerGlobalSwitch = util.switch()
         end
     end)
     : case 'getlocal'
+    ---@param source parser.object
     : call(function (source)
         if source.special ~= '_G' then
             return
@@ -202,6 +207,7 @@ local compilerGlobalSwitch = util.switch()
         compileObject(source.next)
     end)
     : case 'setglobal'
+    ---@param source parser.object
     : call(function (source)
         local uri    = guide.getUri(source)
         local name   = guide.getKeyName(source)
@@ -213,6 +219,7 @@ local compilerGlobalSwitch = util.switch()
         source._globalNode = globalVar
     end)
     : case 'getglobal'
+    ---@param source parser.object
     : call(function (source)
         local uri    = guide.getUri(source)
         local name   = guide.getKeyName(source)
@@ -233,6 +240,7 @@ local compilerGlobalSwitch = util.switch()
     : case 'setindex'
     ---@param source parser.object
     : call(function (source)
+        ---@type string?
         local name
         local keyName = guide.getKeyName(source)
         if not keyName then
@@ -261,6 +269,7 @@ local compilerGlobalSwitch = util.switch()
     : case 'getindex'
     ---@param source parser.object
     : call(function (source)
+        ---@type string?
         local name
         local keyName = guide.getKeyName(source)
         if not keyName then
@@ -276,6 +285,9 @@ local compilerGlobalSwitch = util.switch()
         elseif source.node.special == '_G' then
             name = keyName
         end
+        if not name then
+            return
+        end
         local uri    = guide.getUri(source)
         local globalVar = vm.declareGlobal('variable', name, uri)
         globalVar:addGet(uri, source)
@@ -287,6 +299,7 @@ local compilerGlobalSwitch = util.switch()
         end
     end)
     : case 'call'
+    ---@param source parser.object
     : call(function (source)
         if source.node.special == 'rawset'
         or source.node.special == 'rawget' then
@@ -344,6 +357,7 @@ local compilerGlobalSwitch = util.switch()
         end
     end)
     : case 'doc.alias'
+    ---@param source parser.object
     : call(function (source)
         local uri  = guide.getUri(source)
         local name = guide.getKeyName(source)
@@ -355,14 +369,16 @@ local compilerGlobalSwitch = util.switch()
         source._globalNode = alias
 
         if source.signs then
-            source._sign = vm.createSign()
+            local newSign = vm.createSign()
+            source._sign = newSign
             for _, sign in ipairs(source.signs) do
-                source._sign:addSign(vm.compileNode(sign))
+                newSign:addSign(vm.compileNode(sign))
             end
-            source.extends._generic = vm.createGeneric(source.extends, source._sign)
+            source.extends._generic = vm.createGeneric(source.extends, newSign)
         end
     end)
     : case 'doc.enum'
+    ---@param source parser.object
     : call(function (source)
         local uri  = guide.getUri(source)
         local name = guide.getKeyName(source)
@@ -377,19 +393,24 @@ local compilerGlobalSwitch = util.switch()
         if not tbl then
             return
         end
-        source._enums = {}
+        ---@type parser.object[]
+        local enums = {}
+        source._enums = enums
         if vm.docHasAttr(source, 'key') then
             for _, field in ipairs(tbl) do
-                if     field.type == 'tablefield' then
-                    source._enums[#source._enums+1] = {
+                if     field.type == 'tablefield' and field.field then
+                    local key = field.field
+                    ---@diagnostic disable-next-line: missing-fields
+                    enums[#enums+1] = {
                         type   = 'doc.type.string',
-                        start  = field.field.start,
-                        finish = field.field.finish,
-                        [1]    = field.field[1],
+                        start  = key.start,
+                        finish = key.finish,
+                        [1]    = key[1],
                     }
                 elseif field.type == 'tableindex' then
                     if field.index then
-                        source._enums[#source._enums+1] = {
+                        ---@diagnostic disable-next-line: missing-fields
+                        enums[#enums+1] = {
                             type   = 'doc.type.string',
                             start  = field.index.start,
                             finish = field.index.finish,
@@ -400,13 +421,13 @@ local compilerGlobalSwitch = util.switch()
             end
         else
             for _, field in ipairs(tbl) do
-                if     field.type == 'tablefield' then
-                    source._enums[#source._enums+1] = field
+                if     field.type == 'tablefield' and field.field then
+                    enums[#enums+1] = field
                     local subType = vm.declareGlobal('type', name .. '.' .. field.field[1], uri)
                     subType:addSet(uri, field)
                 elseif field.type == 'tableindex' then
-                    source._enums[#source._enums+1] = field
-                    if field.index.type == 'string' then
+                    enums[#enums+1] = field
+                    if field.index and field.index.type == 'string' then
                         local subType = vm.declareGlobal('type', name .. '.' .. field.index[1], uri)
                         subType:addSet(uri, field)
                     end
@@ -415,6 +436,7 @@ local compilerGlobalSwitch = util.switch()
         end
     end)
     : case 'doc.type.name'
+    ---@param source parser.object
     : call(function (source)
         local uri  = guide.getUri(source)
         local name = source[1]
@@ -429,6 +451,7 @@ local compilerGlobalSwitch = util.switch()
         source._globalNode = type
     end)
     : case 'doc.extends.name'
+    ---@param source parser.object
     : call(function (source)
         local uri  = guide.getUri(source)
         local name = source[1]
@@ -445,6 +468,7 @@ local compilerGlobalSwitch = util.switch()
 ---@param uri? uri
 ---@return vm.global
 function vm.declareGlobal(cate, name, uri)
+    ---@type string
     local key = cate .. '|' .. name
     if uri then
         globalSubs[uri][key] = true
@@ -460,6 +484,7 @@ end
 ---@param field? string
 ---@return vm.global?
 function vm.getGlobal(cate, name, field)
+    ---@type string
     local key = cate .. '|' .. name
     if field then
         key = key .. vm.ID_SPLITE .. field
@@ -471,7 +496,9 @@ end
 ---@param name   string
 ---@return vm.global[]
 function vm.getGlobalFields(cate, name)
+    ---@type vm.global[]
     local globals = {}
+    ---@type string
     local key = cate .. '|' .. name
 
     local clock = os.clock()
@@ -494,6 +521,7 @@ end
 ---@param cate   vm.global.cate
 ---@return vm.global[]
 function vm.getGlobals(cate)
+    ---@type vm.global[]
     local globals = {}
 
     local clock = os.clock()
@@ -518,6 +546,7 @@ end
 
 ---@return table<string, vm.global>
 function vm.getExportableGlobals()
+    ---@type table<string, vm.global>
     local exportableGlobals = {}
     for key, globalVar in pairs(allGlobals) do
         --If the source uri for the global matches the global variable METAPATH
@@ -534,6 +563,7 @@ end
 ---@return parser.object[]
 function vm.getGlobalSets(suri, cate)
     local globals = vm.getGlobals(cate)
+    ---@type parser.object[]
     local result = {}
     for _, globalVar in ipairs(globals) do
         local sets = globalVar:getSets(suri)
@@ -564,6 +594,7 @@ end
 ---@param key string
 ---@return boolean
 local function checkIsGlobalRegex(uri, key)
+    ---@type string[]?
     local dglobalsregex = config.get(uri, 'Lua.diagnostics.globalsRegex')
     if not dglobalsregex then
         return false

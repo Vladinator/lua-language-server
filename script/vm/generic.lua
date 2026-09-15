@@ -3,7 +3,7 @@ local vm      = require 'vm.vm'
 local guide   = require 'parser.guide'
 
 ---@class parser.object
----@field package _generic vm.generic
+---@field public _generic vm.generic
 ---@field public _resolved vm.node
 
 ---@class vm.generic

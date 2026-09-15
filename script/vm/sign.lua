@@ -390,7 +390,7 @@ function vm.createSign()
 end
 
 ---@class parser.object
----@field package _sign vm.sign|false|nil
+---@field public _sign vm.sign|false|nil
 
 ---@param source parser.object
 ---@param sign vm.sign

@@ -124,7 +124,19 @@ local function loadLang(name, language)
     })
 end
 
-return setmetatable({
+--- One of these per locale/<lang>/<name>.lua file: a table of message
+--- keys to template strings, also callable to format one in place
+--- (see loadLang's __call/__index below).
+---@class lang.messages
+---@field [string] string
+---@overload fun(key: string, ...: any): string
+
+---@class lang
+---@field id     string
+---@field script lang.messages
+
+---@type lang
+local m = setmetatable({
     id = 'en-us',
 }, {
     __index = function (self, name)
@@ -142,3 +154,4 @@ return setmetatable({
         self.id = language
     end,
 })
+return m

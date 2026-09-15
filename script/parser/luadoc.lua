@@ -166,6 +166,9 @@ Symbol              <-  ({} {
 ---@field versions?         table[]
 ---@field names?            parser.object[]
 ---@field path?             string
+---@field line?             integer -- only set on a 'doc.source' node
+---@field char?             integer -- only set on a 'doc.source' node
+---@field source?           parser.object -- set on 'doc.class'/'doc.field' nodes; points at their bound 'doc.source' node
 ---@field bindComments?     parser.object[]
 ---@field visible?          parser.visibleType
 ---@field operators?        parser.object[]

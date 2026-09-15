@@ -238,6 +238,8 @@ function mt:update()
     return true
 end
 
+---@param method string
+---@param callback async fun(params: any): any
 function mt:register(method, callback)
     self._methods[method] = callback
 end

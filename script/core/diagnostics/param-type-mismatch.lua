@@ -152,6 +152,7 @@ return function (uri, callback)
         -- Get the class generic map for method calls on generic class instances
         local classGenericMap = getReceiverGenericMap(uri, source)
         for i, arg in ipairs(source.args) do
+            ---@type vm.node
             local refNode = vm.compileNode(arg)
             if not refNode then
                 goto CONTINUE

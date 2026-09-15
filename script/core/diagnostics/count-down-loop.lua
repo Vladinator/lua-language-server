@@ -25,7 +25,8 @@ return function (uri, callback)
         if not maxNumber then
             return
         end
-        local minNumber = source.init and tonumber(source.init[1])
+        ---@type number?
+        local minNumber = source.init and tonumber(source.init[1]) or nil
         if minNumber and maxNumber and minNumber <= maxNumber then
             return
         end

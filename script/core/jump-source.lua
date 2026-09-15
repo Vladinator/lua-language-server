@@ -22,7 +22,11 @@ local function parseUri(doc)
     return uri
 end
 
----@param results table
+---@class jump-source.result
+---@field uri? uri
+---@field target parser.object|{uri: uri, start: integer, finish: integer}
+
+---@param results jump-source.result[]
 return function (results)
     for _, result in ipairs(results) do
         if result.target.type == 'doc.field.name'
@@ -30,11 +34,14 @@ return function (results)
             local doc = result.target.parent.source
             if doc then
                 local uri = parseUri(doc)
+                -- always set together on a 'doc.source' node (see parser/luadoc.lua)
+                local line = doc.line --[[@as integer]]
+                local char = doc.char --[[@as integer]]
                 result.uri    = uri
                 result.target = {
                     uri    = uri,
-                    start  = guide.positionOf(doc.line - 1, doc.char),
-                    finish = guide.positionOf(doc.line - 1, doc.char),
+                    start  = guide.positionOf(line - 1, char),
+                    finish = guide.positionOf(line - 1, char),
                 }
             end
         else
@@ -48,11 +55,14 @@ return function (results)
                     if  doc.type == 'doc.source'
                     and doc.bindSource == target then
                         local uri = parseUri(doc)
+                        -- always set together on a 'doc.source' node (see parser/luadoc.lua)
+                        local line = doc.line --[[@as integer]]
+                        local char = doc.char --[[@as integer]]
                         result.uri    = uri
                         result.target = {
                             uri    = uri,
-                            start  = guide.positionOf(doc.line - 1, doc.char),
-                            finish = guide.positionOf(doc.line - 1, doc.char),
+                            start  = guide.positionOf(line - 1, char),
+                            finish = guide.positionOf(line - 1, char),
                         }
                     end
                 end

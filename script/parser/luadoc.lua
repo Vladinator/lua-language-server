@@ -177,7 +177,16 @@ Symbol              <-  ({} {
 ---@field generic?          parser.object
 ---@field docAttr?          parser.object
 ---@field pattern?          string
+---@field default?          boolean -- set on 'doc.resume'-shaped nodes for `>`
+---@field additional?       boolean -- set on 'doc.resume'-shaped nodes for `+`
+---@field firstFinish?      integer -- end of the first extends entry on 'doc.class', used to pick a tailcomment split point
+---@field smark?            string
+---@field ge?               boolean -- set on 'doc.version.unit' nodes for a leading `>`
+---@field le?               boolean -- set on 'doc.version.unit' nodes for a leading `<`
+---@field version?          number|string -- set on 'doc.version.unit' nodes
 
+---@param text string
+---@param offset integer
 local function parseTokens(text, offset)
     Ci = 0
     Offset = offset
@@ -231,6 +240,8 @@ local function getMark()
     return TokenMarks[Ci]
 end
 
+---@param callback fun(): any
+---@return any
 local function try(callback)
     local savePoint = Ci
     -- rollback
@@ -241,16 +252,22 @@ local function try(callback)
     return suc
 end
 
+---@param tp string
+---@param parent parser.object?
+---@return parser.object?
 local function parseName(tp, parent)
     local nameTp, nameText = peekToken()
     if nameTp ~= 'name' then
         return nil
     end
     nextToken()
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local name = {
         type   = tp,
         start  = getStart(),
         finish = getFinish(),
+        ---@diagnostic disable-next-line: assign-type-mismatch
         parent = parent,
         [1]    = nameText,
     }
@@ -273,19 +290,25 @@ local function nextSymbolOrError(symbol)
     return false
 end
 
+---@param parent parser.object?
+---@return parser.object?
 local function parseDocAttr(parent)
     if not checkToken('symbol', '(', 1) then
         return nil
     end
     nextToken()
 
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local attrs = {
         type   = 'doc.attr',
+        ---@diagnostic disable-next-line: assign-type-mismatch
         parent = parent,
         start  = getStart(),
         finish = getStart(),
         names  = {},
     }
+    local names = attrs.names --[[@as parser.object[] ]]
 
     while true do
         if checkToken('symbol', ',', 1) then
@@ -296,7 +319,7 @@ local function parseDocAttr(parent)
         if not name then
             break
         end
-        attrs.names[#attrs.names+1] = name
+        names[#names+1] = name
         attrs.finish = name.finish
         ::continue::
     end
@@ -307,6 +330,8 @@ local function parseDocAttr(parent)
     return attrs
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseIndexField(parent)
     if not checkToken('symbol', '[', 1) then
         return nil
@@ -344,11 +369,15 @@ local function slideToNextLine()
     parseTokens(nextComment.text:sub(2), nextComment.start + 2)
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseTable(parent)
     if not checkToken('symbol', '{', 1) then
         return nil
     end
     nextToken()
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local typeUnit = {
         type    = 'doc.type.table',
         start   = getStart(),
@@ -362,6 +391,8 @@ local function parseTable(parent)
             nextToken()
             break
         end
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local field = {
             type   = 'doc.type.field',
             parent = typeUnit,
@@ -373,6 +404,7 @@ local function parseTable(parent)
                 nextToken()
                 needCloseParen = true
             end
+            ---@diagnostic disable-next-line: assign-type-mismatch
             field.name = parseName('doc.field.name', field)
                     or   parseIndexField(field)
             if not field.name then
@@ -394,6 +426,7 @@ local function parseTable(parent)
             if not nextSymbolOrError(':') then
                 break
             end
+            ---@diagnostic disable-next-line: assign-type-mismatch
             field.extends = parseType(field)
             if not field.extends then
                 break
@@ -417,11 +450,15 @@ local function parseTable(parent)
     return typeUnit
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseTuple(parent)
     if not checkToken('symbol', '[', 1) then
         return nil
     end
     nextToken()
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local typeUnit = {
         type    = 'doc.type.table',
         start   = getStart(),
@@ -437,6 +474,8 @@ local function parseTuple(parent)
             nextToken()
             break
         end
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local field = {
             type   = 'doc.type.field',
             parent = typeUnit,
@@ -448,6 +487,7 @@ local function parseTuple(parent)
                 nextToken()
                 needCloseParen = true
             end
+            ---@diagnostic disable-next-line: missing-fields
             field.name = {
                 type        = 'doc.type',
                 start       = getFinish(),
@@ -456,6 +496,7 @@ local function parseTuple(parent)
                 parent      = field,
             }
             field.name.types = {
+                ---@diagnostic disable-next-line: missing-fields
                 [1] = {
                     type   = 'doc.type.integer',
                     start  = getFinish(),
@@ -465,6 +506,7 @@ local function parseTuple(parent)
                 }
             }
             index          = index + 1
+            ---@diagnostic disable-next-line: assign-type-mismatch
             field.extends  = parseType(field)
             if not field.extends then
                 break
@@ -490,6 +532,8 @@ local function parseTuple(parent)
     return typeUnit
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseSigns(parent)
     if not checkToken('symbol', '<', 1) then
         return nil
@@ -517,11 +561,16 @@ local function parseSigns(parent)
     return signs
 end
 
+---@param tp string
+---@param parent parser.object
+---@return parser.object?
 local function parseDots(tp, parent)
     if not checkToken('symbol', '...', 1) then
         return
     end
     nextToken()
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local dots = {
         type   = tp,
         start  = getStart(),
@@ -532,11 +581,15 @@ local function parseDots(tp, parent)
     return dots
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function  parseTypeUnitFunction(parent)
     if not checkToken('name', 'fun', 1) then
         return nil
     end
     nextToken()
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local typeUnit = {
         type    = 'doc.type.function',
         parent  = parent,
@@ -545,6 +598,7 @@ local function  parseTypeUnitFunction(parent)
         returns = {},
     }
     -- Parse optional generic params: fun<T, V>(...)
+    ---@diagnostic disable-next-line: assign-type-mismatch
     typeUnit.signs = parseSigns(typeUnit)
     if not nextSymbolOrError('(') then
         return nil
@@ -555,10 +609,13 @@ local function  parseTypeUnitFunction(parent)
             nextToken()
             break
         end
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local arg = {
             type   = 'doc.type.arg',
             parent = typeUnit,
         }
+        ---@diagnostic disable-next-line: assign-type-mismatch
         arg.name = parseName('doc.type.arg.name', arg)
                 or parseDots('doc.type.arg.name', arg)
         if not arg.name then
@@ -579,6 +636,7 @@ local function  parseTypeUnitFunction(parent)
         arg.finish = getFinish()
         if checkToken('symbol', ':', 1) then
             nextToken()
+            ---@diagnostic disable-next-line: assign-type-mismatch
             arg.extends = parseType(arg)
         end
         arg.finish = getFinish()
@@ -628,6 +686,7 @@ local function  parseTypeUnitFunction(parent)
                 nextToken()
                 rtn.optional = true
             end
+            ---@diagnostic disable-next-line: need-check-nil
             typeUnit.returns[#typeUnit.returns+1] = rtn
             if checkToken('symbol', ',', 1) then
                 nextToken()
@@ -688,6 +747,8 @@ local function  parseTypeUnitFunction(parent)
     return typeUnit
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseFunction(parent)
     local _, content = peekToken()
     if content == 'async' then
@@ -710,11 +771,16 @@ local function parseFunction(parent)
     end
 end
 
+---@param parent parser.object
+---@param node parser.object
+---@return parser.object?
 local function parseTypeUnitArray(parent, node)
     if not checkToken('symbol', '[]', 1) then
         return nil
     end
     nextToken()
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local result = {
         type   = 'doc.type.array',
         start  = node.start,
@@ -726,11 +792,16 @@ local function parseTypeUnitArray(parent, node)
     return result
 end
 
+---@param parent parser.object
+---@param node parser.object
+---@return parser.object?
 local function parseTypeUnitSign(parent, node)
     if not checkToken('symbol', '<', 1) then
         return nil
     end
     nextToken()
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local result = {
         type   = 'doc.type.sign',
         start  = node.start,
@@ -762,6 +833,8 @@ local function parseTypeUnitSign(parent, node)
     return result
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseString(parent)
     local tp, content = peekToken()
     if not tp or tp ~= 'string' then
@@ -778,6 +851,8 @@ local function parseString(parent)
             content = content:sub(2, -2)
         end
     end
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local str = {
         type   = 'doc.type.string',
         start  = getStart(),
@@ -789,6 +864,8 @@ local function parseString(parent)
     return str
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseCodePattern(parent)
     local tp, pattern = peekToken()
     if not tp or (tp ~= 'name' and tp ~= 'code') then
@@ -847,17 +924,21 @@ local function parseCodePattern(parent)
             nextToken()
         end
     end
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local code = {
         type   = 'doc.type.code',
         start  = start,
         finish = getFinish(),
         parent = parent,
-        pattern = pattern,
+        pattern = pattern --[[@as string?]],
         [1]    = content,
     }
     return code
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseInteger(parent)
     local tp, content = peekToken()
     if not tp or tp ~= 'integer' then
@@ -865,6 +946,8 @@ local function parseInteger(parent)
     end
 
     nextToken()
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local integer = {
         type   = 'doc.type.integer',
         start  = getStart(),
@@ -875,6 +958,8 @@ local function parseInteger(parent)
     return integer
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseBoolean(parent)
     local tp, content = peekToken()
     if not tp
@@ -884,6 +969,8 @@ local function parseBoolean(parent)
     end
 
     nextToken()
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local boolean = {
         type   = 'doc.type.boolean',
         start  = getStart(),
@@ -894,6 +981,8 @@ local function parseBoolean(parent)
     return boolean
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseParen(parent)
     if not checkToken('symbol', '(', 1) then
         return
@@ -940,6 +1029,8 @@ function parseTypeUnit(parent)
     return result
 end
 
+---@param parent parser.object
+---@return parser.object?
 local function parseResume(parent)
     local default, additional
     if checkToken('symbol', '>', 1) then
@@ -964,6 +1055,8 @@ end
 local lockResume = false
 
 function parseType(parent)
+    ---@type parser.object
+    ---@diagnostic disable-next-line: missing-fields
     local result = {
         type    = 'doc.type',
         parent  = parent,
@@ -1020,10 +1113,12 @@ function parseType(parent)
                     parseTokens(nextComm.text:sub(#resumeHead + 1, finishPos), nextComm.start + #resumeHead + 1)
                     local resume = parseResume(result)
                     if resume then
+                        -- doc.resume nodes store a plain string here, unlike the usual
+                        -- table-shaped { type = 'doc.tailcomment', ... } comment node
                         if comments then
-                            resume.comment = table.concat(comments, '\n')
+                            resume.comment = table.concat(comments, '\n') --[[@as table]]
                         else
-                            resume.comment = nextComm.text:match('%s*#?%s*(.+)', resume.finish - nextComm.start)
+                            resume.comment = nextComm.text:match('%s*#?%s*(.+)', resume.finish - nextComm.start) --[[@as table]]
                         end
                         result.types[#result.types+1] = resume
                         result.finish = resume.finish
@@ -1061,6 +1156,8 @@ end
 local docSwitch = util.switch()
     : case 'class'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type      = 'doc.class',
             fields    = {},
@@ -1068,6 +1165,7 @@ local docSwitch = util.switch()
             calls     = {},
         }
         result.docAttr = parseDocAttr(result)
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.class = parseName('doc.class.name', result)
         if not result.class then
             pushWarning {
@@ -1079,6 +1177,7 @@ local docSwitch = util.switch()
         end
         result.start  = getStart()
         result.finish = getFinish()
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.signs  = parseSigns(result)
         if not checkToken('symbol', ':', 1) then
             return result
@@ -1133,10 +1232,13 @@ local docSwitch = util.switch()
     end)
     : case 'alias'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.alias',
         }
         result.docAttr = parseDocAttr(result)
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.alias = parseName('doc.alias.name', result)
         if not result.alias then
             pushWarning {
@@ -1147,7 +1249,9 @@ local docSwitch = util.switch()
             return nil
         end
         result.start  = getStart()
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.signs  = parseSigns(result)
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.extends = parseType(result)
         if not result.extends then
             pushWarning {
@@ -1162,9 +1266,12 @@ local docSwitch = util.switch()
     end)
     : case 'param'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.param',
         }
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.param = parseName('doc.param.name', result)
                     or parseDots('doc.param.name', result)
         if not result.param then
@@ -1181,6 +1288,7 @@ local docSwitch = util.switch()
         end
         result.start  = result.param.start
         result.finish = getFinish()
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.extends = parseType(result)
         if not result.extends then
             pushWarning {
@@ -1196,12 +1304,14 @@ local docSwitch = util.switch()
     end)
     : case 'return'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type    = 'doc.return',
             returns = {},
         }
         while true do
-            local dots = parseDots('doc.return.name')
+            local dots = parseDots('doc.return.name', result)
             if dots then
                 Ci = Ci - 1
             end
@@ -1220,15 +1330,18 @@ local docSwitch = util.switch()
                 docType.name = dots
                 dots.parent  = docType
             else
+                ---@diagnostic disable-next-line: assign-type-mismatch
                 docType.name = parseName('doc.return.name', docType)
                             or parseDots('doc.return.name', docType)
             end
+            ---@diagnostic disable-next-line: need-check-nil
             result.returns[#result.returns+1] = docType
             if not checkToken('symbol', ',', 1) then
                 break
             end
             nextToken()
         end
+        ---@diagnostic disable-next-line: need-check-nil
         if #result.returns == 0 then
             return nil
         end
@@ -1237,6 +1350,8 @@ local docSwitch = util.switch()
     end)
     : case 'field'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type = 'doc.field',
         }
@@ -1276,6 +1391,7 @@ local docSwitch = util.switch()
             end
             return false
         end)
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.field = parseName('doc.field.name', result)
                     or parseIndexField(result)
         if not result.field then
@@ -1293,6 +1409,7 @@ local docSwitch = util.switch()
             nextToken()
             result.optional = true
         end
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.extends = parseType(result)
         if not result.extends then
             pushWarning {
@@ -1307,11 +1424,15 @@ local docSwitch = util.switch()
     end)
     : case 'generic'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type = 'doc.generic',
             generics = {},
         }
         while true do
+            ---@type parser.object
+            ---@diagnostic disable-next-line: missing-fields
             local object = {
                 type = 'doc.generic.object',
                 parent = result,
@@ -1331,9 +1452,11 @@ local docSwitch = util.switch()
             end
             if checkToken('symbol', ':', 1) then
                 nextToken()
+                ---@diagnostic disable-next-line: assign-type-mismatch
                 object.extends = parseType(object)
             end
             object.finish = getFinish()
+            ---@diagnostic disable-next-line: need-check-nil
             result.generics[#result.generics+1] = object
             if not checkToken('symbol', ',', 1) then
                 break
@@ -1345,9 +1468,12 @@ local docSwitch = util.switch()
     end)
     : case 'vararg'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type = 'doc.vararg',
         }
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.vararg = parseType(result)
         if not result.vararg then
             pushWarning {
@@ -1373,9 +1499,12 @@ local docSwitch = util.switch()
             }
             return nil
         end
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type = 'doc.overload',
         }
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.overload = parseFunction(result)
         if not result.overload then
             return nil
@@ -1387,16 +1516,21 @@ local docSwitch = util.switch()
     end)
     : case 'meta'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local meta = {
             type   = 'doc.meta',
             start  = getFinish(),
             finish = getFinish(),
         }
+        ---@diagnostic disable-next-line: assign-type-mismatch
         meta.name = parseName('doc.meta.name', meta)
         return meta
     end)
     : case 'version'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type     = 'doc.version',
             versions = {},
@@ -1414,6 +1548,8 @@ local docSwitch = util.switch()
             if not result.start then
                 result.start = getStart()
             end
+            ---@type parser.object
+            ---@diagnostic disable-next-line: missing-fields
             local version = {
                 type   = 'doc.version.unit',
                 parent = result,
@@ -1437,12 +1573,14 @@ local docSwitch = util.switch()
             end
             version.version = tonumber(text) or text
             version.finish = getFinish()
+            ---@diagnostic disable-next-line: need-check-nil
             result.versions[#result.versions+1] = version
             if not checkToken('symbol', ',', 1) then
                 break
             end
             nextToken()
         end
+        ---@diagnostic disable-next-line: need-check-nil
         if #result.versions == 0 then
             return nil
         end
@@ -1451,9 +1589,12 @@ local docSwitch = util.switch()
     end)
     : case 'see'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type     = 'doc.see',
         }
+        ---@diagnostic disable-next-line: assign-type-mismatch
         result.name = parseName('doc.see.name', result)
         if not result.name then
             pushWarning {
@@ -1469,6 +1610,8 @@ local docSwitch = util.switch()
     end)
     : case 'diagnostic'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type = 'doc.diagnostic',
         }
@@ -1481,7 +1624,7 @@ local docSwitch = util.switch()
             }
             return nil
         end
-        result.mode   = mode
+        result.mode   = mode --[[@as '+'|'-'|'disable-next-line'|'disable-line'|'disable'|'enable']]
         result.start  = getStart()
         result.finish = getFinish()
         if  mode ~= 'disable-next-line'
@@ -1508,6 +1651,7 @@ local docSwitch = util.switch()
                     }
                     return result
                 end
+                ---@diagnostic disable-next-line: need-check-nil
                 result.names[#result.names+1] = name
                 if not checkToken('symbol', ',', 1) then
                     break
@@ -1522,6 +1666,8 @@ local docSwitch = util.switch()
     end)
     : case 'module'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type     = 'doc.module',
             start    = getFinish(),
@@ -1529,7 +1675,7 @@ local docSwitch = util.switch()
         }
         local tp, content = peekToken()
         if tp == 'string' then
-            result.module = content
+            result.module = content --[[@as string]]
             nextToken()
             result.start  = getStart()
             result.finish = getFinish()
@@ -1561,6 +1707,8 @@ local docSwitch = util.switch()
     end)
     : case 'as'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.as',
             start  = getFinish(),
@@ -1572,6 +1720,8 @@ local docSwitch = util.switch()
     end)
     : case 'cast'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.cast',
             start  = getFinish(),
@@ -1593,6 +1743,8 @@ local docSwitch = util.switch()
         result.finish = loc.finish
 
         while true do
+            ---@type parser.object
+            ---@diagnostic disable-next-line: missing-fields
             local block = {
                 type   = 'doc.cast.block',
                 parent = result,
@@ -1616,6 +1768,7 @@ local docSwitch = util.switch()
                 nextToken()
                 block.finish = getFinish()
             else
+                ---@diagnostic disable-next-line: assign-type-mismatch
                 block.extends = parseType(block)
                 if block.extends then
                     block.start  = block.start or block.extends.start
@@ -1639,6 +1792,8 @@ local docSwitch = util.switch()
     end)
     : case 'operator'
     : call(function ()
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.operator',
             start  = getFinish(),
@@ -1695,13 +1850,15 @@ local docSwitch = util.switch()
         source = source or fullSource
         line   = tonumber(line) or 1
         char   = tonumber(char) or 0
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.source',
             start  = getStart(),
             finish = getFinish(),
             path   = source,
-            line   = line,
-            char   = char,
+            line   = line --[[@as integer]],
+            char   = char --[[@as integer]],
         }
         return result
     end)
@@ -1712,6 +1869,8 @@ local docSwitch = util.switch()
         if not name then
             return nil
         end
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type    = 'doc.enum',
             start   = name.start,

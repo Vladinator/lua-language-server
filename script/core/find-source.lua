@@ -1,5 +1,8 @@
 local guide     = require 'parser.guide'
 
+---@param source parser.object
+---@param offset integer
+---@return boolean
 local function isValidFunctionPos(source, offset)
     for i = 1, #source.keyword // 2 do
         local start  = source.keyword[i * 2 - 1]
@@ -11,8 +14,13 @@ local function isValidFunctionPos(source, offset)
     return false
 end
 
+---@param state parser.state
+---@param position integer
+---@param accept table<string, boolean>
+---@return parser.object?
 return function (state, position, accept)
     local len = math.huge
+    ---@type parser.object?
     local result
     guide.eachSourceContain(state.ast, position, function (source)
         if source.virtual then

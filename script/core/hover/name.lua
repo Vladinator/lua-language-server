@@ -3,11 +3,13 @@ local vm       = require 'vm'
 
 local buildName
 
+---@param source parser.object
 local function asLocal(source)
     local name = guide.getKeyName(source)
     if not source.attrs then
         return name
     end
+    ---@type any[]
     local label = {}
     label[#label+1] = name
     for _, attr in ipairs(source.attrs) do
@@ -16,7 +18,10 @@ local function asLocal(source)
     return table.concat(label, ' ')
 end
 
+---@param source parser.object
+---@param oop boolean
 local function asField(source, oop)
+    ---@type string?
     local class
     if source.node.type ~= 'getglobal' then
         class = vm.getInfer(source.node):viewClass()

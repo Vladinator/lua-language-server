@@ -25,11 +25,15 @@ end
 local function rawPackPosition(state, pos)
     local row, col = guide.rowColOf(pos)
     if col > 0 then
+        ---@type string?
         local text  = state.lua
         if state and text then
+            ---@type integer?
             local lineOffset = state.lines[row]
             if lineOffset then
+                ---@type integer
                 local start = lineOffset
+                ---@type integer
                 local finish = lineOffset + col - 1
                 if start <= #text and finish <= #text then
                     col = encoder.len(offsetEncoding, text, lineOffset, lineOffset + col - 1)
@@ -209,6 +213,7 @@ function m.textEdit(range, newtext)
     }
 end
 
+---@param encoding string
 function m.setOffsetEncoding(encoding)
     offsetEncoding = encoding:lower():gsub('%-', '')
 end

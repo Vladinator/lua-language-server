@@ -77,6 +77,7 @@ local function checkOperators(operators, op, value, result, uri, classGlobal, si
     -- For operators declared on a generic class and reached through an
     -- instantiated type (`Box<string>`), substitute the class type
     -- parameters in the operand and return annotations.
+    ---@type table<string, vm.node>?
     local genericMap
     if uri and classGlobal and signs then
         genericMap = vm.getClassGenericMap(uri, classGlobal, signs)
@@ -139,6 +140,7 @@ end
 function vm.runOperator(op, exp, value)
     local uri = guide.getUri(exp)
     local node = vm.compileNode(exp)
+    ---@type vm.node?
     local result
     for cVal in node:eachObject() do
         local c = cVal
@@ -171,6 +173,7 @@ end
 
 vm.unarySwich = util.switch()
     : case 'not'
+    ---@param source parser.object
     : call(function (source)
         local result = vm.testCondition(source[1])
         if result == nil then
@@ -187,11 +190,13 @@ vm.unarySwich = util.switch()
         end
     end)
     : case '#'
+    ---@param source parser.object
     : call(function (source)
         local node = vm.runOperator('len', source[1])
         vm.setNode(source, node or vm.declareGlobal('type', 'integer'))
     end)
     : case '-'
+    ---@param source parser.object
     : call(function (source)
         local v = vm.getNumber(source[1])
         if v == nil then
@@ -217,6 +222,7 @@ vm.unarySwich = util.switch()
         end
     end)
     : case '~'
+    ---@param source parser.object
     : call(function (source)
         local v = vm.getInteger(source[1])
         if v == nil then
@@ -236,6 +242,7 @@ vm.unarySwich = util.switch()
 
 vm.binarySwitch = util.switch()
     : case 'and'
+    ---@param source parser.object
     : call(function (source)
         local node1 = vm.compileNode(source[1])
         local node2 = vm.compileNode(source[2])
@@ -250,6 +257,7 @@ vm.binarySwitch = util.switch()
         end
     end)
     : case 'or'
+    ---@param source parser.object
     : call(function (source)
         local node1 = vm.compileNode(source[1])
         local node2 = vm.compileNode(source[2])
@@ -267,6 +275,7 @@ vm.binarySwitch = util.switch()
         end
     end)
     : case '??' -- LuaJIT 空值合并：仅当左侧为 nil 时取右侧（false 仍返回左侧）
+    ---@param source parser.object
     : call(function (source)
         local node1 = vm.compileNode(source[1])
         local node2 = vm.compileNode(source[2])
@@ -303,6 +312,7 @@ vm.binarySwitch = util.switch()
     end)
     : case '=='
     : case '~='
+    ---@param source parser.object
     : call(function (source)
         local result = vm.equal(source[1], source[2])
         if result == nil then
@@ -327,6 +337,7 @@ vm.binarySwitch = util.switch()
     : case '&'
     : case '|'
     : case '~'
+    ---@param source parser.object
     : call(function (source)
         local a = vm.getInteger(source[1])
         local b = vm.getInteger(source[2])
@@ -371,6 +382,7 @@ vm.binarySwitch = util.switch()
     : case '%'
     : case '//'
     : case '^'
+    ---@param source parser.object
     : call(function (source)
         local a = vm.getNumber(source[1])
         local b = vm.getNumber(source[2])
@@ -447,6 +459,7 @@ vm.binarySwitch = util.switch()
         end
     end)
     : case '..'
+    ---@param source parser.object
     : call(function (source)
         local a =  vm.getString(source[1])
                 or vm.getNumber(source[1])
@@ -507,6 +520,7 @@ vm.binarySwitch = util.switch()
     : case '<'
     : case '>='
     : case '<='
+    ---@param source parser.object
     : call(function (source)
         local a = vm.getNumber(source[1])
         local b = vm.getNumber(source[2])

@@ -59,10 +59,14 @@ end
 ---@param source parser.object
 ---@return       parser.object[]
 function vm.getDefs(source)
+    ---@type parser.object[]
     local results = {}
+    ---@type table<parser.object, boolean>
     local mark    = {}
 
+    ---@type boolean?
     local hasLocal
+    ---@param src parser.object
     local function pushResult(src)
         if src.type == 'local' then
             if hasLocal then
@@ -101,8 +105,11 @@ end
 
 ---@param source parser.object
 function vm.hasDef(source)
+    ---@type table<parser.object, boolean>
     local mark = {}
+    ---@type boolean?
     local hasLocal
+    ---@param src parser.object
     local function pushResult(src)
         if src.type == 'local' then
             if hasLocal then

@@ -5,6 +5,8 @@ local client = require 'client'
 local lang   = require 'language'
 local guide  = require 'parser.guide'
 
+---@param state parser.state
+---@param pos integer
 local function inComment(state, pos)
     for _, comm in ipairs(state.comms) do
         if comm.start <= pos and comm.finish >= pos then
@@ -17,6 +19,14 @@ local function inComment(state, pos)
     return false
 end
 
+---@class core.autoRequire.fmt
+---@field pair boolean
+---@field quot string
+---@field col? integer
+
+---@param uri uri
+---@return integer? row
+---@return core.autoRequire.fmt? fmt
 local function findInsertRow(uri)
     local text  = files.getText(uri)
     local state = files.getState(uri)
@@ -24,18 +34,20 @@ local function findInsertRow(uri)
         return
     end
     local lines = state.lines
+    ---@type core.autoRequire.fmt
     local fmt   = {
         pair = false,
         quot = '"',
         col  = nil,
     }
+    ---@type integer?
     local row
     for i = 0, #lines do
         if inComment(state, guide.positionOf(i, 0)) then
             goto CONTINUE
         end
         local ln = lines[i]
-        local lnText = text:match('[^\r\n]*', ln)
+        local lnText = text:match('[^\r\n]*', ln) --[[@as string]]
         if not lnText:find('require', 1, true) then
             if row then
                 break
@@ -66,8 +78,12 @@ local function findInsertRow(uri)
 end
 
 ---@async
+---@param uri uri
+---@param visiblePaths require-manager.visibleResult[]
 local function askAutoRequire(uri, visiblePaths)
+    ---@type string[]
     local selects = {}
+    ---@type table<string, string>
     local nameMap = {}
     for _, visible in ipairs(visiblePaths) do
         local expect = visible.name
@@ -101,6 +117,12 @@ local function askAutoRequire(uri, visiblePaths)
     return nameMap[result]
 end
 
+---@param uri uri
+---@param row integer
+---@param name string
+---@param result string
+---@param fmt core.autoRequire.fmt
+---@param fullKeyPath string
 local function applyAutoRequire(uri, row, name, result, fmt, fullKeyPath)
     local quotedResult = ('%q'):format(result)
     if fmt.quot == "'" then
@@ -129,9 +151,16 @@ local function applyAutoRequire(uri, row, name, result, fmt, fullKeyPath)
     })
 end
 
+---@class core.autoRequire.data
+---@field uri uri
+---@field target uri
+---@field name string
+---@field requireName? string
+---@field fullKeyPath? string
+
 ---@async
+---@param data core.autoRequire.data
 return function (data)
-    ---@type uri
     local uri    = data.uri
     local target = data.target
     local name   = data.name

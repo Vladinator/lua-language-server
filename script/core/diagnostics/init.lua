@@ -142,7 +142,7 @@ local function getSeverity(uri, name)
         ---@type string?
         local gseverity = groupSeverity[groupName]
         if gseverity and gseverity ~= 'Fallback' then
-            groupLevel = math.min(groupLevel, define.DiagnosticSeverity[gseverity])
+            groupLevel = math.min(groupLevel, define.DiagnosticSeverity[gseverity] --[[@as integer]])
         end
     end
     if groupLevel == 999 then
@@ -173,7 +173,7 @@ local function getStatus(uri, name)
         ---@type string?
         local gstatus = groupStatus[groupName]
         if gstatus and gstatus ~= 'Fallback' then
-            groupLevel = math.max(groupLevel, define.DiagnosticFileStatus[gstatus])
+            groupLevel = math.max(groupLevel, define.DiagnosticFileStatus[gstatus] --[[@as integer]])
         end
     end
     if groupLevel == 0 then

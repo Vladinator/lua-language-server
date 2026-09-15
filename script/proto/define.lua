@@ -3,6 +3,7 @@ local diag = require 'proto.diagnostic'
 local m = {}
 
 --- 诊断等级
+---@type table<string, integer>
 m.DiagnosticSeverity = {
     Error       = 1,
     Warning     = 2,
@@ -10,6 +11,7 @@ m.DiagnosticSeverity = {
     Hint        = 4,
 }
 
+---@type table<string, integer>
 m.DiagnosticFileStatus = {
     Any        = 1,
     Opened     = 2,

@@ -22,18 +22,20 @@ return function (uri, callback)
     end
 
     ---@async
+    ---@param src parser.object
     guide.eachSourceType(state.ast, 'table', function (src)
         await.delay()
 
         vm.removeNode(src) -- the node is not updated correctly, reason still unknown
         local defs = vm.getDefs(src)
+        ---@type table<string, { [integer]: parser.object, isPartial?: boolean }>
         local sortedDefs = {}
         for _, def in ipairs(defs) do
             if def.type == 'doc.class' then
                 if def.bindSource and guide.isInRange(def.bindSource, src.start) then
                     return
                 end
-                local className = def.class[1]
+                local className = def.class[1] --[[@as string]]
                 if not sortedDefs[className] then
                     sortedDefs[className] = {}
                     -- check if this class is a `partial` class
@@ -58,9 +60,12 @@ return function (uri, callback)
             end
         end
 
+        ---@type table<string|integer, boolean>?
         local myKeys
+        ---@type string[]
         local warnings = {}
         for className, samedefs in pairs(sortedDefs) do
+            ---@type string[]
             local missedKeys = {}
             for _, def in ipairs(samedefs) do
                 local fields = samedefs.isPartial and def.fields or vm.getFields(def)

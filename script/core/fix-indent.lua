@@ -6,8 +6,18 @@ local util = require 'utility'
 local client = require 'client'
 local config = require 'config'
 
+---@class core.fix-indent.change
+---@field text string
+---@field range { start: { line: integer, character: integer }, ["end"]: { line: integer, character: integer } }
+
+---@class core.fix-indent.edit
+---@field start integer
+---@field finish integer
+---@field text string
+
 ---@param uri uri
----@param change table
+---@param change core.fix-indent.change
+---@return core.fix-indent.edit[]|false|nil
 local function removeSpacesAfterEnter(uri, change)
     if not change.text:match '^\r?\n[\t ]+\r?\n$' then
         return false
@@ -20,10 +30,12 @@ local function removeSpacesAfterEnter(uri, change)
     local text  = state.originText  or state.lua
     ---@cast text -?
 
+    ---@type core.fix-indent.edit[]
     local edits = {}
     -- 清除前置空格
     local startPos = guide.positionOf(change.range.start.line, change.range.start.character)
     local startOffset = guide.positionToOffsetByLines(lines, startPos)
+    ---@type integer?
     local leftOffset
     for offset = startOffset, lines[change.range.start.line], -1 do
         leftOffset = offset
@@ -59,16 +71,20 @@ local function removeSpacesAfterEnter(uri, change)
     return edits
 end
 
+---@param state parser.state
+---@param row integer
+---@return string
 local function getIndent(state, row)
     local offset    = state.lines[row]
-    local indent    = state.lua:match('^[\t ]*', offset)
-    return indent
+    local indent    = (state.lua or ''):match('^[\t ]*', offset)
+    return indent --[[@as string]]
 end
 
 ---@param state parser.state
 ---@param pos integer
 ---@return parser.object
 local function getBlock(state, pos)
+    ---@type parser.object?
     local block
     guide.eachSourceContain(state.ast, pos, function (src)
         if not src.bstart then
@@ -78,10 +94,12 @@ local function getBlock(state, pos)
             block = src
         end
     end)
-    return block
+    return block --[[@as parser.object]]
 end
 
 ---@param uri uri
+---@param change core.fix-indent.change
+---@return core.fix-indent.edit[]|false|nil
 local function fixWrongIndent(uri, change)
     if not change.text:match '^\r?\n[\t ]+$' then
         return false
@@ -114,6 +132,7 @@ local function fixWrongIndent(uri, change)
     local endPosition = guide.positionOf(change.range.start.line + 1, #myIndent)
     local endOffset = guide.positionToOffset(state, endPosition)
 
+    ---@type core.fix-indent.edit[]
     local edits = {}
     edits[#edits+1] = {
         start  = endOffset - #myIndent + #lastIndent,
@@ -125,6 +144,7 @@ local function fixWrongIndent(uri, change)
 end
 
 ---@param uri uri
+---@param edits core.fix-indent.edit[]
 local function applyEdits(uri, edits)
     if #edits == 0 then
         return
@@ -137,6 +157,7 @@ local function applyEdits(uri, edits)
 
     local lines = state.originLines or state.lines
 
+    ---@type { range: { start: { line: integer, character: integer }, ["end"]: { line: integer, character: integer } }, newText: string }[]
     local results = {}
     for i, edit in ipairs(edits) do
         local startPos = guide.offsetToPositionByLines(lines, edit.start)
@@ -168,6 +189,8 @@ local function applyEdits(uri, edits)
     })
 end
 
+---@param uri uri
+---@param changes core.fix-indent.change[]
 return function (uri, changes)
     if not client.getOption('fixIndents') then
         return

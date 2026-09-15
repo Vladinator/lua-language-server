@@ -1,8 +1,12 @@
 local guide = require 'parser.guide'
 local vm    = require 'vm'
 
+---@param source parser.object
+---@return string[]
 local function asFunction(source)
+    ---@type string[]
     local args = {}
+    ---@type boolean?
     local methodDef
     local parent = source.parent
     if parent and parent.type == 'setmethod' then
@@ -36,6 +40,7 @@ local function asFunction(source)
                 local name = arg.name or guide.getKeyName(arg)
                 if name then
                     local argNode = vm.compileNode(arg)
+                    ---@type boolean?
                     local optional
                     if argNode:isOptional() then
                         optional = true
@@ -57,14 +62,17 @@ local function asFunction(source)
     return args
 end
 
+---@param source parser.object
+---@return string[]
 local function asDocFunction(source)
+    ---@type string[]
     local args = {}
     if not source.args then
         return args
     end
     for i = 1, #source.args do
         local arg = source.args[i]
-        local name = arg.name[1]
+        local name = arg.name[1] --[[@as string]]
         args[i] = ('%s%s: %s'):format(
             name,
             arg.optional and '?' or '',
@@ -74,6 +82,7 @@ local function asDocFunction(source)
     return args
 end
 
+---@param source parser.object
 return function (source)
     if source.type == 'function' then
         return asFunction(source)

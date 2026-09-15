@@ -7,10 +7,13 @@ local await     = require 'await'
 local progress  = require 'progress'
 local lang      = require 'language'
 
+---@type switch
 local simpleSwitch
 
 simpleSwitch = util.switch()
     : case 'goto'
+    ---@param source parser.object
+    ---@param pushResult fun(src: parser.object)
     : call(function (source, pushResult)
         if source.node then
             simpleSwitch('label', source.node, pushResult)
@@ -18,6 +21,8 @@ simpleSwitch = util.switch()
         end
     end)
     : case 'label'
+    ---@param source parser.object
+    ---@param pushResult fun(src: parser.object)
     : call(function (source, pushResult)
         pushResult(source)
         if source.ref then
@@ -28,12 +33,16 @@ simpleSwitch = util.switch()
     end)
 
 ---@async
+---@param suri uri
+---@param searcher async fun(uri: uri)
+---@param notify? fun(uri: uri): boolean
 local function searchInAllFiles(suri, searcher, notify)
     await.delay()
 
     searcher(suri)
     await.delay()
 
+    ---@type uri[]
     local uris = {}
     for uri in files.eachFile(suri) do
         if  not vm.isMetaFile(uri)
@@ -43,6 +52,7 @@ local function searchInAllFiles(suri, searcher, notify)
     end
 
     local loading <close> = progress.create(suri, lang.script.WINDOW_SEARCHING_IN_FILES, 1)
+    ---@type boolean?
     local cancelled
     loading:onCancel(function ()
         cancelled = true
@@ -162,6 +172,7 @@ local function searchFunction(source, pushResult, defMap, fileNotify)
     searchInAllFiles(guide.getUri(source), findCall, fileNotify)
 end
 
+---@type fun(source: parser.object, pushResult: fun(src: parser.object), defMap: table<parser.object, boolean>, fileNotify?: fun(uri: uri): boolean)
 local searchByParentNode
 local nodeSwitch = util.switch()
     : case 'field'
@@ -247,11 +258,14 @@ end
 ---@async
 ---@param source  parser.object
 ---@param pushResult fun(src: parser.object)
+---@param defMap table<parser.object, boolean>
 ---@param fileNotify? fun(uri: uri): boolean
 function searchByParentNode(source, pushResult, defMap, fileNotify)
     nodeSwitch(source.type, source, pushResult, defMap, fileNotify)
 end
 
+---@param source parser.object
+---@param pushResult fun(src: parser.object)
 local function searchByGlobal(source, pushResult)
     if source.type == 'field'
     or source.type == 'method'
@@ -269,7 +283,11 @@ local function searchByGlobal(source, pushResult)
     end
 end
 
+---@param source parser.object
+---@param pushResult fun(src: parser.object)
+---@return table<parser.object, boolean>
 local function searchByDef(source, pushResult)
+    ---@type table<parser.object, boolean>
     local defMap = {}
     if source.type == 'function'
     or source.type == 'doc.type.function' then
@@ -301,9 +319,12 @@ end
 ---@param source parser.object
 ---@param fileNotify? fun(uri: uri): boolean
 function vm.getRefs(source, fileNotify)
+    ---@type parser.object[]
     local results = {}
+    ---@type table<parser.object, boolean>
     local mark    = {}
 
+    ---@type boolean?
     local hasLocal
     local function pushResult(src)
         if src.type == 'local' then

@@ -96,14 +96,19 @@ function m.dump(tbl, option)
     if type(tbl) ~= 'table' then
         return ('%s'):format(tbl)
     end
+    ---@type table<integer, string>
     local lines = {}
+    ---@type table<table, integer>
     local mark = {}
+    ---@type any[]
     local stack = {}
     lines[#lines+1] = '{'
     local function unpack(tbl)
         local deep = #stack
         mark[tbl] = (mark[tbl] or 0) + 1
+        ---@type any[]
         local keys = {}
+        ---@type table<any, string>
         local keymap = {}
         local integerFormat = '[%d]'
         local alignment = 0
@@ -197,6 +202,7 @@ end
 ---@param valueB any
 ---@return boolean
 function m.equal(valueA, valueB)
+    ---@type table<any, boolean>
     local hasChecked = {}
 
     local function equal(a, b)
@@ -210,6 +216,7 @@ function m.equal(valueA, valueB)
                 return true
             end
             hasChecked[a] = true
+            ---@type table<any, boolean>
             local mark = {}
             for k, v in pairs(a) do
                 mark[k] = true
@@ -242,7 +249,9 @@ local function sortTable(tbl)
         tbl = {}
     end
     local mt = {}
+    ---@type any[]
     local keys = {}
+    ---@type table<any, boolean>
     local mark = {}
     local n = 0
     for key in next, tbl do
@@ -259,6 +268,7 @@ local function sortTable(tbl)
         end
     end
     function mt:__pairs()
+        ---@type any[]
         local list = {}
         local m = 0
         for key in next, self do
@@ -377,6 +387,7 @@ end
 ---@param target? table
 ---@return table
 function m.deepCopy(source, target)
+    ---@type table<table, table>
     local mark = {}
     local function copy(a, b)
         if type(a) ~= 'table' then
@@ -401,8 +412,10 @@ end
 ---@param t table
 ---@return table
 function m.unpack(t)
+    ---@type table<integer, any>
     local result = {}
     local tid = 0
+    ---@type table<any, integer>
     local cache = {}
     local function unpack(o)
         local id = cache[o]
@@ -411,6 +424,7 @@ function m.unpack(t)
             id = tid
             cache[o] = tid
             if type(o) == 'table' then
+                ---@type table<integer, any>
                 local new = {}
                 result[tid] = new
                 for k, v in next, o do
@@ -430,6 +444,7 @@ end
 ---@param t table
 ---@return table
 function m.pack(t)
+    ---@type table<any, any>
     local cache = {}
     local function pack(id)
         local o = cache[id]
@@ -438,6 +453,7 @@ function m.pack(t)
         end
         o = t[id]
         if type(o) == 'table' then
+            ---@type table<any, any>
             local new = {}
             cache[id] = new
             for k, v in next, o do
@@ -469,7 +485,10 @@ local esc = {
     ['\n'] = '\\\n',
 }
 
+---@param str string
+---@return string
 local function escapeInvalidUtf8(str)
+    ---@type table<integer, string>
     local result = {}
     local start = 1
     while true do
@@ -485,6 +504,9 @@ local function escapeInvalidUtf8(str)
     return tableConcat(result)
 end
 
+---@param str string
+---@param quo? string
+---@return string
 function m.viewString(str, quo)
     if not utf8Len(str) then
         str = escapeInvalidUtf8(str)
@@ -527,6 +549,8 @@ function m.viewString(str, quo)
     end
 end
 
+---@param v any
+---@return string?
 function m.viewLiteral(v)
     local tp = type(v)
     if tp == 'nil' then
@@ -581,6 +605,7 @@ end
 ---@param t table<K, V>
 ---@return table<V, K>
 function m.revertMap(t)
+    ---@type table<any, any>
     local nt = {}
     for k, v in pairs(t) do
         nt[v] = k
@@ -588,6 +613,10 @@ function m.revertMap(t)
     return nt
 end
 
+---@generic T
+---@param t T[]
+---@param max? integer
+---@return T[]
 function m.randomSortTable(t, max)
     local len = #t
     if len <= 1 then
@@ -603,7 +632,11 @@ function m.randomSortTable(t, max)
     return t
 end
 
+---@generic T
+---@param t T[]
+---@param index integer[]
 function m.tableMultiRemove(t, index)
+    ---@type table<integer, boolean>
     local mark = {}
     for i = 1, #index do
         local v = index[i]
@@ -638,6 +671,7 @@ end
 function m.eachLine(text, keepNL)
     local offset = 1
     local lineCount = 0
+    ---@type string?
     local lastLine
     return function ()
         lineCount = lineCount + 1
@@ -684,6 +718,7 @@ function m.sortByScore(tbl, callbacks)
         callbacks = { callbacks }
     end
     local size = #callbacks
+    ---@type table<integer, table<any, integer>>
     local scoreCache = {}
     for i = 1, size do
         scoreCache[i] = {}
@@ -740,6 +775,7 @@ end
 ---@param scores integer[]
 ---@return SortByScoreCallback
 function m.sortCallbackOfScore(datas, scores)
+    ---@type table<any, integer>
     local map = {}
     for i = 1, #datas do
         local data = datas[i]
@@ -788,6 +824,7 @@ end
 ---@param l T[]
 ---@return { [T]: true }
 function m.arrayToHash(l)
+    ---@type table<any, true>
     local t = {}
     for i = 1, #l do
         t[l[i]] = true
@@ -912,6 +949,9 @@ function m.stringEqual(str1, str2, ignoreCase)
     end
 end
 
+---@generic K, V
+---@param default fun(k: K): V
+---@return table<K, V>
 function m.defaultTable(default)
     return setmetatable({}, { __index = function (t, k)
         if k == nil then
@@ -923,7 +963,11 @@ function m.defaultTable(default)
     end })
 end
 
+---@param max integer
+---@param default? fun(k: any): any
+---@return table
 function m.multiTable(max, default)
+    ---@type table<integer, table>
     local mts = {}
     for i = 1, max - 1 do
         if i < max - 1 then
@@ -954,6 +998,7 @@ end
 ---@param sorter boolean|function
 ---@return any[]
 function m.getTableKeys(t, sorter)
+    ---@type any[]
     local keys = {}
     for k in pairs(t) do
         keys[#keys+1] = k
@@ -966,6 +1011,9 @@ function m.getTableKeys(t, sorter)
     return keys
 end
 
+---@param array any[]
+---@param value any
+---@return boolean
 function m.arrayHas(array, value)
     for i = 1, #array do
         if array[i] == value then
@@ -975,6 +1023,9 @@ function m.arrayHas(array, value)
     return false
 end
 
+---@param array any[]
+---@param value any
+---@return integer?
 function m.arrayIndexOf(array, value)
     for i = 1, #array do
         if array[i] == value then
@@ -984,12 +1035,16 @@ function m.arrayIndexOf(array, value)
     return nil
 end
 
+---@param array any[]
+---@param value any
 function m.arrayInsert(array, value)
     if not m.arrayHas(array, value) then
         array[#array+1] = value
     end
 end
 
+---@param array any[]
+---@param value any
 function m.arrayRemove(array, value)
     for i = 1, #array do
         if array[i] == value then
@@ -1003,6 +1058,7 @@ end
 ---@param a2 any[]
 ---@return any[]
 function m.arrayOverlap(a1, a2)
+    ---@type any[]
     local result = {}
     local set = m.arrayToHash(a2)
     for i = 1, #a1 do
@@ -1022,6 +1078,7 @@ m.MODE_KV = { __mode = 'kv' }
 ---@param func T
 ---@return T
 function m.cacheReturn(func)
+    ---@type table<any, any>
     local cache = {}
     return function (param)
         if cache[param] == nil then
@@ -1055,6 +1112,7 @@ end
 ---@param t { [K]: any }
 ---@return K[]
 function m.keysOf(t)
+    ---@type any[]
     local keys = {}
     for k in pairs(t) do
         keys[#keys+1] = k
@@ -1066,6 +1124,7 @@ end
 ---@param t { [any]: V }
 ---@return V[]
 function m.valuesOf(t)
+    ---@type any[]
     local values = {}
     for _, v in pairs(t) do
         values[#values+1] = v
@@ -1085,6 +1144,7 @@ end
 
 ---@param arr any[]
 function m.arrayRemoveDuplicate(arr)
+    ---@type table<any, boolean>
     local mark = {}
     local offset = 0
     local len = #arr
@@ -1107,6 +1167,7 @@ end
 ---@param callback fun(v: V, k: integer): R
 ---@return R[]
 function m.map(t, callback)
+    ---@type any[]
     local nt = {}
     for k, v in ipairs(t) do
         nt[k] = callback(v, k)
@@ -1256,6 +1317,7 @@ end
 ---@param sep string
 ---@return string[]
 function m.split(str, sep)
+    ---@type string[]
     local result = {}
     local offset = 1
     while offset <= #str do
@@ -1277,6 +1339,7 @@ end
 ---@param callback fun(content: string, inside: boolean): T
 ---@return T[]
 function m.replaceInside(str, left, right, callback)
+    ---@type any[]
     local result = {}
     local offset = 1
     while offset <= #str do
@@ -1318,7 +1381,9 @@ end
 ---@param ... table
 ---@return table
 function m.mergeStruct(...)
+    ---@type table?
     local result
+    ---@type table<table, table>
     local copyed = {}
 
     local function merge(a, b)
@@ -1332,6 +1397,7 @@ function m.mergeStruct(...)
             a = {}
         end
         copyed[b] = a
+        ---@type table<any, boolean>
         local usedKeys = {}
         for i, v in ipairs(b) do
             a[#a+1] = v

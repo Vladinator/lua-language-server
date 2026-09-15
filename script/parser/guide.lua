@@ -26,7 +26,7 @@ local type         = type
 ---@field bstart                integer
 ---@field bfinish               integer
 ---@field vstart?               integer
----@field attrs                 string[]
+---@field attrs?                parser.object -- a 'localattrs' node; its array part holds 'localattr' nodes
 ---@field specials              parser.object[]
 ---@field labels                parser.object[]
 ---@field node                  parser.object
@@ -84,7 +84,7 @@ local type         = type
 ---@field dot                   { type: string, start: integer, finish: integer }
 ---@field colon                 { type: string, start: integer, finish: integer }
 ---@field declare?              boolean
----@field varargRef?            boolean
+---@field varargRef?            boolean|parser.object -- compile.lua sets this to the vararg node itself; only ever read for truthiness
 ---@field const?                boolean
 ---@field groups?               parser.object[]
 ---@field package _root         parser.object

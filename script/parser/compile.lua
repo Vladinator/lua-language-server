@@ -467,6 +467,7 @@ end
 
 local function resolveLongString(finishMark)
     skipNL()
+    ---@type boolean?
     local miss
     local start        = Tokens[Index]
     local finishOffset = sfind(Lua, finishMark, start, true)
@@ -694,7 +695,9 @@ local function expectAssign(isAction)
 end
 
 ---@param kind? '"prefix"'|'"suffix"'
+---@return parser.object?
 local function parseLocalAttrs(kind)
+    ---@type parser.object?
     local attrs
     while true do
         skipSpace()
@@ -703,6 +706,7 @@ local function parseLocalAttrs(kind)
             break
         end
         if not attrs then
+            ---@diagnostic disable-next-line: missing-fields
             attrs = {
                 type = 'localattrs',
                 start = getPosition(Tokens[Index], 'left'),
@@ -768,6 +772,9 @@ local function parseLocalAttrs(kind)
     return attrs
 end
 
+---@param attrsBefore parser.object?
+---@param attrsAfter parser.object?
+---@return parser.object?
 local function mergeLocalAttrs(attrsBefore, attrsAfter)
     if not attrsBefore then
         return attrsAfter
@@ -807,7 +814,9 @@ local function checkDeclareConst(obj)
     end
 end
 
----@param obj table
+---@param obj parser.object
+---@param attrs? parser.object
+---@return parser.object
 local function createLocal(obj, attrs)
     obj.type   = 'local'
     obj.effect = obj.finish
@@ -996,7 +1005,8 @@ local function linkGlobalToEnv(node, var)
     end
 end
 
----@param obj table
+---@param obj parser.object
+---@param attrs? parser.object
 local function createGlobalDeclare(obj, attrs)
     obj.type = 'setglobal'
     obj.declare = true
@@ -1026,6 +1036,9 @@ local function pushChunk(chunk)
     Chunk[#Chunk+1] = chunk
 end
 
+---@param attrs? parser.object
+---@param attrName string
+---@return boolean
 local function hasAttr(attrs, attrName)
     if not attrs then
         return false
@@ -1038,6 +1051,10 @@ local function hasAttr(attrs, attrName)
     return false
 end
 
+---@param attrs? parser.object
+---@param attrName string
+---@param attrKind string
+---@return boolean
 local function hasAttrKind(attrs, attrName, attrKind)
     if not attrs then
         return false
@@ -1325,6 +1342,7 @@ local function parseStringUnicode()
     return '', offset
 end
 
+---@type table<integer, string>
 local stringPool = {}
 local function parseShortString()
     local mark        = Tokens[Index+1]
@@ -1333,6 +1351,7 @@ local function parseShortString()
     Index             = Index + 2
     local stringIndex = 0
     local currentOffset = startOffset + 1
+    ---@type table<integer, integer|string>
     local escs        = {}
     while true do
         local token = Tokens[Index + 1]
@@ -1551,6 +1570,10 @@ local function parseString()
     return nil
 end
 
+---@param start integer
+---@return number? num
+---@return integer offset
+---@return boolean isInteger
 local function parseNumber10(start)
     local integer = true
     -- LuaJIT 扩展：数字字面量允许下划线
@@ -1589,6 +1612,11 @@ local function parseNumber10(start)
     return tonumber(numStr), offset, integer
 end
 
+---@param start integer
+---@param prefixStart integer
+---@return number? num
+---@return integer offset
+---@return boolean? isInteger
 local function parseNumber16(start, prefixStart)
     -- LuaJIT 扩展：数字字面量允许下划线
     local hexPattern = isLuaJITExt('number_underscore') and '[%da-fA-F_]' or '[%da-fA-F]'
@@ -1637,6 +1665,9 @@ local function parseNumber16(start, prefixStart)
     return n, offset, integer
 end
 
+---@param start integer
+---@return number? num
+---@return integer offset
 local function parseNumber2(start)
     -- LuaJIT 扩展：数字字面量允许下划线
     local binPattern = isLuaJITExt('number_underscore') and '[01_]' or '[01]'
@@ -1659,6 +1690,9 @@ local function parseNumber2(start)
     return tonumber(bins, 2), offset
 end
 
+---@param offset integer
+---@param integer boolean?
+---@return integer
 local function dropNumberTail(offset, integer)
     local _, finish, word = sfind(Lua, '^([%.%w_\x80-\xff]+)', offset)
     if not finish then
@@ -2758,6 +2792,7 @@ local function parseParams(params, isLambda)
                     }
                 end
                 -- Create local variable for vararg
+                ---@diagnostic disable-next-line: missing-fields
                 local varargName = createLocal {
                     start  = getPosition(Tokens[Index], 'left'),
                     finish = getPosition(Tokens[Index] + #nextToken - 1, 'right'),
@@ -2780,6 +2815,7 @@ local function parseParams(params, isLambda)
             if not params then
                 params = {}
             end
+            ---@diagnostic disable-next-line: missing-fields
             params[#params+1] = createLocal {
                 start  = getPosition(Tokens[Index], 'left'),
                 finish = getPosition(Tokens[Index] + #token - 1, 'right'),
@@ -2872,15 +2908,18 @@ local function parseFunction(declareType, isAction)
     local LastLocalCount = LocalCount
     LocalCount = 0
     pushChunk(func)
+    ---@type parser.object?
     local params
     if func.name and func.name.type == 'getmethod' then
         if func.name.type == 'getmethod' then
+            ---@diagnostic disable-next-line: missing-fields
             params = {
                 type   = 'funcargs',
                 start  = funcRight,
                 finish = funcRight,
                 parent = func
             }
+            ---@diagnostic disable-next-line: missing-fields
             params[1] = createLocal {
                 start  = funcRight,
                 finish = funcRight,
@@ -3120,12 +3159,14 @@ local function parseLambdaSingleArg(name)
     Index = Index + 2
     skipSpace(true)
     -- 单参数
+    ---@diagnostic disable-next-line: missing-fields
     local params = {
         type   = 'funcargs',
         start  = name.start,
         finish = name.finish,
         parent = lambda,
     }
+    ---@diagnostic disable-next-line: missing-fields
     local arg = createLocal {
         start  = name.start,
         finish = name.finish,
@@ -4563,16 +4604,20 @@ local function parseFor()
         if name then
             ---@cast name parser.object
             -- In Lua 5.5, for loop variables are treated as constants
+            ---@type parser.object?
             local attrs
             if State.version == 'Lua 5.5' then
+                ---@diagnostic disable-next-line: missing-fields
                 attrs = {
                     type = 'localattrs',
                     start = name.start,
                     finish = name.finish,
+                    ---@diagnostic disable-next-line: missing-fields
                     [1] = {
                         type = 'localattr',
                         start = name.start,
                         finish = name.finish,
+                        ---@diagnostic disable-next-line: assign-type-mismatch
                         parent = nil, -- will be set by createLocal
                         [1] = 'const',
                     }
@@ -4685,16 +4730,20 @@ local function parseFor()
                 local obj = list[i]
                 ---@cast obj parser.object
                 -- In Lua 5.5, for first loop variable is treated as constant
+                ---@type parser.object?
                 local attrs
                 if i == 1 and State.version == 'Lua 5.5' then
+                    ---@diagnostic disable-next-line: missing-fields
                     attrs = {
                         type = 'localattrs',
                         start = obj.start,
                         finish = obj.finish,
+                        ---@diagnostic disable-next-line: missing-fields
                         [1] = {
                             type = 'localattr',
                             start = obj.start,
                             finish = obj.finish,
+                            ---@diagnostic disable-next-line: assign-type-mismatch
                             parent = nil, -- will be set by createLocal
                             [1] = 'const',
                         }
@@ -5093,6 +5142,7 @@ local function parseLua()
         bstart = 0,
     }
     pushChunk(main)
+    ---@diagnostic disable-next-line: missing-fields
     createLocal{
         type   = 'local',
         start  = -1,

@@ -46,7 +46,7 @@ local Care = util.switch()
             return
         end
 
-        local name = source[1]
+        local name = source[1] --[[@as string]]
         if source.declare and name == '*' then
             return
         end
@@ -71,7 +71,7 @@ local Care = util.switch()
         local modifier = isLib and define.TokenModifiers.defaultLibrary or define.TokenModifiers['global']
 
         if source.declare then
-            modifier = modifier | define.TokenModifiers.declaration
+            modifier = modifier | define.TokenModifiers.declaration --[[@as integer]]
         end
 
         results[#results+1] = {
@@ -279,6 +279,7 @@ local Care = util.switch()
                 end
             end
         end
+        ---@type integer?
         local mod
         if source.type == 'local' then
             mod = define.TokenModifiers.declaration
@@ -447,6 +448,7 @@ local Care = util.switch()
         local escs = source.escs
         if escs then
             for i = 1, #escs, 3 do
+                ---@type integer
                 local mod
                 if escs[i + 2] == 'err' then
                     mod = define.TokenModifiers.deprecated
@@ -888,6 +890,7 @@ local Care = util.switch()
 ---@param results semantic.packedToken[]
 ---@return integer[]
 local function buildTokens(results)
+    ---@type integer[]
     local tokens = {}
     local lastLine = 0
     local lastStartChar = 0
@@ -898,6 +901,7 @@ local function buildTokens(results)
         local line      = startPos.line
         local startChar = startPos.character
         local deltaLine = line - lastLine
+        ---@type integer
         local deltaStartChar
         if deltaLine == 0 then
             deltaStartChar = startChar - lastStartChar
@@ -910,7 +914,7 @@ local function buildTokens(results)
         lastLine = line
         lastStartChar = startChar
         -- see https://microsoft.github.io/language-server-protocol/specifications/specification-3-16/#textDocument_semanticTokens
-        index = index + 1
+        index = index + 1 --[[@as integer]]
         local len = index * 5 - 5
         tokens[len + 1] = deltaLine
         tokens[len + 2] = deltaStartChar
@@ -939,8 +943,11 @@ local function solveMultilineAndOverlapping(state, results)
 
     local tokens = linkedTable()
 
+    ---@param pos integer
+    ---@return semantic.token?
     local function findToken(pos)
         for token in tokens:pairs(nil ,true) do
+            ---@cast token semantic.token
             if token.start <= pos and token.finish >= pos then
                 return token
             end
@@ -981,8 +988,10 @@ local function solveMultilineAndOverlapping(state, results)
 
     await.delay()
 
+    ---@type semantic.packedToken[]
     local new = {}
     for token in tokens:pairs() do
+        ---@cast token semantic.token
         local startPos = converter.packPosition(state, token.start)
         local endPos   = converter.packPosition(state, token.finish)
         if  startPos.line == endPos.line
@@ -1078,10 +1087,10 @@ return function (uri, start, finish)
                          or (comm.type == 'comment.long'  and comm.text:match '^%s*@()')
             if headPos then
                 -- absolute position of `@` symbol
-                local startOffset = comm.start + headPos
+                local startOffset = comm.start + (headPos --[[@as integer]])
                 if comm.type == 'comment.long' then
                     assert(comm.mark)
-                    startOffset = comm.start + headPos + #comm.mark - 2
+                    startOffset = comm.start + (headPos --[[@as integer]]) + #comm.mark - 2
                 end
                 results[#results+1] = {
                     start  = comm.start,

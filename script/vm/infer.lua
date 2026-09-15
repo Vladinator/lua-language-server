@@ -4,14 +4,23 @@ local guide    = require 'parser.guide'
 ---@class vm
 local vm       = require 'vm.vm'
 
+---@class parser.object
+---@field isTuple? boolean -- set by luadoc.lua on 'doc.type.table' nodes for the `[T1, T2]` tuple syntax
+
 ---@class vm.infer
 ---@field node vm.node
 ---@field views table<string, boolean>
----@field _drop table
+---@field public _drop table<string, boolean>
 ---@field _lastView? string
 ---@field _lastViewUri? uri
 ---@field _lastViewDefault? any
 ---@field _subViews? string[]
+---@field public _hasTable       boolean
+---@field public _hasClass       boolean
+---@field public _hasFunctionDef boolean
+---@field public _hasDocFunction boolean
+---@field public _isParam        boolean
+---@field public _isLocal        boolean
 local mt = {}
 mt.__index = mt
 mt._hasTable       = false
@@ -23,6 +32,7 @@ mt._isLocal        = false
 
 vm.NULL = setmetatable({}, mt)
 
+---@type table<string, boolean>
 local LOCK = {}
 
 local inferSorted = {
@@ -42,14 +52,21 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     : case 'boolean'
     : case 'string'
     : case 'integer'
+    ---@param source parser.object
+    ---@param _infer vm.infer
     : call(function (source, _infer)
         return source.type
     end)
     : case 'number'
+    ---@param source parser.object
+    ---@param _infer vm.infer
     : call(function (source, _infer)
         return source.type
     end)
     : case 'table'
+    ---@param source parser.object
+    ---@param infer vm.infer
+    ---@param uri uri
     : call(function (source, infer, uri)
         local docs = source.bindDocs
         if docs then
@@ -68,6 +85,8 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         infer._hasTable = true
     end)
     : case 'function'
+    ---@param source parser.object
+    ---@param infer vm.infer
     : call(function (source, infer)
         local parent = source.parent
         if guide.isAssign(parent) then
@@ -76,6 +95,8 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         return source.type
     end)
     : case 'local'
+    ---@param source parser.object
+    ---@param infer vm.infer
     : call(function (source, infer)
         if source.parent == 'funcargs' then
             infer._isParam = true
@@ -84,6 +105,8 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         end
     end)
     : case 'global'
+    ---@param source vm.global
+    ---@param infer vm.infer
     : call(function (source, infer)
         if source.cate == 'type' then
             if not guide.isBasicType(source.name) then
@@ -93,7 +116,11 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         end
     end)
     : case 'doc.type'
+    ---@param source parser.object
+    ---@param infer vm.infer
+    ---@param uri uri
     : call(function (source, infer, uri)
+        ---@type string[]
         local buf = {}
         for _, tp in ipairs(source.types) do
             buf[#buf+1] = viewNodeSwitch(tp.type, tp, infer, uri)
@@ -101,8 +128,12 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         return table.concat(buf, '|')
     end)
     : case 'doc.type.name'
+    ---@param source parser.object
+    ---@param _infer vm.infer
+    ---@param uri uri
     : call(function (source, _infer, uri)
         if source.signs then
+            ---@type string[]
             local buf = {}
             for i, sign in ipairs(source.signs) do
                 buf[i] = vm.getInfer(sign):view(uri)
@@ -113,10 +144,16 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         end
     end)
     : case 'generic'
+    ---@param source vm.generic
+    ---@param _infer vm.infer
+    ---@param uri uri
     : call(function (source, _infer, uri)
         return vm.getInfer(source.proto):view(uri)
     end)
     : case 'doc.generic.name'
+    ---@param source parser.object
+    ---@param _infer vm.infer
+    ---@param uri uri
     : call(function (source, _infer, uri)
         local resolved = vm.getGenericResolved(source)
         if resolved then
@@ -129,6 +166,9 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         end
     end)
     : case 'doc.type.array'
+    ---@param source parser.object
+    ---@param infer vm.infer
+    ---@param uri uri
     : call(function (source, infer, uri)
         infer._hasClass = true
         local view = vm.getInfer(source.node):view(uri)
@@ -138,8 +178,12 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         return view .. '[]'
     end)
     : case 'doc.type.sign'
+    ---@param source parser.object
+    ---@param infer vm.infer
+    ---@param uri uri
     : call(function (source, infer, uri)
         infer._hasClass = true
+        ---@type string[]
         local buf = {}
         for i, sign in ipairs(source.signs) do
             local view = vm.getInfer(sign):view(uri)
@@ -163,12 +207,16 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         return ('%s<%s>'):format(source.node[1], table.concat(buf, ', '))
     end)
     : case 'doc.type.table'
+    ---@param source parser.object
+    ---@param infer vm.infer
+    ---@param uri uri
     : call(function (source, infer, uri)
         if #source.fields == 0 then
             infer._hasTable = true
             return
         end
         infer._hasClass = true
+        ---@type string[]
         local buf = {}
         buf[#buf+1] = source.isTuple and '[' or '{ '
         for i, field in ipairs(source.fields) do
@@ -191,22 +239,33 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         return table.concat(buf)
     end)
     : case 'doc.type.string'
+    ---@param source parser.object
+    ---@param _infer vm.infer
     : call(function (source, _infer)
         return util.viewString(source[1], source[2])
     end)
     : case 'doc.type.integer'
     : case 'doc.type.boolean'
+    ---@param source parser.object
+    ---@param _infer vm.infer
     : call(function (source, _infer)
         return ('%q'):format(source[1])
     end)
     : case 'doc.type.code'
+    ---@param source parser.object
+    ---@param _infer vm.infer
     : call(function (source, _infer)
         return ('`%s`'):format(source[1])
     end)
     : case 'doc.type.function'
+    ---@param source parser.object
+    ---@param infer vm.infer
+    ---@param uri uri
     : call(function (source, infer, uri)
         infer._hasDocFunction = true
+        ---@type string[]
         local args = {}
+        ---@type string[]
         local rets = {}
         local argView = ''
         local regView = ''
@@ -227,6 +286,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         if #args > 0 then
             argView = table.concat(args, ', ')
         end
+        ---@type boolean?
         local needReturnParen
         for i, ret in ipairs(source.returns) do
             local retType = vm.getInfer(ret):view(uri)
@@ -251,6 +311,9 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         return ('fun(%s)%s'):format(argView, regView)
     end)
     : case 'doc.field.name'
+    ---@param source parser.object
+    ---@param _infer vm.infer
+    ---@param uri uri
     : call(function (source, _infer, uri)
         return vm.viewKey(source, uri)
     end)
@@ -314,41 +377,48 @@ end
 function mt:_eraseAlias(uri)
     local count = 0
     for _ in pairs(self.views) do
-        count = count + 1
+        count = count + 1 --[[@as integer]]
     end
     if count <= 1 then
         return
     end
     local expandAlias = config.get(uri, 'Lua.hover.expandAlias')
     for n in self.node:eachObject() do
-        if n.type == 'global' and n.cate == 'type' then
-            if LOCK[n.name] then
-                goto CONTINUE
-            end
-            LOCK[n.name] = true
-            for _, set in ipairs(n:getSets(uri)) do
-                if set.type == 'doc.alias' then
-                    if expandAlias then
-                        self._drop[n.name] = true
-                        local newInfer = createInfer()
-                        for _, ext in ipairs(set.extends.types) do
-                            viewNodeSwitch(ext.type, ext, newInfer, uri)
-                        end
-                        if newInfer._hasTable then
-                            self.views['table'] = true
-                        end
-                    else
-                        for _, ext in ipairs(set.extends.types) do
-                            local view = viewNodeSwitch(ext.type, ext, createInfer(), uri)
-                            if view and view ~= n.name then
-                                self._drop[view] = true
+        if n.type == 'global' then
+            ---@cast n vm.global
+            if n.cate == 'type' then
+                if LOCK[n.name] then
+                    goto CONTINUE
+                end
+                LOCK[n.name] = true
+                ---@type parser.object[]
+                local sets = n:getSets(uri)
+                for _, set in ipairs(sets) do
+                    if set.type == 'doc.alias' then
+                        local extends = set.extends --[[@as parser.object]]
+                        if expandAlias then
+                            self._drop[n.name] = true
+                            local newInfer = createInfer()
+                            for _, ext in ipairs(extends.types) do
+                                viewNodeSwitch(ext.type, ext, newInfer, uri)
+                            end
+                            if newInfer._hasTable then
+                                self.views['table'] = true
+                            end
+                        else
+                            for _, ext in ipairs(extends.types) do
+                                ---@type string?
+                                local view = viewNodeSwitch(ext.type, ext, createInfer(), uri)
+                                if view and view ~= n.name then
+                                    self._drop[view] = true
+                                end
                             end
                         end
                     end
                 end
+                LOCK[n.name] = nil
+                ::CONTINUE::
             end
-            LOCK[n.name] = nil
-            ::CONTINUE::
         end
     end
 end
@@ -399,6 +469,7 @@ function mt:_computeViews(uri)
 
     for n in self.node:eachObject() do
         if not n.hideView then
+            ---@type string?
             local view = viewNodeSwitch(n.type, n, self, uri)
             if view then
                 self.views[view] = true
@@ -432,6 +503,7 @@ function mt:view(uri, default)
         self:_eraseAlias(uri)
     end
 
+    ---@type string[]
     local array = {}
     self._subViews = array
     for view in pairs(self.views) do
@@ -450,8 +522,10 @@ function mt:view(uri, default)
     end)
 
     local max   = #array
+    ---@type integer
     local limit = config.get(uri, 'Lua.hover.enumsLimit')
 
+    ---@type string
     local view
     if #array == 0 then
         view = default or 'unknown'
@@ -506,13 +580,16 @@ function mt:viewLiterals()
     if not self.node then
         return nil
     end
+    ---@type table<string, boolean>
     local mark     = {}
+    ---@type string[]
     local literals = {}
     for n in self.node:eachObject() do
         if n.type == 'string'
         or n.type == 'number'
         or n.type == 'integer'
         or n.type == 'boolean' then
+            ---@type string?
             local literal
             if n.type == 'string' then
                 literal = util.viewString(n[1], n[2])
@@ -544,14 +621,19 @@ function mt:viewClass()
     if not self.node then
         return nil
     end
+    ---@type table<string, boolean>
     local mark  = {}
+    ---@type string[]
     local class = {}
     for n in self.node:eachObject() do
-        if n.type == 'global' and n.cate == 'type' then
-            local name = n.name
-            if not mark[name] then
-                class[#class+1] = name
-                mark[name] = true
+        if n.type == 'global' then
+            ---@cast n vm.global
+            if n.cate == 'type' then
+                local name = n.name
+                if not mark[name] then
+                    class[#class+1] = name
+                    mark[name] = true
+                end
             end
         end
     end

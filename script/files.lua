@@ -695,8 +695,10 @@ end
 ---@field originText? string
 ---@field lua? string
 ---@field ast parser.object
+---@field errs parser.state.err[]
 ---@field comms parser.state.comm[]
 ---@field specials? table<string, parser.object[]>
+---@field pluginDocs? parser.object[]
 
 --- 获取文件语法树
 ---@param uri uri

@@ -5,12 +5,26 @@ local compile    = require 'parser.compile'
 local util       = require 'utility'
 local docTags    = require 'parser.docTags'
 
-local TokenTypes, TokenStarts, TokenFinishs, TokenContents, TokenMarks
+---@type table<integer, string>
+local TokenTypes
+---@type table<integer, integer>
+local TokenStarts
+---@type table<integer, integer>
+local TokenFinishs
+---@type table<integer, string|integer>
+local TokenContents
+---@type table<integer, string>
+local TokenMarks
 ---@type integer
 local Ci
 ---@type integer
 local Offset
-local pushWarning, NextComment, Lines
+---@type fun(err: parser.state.err): parser.state.err?
+local pushWarning
+---@type fun(offset?: integer, peek?: boolean): parser.state.comm?
+local NextComment
+---@type { [integer]: integer, size: integer }
+local Lines
 local parseType, parseTypeUnit
 ---@type any
 local Parser = re.compile([[
@@ -179,7 +193,7 @@ local function peekToken(offset)
 end
 
 ---@return string? tokenType
----@return string? tokenContent
+---@return (string|integer)? tokenContent
 local function nextToken()
     Ci = Ci + 1
     if not TokenTypes[Ci] then
@@ -309,6 +323,9 @@ local function slideToNextLine()
         return
     end
     local currentComment = NextComment(-1, true)
+    if not currentComment then
+        return
+    end
     local currentLine = guide.rowColOf(currentComment.start)
     local nextLine = guide.rowColOf(nextComment.start)
     if currentLine + 1 ~= nextLine then
@@ -820,6 +837,7 @@ local function parseCodePattern(parent)
     local finishOffset = i-1
     if finishOffset == 1 then
         -- code only, no pattern
+        ---@diagnostic disable-next-line: cast-local-type -- pattern's later use (as code.pattern) is optional
         pattern = nil
     else
         for _ = 2, finishOffset do
@@ -1223,6 +1241,7 @@ local docSwitch = util.switch()
             local tp, value = nextToken()
             if tp == 'name' then
                 assert(value)
+                ---@cast value string -- tp == 'name' always pairs with string content
                 if value == 'public'
                 or value == 'protected'
                 or value == 'private'
@@ -1750,6 +1769,7 @@ local function convertTokens(doc)
         return nil
     end
     assert(text)
+    ---@cast text string -- tp == 'name' (checked above) always pairs with string content
     if not docSwitch:has(text) then
         local docType = docTags.getMarkerTagType(text)
         if docType then
@@ -2345,12 +2365,14 @@ local function findTouch(state, doc)
     end
 end
 
+---@param state parser.state
 local function luadoc(state)
     local ast = state.ast
     local comments = state.comms
     table.sort(comments, function (a, b)
         return a.start < b.start
     end)
+    ---@diagnostic disable-next-line: missing-fields
     ast.docs = {
         type   = 'doc',
         parent = ast,
@@ -2359,11 +2381,11 @@ local function luadoc(state)
 
     pushWarning = function (err)
         local errs = state.errs
-        if err.finish < err.start then
+        if err.start and err.finish and err.finish < err.start then
             err.finish = err.start
         end
         local last = errs[#errs]
-        if last then
+        if last and last.start and last.finish and err.start and err.finish then
             if last.start <= err.start and last.finish >= err.finish then
                 return
             end

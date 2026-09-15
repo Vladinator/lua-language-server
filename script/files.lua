@@ -619,6 +619,7 @@ local function pluginOnTransformAst(uri, state)
     if not suc then
         return state
     end
+    ---@cast result parser.object?
     state.ast = result or state.ast
     return state
 end

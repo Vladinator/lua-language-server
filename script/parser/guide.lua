@@ -77,6 +77,7 @@ local type         = type
 ---@field hasBreak?             true
 ---@field hasExit?              true
 ---@field virtual?              boolean
+---@field keyStart?             integer -- only set on a 'goto' action, the start of its label name
 ---@field [integer]             parser.object|any
 ---@field dot                   { type: string, start: integer, finish: integer }
 ---@field colon                 { type: string, start: integer, finish: integer }

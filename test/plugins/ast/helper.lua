@@ -14,7 +14,8 @@ local function TestInsertDoc(script)
         local comment = assert(helper.buildComment("class", "AA", state.ast[1].start))
         helper.InsertDoc(state.ast, comment)
     end))
-    local first = assert(state.ast[1])
+    local ast = assert(state.ast)
+    local first = assert(ast[1])
     assert(first.bindDocs)
 end
 
@@ -25,7 +26,8 @@ local function TestaddClassDoc(script)
         assert(state)
         assert(helper.addClassDoc(state.ast, state.ast[1], "AA"))
     end))
-    local first = assert(state.ast[1])
+    local ast = assert(state.ast)
+    local first = assert(ast[1])
     assert(first.bindDocs)
 end
 

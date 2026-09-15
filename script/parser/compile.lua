@@ -1175,12 +1175,14 @@ local function popChunk()
     Chunk[#Chunk] = nil
 end
 
+---@return parser.object?
 local function parseNil()
     if Tokens[Index + 1] ~= 'nil' then
         return nil
     end
     local offset = Tokens[Index]
     Index = Index + 2
+    ---@diagnostic disable-next-line: missing-fields
     return {
         type   = 'nil',
         start  = getPosition(offset, 'left'),
@@ -1188,6 +1190,7 @@ local function parseNil()
     }
 end
 
+---@return parser.object?
 local function parseBoolean()
     local word = Tokens[Index+1]
     if  word ~= 'true'
@@ -1197,6 +1200,7 @@ local function parseBoolean()
     local start  = getPosition(Tokens[Index], 'left')
     local finish = getPosition(Tokens[Index] + #word - 1, 'right')
     Index = Index + 2
+    ---@diagnostic disable-next-line: missing-fields
     return {
         type   = 'boolean',
         start  = start,
@@ -1507,6 +1511,7 @@ local function parseShortString()
     return str
 end
 
+---@return parser.object?
 local function parseString()
     local c = Tokens[Index + 1]
     if CharMapStrSH[c] then
@@ -1687,6 +1692,7 @@ local function dropNumberTail(offset, integer)
     return finish + 1
 end
 
+---@return parser.object?
 local function parseNumber()
     local offset = Tokens[Index]
     if not offset then
@@ -1733,6 +1739,7 @@ local function parseNumber()
     if neg then
         number = - number
     end
+    ---@diagnostic disable-next-line: missing-fields
     local result = {
         type   = integer and 'integer' or 'number',
         start  = startPos,
@@ -1784,6 +1791,8 @@ local function isGlobalActionStart(nextToken)
     return false
 end
 
+---@param asAction? boolean
+---@return parser.object?
 local function parseName(asAction)
     local word = peekWord()
     if not word then
@@ -1812,6 +1821,7 @@ local function parseName(asAction)
             finish = finishPos,
         }
     end
+    ---@diagnostic disable-next-line: missing-fields
     return {
         type   = 'name',
         start  = startPos,
@@ -3357,6 +3367,7 @@ end
 ---@param level number?    # 运算符优先级（可为 0.5 的倍数，右结合处理）
 ---@param noMethod boolean?  # 禁止方法调用后缀（三元 b 部分，对应 LuaJIT EXPR_F_NOCOLON）
 ---@param noTernary boolean? # 禁止三元（一元/二元操作数位置，对应 LuaJIT expr_binop 不检查 ?）
+---@return parser.object?
 function parseExp(asAction, level, noMethod, noTernary)
     local exp
     local uop, uopLevel = parseUnaryOP()
@@ -4901,6 +4912,8 @@ local function parseBreak()
     return action
 end
 
+---@return parser.object? action
+---@return boolean?       failed
 function parseAction()
     local token = Tokens[Index + 1]
 
@@ -5036,7 +5049,9 @@ local function skipFirstComment()
     end
 end
 
+---@return parser.object
 local function parseLua()
+    ---@diagnostic disable-next-line: missing-fields
     local main = {
         type   = 'main',
         start  = 0,

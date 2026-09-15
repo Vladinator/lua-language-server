@@ -3,6 +3,7 @@ local guide   = require 'parser.guide'
 local helper  = require 'plugins.astHelper'
 
 ---@diagnostic disable: await-in-sync
+---@param plugin fun(uri: uri, ast: parser.object): parser.object?
 ---@param ... function checkers
 local function TestPlugin(script, plugin, ...)
     local state = parser.compile(script, "Lua", "Lua 5.4")

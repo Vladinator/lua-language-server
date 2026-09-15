@@ -146,7 +146,8 @@ local function test(type)
                 error(('语法树生成失败：%s'):format(err))
             end
             parser.luadoc(state)
-            local docs = assert(state.ast.docs)
+            local ast = assert(state.ast)
+            local docs = assert(ast.docs)
             for _, doc in ipairs(docs) do
                 doc.bindGroup = nil
                 doc.bindSources = nil

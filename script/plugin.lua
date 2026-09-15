@@ -20,7 +20,15 @@ end
 
 ---@alias plugin.event 'OnSetText' | 'OnTransformAst' | 'ResolveRequire'
 
+--- The two trailing returns are whatever the matching plugin.event
+--- handler itself returns -- genuinely untyped, since a plugin is
+--- arbitrary user-supplied Lua; callers for a specific event already
+--- know its real shape and should narrow it themselves (see
+--- files.lua's pluginOnTransformAst for an example).
 ---@param event plugin.event
+---@return boolean success
+---@return any     res1
+---@return any     res2
 function m.dispatch(event, uri, ...)
     local scp = scope.getScope(uri)
     local interfaces = scp:get('pluginInterfaces')

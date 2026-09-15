@@ -51,7 +51,8 @@ require ''
             character = 9,
         },
     })
-    for _, item in ipairs(comps1.items) do
+    local items = comps1.items --[[@as {label: string}[] ]]
+    for _, item in ipairs(items) do
         assert(item.label ~= 'test')
     end
 end)

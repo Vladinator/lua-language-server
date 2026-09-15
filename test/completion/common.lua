@@ -1254,6 +1254,7 @@ TEST [[
 ---@class ZBBC : <??>
 ]]
 (function (results)
+    ---@type boolean?
     local ok
     for _, res in ipairs(results) do
         if res.label == 'ZABC' then

@@ -5,6 +5,15 @@ local hoverDesc  = require 'core.hover.description'
 local guide      = require 'parser.guide'
 local lookback   = require 'core.look-backward'
 
+---@class core.signature.param
+---@field label [integer, integer]
+
+---@class core.signature.result
+---@field label string
+---@field params core.signature.param[]
+---@field index integer
+---@field description any
+
 local function findNearCall(uri, ast, pos)
     local text  = files.getText(uri)
     local state = files.getState(uri)
@@ -42,6 +51,7 @@ local function findNearCall(uri, ast, pos)
 end
 
 ---@async
+---@return core.signature.result?
 local function makeOneSignature(source, oop, index)
     local label = hoverLabel(source, oop, 0)
     if not label then
@@ -49,6 +59,7 @@ local function makeOneSignature(source, oop, index)
     end
     -- 去掉返回值
     label = label:gsub('%s*->.+', '')
+    ---@type core.signature.param[]
     local params = {}
     local i = 0
     local argStart, argLabel = label:match '()(%b())$'
@@ -130,13 +141,16 @@ local function isEventNotMatch(call, src)
 end
 
 ---@async
+---@return core.signature.result[]
 local function makeSignatures(text, call, pos)
     local func = call.node
     local oop = func.type == 'method'
              or func.type == 'getmethod'
              or func.type == 'setmethod'
+    ---@type integer?
     local index
     if call.args then
+        ---@type parser.object[]
         local args = {}
         for _, arg in ipairs(call.args) do
             if arg.type ~= 'self' then
@@ -173,10 +187,12 @@ local function makeSignatures(text, call, pos)
             end
         end
     end
+    ---@type core.signature.result[]
     local signs = {}
     local node = vm.compileNode(func)
     ---@type vm.node
     node = node.originNode or node
+    ---@type table<parser.object, boolean>
     local mark = {}
     for src in node:eachObject() do
         if (src.type == 'function' and not vm.isVarargFunctionWithOverloads(src))
@@ -206,6 +222,7 @@ local function makeSignatures(text, call, pos)
 end
 
 ---@async
+---@return core.signature.result[]?
 return function (uri, pos)
     local state = files.getState(uri)
     local text  = files.getText(uri)

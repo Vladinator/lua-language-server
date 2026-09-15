@@ -23,6 +23,7 @@ local function doProjects(pathname)
         return
     end
 
+    ---@type uri[]
     local uris = {}
 
     print('基准诊断目录：', path)

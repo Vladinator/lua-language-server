@@ -180,6 +180,7 @@ local function isDirectOrAliasedSecretCheck(calleeNode, kind)
     if hasSecretDoc(calleeNode, kind) then
         return true
     end
+    ---@type parser.object[]|false|nil
     local sets
     if calleeNode.type == 'getglobal' then
         local globalVar = vm.getGlobal('variable', calleeNode[1])
@@ -406,6 +407,7 @@ return function (uri, callback)
         end
 
         if parent.type == 'binary' then
+            ---@type string|false
             local op = parent.op and parent.op.type
             if not ALLOWED_BINARY_OPS[op] then
                 callback {

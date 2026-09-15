@@ -12,6 +12,7 @@ os.remove((path / 'test.txt'):string())
 local _ <close> = fw.watch(path:string(), true)
 fsu.saveFile(path / 'test.txt', 'test')
 
+---@type [string, string][]
 local events
 fw.event(function (ev, filename)
     events[#events+1] = {ev, filename}

@@ -18,6 +18,7 @@ end
 lclient():start(function (client)
     client:registerFakers()
 
+    ---@param params {items: {scopeUri: uri}[]}
     client:register('workspace/configuration', function (params)
         local uri = params.items[1].scopeUri
         if uri == rootUri .. '/ws1' then

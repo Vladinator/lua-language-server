@@ -25,6 +25,7 @@ lclient():start(function (client)
     local clock = os.clock()
 
     for i = 1, 10 do
+        ---@type string
         local text = [[
 local jass = require 'jass.common'
 

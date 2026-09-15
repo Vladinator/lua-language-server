@@ -216,6 +216,7 @@ print(12345)
 }
 
 local text = string.rep('abcdefghijklmnopqrstuvwxyz\n', 10000)
+---@type any[]
 local changes = {}
 for i = 1, 100 do
     changes[#changes+1] = {

@@ -97,7 +97,7 @@ return function (uri, callback)
         if source.type == 'setindex'
         or source.type == 'tableexp' then
             -- boolean[1] = nil
-            valueNode = valueNode:copy():removeOptional()
+            valueNode = valueNode:copy():removeOptional() --[[@as vm.node]]
         end
 
         if value.type == 'getfield'

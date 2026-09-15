@@ -11,6 +11,7 @@ return function(uri, options)
     if not state then
         return
     end
+    ---@type boolean, string?
     local status, formattedText = codeFormat.format(uri, text, options)
 
     if not status then
@@ -29,7 +30,7 @@ return function(uri, options)
         {
             start = state.ast.start,
             finish = state.ast.finish,
-            text = formattedText,
+            text = formattedText --[[@as string]],
         }
     }
 end

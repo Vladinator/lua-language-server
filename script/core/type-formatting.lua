@@ -1,6 +1,10 @@
 local files  = require 'files'
 local config = require 'config'
 
+---@param results { text: string, start: integer, finish: integer }[]
+---@param uri uri
+---@param position integer
+---@param ch string
 local function typeFormat(results, uri, position, ch, options)
     if ch ~= '\n' then
         return
@@ -17,8 +21,9 @@ local function typeFormat(results, uri, position, ch, options)
     local converter = require("proto.converter")
     local pos = converter.packPosition(state, position)
     local typeFormatOptions = config.get(uri, 'Lua.typeFormat.config')
+    ---@type boolean, { range: { start: { line: integer, character: integer }, ["end"]: { line: integer, character: integer } }, newText: string }?
     local success, result = codeFormat.type_format(uri, text, pos.line, pos.character, options, typeFormatOptions)
-    if success then
+    if success and result then
         local range = result.range
         results[#results+1] = {
             text   = result.newText,
@@ -38,6 +43,7 @@ return function (uri, position, ch, options)
         return nil
     end
 
+    ---@type { text: string, start: integer, finish: integer }[]
     local results = {}
 
     typeFormat(results, uri, position, ch, options)

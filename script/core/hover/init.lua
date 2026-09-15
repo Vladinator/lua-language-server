@@ -9,16 +9,20 @@ local guide      = require 'parser.guide'
 local wssymbol   = require 'core.workspace-symbol'
 
 ---@async
+---@param source parser.object
 ---@param level integer
 local function getHover(source, level)
     local md        = markdown()
+    ---@type table<parser.object, boolean>
     local defMark   = {}
+    ---@type table<string, boolean>
     local labelMark = {}
+    ---@type table<string, boolean>
     local descMark  = {}
     local totalMaxLevel = 0
 
     if source.type == 'doc.see.name' then
-        for _, symbol in ipairs(wssymbol(source[1], guide.getUri(source))) do
+        for _, symbol in ipairs(wssymbol(source[1] --[[@as string]], guide.getUri(source))) do
             if symbol.name == source[1] then
                 source = symbol.source
                 break
@@ -27,6 +31,9 @@ local function getHover(source, level)
     end
 
     ---@async
+    ---@param def parser.object
+    ---@param checkLable? boolean
+    ---@param oop? boolean
     local function addHover(def, checkLable, oop)
         if defMark[def] then
             return
@@ -53,10 +60,12 @@ local function getHover(source, level)
         end
     end
 
+    ---@type boolean?
     local oop
     if vm.getInfer(source):view(guide.getUri(source)) == 'function' then
         local defs = vm.getDefs(source)
         -- make sure `function` is before `doc.type.function`
+        ---@type table<parser.object, integer>
         local orders = {}
         for i, def in ipairs(defs) do
             if def.type == 'function' then
@@ -70,6 +79,7 @@ local function getHover(source, level)
         table.sort(defs, function (a, b)
             return orders[a] < orders[b]
         end)
+        ---@type boolean?
         local hasFunc
         for _, def in ipairs(defs) do
             if guide.isOOP(def) then
@@ -98,6 +108,7 @@ local function getHover(source, level)
             if guide.isOOP(def) then
                 oop = true
             end
+            ---@type boolean?
             local isFunction
             if def.type == 'function'
             or def.type == 'doc.type.function' then
@@ -131,6 +142,8 @@ local accept = {
 }
 
 ---@async
+---@param uri uri
+---@param position integer
 ---@param level integer
 local function getHoverByUri(uri, position, level)
     local ast = files.getState(uri)

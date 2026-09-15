@@ -27,6 +27,7 @@ return function(uri, callback)
 
     pformatting.updateConfig(uri)
 
+    ---@type boolean, { range: { start: { line: integer, character: integer }, ["end"]: { line: integer, character: integer } }, message: string }[]?
     local status, diagnosticInfos = codeFormat.diagnose_file(uri, text)
 
     if not status then

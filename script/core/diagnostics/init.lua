@@ -98,7 +98,10 @@ require 'core.diagnostics.undefined-field'
 local sleepRest = 0.0
 
 ---@async
+---@param uri uri
+---@param passed number
 local function checkSleep(uri, passed)
+    ---@type number
     local speedRate = config.get(uri, 'Lua.diagnostics.workspaceRate')
     if speedRate <= 0 or speedRate >= 100 then
         return
@@ -136,6 +139,7 @@ local function getSeverity(uri, name)
     local groups = diagd.getGroups(name)
     local groupLevel = 999
     for _, groupName in ipairs(groups) do
+        ---@type string?
         local gseverity = groupSeverity[groupName]
         if gseverity and gseverity ~= 'Fallback' then
             groupLevel = math.min(groupLevel, define.DiagnosticSeverity[gseverity])
@@ -166,6 +170,7 @@ local function getStatus(uri, name)
     local groups = diagd.getGroups(name)
     local groupLevel = 0
     for _, groupName in ipairs(groups) do
+        ---@type string?
         local gstatus = groupStatus[groupName]
         if gstatus and gstatus ~= 'Fallback' then
             groupLevel = math.max(groupLevel, define.DiagnosticFileStatus[gstatus])
@@ -207,6 +212,7 @@ local function check(uri, name, isScopeDiag, response, ignoreFileOpenState)
 
     local level = define.DiagnosticSeverity[severity]
     local clock = os.clock()
+    ---@type table<integer, boolean>
     local mark = {}
     -- Custom plugins loaded from Lua.diagnostics.pluginsDir aren't
     -- reachable via require('core.diagnostics.'..name) -- they don't
@@ -214,6 +220,7 @@ local function check(uri, name, isScopeDiag, response, ignoreFileOpenState)
     -- first and only fall back to the require() convention for built-ins.
     local diagnosticFn = customPlugins.get(name) or require('core.diagnostics.' .. name)
     ---@async
+    ---@param result any
     diagnosticFn(uri, function (result)
         if vm.isDiagDisabledAt(uri, result.start, name) then
             return
@@ -238,7 +245,8 @@ local function check(uri, name, isScopeDiag, response, ignoreFileOpenState)
         checkSleep(uri, passed)
     end
     if DIAGTIMES then
-        DIAGTIMES[name] = (DIAGTIMES[name] or 0) + passed
+        local diagTimes = DIAGTIMES --[[@as table<string, number>]]
+        diagTimes[name] = (diagTimes[name] or 0) + passed
     end
     return true
 end
@@ -253,6 +261,7 @@ local diagCount = {}
 local function buildDiagList()
     if not diagList then
         diagList = {}
+        ---@type table<string, boolean>
         local seen = {}
         for name in pairs(define.DiagnosticDefaultSeverity) do
             seen[name] = true

@@ -4,8 +4,11 @@ local findSource = require 'core.find-source'
 local guide      = require 'parser.guide'
 local jumpSource = require 'core.jump-source'
 
+---@param results core.reference.result[]
 local function sortResults(results)
     -- 先按照顺序排序
+    ---@param a core.reference.result
+    ---@param b core.reference.result
     table.sort(results, function (a, b)
         local u1 = guide.getUri(a.target)
         local u2 = guide.getUri(b.target)
@@ -16,6 +19,7 @@ local function sortResults(results)
         end
     end)
     -- 如果2个结果处于嵌套状态，则取范围小的那个
+    ---@type integer?, uri?
     local lf, lu
     for i = #results, 1, -1 do
         local res  = results[i].target
@@ -24,8 +28,8 @@ local function sortResults(results)
         if lf and f > lf and uri == lu then
             table.remove(results, i)
         else
-            lu = uri
-            lf = f
+            lu = uri --[[@as uri]]
+            lf = f --[[@as integer]]
         end
     end
 end
@@ -55,6 +59,8 @@ local accept = {
     ['doc.field.name']   = true,
 }
 
+---@param source parser.object?
+---@return parser.object?
 local function convertIndex(source)
     if not source then
         return
@@ -88,6 +94,7 @@ return function (uri, offset)
         return nil
     end
 
+    ---@type core.reference.result[]
     local results = {}
 
     local defs = vm.getRefs(source)
@@ -111,7 +118,7 @@ return function (uri, offset)
         if src.type == 'getindex'
         or src.type == 'setindex'
         or src.type == 'tableindex' then
-            src = src.index
+            src = src.index --[[@as parser.object]]
             if not src then
                 goto CONTINUE
             end

@@ -12,6 +12,7 @@ return function(uri, range, options)
         return
     end
     local text = state.originText
+    ---@type boolean, string?, integer, integer
     local status, formattedText, startLine, endLine = codeFormat.range_format(
         uri, text, range.start.line, range["end"].line, options)
 
@@ -27,7 +28,7 @@ return function(uri, range, options)
         {
             start = converter.unpackPosition(state, { line = startLine, character = 0 }),
             finish = converter.unpackPosition(state, { line = endLine + 1, character = 0 }),
-            text = formattedText,
+            text = formattedText --[[@as string]],
         }
     }
 end

@@ -31,6 +31,7 @@ return function (uri, callback)
     end
 
     ---@async
+    ---@param src parser.object
     local function checkInjectField(src)
         await.delay()
 
@@ -38,6 +39,7 @@ return function (uri, callback)
         if not node then
             return
         end
+        ---@type boolean?
         local ok
         for view in vm.getInfer(node):eachView(uri) do
             if skipCheckClass[view] then
@@ -49,6 +51,7 @@ return function (uri, callback)
             return
         end
 
+        ---@type boolean?
         local isExact
         local class = vm.getDefinedClass(uri, node)
         if class then
@@ -119,6 +122,7 @@ return function (uri, callback)
     guide.eachSourceType(ast.ast, 'setmethod', checkInjectField)
 
     ---@async
+    ---@param src parser.object
     local function checkExtraTableField(src)
         await.delay()
 

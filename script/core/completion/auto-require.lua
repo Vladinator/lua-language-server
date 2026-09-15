@@ -66,7 +66,7 @@ function m.check(state, word, position, callback)
                     goto INNER_CONTINUE
                 end
 
-                stemName = stemPath:match("[%a_][%w_]*$")
+                stemName = (stemPath --[[@as string]]):match("[%a_][%w_]*$")
 
                 if not stemName or testedStem[stemName] then
                     goto INNER_CONTINUE

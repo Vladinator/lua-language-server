@@ -20,6 +20,7 @@ local function sortResults(results)
         end
     end)
     -- 如果2个结果处于嵌套状态，则取范围小的那个
+    ---@type integer?, uri?
     local lf, lu
     for i = #results, 1, -1 do
         local res = results[i].target
@@ -28,8 +29,8 @@ local function sortResults(results)
         if lf and f > lf and uri == lu then
             table.remove(results, i)
         else
-            lu = uri
-            lf = f
+            lu = uri --[[@as uri]]
+            lf = f --[[@as integer]]
         end
     end
 end

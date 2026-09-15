@@ -4,11 +4,20 @@ local matchKey = require 'core.matchkey'
 local define   = require 'proto.define'
 local vm       = require 'vm'
 
+---@class core.workspace-symbol.result
+---@field name string|integer
+---@field skind integer
+---@field ckind integer
+---@field source parser.object
+
+---@param source parser.object
+---@param key string
+---@param results core.workspace-symbol.result[]
 local function buildSource(source, key, results)
     if     source.type == 'local'
     or     source.type == 'setlocal'
     or     source.type == 'setglobal' then
-        local name = source[1]
+        local name = source[1] --[[@as string]]
         if matchKey(key, name) then
             results[#results+1] = {
                 name   = name,
@@ -20,7 +29,7 @@ local function buildSource(source, key, results)
     elseif source.type == 'setfield'
     or     source.type == 'tablefield' then
         local field = source.field
-        local name  = field and field[1]
+        local name  = field and field[1] --[[@as string]]
         if name and matchKey(key, name) then
             results[#results+1] = {
                 name   = name,
@@ -31,7 +40,7 @@ local function buildSource(source, key, results)
         end
     elseif source.type == 'setmethod' then
         local method = source.method
-        local name   = method and method[1]
+        local name   = method and method[1] --[[@as string]]
         if name and matchKey(key, name) then
             results[#results+1] = {
                 name   = name,
@@ -43,6 +52,9 @@ local function buildSource(source, key, results)
     end
 end
 
+---@param uri uri
+---@param key string
+---@param results core.workspace-symbol.result[]
 local function searchFile(uri, key, results)
     local ast = files.getState(uri)
     if not ast then
@@ -56,11 +68,12 @@ end
 
 ---@param key string
 ---@param suri? uri
----@param results table[]
+---@param results core.workspace-symbol.result[]
 local function searchGlobalAndClass(key, suri, results)
     for _, globalVar in pairs(vm.getAllGlobals()) do
         local name = globalVar:getCodeName()
         if matchKey(key, name) then
+            ---@type parser.object[]
             local sets
             if suri then
                 sets = globalVar:getSets(suri)
@@ -68,6 +81,7 @@ local function searchGlobalAndClass(key, suri, results)
                 sets = globalVar:getAllSets()
             end
             for _, set in ipairs(sets) do
+                ---@type integer, integer
                 local skind, ckind
                 if set.type == 'doc.class' then
                     skind = define.SymbolKind.Class
@@ -92,7 +106,7 @@ end
 
 ---@param key string
 ---@param suri? uri
----@param results table[]
+---@param results core.workspace-symbol.result[]
 local function searchClassField(key, suri, results)
     local class, inField = key:match('^(.+)%.(.-)$')
     if not class then
@@ -102,6 +116,7 @@ local function searchClassField(key, suri, results)
     if not globalVar then
         return
     end
+    ---@type parser.object?
     local set
     if suri then
         set = globalVar:getSets(suri)[1]
@@ -135,7 +150,7 @@ end
 
 ---@param key string
 ---@param suri? uri
----@param results table[]
+---@param results core.workspace-symbol.result[]
 local function searchWords(key, suri, results)
     for uri in files.eachFile(suri) do
         searchFile(uri, key, results)
@@ -148,7 +163,9 @@ end
 ---@param key string
 ---@param suri? uri
 ---@param includeWords? boolean
+---@return core.workspace-symbol.result[]
 return function (key, suri, includeWords)
+    ---@type core.workspace-symbol.result[]
     local results = {}
 
     searchGlobalAndClass(key, suri, results)

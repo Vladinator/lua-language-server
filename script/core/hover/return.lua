@@ -4,6 +4,7 @@ local guide    = require 'parser.guide'
 ---@param source parser.object
 ---@return parser.object[]
 local function getReturnDocs(source)
+    ---@type parser.object[]
     local returns = {}
 
     local docs = source.bindDocs
@@ -20,6 +21,7 @@ local function getReturnDocs(source)
     return returns
 end
 
+---@param source parser.object
 local function asFunction(source)
     local _, _, num = vm.countReturnsOfFunction(source)
     if num == 0 then
@@ -28,14 +30,16 @@ local function asFunction(source)
 
     local docs = getReturnDocs(source)
 
+    ---@type string[]
     local returns = {}
 
     for i = 1, num do
         local rtn  = vm.getReturnOfFunction(source, i)
         local doc  = docs[i]
+        ---@type string|integer|nil
         local name = doc and doc.name and doc.name[1]
         if name and name ~= '...' then
-            name = name .. ': '
+            name = (name --[[@as string]]) .. ': '
         end
         local text = rtn and ('%s%s'):format(
             name or '',
@@ -51,18 +55,20 @@ local function asFunction(source)
     return table.concat(returns, '\n')
 end
 
+---@param source parser.object
 local function asDocFunction(source)
     if not source.returns or #source.returns == 0 then
         return nil
     end
+    ---@type string[]
     local returns = {}
     for i, rtn in ipairs(source.returns) do
         local rtnText = vm.getInfer(rtn):view(guide.getUri(source))
         if rtn.name then
             if rtn.name[1] == '...' then
-                rtnText = rtn.name[1] .. rtnText
+                rtnText = (rtn.name[1] --[[@as string]]) .. rtnText --[[@as string]]
             else
-                rtnText = rtn.name[1] .. ': ' .. rtnText
+                rtnText = (rtn.name[1] --[[@as string]]) .. ': ' .. rtnText --[[@as string]]
             end
         end
         if i == 1 then
@@ -74,6 +80,7 @@ local function asDocFunction(source)
     return table.concat(returns, '\n')
 end
 
+---@param source parser.object
 return function (source)
     if source.type == 'function' then
         return asFunction(source)

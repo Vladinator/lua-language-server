@@ -1,4 +1,6 @@
+---@type table<string, boolean>
 local lowers = {}
+---@type table<string, boolean>
 local uppers = {}
 for c in ('abcdefghijklmnopqrstuvwxyz'):gmatch '.' do
     lowers[c] = true
@@ -35,12 +37,15 @@ local function isValidFirstChar(input, other)
     return false
 end
 
+---@param input string
+---@param other string
 local function isAlmostSame(input, other)
     local lMe = input:lower()
     local lOther = other:lower()
     if lMe == lOther:sub(1, #lMe) then
         return true
     end
+    ---@type table<string, integer>
     local chars = {}
     for i = 1, #lOther do
         local c = lOther:sub(i, i)

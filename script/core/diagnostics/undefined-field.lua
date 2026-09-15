@@ -28,6 +28,7 @@ return function (uri, callback)
     end
 
     ---@async
+    ---@param src parser.object
     local function checkUndefinedField(src)
         await.delay()
 
@@ -36,6 +37,7 @@ return function (uri, callback)
         end
         local node = src.node
         if node then
+            ---@type boolean?
             local ok
             for view in vm.getInfer(node):eachView(uri) do
                 if skipCheckClass[view] then
@@ -63,6 +65,7 @@ return function (uri, callback)
         end
     end
     ---@async
+    ---@param src parser.object
     local function checkUndefinedFieldByIndexEnum(src)
         await.delay()
         local isEnum = false

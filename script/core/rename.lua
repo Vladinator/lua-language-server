@@ -5,6 +5,9 @@ local findSource = require 'core.find-source'
 local guide      = require 'parser.guide'
 local config     = require 'config'
 
+---@alias core.rename.callback fun(target: parser.object, start: integer, finish: integer, text: string)
+
+---@type boolean?
 local Forcing
 
 ---@param str string
@@ -58,6 +61,9 @@ local function isValidFunctionName(uri, str)
         and isValidName(uri, trim(str:sub(offset+1)))
 end
 
+---@param source parser.object
+---@param newname string
+---@param callback core.rename.callback
 local function renameLocal(source, newname, callback)
     if isValidName(guide.getUri(source), newname) then
         callback(source, source.start, source.finish, newname)
@@ -66,6 +72,10 @@ local function renameLocal(source, newname, callback)
     callback(source, source.start, source.finish, newname)
 end
 
+---@param source parser.object
+---@param newname string
+---@param callback core.rename.callback
+---@return boolean
 local function renameField(source, newname, callback)
     if isValidName(guide.getUri(source), newname) then
         callback(source, source.start, source.finish, newname)
@@ -112,6 +122,10 @@ local function renameField(source, newname, callback)
     return true
 end
 
+---@param source parser.object
+---@param newname string
+---@param callback core.rename.callback
+---@return boolean
 local function renameGlobal(source, newname, callback)
     if isValidGlobal(guide.getUri(source), newname) then
         callback(source, source.start, source.finish, newname)
@@ -132,6 +146,9 @@ local function renameGlobal(source, newname, callback)
     return true
 end
 
+---@param source parser.object
+---@param newname string
+---@param callback core.rename.callback
 local function ofLocal(source, newname, callback)
     renameLocal(source, newname, callback)
     if source.ref then
@@ -150,6 +167,10 @@ local function ofLocal(source, newname, callback)
     end
 end
 
+---@param key string?
+---@param src parser.object
+---@param newname string
+---@param callback core.rename.callback
 local function ofFieldThen(key, src, newname, callback)
     if vm.getKeyName(src) ~= key then
         return
@@ -157,14 +178,14 @@ local function ofFieldThen(key, src, newname, callback)
     if     src.type == 'tablefield'
     or     src.type == 'getfield'
     or     src.type == 'setfield' then
-        src = src.field
+        src = src.field --[[@as parser.object]]
     elseif src.type == 'tableindex'
     or     src.type == 'getindex'
     or     src.type == 'setindex' then
-        src = src.index
+        src = src.index --[[@as parser.object]]
     elseif src.type == 'getmethod'
     or     src.type == 'setmethod' then
-        src = src.method
+        src = src.method --[[@as parser.object]]
     end
     if src.type == 'string' then
         local quo = src[2]
@@ -192,6 +213,9 @@ local function ofFieldThen(key, src, newname, callback)
 end
 
 ---@async
+---@param source parser.object
+---@param newname string
+---@param callback core.rename.callback
 local function ofField(source, newname, callback)
     local key  = guide.getKeyName(source)
     local refs = vm.getRefs(source)
@@ -201,6 +225,9 @@ local function ofField(source, newname, callback)
 end
 
 ---@async
+---@param source parser.object
+---@param newname string
+---@param callback core.rename.callback
 local function ofGlobal(source, newname, callback)
     local key = guide.getKeyName(source)
     if not key then
@@ -217,6 +244,9 @@ local function ofGlobal(source, newname, callback)
 end
 
 ---@async
+---@param source parser.object
+---@param newname string
+---@param callback core.rename.callback
 local function ofLabel(source, newname, callback)
     for _, src in ipairs(vm.getRefs(source)) do
         callback(src, src.start, src.finish, newname)
@@ -224,8 +254,11 @@ local function ofLabel(source, newname, callback)
 end
 
 ---@async
+---@param source parser.object
+---@param newname string
+---@param callback core.rename.callback
 local function ofDocTypeName(source, newname, callback)
-    local oldname = source[1]
+    local oldname = source[1] --[[@as string]]
     local globalVar = vm.getGlobal('type', oldname)
     if not globalVar then
         return
@@ -251,9 +284,13 @@ local function ofDocTypeName(source, newname, callback)
     end
 end
 
+---@param source parser.object
+---@param newname string
+---@param callback core.rename.callback
 local function ofDocParamName(source, newname, callback)
     callback(source, source.start, source.finish, newname)
     local doc = source.parent
+    ---@type parser.object
     local src = doc.bindSource
     if src then
         if src.type == 'local'
@@ -261,7 +298,9 @@ local function ofDocParamName(source, newname, callback)
         and src[1] == source[1] then
             renameLocal(src, newname, callback)
             if src.ref then
-                for _, ref in ipairs(src.ref) do
+                ---@type parser.object[]
+                local refs = src.ref
+                for _, ref in ipairs(refs) do
                     renameLocal(ref, newname, callback)
                 end
             end
@@ -270,6 +309,9 @@ local function ofDocParamName(source, newname, callback)
 end
 
 ---@async
+---@param source parser.object
+---@param newname string
+---@param callback core.rename.callback
 local function rename(source, newname, callback)
     if source.type == 'label'
     or source.type == 'goto' then
@@ -312,6 +354,9 @@ local function rename(source, newname, callback)
     end
 end
 
+---@param source parser.object
+---@return parser.object?
+---@return string|integer?
 local function prepareRename(source)
     if source.type == 'label'
     or source.type == 'goto'
@@ -377,6 +422,9 @@ local accept = {
 local m = {}
 
 ---@async
+---@param uri uri
+---@param pos integer
+---@param newname string
 function m.rename(uri, pos, newname)
     if not newname then
         return nil
@@ -389,7 +437,9 @@ function m.rename(uri, pos, newname)
     if not source then
         return nil
     end
+    ---@type { start: integer, finish: integer, text: string, uri: uri }[]
     local results = {}
+    ---@type table<string, boolean>
     local mark = {}
 
     rename(source, newname, function (target, start, finish, text)
@@ -429,6 +479,8 @@ function m.rename(uri, pos, newname)
     return results
 end
 
+---@param uri uri
+---@param pos integer
 function m.prepareRename(uri, pos)
     local ast = files.getState(uri)
     if not ast then

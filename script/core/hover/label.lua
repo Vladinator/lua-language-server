@@ -9,10 +9,13 @@ local config      = require 'config'
 local files       = require 'files'
 local guide       = require 'parser.guide'
 
+---@param source parser.object
+---@param oop boolean
 local function asFunction(source, oop)
     local name  = buildName(source, oop)
     local args  = buildArgs(source)
     local rtn   = buildReturn(source)
+    ---@type string[]
     local lines = {}
 
     lines[1] = string.format('%s%s %s(%s)'
@@ -26,22 +29,25 @@ local function asFunction(source, oop)
     return table.concat(lines, '\n')
 end
 
+---@param source parser.object
 local function asDocTypeName(source)
     local defs = vm.getDefs(source)
     for _, doc in ipairs(defs) do
         if doc.type == 'doc.class' then
-            return '(class) ' .. doc.class[1]
+            return '(class) ' .. (doc.class[1] --[[@as string]])
         end
         if doc.type == 'doc.alias' then
-            return '(alias) ' .. doc.alias[1] .. ' ' .. lang.script('HOVER_EXTENDS', vm.getInfer(doc.extends):view(guide.getUri(source)))
+            return '(alias) ' .. (doc.alias[1] --[[@as string]]) .. ' ' .. lang.script('HOVER_EXTENDS', vm.getInfer(doc.extends):view(guide.getUri(source)))
         end
         if doc.type == 'doc.enum' then
-            return '(enum) ' .. doc.enum[1]
+            return '(enum) ' .. (doc.enum[1] --[[@as string]])
         end
     end
 end
 
 ---@async
+---@param source parser.object
+---@param title string
 ---@param level integer
 local function asValue(source, title, level)
     local name    = buildName(source, false) or ''
@@ -49,6 +55,7 @@ local function asValue(source, title, level)
     local type    = ifr:view(guide.getUri(source))
     local literal = ifr:viewLiterals()
     local cont, maxLevel = buildTable(source, level)
+    ---@type string[]
     local pack = {}
     pack[#pack+1] = title
     pack[#pack+1] = name .. ':'
@@ -74,8 +81,10 @@ local function asValue(source, title, level)
 end
 
 ---@async
+---@param source parser.object
 ---@param level integer
 local function asLocal(source, level)
+    ---@type parser.object
     local node
     if source.type == 'local'
     or source.type == 'self' then
@@ -96,6 +105,7 @@ local function asLocal(source, level)
 end
 
 ---@async
+---@param source parser.object
 ---@param level integer
 local function asGlobal(source, level)
     if source.declare and source[1] == '*' then
@@ -104,6 +114,8 @@ local function asGlobal(source, level)
     return asValue(source, '(global)', level)
 end
 
+---@param source parser.object
+---@return boolean
 local function isGlobalField(source)
     if source.type == 'field'
     or source.type == 'method' then
@@ -132,6 +144,7 @@ local function isGlobalField(source)
 end
 
 ---@async
+---@param source parser.object
 ---@param level integer
 local function asField(source, level)
     if isGlobalField(source) then
@@ -140,8 +153,10 @@ local function asField(source, level)
     return asValue(source, '(field)', level)
 end
 
+---@param source parser.object
 local function asDocFieldName(source)
     local name = vm.viewKey(source, guide.getUri(source)) or '?'
+    ---@type parser.object?
     local class
     for _, doc in ipairs(source.bindGroup) do
         if doc.type == 'doc.class' then
@@ -150,7 +165,7 @@ local function asDocFieldName(source)
         end
     end
     local view = vm.getInfer(source.extends):view(guide.getUri(source))
-    local className = class and class.class[1] or '?'
+    local className = class and (class.class[1] --[[@as string]]) or '?'
     if name:match(guide.namePatternFull) then
         return ('(field) %s.%s: %s'):format(className, name, view)
     else
@@ -158,6 +173,7 @@ local function asDocFieldName(source)
     end
 end
 
+---@param source parser.object
 local function asString(source)
     local str = source[1]
     if type(str) ~= 'string' then
@@ -172,12 +188,14 @@ local function asString(source)
     end
 end
 
+---@param n number
 local function formatNumber(n)
     local str = ('%.10f'):format(n)
     str = str:gsub('%.?0*$', '')
     return str
 end
 
+---@param source parser.object
 local function asNumber(source)
     if not config.get(guide.getUri(source), 'Lua.hover.viewNumber') then
         return nil
@@ -199,6 +217,8 @@ local function asNumber(source)
 end
 
 ---@async
+---@param source parser.object
+---@param oop boolean
 ---@param level integer
 return function (source, oop, level)
     if     source.type == 'function'

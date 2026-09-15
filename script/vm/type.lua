@@ -55,7 +55,7 @@ end
 ---@param parentName string
 ---@param child      vm.node.object
 ---@param uri        uri
----@param mark       table
+---@param mark       table<string, boolean>
 ---@param errs?      typecheck.err[]
 ---@return boolean?
 local function checkParentEnum(parentName, child, uri, mark, errs)
@@ -63,6 +63,7 @@ local function checkParentEnum(parentName, child, uri, mark, errs)
     if not parentClass then
         return nil
     end
+    ---@type parser.object[]?
     local enums
     for _, set in ipairs(parentClass:getSets(uri)) do
         if set.type == 'doc.enum' then
@@ -146,7 +147,7 @@ end
 ---@param childName  string
 ---@param parent     vm.node.object
 ---@param uri        uri
----@param mark       table
+---@param mark       table<string, boolean>
 ---@param errs?      typecheck.err[]
 ---@return boolean?
 local function checkChildEnum(childName, parent, uri, mark, errs)
@@ -157,6 +158,7 @@ local function checkChildEnum(childName, parent, uri, mark, errs)
     if not childClass then
         return nil
     end
+    ---@type parser.object[]?
     local enums
     for _, set in ipairs(childClass:getSets(uri)) do
         if set.type == 'doc.enum' then
@@ -180,7 +182,7 @@ end
 
 ---@param parent vm.node.object
 ---@param child  vm.node.object
----@param mark   table
+---@param mark   table<string, boolean>
 ---@param errs?  typecheck.err[]
 ---@return boolean
 local function checkValue(parent, child, mark, errs)
@@ -289,10 +291,19 @@ local function isAlias(name, suri)
     return false
 end
 
+---@param parent vm.global
+---@param child  parser.object
+---@param uri    uri
+---@param mark   table<string, boolean>
+---@param errs?  typecheck.err[]
+---@return boolean
 local function checkTableShape(parent, child, uri, mark, errs)
     local set = parent:getSets(uri)
+    ---@type string[]
     local missedKeys = {}
+    ---@type boolean?
     local failedCheck
+    ---@type table<string|integer, vm.node>?
     local myKeys
     for _, def in ipairs(set) do
         if not def.fields or #def.fields == 0 then
@@ -309,6 +320,7 @@ local function checkTableShape(parent, child, uri, mark, errs)
         end
 
         for _, field in ipairs(def.fields) do
+            ---@type string|integer?
             local key = vm.getKeyName(field)
             if not key then
                 local fieldnode = vm.compileNode(field.field)[1]
@@ -321,6 +333,7 @@ local function checkTableShape(parent, child, uri, mark, errs)
                 goto continue
             end
 
+            ---@type boolean?
             local ok
             local nodeField = vm.compileNode(field)
             if myKeys[key] then
@@ -359,7 +372,7 @@ end
 ---@param uri uri
 ---@param child  vm.node|string|vm.node.object
 ---@param parent vm.node|string|vm.node.object
----@param mark?  table
+---@param mark?  table<string, boolean>
 ---@param errs? typecheck.err[]
 ---@return boolean|nil
 function vm.isSubType(uri, child, parent, mark, errs)
@@ -377,11 +390,12 @@ function vm.isSubType(uri, child, parent, mark, errs)
             local maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0
             local i = 0
             for n in child:eachObject() do
-                i = i + 1
+                i = i + 1 --[[@as integer]]
                 if maxUnionVariants > 0 and i > maxUnionVariants then
                     break
                 end
                 if vm.getNodeName(n) then
+                    ---@type boolean?
                     local res = vm.isSubType(uri, n, parent, mark, errs)
                     if res == true then
                         return true
@@ -403,11 +417,12 @@ function vm.isSubType(uri, child, parent, mark, errs)
             return true
         else
             local weakNil = config.get(uri, 'Lua.type.weakNilCheck')
+            ---@type boolean?
             local skipTable
             local maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0
             local i = 0
             for n in child:eachObject() do
-                i = i + 1
+                i = i + 1 --[[@as integer]]
                 if maxUnionVariants > 0 and i > maxUnionVariants then
                     break
                 end
@@ -478,11 +493,12 @@ function vm.isSubType(uri, child, parent, mark, errs)
         local maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0
         local i = 0
         for n in parent:eachObject() do
-            i = i + 1
+            i = i + 1 --[[@as integer]]
             if maxUnionVariants > 0 and i > maxUnionVariants then
                 break
             end
             if vm.getNodeName(n) then
+                ---@type boolean?
                 local res = vm.isSubType(uri, child, n, mark, errs)
                 if res == true then
                     return true
@@ -574,6 +590,8 @@ function vm.isSubType(uri, child, parent, mark, errs)
     end
     if childName == 'table' and not guide.isBasicType(parentName) then
         if config.get(uri, 'Lua.type.checkTableShape') then
+            ---@cast parent vm.global
+            ---@cast child parser.object
             return checkTableShape(parent, child, uri, mark, errs)
         else
             return true
@@ -593,6 +611,7 @@ function vm.isSubType(uri, child, parent, mark, errs)
                         -- parsed into `doc.type.sign`, keeping the name one level down.
                         -- Without looking inside, such a parent is skipped entirely and
                         -- the class is not recognized as its child.
+                        ---@type string?
                         local extName
                         if ext.type == 'doc.extends.name' then
                             extName = ext[1]
@@ -827,6 +846,7 @@ function vm.canCastType(uri, defNode, refNode, errs)
     return false
 end
 
+---@type table<string, string[]>
 local ErrorMessageMap = {
     TYPE_ERROR_ENUM_GLOBAL_DISMATCH       = {'child', 'parent'},
     TYPE_ERROR_ENUM_GENERIC_UNSUPPORTED   = {'child'},
@@ -852,7 +872,9 @@ local ErrorMessageMap = {
 ---@param errs typecheck.err[]
 ---@return string
 function vm.viewTypeErrorMessage(uri, errs)
+    ---@type string[]
     local lines = {}
+    ---@type table<string, boolean>
     local mark  = {}
     local index = 1
     while true do
@@ -861,7 +883,9 @@ function vm.viewTypeErrorMessage(uri, errs)
             break
         end
         index = index + 1
+        ---@type string[]
         local params = ErrorMessageMap[name]
+        ---@type table<string, string?>
         local lparams = {}
         for _, paramName in ipairs(params) do
             local value = errs[index]
@@ -870,6 +894,7 @@ function vm.viewTypeErrorMessage(uri, errs)
             or type(value) == 'boolean' then
                 lparams[paramName] = util.viewLiteral(value)
             elseif value.type == 'global' then
+                ---@cast value vm.global
                 lparams[paramName] = value.name
             elseif value.type == 'vm.node' then
                 ---@cast value vm.node
@@ -889,7 +914,7 @@ function vm.viewTypeErrorMessage(uri, errs)
                                       or vm.getInfer(value):view(uri)
                 end
             end
-            index = index + 1
+            index = index + 1 --[[@as integer]]
         end
         local line = lang.script(name, lparams)
         if not mark[line] then
@@ -915,6 +940,7 @@ function vm.getOverloadsByTypeName(name, uri)
     if not globalVar then
         return nil
     end
+    ---@type parser.object[]?
     local results
     for _, set in ipairs(globalVar:getSets(uri)) do
         for _, doc in ipairs(set.bindGroup) do

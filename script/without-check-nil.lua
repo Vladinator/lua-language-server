@@ -2,6 +2,7 @@
 ---@field watch? fun(event: string, ...: any): boolean, any
 local m = {}
 
+---@type table<string, function?>
 local mt = {}
 mt.__add      = function (a, b)
     if a == nil then a = 0 end
@@ -101,9 +102,7 @@ if _VERSION == 'Lua 5.3' or _VERSION == 'Lua 5.4' or _VERSION == 'Lua 5.5' then
     ]]
 end
 
----@type table<string, function>
-local mt2 = mt
-for event, func in pairs(mt2) do
+for event, func in pairs(mt) do
     mt[event] = function (...)
         local watch = m.watch
         if not watch then

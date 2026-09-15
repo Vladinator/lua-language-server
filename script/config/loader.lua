@@ -71,6 +71,7 @@ function m.loadLocalConfig(uri, filename)
         scp:set('lastLocalType', 'json')
         return res
     else
+        ---@type boolean, table?
         local suc, res = pcall(function ()
             return assert(load(buf, '@' .. path, 't'))()
         end)

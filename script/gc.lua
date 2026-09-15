@@ -16,6 +16,7 @@ local function destroyGCObject(obj)
     if tp == 'function' then
         xpcall(obj, log.error)
     elseif tp == 'table' then
+        ---@type any
         local remove = obj.remove
         if type(remove) == 'function' then
             xpcall(remove, log.error, obj)

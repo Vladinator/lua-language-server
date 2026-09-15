@@ -44,7 +44,7 @@ end
 ---@param source parser.object local/global variable
 ---@param key string
 ---@param value string
----@param group table?
+---@param group? parser.object[]
 function _M.addDoc(ast, source, key, value, group)
     if source.type ~= 'local' and not guide.isGlobal(source) then
         return false
@@ -63,7 +63,7 @@ end
 ---@return parser.object?
 function _M.removeArg(source, index)
     if source.type == 'function' or source.type == 'call' then
-        local arg = table.remove(source.args, index)
+        local arg = table.remove(source.args, index) --[[@as parser.object?]]
         if not arg then
             return nil
         end

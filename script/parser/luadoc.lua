@@ -2470,20 +2470,28 @@ local function markVirtual(node)
     guide.eachChild(node, markVirtual)
 end
 
+---@param ast parser.object
+---@param src parser.object
+---@param comment {type: string, start: integer, finish: integer, text: string, virtual: boolean}
+---@param group? table
+---@return parser.object?
+local function buildAndBindDoc(ast, src, comment, group)
+    ---@type parser.object?
+    local doc = buildLuaDoc(comment)
+    if doc then
+        local pluginDocs = ast.state.pluginDocs or {}
+        pluginDocs[#pluginDocs+1] = doc
+        doc.special = src
+        doc.originalComment = comment
+        markVirtual(doc)
+        doc.specialBindGroup = group
+        ast.state.pluginDocs = pluginDocs
+        return doc
+    end
+    return nil
+end
+
 return {
-    buildAndBindDoc = function (ast, src, comment, group)
-        local doc = buildLuaDoc(comment)
-        if doc then
-            local pluginDocs = ast.state.pluginDocs or {}
-            pluginDocs[#pluginDocs+1] = doc
-            doc.special = src
-            doc.originalComment = comment
-            markVirtual(doc)
-            doc.specialBindGroup = group
-            ast.state.pluginDocs = pluginDocs
-            return doc
-        end
-        return nil
-    end,
+    buildAndBindDoc = buildAndBindDoc,
     luadoc = luadoc
 }

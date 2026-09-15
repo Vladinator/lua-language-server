@@ -8,7 +8,7 @@ local type         = type
 ---@field value                 parser.object
 ---@field parent                parser.object
 ---@field type                  string
----@field special               string
+---@field special               string|parser.object -- almost always the name of a recognized builtin (e.g. 'pcall', 'setmetatable', '_G'); luadoc.lua's buildAndBindDoc is the one place that stores a parser.object here instead (looks like it should be .bindSource -- see spawned follow-up task)
 ---@field tag                   string
 ---@field args                  { [integer]: parser.object, start: integer, finish: integer, type: string }
 ---@field locals                parser.object[]
@@ -88,6 +88,7 @@ local type         = type
 ---@field const?                boolean
 ---@field groups?               parser.object[]
 ---@field asyncPos?             integer -- set by luadoc.lua on '@async' doc nodes
+---@field specialBindGroup?     table -- set by luadoc.lua's buildAndBindDoc, passed straight through from its own `group` param
 ---@field typeGeneric?          boolean -- read by semantic-tokens.lua but never actually set anywhere; dead
 ---@field escs?                 table<integer, integer|string> -- read by semantic-tokens.lua but never actually set anywhere; dead
 ---@field package _root         parser.object
@@ -602,6 +603,9 @@ function m.getLabel(block, name)
     error('guide.getLocal overstack')
 end
 
+---@param source parser.object
+---@return integer? start
+---@return integer? finish
 function m.getStartFinish(source)
     local start  = source.start
     local finish = source.finish

@@ -101,6 +101,9 @@ function m.notify(name, params)
 end
 
 ---@async
+---@param name string
+---@param params? table
+---@return any
 function m.awaitRequest(name, params)
     local id  = reqCounter()
     m.send {

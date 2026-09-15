@@ -20,7 +20,7 @@ local m = {}
 m.ID_SPLITE = '\x1F'
 
 ---@param source parser.object?
----@return string?
+---@return (string|parser.object)?
 function m.getSpecial(source)
     if not source then
         return nil

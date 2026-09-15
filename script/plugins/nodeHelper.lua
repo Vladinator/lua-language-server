@@ -3,6 +3,9 @@ local _M = {}
 ---@class node.match.pattern
 ---@field next node.match.pattern?
 
+---@param source any
+---@param pattern any
+---@return boolean
 local function deepCompare(source, pattern)
     local type1, type2 = type(source), type(pattern)
     if type1 ~= type2 then
@@ -48,6 +51,7 @@ function _M.createFieldPattern(pattern)
     local next = ret
     local init = 1
     while true do
+        ---@type integer?, string?, integer?
         local startpos, matched, endpos
         if pattern:sub(1, 1) == "*" then
             startpos, matched, endpos = init, "*", init + 1

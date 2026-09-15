@@ -25,7 +25,10 @@ local pushWarning
 local NextComment
 ---@type { [integer]: integer, size: integer }
 local Lines
-local parseType, parseTypeUnit
+---@type fun(parent?: parser.object): parser.object?
+local parseType
+---@type fun(parent: parser.object): parser.object?
+local parseTypeUnit
 ---@type any
 local Parser = re.compile([[
 Main                <-  (Token / Sp)*
@@ -158,7 +161,7 @@ Symbol              <-  ({} {
 ---@class parser.object
 ---@field literal           boolean
 ---@field signs             parser.object[]
----@field originalComment   parser.object
+---@field originalComment   parser.state.comm
 ---@field as?               parser.object
 ---@field touch?            integer
 ---@field module?           string
@@ -177,6 +180,7 @@ Symbol              <-  ({} {
 ---@field generic?          parser.object
 ---@field docAttr?          parser.object
 ---@field pattern?          string
+---@field package _bindedDocType? boolean
 ---@field default?          boolean -- set on 'doc.resume'-shaped nodes for `>`
 ---@field additional?       boolean -- set on 'doc.resume'-shaped nodes for `+`
 ---@field firstFinish?      integer -- end of the first extends entry on 'doc.class', used to pick a tailcomment split point
@@ -399,6 +403,7 @@ local function parseTable(parent)
         }
 
         do
+            ---@type boolean?
             local needCloseParen
             if checkToken('symbol', '(', 1) then
                 nextToken()
@@ -482,6 +487,7 @@ local function parseTuple(parent)
         }
 
         do
+            ---@type boolean?
             local needCloseParen
             if checkToken('symbol', '(', 1) then
                 nextToken()
@@ -505,7 +511,7 @@ local function parseTuple(parent)
                     [1]    = index,
                 }
             }
-            index          = index + 1
+            index          = index + 1 --[[@as integer]]
             ---@diagnostic disable-next-line: assign-type-mismatch
             field.extends  = parseType(field)
             if not field.extends then
@@ -533,12 +539,13 @@ local function parseTuple(parent)
 end
 
 ---@param parent parser.object
----@return parser.object?
+---@return parser.object[]?
 local function parseSigns(parent)
     if not checkToken('symbol', '<', 1) then
         return nil
     end
     nextToken()
+    ---@type parser.object[]
     local signs = {}
     while true do
         local sign = parseName('doc.generic.name', parent)
@@ -652,6 +659,7 @@ local function  parseTypeUnitFunction(parent)
     if checkToken('symbol', ':', 1) then
         nextToken()
         slideToNextLine()
+        ---@type boolean?
         local needCloseParen
         if checkToken('symbol', '(', 1) then
             nextToken()
@@ -659,6 +667,7 @@ local function  parseTypeUnitFunction(parent)
         end
         while true do
             slideToNextLine()
+            ---@type parser.object?
             local name
             try(function ()
                 local returnName = parseName('doc.return.name', typeUnit)
@@ -681,6 +690,7 @@ local function  parseTypeUnitFunction(parent)
             if not rtn then
                 break
             end
+            ---@diagnostic disable-next-line: assign-type-mismatch
             rtn.name = name
             if checkToken('symbol', '?', 1) then
                 nextToken()
@@ -701,10 +711,13 @@ local function  parseTypeUnitFunction(parent)
     typeUnit.finish = getFinish()
     -- Bind local generics from fun<T, V> to type names within this function
     if typeUnit.signs then
+        local signs = typeUnit.signs
+        ---@type table<string|integer, parser.object>
         local generics = {}
-        for _, sign in ipairs(typeUnit.signs) do
-            generics[sign[1]] = sign
+        for _, sign in ipairs(signs) do
+            generics[sign[1] --[[@as string|integer]]] = sign
         end
+        ---@param obj parser.object?
         local function bindTypeNames(obj)
             if not obj then return end
             if obj.type == 'doc.type.name' and generics[obj[1]] then
@@ -871,7 +884,9 @@ local function parseCodePattern(parent)
     if not tp or (tp ~= 'name' and tp ~= 'code') then
         return nil
     end
+    ---@type integer?
     local codeOffset
+    ---@type string|integer?
     local content
     local i = 1
     if tp == 'code' then
@@ -880,14 +895,14 @@ local function parseCodePattern(parent)
         pattern = '%s'
     end
     while true do
-        i = i+1
+        i = i+1 --[[@as integer]]
         local nextTp, nextContent = peekToken(i)
         if not nextTp or TokenFinishs[Ci+i-1] + 1 ~= TokenStarts[Ci+i] then
             ---不连续的name，无效的
             break
         end
         if nextTp == 'name' then
-            pattern = pattern .. nextContent
+            pattern = pattern .. nextContent --[[@as string]]
         elseif nextTp == 'code' then
             if codeOffset then
                 -- 暂时不支持多generic
@@ -1032,6 +1047,7 @@ end
 ---@param parent parser.object
 ---@return parser.object?
 local function parseResume(parent)
+    ---@type boolean?, boolean?
     local default, additional
     if checkToken('symbol', '>', 1) then
         nextToken()
@@ -1091,6 +1107,7 @@ function parseType(parent)
     local row = guide.rowColOf(result.finish)
 
     local function pushResume()
+        ---@type string[]?
         local comments
         for i = 0, 100 do
             local nextComm = NextComment(i, true)
@@ -1219,6 +1236,7 @@ local docSwitch = util.switch()
         if not first then
             return nil
         end
+        ---@type parser.object[]?
         local rests
         while checkToken('symbol', ',', 1) do
             nextToken()
@@ -1226,7 +1244,7 @@ local docSwitch = util.switch()
             if not rests then
                 rests = {}
             end
-            rests[#rests+1] = rest
+            rests[#rests+1] = rest --[[@as parser.object]]
         end
         return first, rests
     end)
@@ -1837,6 +1855,7 @@ local docSwitch = util.switch()
         return result
     end)
     : case 'source'
+    ---@param doc string
     : call(function (doc)
         local fullSource = doc:sub(#'source' + 1)
         if not fullSource or fullSource == '' then
@@ -1917,6 +1936,9 @@ local docSwitch = util.switch()
         }
     end)
 
+---@param doc string
+---@return parser.object? result
+---@return parser.object[]? rests
 local function convertTokens(doc)
     local tp, text = nextToken()
     if not tp then
@@ -1935,6 +1957,7 @@ local function convertTokens(doc)
     if not docSwitch:has(text) then
         local docType = docTags.getMarkerTagType(text)
         if docType then
+            ---@diagnostic disable-next-line: missing-fields
             return {
                 type   = docType,
                 start  = getFinish(),
@@ -1945,6 +1968,8 @@ local function convertTokens(doc)
     return docSwitch(text, doc)
 end
 
+---@param text string
+---@return string
 local function trimTailComment(text)
     local comment = text
     if text:sub(1, 1) == '@' then
@@ -1966,10 +1991,14 @@ local function trimTailComment(text)
     return util.trim(comment)
 end
 
+---@param comment parser.state.comm
+---@return parser.object? result
+---@return parser.object[]? rests
 local function buildLuaDoc(comment)
     local headPos = (comment.type == 'comment.short' and comment.text:match '^%-%s*@()')
                  or (comment.type == 'comment.long'  and comment.text:match '^%s*@()')
     if not headPos then
+        ---@diagnostic disable-next-line: missing-fields
         return {
             type    = 'doc.comment',
             start   = comment.start,
@@ -1979,9 +2008,10 @@ local function buildLuaDoc(comment)
         }
     end
     -- absolute position of `@` symbol
-    local startOffset = comment.start + headPos
+    local startOffset = comment.start + (headPos --[[@as integer]])
     if comment.type == 'comment.long' then
-        startOffset = comment.start + headPos + #comment.mark - 2
+        ---@diagnostic disable-next-line: need-check-nil -- .mark is always set for 'comment.long'
+        startOffset = comment.start + (headPos --[[@as integer]]) + #comment.mark - 2
     end
 
     local doc = comment.text:sub(headPos)
@@ -2022,6 +2052,7 @@ local function buildLuaDoc(comment)
         return result, rests
     end
 
+    ---@diagnostic disable-next-line: missing-fields
     return {
         type    = 'doc.comment',
         start   = comment.start,
@@ -2031,8 +2062,10 @@ local function buildLuaDoc(comment)
     }
 end
 
+---@param text string?
+---@param doc parser.object?
 local function isTailComment(text, doc)
-    if not doc then
+    if not doc or not text then
         return false
     end
     local left          = doc.originalComment.start
@@ -2042,6 +2075,9 @@ local function isTailComment(text, doc)
     return hasCodeBefore
 end
 
+---@param lastDoc parser.object
+---@param nextDoc parser.object?
+---@return boolean
 local function isContinuedDoc(lastDoc, nextDoc)
     if not nextDoc then
         return false
@@ -2074,6 +2110,9 @@ local function isContinuedDoc(lastDoc, nextDoc)
     return true
 end
 
+---@param lastDoc parser.object
+---@param nextDoc parser.object?
+---@return boolean
 local function isNextLine(lastDoc, nextDoc)
     if not nextDoc then
         return false
@@ -2083,12 +2122,16 @@ local function isNextLine(lastDoc, nextDoc)
     return newRow - lastRow == 1
 end
 
+---@param binded parser.object[]
 local function bindGeneric(binded)
+    ---@type table<string|integer, parser.object>
     local generics = {}
     for _, doc in ipairs(binded) do
         if doc.type == 'doc.generic' then
+            ---@diagnostic disable-next-line: need-check-nil -- .generics is always set for 'doc.generic'
             for _, obj in ipairs(doc.generics) do
-                local name = obj.generic[1]
+                ---@diagnostic disable-next-line: need-check-nil -- .generic is always set on a 'doc.generic' element
+                local name = obj.generic[1] --[[@as string|integer]]
                 generics[name] = obj
             end
         end
@@ -2096,7 +2139,7 @@ local function bindGeneric(binded)
         or doc.type == 'doc.alias' then
             if doc.signs then
                 for _, sign in ipairs(doc.signs) do
-                    local name = sign[1]
+                    local name = sign[1] --[[@as string|integer]]
                     generics[name] = sign
                 end
             end
@@ -2128,6 +2171,8 @@ local function bindGeneric(binded)
     end
 end
 
+---@param doc parser.object
+---@param source parser.object
 local function bindDocWithSource(doc, source)
     if not source.bindDocs then
         source.bindDocs = {}
@@ -2138,6 +2183,9 @@ local function bindDocWithSource(doc, source)
     doc.bindSource = source
 end
 
+---@param source parser.object
+---@param binded parser.object[]
+---@return boolean
 local function bindDoc(source, binded)
     local isParam = source.type == 'self'
                 or  source.type == 'local'
@@ -2252,19 +2300,25 @@ local function bindDoc(source, binded)
     return ok
 end
 
+---@param sources parser.object[]
+---@param binded parser.object[]
+---@param start integer
+---@param finish integer
+---@return boolean
 local function bindDocsBetween(sources, binded, start, finish)
     -- 用二分法找到第一个
     local max = #sources
+    ---@type integer
     local index
     local left  = 1
     local right = max
     for _ = 1, 1000 do
-        index = left + (right - left) // 2
+        index = left + (right - left) // 2 --[[@as integer]]
         if index <= left then
-            index = left
+            index = left --[[@as integer]]
             break
         elseif index >= right then
-            index = right
+            index = right --[[@as integer]]
             break
         end
         local src = sources[index]
@@ -2309,18 +2363,21 @@ local function bindDocsBetween(sources, binded, start, finish)
     return ok
 end
 
+---@param binded parser.object[]
 local function bindReturnIndex(binded)
     local returnIndex = 0
     for _, doc in ipairs(binded) do
         if doc.type == 'doc.return' then
             for _, rtn in ipairs(doc.returns) do
-                returnIndex = returnIndex + 1
+                returnIndex = returnIndex + 1 --[[@as integer]]
                 rtn.returnIndex = returnIndex
             end
         end
     end
 end
 
+---@param doc parser.object
+---@param comments parser.object[]
 local function bindCommentsToDoc(doc, comments)
     doc.bindComments = comments
     for _, comment in ipairs(comments) do
@@ -2328,10 +2385,15 @@ local function bindCommentsToDoc(doc, comments)
     end
 end
 
+---@param binded parser.object[]
 local function bindCommentsAndFields(binded)
+    ---@type parser.object?
     local class
+    ---@type parser.object[]
     local comments = {}
+    ---@type parser.object?
     local source
+    ---@type parser.object?
     local classInGroup
     for _, doc in ipairs(binded) do
         if doc.type == 'doc.class' then
@@ -2368,6 +2430,7 @@ local function bindCommentsAndFields(binded)
             comments = {}
         elseif doc.type == 'doc.operator' then
             if class then
+                ---@diagnostic disable-next-line: need-check-nil -- .operators is always set on a constructed 'doc.class' node
                 class.operators[#class.operators+1] = doc
                 doc.class = class
             end
@@ -2375,6 +2438,7 @@ local function bindCommentsAndFields(binded)
             comments = {}
         elseif doc.type == 'doc.overload' then
             if class then
+                ---@diagnostic disable-next-line: need-check-nil -- .calls is always set on a constructed 'doc.class' node
                 class.calls[#class.calls+1] = doc
                 doc.class = class
             end
@@ -2393,6 +2457,8 @@ local function bindCommentsAndFields(binded)
     end
 end
 
+---@param sources parser.object[]
+---@param binded parser.object[]?
 local function bindDocWithSources(sources, binded)
     if not binded then
         return
@@ -2409,8 +2475,11 @@ local function bindDocWithSources(sources, binded)
     bindReturnIndex(binded)
 
     -- doc is special node
+    -- NOTE: .special is declared string|parser.object; this is the one read site
+    -- that expects the parser.object half (see spawned follow-up task on
+    -- luadoc.lua's buildAndBindDoc setting doc.special to a parser.object)
     if lastDoc.special then
-        if bindDoc(lastDoc.special, binded) then
+        if bindDoc(lastDoc.special --[[@as parser.object]], binded) then
             return
         end
     end
@@ -2422,7 +2491,10 @@ local function bindDocWithSources(sources, binded)
     end
 end
 
+---@param sources parser.object[]
 local docsDedupe = function (sources)
+    ---@param bindDocs parser.object[]
+    ---@param value parser.object
     local removeByValue = function(bindDocs, value)
         for i = #bindDocs, 1, -1 do
             if bindDocs[i] == value then
@@ -2433,11 +2505,12 @@ local docsDedupe = function (sources)
     end
     for _, source in ipairs(sources) do
         if source.bindDocs then
+            ---@type table<string, parser.object>
             local docs = {}
             for i = #source.bindDocs, 1, -1 do
                 local doc = source.bindDocs[i]
                 if doc.type == 'doc.param' and doc.param[1] then
-                    local param1 = doc.param[1]
+                    local param1 = doc.param[1] --[[@as string]]
                     if docs[param1] then
                         local old = docs[param1]
                         if old.virtual and not doc.virtual then
@@ -2462,8 +2535,10 @@ local bindDocAccept = {
     'call',
 }
 
+---@param state parser.state
 local function bindDocs(state)
     local text = state.lua
+    ---@type parser.object[]
     local sources = {}
     guide.eachSourceTypes(state.ast, bindDocAccept, function (src)
         -- allow binding docs with rawset(_G, "key", value)
@@ -2481,10 +2556,12 @@ local function bindDocs(state)
     table.sort(sources, function (a, b)
         return a.start < b.start
     end)
+    ---@type parser.object[]?
     local binded
     for i, doc in ipairs(state.ast.docs) do
         if not binded then
             binded = {}
+            ---@diagnostic disable-next-line: need-check-nil -- .groups is always set by luadoc() before bindDocs runs
             state.ast.docs.groups[#state.ast.docs.groups+1] = binded
         end
         binded[#binded+1] = doc
@@ -2511,8 +2588,10 @@ local function bindDocs(state)
     docsDedupe(sources)
 end
 
+---@param state parser.state
+---@param doc parser.object
 local function findTouch(state, doc)
-    local text = state.lua
+    local text = state.lua or ''
     local pos  = guide.positionToOffset(state, doc.originalComment.start)
     for i = pos - 2, 1, -1 do
         local c = text:sub(i, i)
@@ -2544,7 +2623,7 @@ local function luadoc(state)
     pushWarning = function (err)
         local errs = state.errs
         if err.start and err.finish and err.finish < err.start then
-            err.finish = err.start
+            err.finish = err.start --[[@as integer]]
         end
         local last = errs[#errs]
         if last and last.start and last.finish and err.start and err.finish then
@@ -2567,6 +2646,8 @@ local function luadoc(state)
         return comment
     end
 
+    ---@param doc parser.object
+    ---@param comment parser.state.comm
     local function insertDoc(doc, comment)
         ast.docs[#ast.docs+1] = doc
         doc.parent = ast.docs
@@ -2603,8 +2684,8 @@ local function luadoc(state)
         for _, doc in ipairs(ast.state.pluginDocs) do
             insertDoc(doc, doc.originalComment)
         end
-        ---@param a unknown
-        ---@param b unknown
+        ---@param a parser.object
+        ---@param b parser.object
         table.sort(ast.docs, function (a, b)
             return a.start < b.start
         end)
@@ -2621,6 +2702,7 @@ local function luadoc(state)
     bindDocs(state)
 end
 
+---@param node parser.object?
 local function markVirtual(node)
     if not node then
         return

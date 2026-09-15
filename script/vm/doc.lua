@@ -167,6 +167,7 @@ function vm.getDeprecated(value, deep)
         if #defs == 0 then
             return nil
         end
+        ---@type parser.object?
         local deprecated
         for _, def in ipairs(defs) do
             if def.type == 'setglobal'
@@ -196,9 +197,10 @@ local function isAsync(value, propagate, deepLevel)
         if value._async ~= nil then --already calculated, directly return
             return value._async
         end
+        ---@type table<parser.object, boolean>?
         local asyncCache
         if propagate then
-            asyncCache = vm.getCache 'async.propagate'
+            asyncCache = vm.getCache 'async.propagate' --[[@as table<parser.object, boolean>]]
             local result = asyncCache[value]
             if result ~= nil then
                 return result
@@ -381,9 +383,16 @@ function vm.isAsyncCall(call, deepLevel)
     return false
 end
 
+---@class vm.diagRange
+---@field mode   string
+---@field names  table<any, boolean>?
+---@field row    integer
+---@field source parser.object
+
 ---@param doc parser.object
----@param results table[]
+---@param results vm.diagRange[]
 local function makeDiagRange(doc, results)
+    ---@type table<any, boolean>?
     local names
     if doc.names then
         names = {}
@@ -449,7 +458,7 @@ function vm.isDiagDisabledAt(uri, position, name, err)
     if not status.ast.docs then
         return false
     end
-    local cache = files.getCache(uri)
+    local cache = files.getCache(uri) --[[@as {diagnosticRanges: vm.diagRange[]?}?]]
     if not cache then
         return false
     end
@@ -464,12 +473,13 @@ function vm.isDiagDisabledAt(uri, position, name, err)
             return a.row < b.row
         end)
     end
-    if #cache.diagnosticRanges == 0 then
+    local ranges = cache.diagnosticRanges --[[@as vm.diagRange[] ]]
+    if #ranges == 0 then
         return false
     end
     local myRow = guide.rowColOf(position)
     local count = 0
-    for _, range in ipairs(cache.diagnosticRanges) do
+    for _, range in ipairs(ranges) do
         if range.row <= myRow then
             if (range.names and range.names[name])
             or (not range.names and not err) then
@@ -492,6 +502,7 @@ function vm.getCastTargetHead(doc)
     if doc._castTargetHead ~= nil then
         return doc._castTargetHead or nil
     end
+    ---@type string?
     local name = doc.name[1]:match '^[^%.]+'
     if not name then
         doc._castTargetHead = false

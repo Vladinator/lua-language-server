@@ -10,6 +10,7 @@ local vm            = require 'vm.vm'
 local function findGenericInTableFields(tableType, genericMap)
     for _, field in ipairs(tableType.fields) do
         if field.extends then
+            ---@type string?
             local found
             guide.eachSourceType(field.extends, 'doc.generic.name', function (src)
                 if genericMap[src[1]] then
@@ -75,6 +76,7 @@ function mt:resolve(uri, args)
         return nil
     end
 
+    ---@type table<string, vm.node>
     ---@type table<string, vm.node>
     local resolved = {}
     ---@type table<string, boolean>
@@ -284,7 +286,9 @@ function mt:resolve(uri, args)
     ---@return table<string, true>
     ---@return table<string, true>
     local function getSignInfo(sign)
+        ---@type table<string, true>
         local knownTypes = {}
+        ---@type table<string, true>
         local genericsNames   = {}
         for obj in sign:eachObject() do
             if obj.type == 'doc.generic.name' then
@@ -296,6 +300,7 @@ function mt:resolve(uri, args)
             or obj.type == 'doc.type.array'
             or obj.type == 'doc.type.sign' then
                 ---@cast obj parser.object
+                ---@type boolean?
                 local hasGeneric
                 guide.eachSourceType(obj, 'doc.generic.name', function (src)
                     hasGeneric = true
@@ -430,6 +435,7 @@ function vm.getSign(source)
     if source.type == 'doc.type.function'
     or source.type == 'doc.type.table'
     or source.type == 'doc.type.array' then
+        ---@type boolean?
         local hasGeneric
         guide.eachSourceType(source, 'doc.generic.name', function (_)
             hasGeneric = true

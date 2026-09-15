@@ -6,7 +6,7 @@ local guide    = require 'parser.guide'
 local timer    = require 'timer'
 local util     = require 'utility'
 
----@type table<vm.object, vm.node>
+---@type table<vm.node.object|vm.generic, vm.node>
 vm.nodeCache = setmetatable({}, util.MODE_K)
 
 ---@alias vm.node.object vm.object | vm.global | vm.variable
@@ -18,6 +18,10 @@ vm.nodeCache = setmetatable({}, util.MODE_K)
 ---@field undefinedGlobal boolean?
 ---@field lastInfer? vm.infer
 ---@field flags? table<string, boolean>
+---@field optional? boolean
+---@field data? any -- generic payload slot; not currently read/written anywhere
+---@field hasDefined? boolean
+---@field originNode? vm.node
 local mt = {}
 mt.__index    = mt
 mt.id         = 0
@@ -220,6 +224,7 @@ function mt:setTruthy()
     if self.optional == true then
         self.optional = nil
     end
+    ---@type boolean?
     local hasBoolean
     for index = #self, 1, -1 do
         local c = self[index]
@@ -258,6 +263,7 @@ function mt:setFalsy()
     if self.optional == false then
         self.optional = nil
     end
+    ---@type boolean?
     local hasBoolean
     for index = #self, 1, -1 do
         local c = self[index]

@@ -753,6 +753,8 @@ function m.hasDiffed(state)
 end
 
 --- 获取文件的自定义缓存信息（在文件内容更新后自动失效）
+---@param uri uri
+---@return table?
 function m.getCache(uri)
     local file = m.fileMap[uri]
     if not file then

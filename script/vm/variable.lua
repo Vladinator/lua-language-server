@@ -14,6 +14,7 @@ local mt = {}
 mt.__index = mt
 mt.type = 'variable'
 
+---@param root parser.object
 ---@param id string
 ---@return vm.variable
 local function createVariable(root, id)
@@ -31,7 +32,10 @@ end
 ---@field package _variableNode vm.variable|false
 ---@field package _variableNodes table<string, vm.variable>
 
-local compileVariables, getLoc
+---@type fun(source: parser.object, base: parser.object)
+local compileVariables
+---@type fun(source: parser.object): parser.object?
+local getLoc
 
 ---@param id string
 ---@param source parser.object
@@ -58,6 +62,8 @@ end
 local compileSwitch = util.switch()
     : case 'local'
     : case 'self'
+    ---@param source parser.object
+    ---@param base parser.object
     : call(function (source, base)
         local id = ('%d'):format(source.start)
         local variable = insertVariableID(id, source, base)
@@ -71,6 +77,8 @@ local compileSwitch = util.switch()
     end)
     : case 'setlocal'
     : case 'getlocal'
+    ---@param source parser.object
+    ---@param base parser.object
     : call(function (source, base)
         local id = ('%d'):format(source.node.start)
         local variable = insertVariableID(id, source, base)
@@ -79,6 +87,8 @@ local compileSwitch = util.switch()
     end)
     : case 'getfield'
     : case 'setfield'
+    ---@param source parser.object
+    ---@param base parser.object
     : call(function (source, base)
         local parentNode = source.node._variableNode
         if not parentNode then
@@ -98,6 +108,8 @@ local compileSwitch = util.switch()
     end)
     : case 'getmethod'
     : case 'setmethod'
+    ---@param source parser.object
+    ---@param base parser.object
     : call(function (source, base)
         local parentNode = source.node._variableNode
         if not parentNode then
@@ -117,6 +129,8 @@ local compileSwitch = util.switch()
     end)
     : case 'getindex'
     : case 'setindex'
+    ---@param source parser.object
+    ---@param base parser.object
     : call(function (source, base)
         local parentNode = source.node._variableNode
         if not parentNode then
@@ -138,6 +152,7 @@ local compileSwitch = util.switch()
 local leftSwitch = util.switch()
     : case 'field'
     : case 'method'
+    ---@param source parser.object
     : call(function (source)
         return getLoc(source.parent)
     end)
@@ -147,15 +162,18 @@ local leftSwitch = util.switch()
     : case 'setmethod'
     : case 'getindex'
     : case 'setindex'
+    ---@param source parser.object
     : call(function (source)
         return getLoc(source.node)
     end)
     : case 'getlocal'
+    ---@param source parser.object
     : call(function (source)
         return source.node
     end)
     : case 'local'
     : case 'self'
+    ---@param source parser.object
     : call(function (source)
         return source
     end)
@@ -202,11 +220,13 @@ function mt:getSets(key)
 end
 
 ---@param includeGets boolean?
+---@return parser.object[]
 function mt:getFields(includeGets)
     local id   = self.id
     local root = self.root
     -- TODO：optimize
     local clock = os.clock()
+    ---@type parser.object[]
     local fields = {}
     for lid, variable in pairs(root._variableNodes) do
         if  lid ~= id

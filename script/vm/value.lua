@@ -12,6 +12,7 @@ function vm.testCondition(source)
     if node.optional then
         return nil
     end
+    ---@type boolean?, boolean?
     local hasTrue, hasFalse
     for n in node:eachObject() do
         if n.type == 'boolean'
@@ -90,6 +91,7 @@ function vm.equal(a, b)
     end
     local nodeA = vm.compileNode(a)
     local nodeB = vm.compileNode(b)
+    ---@type table<string, boolean>
     local mapA = {}
     for obj in nodeA:eachObject() do
         local unique = getUnique(obj)
@@ -117,6 +119,7 @@ function vm.getInteger(v)
         return nil
     end
     local node = vm.compileNode(v)
+    ---@type integer?
     local result
     local hasNonInteger = false
     for n in node:eachObject() do
@@ -160,6 +163,7 @@ function vm.getString(v)
         return nil
     end
     local node = vm.compileNode(v)
+    ---@type string?
     local result
     for n in node:eachObject() do
         if n.type == 'string' then
@@ -183,6 +187,7 @@ function vm.getNumber(v)
         return nil
     end
     local node = vm.compileNode(v)
+    ---@type number?
     local result
     for n in node:eachObject() do
         if n.type == 'number'
@@ -207,6 +212,7 @@ function vm.getBoolean(v)
         return nil
     end
     local node = vm.compileNode(v)
+    ---@type boolean?
     local result
     for n in node:eachObject() do
         if n.type == 'boolean' then
@@ -230,10 +236,12 @@ function vm.getLiterals(v)
     if not v then
         return nil, 0
     end
+    ---@type table<any, boolean>?
     local map
     local count = 0
     local node = vm.compileNode(v)
     for n in node:eachObject() do
+        ---@type any
         local literal
         if n.type == 'boolean'
         or n.type == 'string'

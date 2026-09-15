@@ -5,7 +5,11 @@ local findSource = require 'core.find-source'
 local util       = require 'utility'
 local guide      = require 'parser.guide'
 
+---@alias core.highlight.callback fun(target: parser.object?)
+
 ---@async
+---@param source parser.object
+---@param callback core.highlight.callback
 local function eachRef(source, callback)
     local refs = vm.getRefs(source, function (_)
         return false
@@ -15,6 +19,8 @@ local function eachRef(source, callback)
     end
 end
 
+---@param source parser.object
+---@param callback core.highlight.callback
 local function eachLocal(source, callback)
     callback(source)
     if source.ref then
@@ -25,6 +31,8 @@ local function eachLocal(source, callback)
 end
 
 ---@async
+---@param source parser.object
+---@param callback core.highlight.callback
 local function find(source, callback)
     if     source.type == 'local' then
         eachLocal(source, callback)
@@ -57,6 +65,10 @@ local function find(source, callback)
     end
 end
 
+---@param state parser.state
+---@param source parser.object
+---@param text string?
+---@param position integer
 local function checkInIf(state, source, text, position)
     -- 检查 end
     local endB = guide.positionToOffset(state, source.finish)
@@ -68,6 +80,7 @@ local function checkInIf(state, source, text, position)
     end
     -- 检查每个子模块
     for _, block in ipairs(source) do
+        ---@cast block parser.object
         for i = 1, #block.keyword, 2 do
             local start  = block.keyword[i]
             local finish = block.keyword[i+1]
@@ -79,6 +92,10 @@ local function checkInIf(state, source, text, position)
     return false
 end
 
+---@param state parser.state
+---@param source parser.object
+---@param text string?
+---@param callback fun(start: integer, finish: integer)
 local function makeIf(state, source, text, callback)
     -- end
     local endB = guide.positionToOffset(state, source.finish)
@@ -97,7 +114,12 @@ local function makeIf(state, source, text, callback)
     return false
 end
 
+---@param state parser.state
+---@param text string?
+---@param position integer
+---@param callback fun(start: integer, finish: integer)
 local function findKeyWord(state, text, position, callback)
+    ---@param source parser.object
     guide.eachSourceContain(state.ast, position, function (source)
         if     source.type == 'do'
         or     source.type == 'function'
@@ -105,6 +127,7 @@ local function findKeyWord(state, text, position, callback)
         or     source.type == 'in'
         or     source.type == 'while'
         or     source.type == 'repeat' then
+            ---@type boolean?
             local ok
             for i = 1, #source.keyword, 2 do
                 local start  = source.keyword[i]
@@ -130,6 +153,7 @@ local function findKeyWord(state, text, position, callback)
     end)
 end
 
+---@param str string
 local function isRegion(str)
     if str:sub(1, #'region') == 'region'
     or str:sub(1, #'#region') == '#region' then
@@ -138,6 +162,7 @@ local function isRegion(str)
     return false
 end
 
+---@param str string
 local function isEndRegion(str)
     if str:sub(1, #'endregion') == 'endregion'
     or str:sub(1, #'#endregion') == '#endregion' then
@@ -146,9 +171,16 @@ local function isEndRegion(str)
     return false
 end
 
+---@param ast parser.state
+---@param text string?
+---@param offset integer
+---@param callback fun(start: integer, finish: integer)
 local function checkRegion(ast, text, offset, callback)
+    ---@type integer?
     local count
+    ---@type integer?, integer?
     local start, finish
+    ---@type integer?
     local selected
     for i, comment in ipairs(ast.comms) do
         if comment.type == 'comment.short' then
@@ -181,9 +213,13 @@ local function checkRegion(ast, text, offset, callback)
                 local ltext = comment.text:lower()
                 ltext = util.trim(ltext, 'left')
                 if     isRegion(ltext) then
-                    count = count + 1
+                    -- count is always set alongside `selected` above (guarded by
+                    -- `if not selected then return end` before this loop)
+                    ---@diagnostic disable-next-line: need-check-nil
+                    count = count + 1 --[[@as integer]]
                 elseif isEndRegion(ltext) then
-                    count = count - 1
+                    ---@diagnostic disable-next-line: need-check-nil
+                    count = count - 1 --[[@as integer]]
                     if count == 0 then
                         callback(start, comment.finish)
                         return
@@ -193,15 +229,19 @@ local function checkRegion(ast, text, offset, callback)
         end
     end
     if finish then
+        -- selected is always set alongside `finish` above
+        ---@diagnostic disable-next-line: need-check-nil
         for i = selected - 1, 1, -1 do
             local comment = ast.comms[i]
             if comment.type == 'comment.short' then
                 local ltext = comment.text:lower()
                 ltext = util.trim(ltext, 'left')
                 if     isEndRegion(ltext) then
-                    count = count + 1
+                    ---@diagnostic disable-next-line: need-check-nil
+                    count = count + 1 --[[@as integer]]
                 elseif isRegion(ltext) then
-                    count = count - 1
+                    ---@diagnostic disable-next-line: need-check-nil
+                    count = count - 1 --[[@as integer]]
                     if count == 0 then
                         callback(comment.start - 2, finish)
                         return
@@ -230,6 +270,7 @@ local accept = {
     ['nil']        = true,
 }
 
+---@param source parser.object
 local function isLiteralValue(source)
     if not guide.isLiteral(source) then
         return false
@@ -240,14 +281,23 @@ local function isLiteralValue(source)
     return true
 end
 
+---@class core.highlight.result
+---@field start integer
+---@field finish integer
+---@field kind integer
+
 ---@async
+---@param uri uri
+---@param offset integer
 return function (uri, offset)
     local state = files.getState(uri)
     if not state then
         return nil
     end
     local text = files.getText(uri)
+    ---@type core.highlight.result[]
     local results = {}
+    ---@type table<parser.object, boolean>
     local mark = {}
 
     local source = findSource(state, offset, accept)
@@ -271,22 +321,23 @@ return function (uri, offset)
             if uri ~= guide.getUri(target) then
                 return
             end
+            ---@type integer?
             local kind
             if     target.type == 'getfield' then
-                target = target.field
+                target = target.field --[[@as parser.object]]
                 kind   = define.DocumentHighlightKind.Read
             elseif target.type == 'setfield'
             or     target.type == 'tablefield' then
-                target = target.field
+                target = target.field --[[@as parser.object]]
                 kind   = define.DocumentHighlightKind.Write
             elseif target.type == 'getmethod' then
-                target = target.method
+                target = target.method --[[@as parser.object]]
                 kind   = define.DocumentHighlightKind.Read
             elseif target.type == 'setmethod' then
-                target = target.method
+                target = target.method --[[@as parser.object]]
                 kind   = define.DocumentHighlightKind.Write
             elseif target.type == 'getindex' then
-                target = target.index
+                target = target.index --[[@as parser.object]]
                 kind   = define.DocumentHighlightKind.Read
             elseif target.type == 'field' then
                 if target.parent.type == 'getfield' then
@@ -314,7 +365,7 @@ return function (uri, offset)
                 end
             elseif target.type == 'setindex'
             or     target.type == 'tableindex' then
-                target = target.index
+                target = target.index --[[@as parser.object]]
                 kind   = define.DocumentHighlightKind.Write
             elseif target.type == 'getlocal'
             or     target.type == 'getglobal'

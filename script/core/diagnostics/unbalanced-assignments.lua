@@ -28,8 +28,10 @@ return function (uri, callback)
         return
     end
 
+    ---@type parser.object?
     local last
 
+    ---@param source parser.object
     local function checkSet(source)
         if source.value then
             last = source

@@ -25,7 +25,9 @@ return function (uri, callback)
         return
     end
 
+    ---@type table<string, boolean>
     local merged = {}
+    ---@type table<string, {start: integer, finish: integer, uri: uri}[]>
     local cache = {}
     for _, doc in ipairs(state.ast.docs) do
         if doc.type == 'doc.alias'

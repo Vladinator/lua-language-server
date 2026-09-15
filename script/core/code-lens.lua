@@ -92,6 +92,7 @@ function mt:resolveReference(source)
     local refs = getRef(self.uri, source.finish, false)
     local count = refs and #refs or 0
     if client.getOption('codeLensViewReferences') then
+        ---@type location[]
         local locations = {}
         for _, ref in ipairs(refs or {}) do
             local state = files.getState(ref.uri)

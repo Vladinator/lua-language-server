@@ -15,6 +15,8 @@ local searchByNodeSwitch = util.switch()
         pushResult(source)
     end)
 
+---@param source parser.object
+---@param pushResult fun(src: parser.object)
 local function searchByLocalID(source, pushResult)
     local fields = vm.getVariableFields(source, true)
     if fields then
@@ -24,6 +26,9 @@ local function searchByLocalID(source, pushResult)
     end
 end
 
+---@param source parser.object
+---@param pushResult fun(src: parser.object)
+---@param mark? table<parser.object, boolean>
 local function searchByNode(source, pushResult, mark)
     mark = mark or {}
     if mark[source] then
@@ -42,9 +47,12 @@ end
 ---@param source parser.object
 ---@return       parser.object[]
 function vm.getFields(source)
+    ---@type parser.object[]
     local results = {}
+    ---@type table<parser.object, boolean>
     local mark    = {}
 
+    ---@param src parser.object
     local function pushResult(src)
         if not mark[src] then
             mark[src] = true

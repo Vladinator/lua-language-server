@@ -1,3 +1,4 @@
+---@type { ZoneBeginN: fun(info: any), ZoneEnd: fun() }?
 local originTracy
 
 local function enable()

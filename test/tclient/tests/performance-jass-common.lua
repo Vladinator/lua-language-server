@@ -48,7 +48,7 @@ local jass = require 'jass.common'
                 },
                 contentChanges = {
                     {
-                        text = text,
+                        text = text --[[@as string]],
                     }
                 }
             })

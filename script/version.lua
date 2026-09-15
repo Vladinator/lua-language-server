@@ -6,10 +6,12 @@ local function loadVersion()
         return
     end
 
+    ---@type string?, integer?
     local version, pos = changelog:match '%#%# (%d+%.%d+%.%d+)()'
     if not version then
         return
     end
+    ---@cast pos integer -- always set together with version by the same match
 
     if not changelog:find('^[\r\n]+`', pos) then
         version = version .. '-dev'

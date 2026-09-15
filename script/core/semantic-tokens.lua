@@ -9,9 +9,38 @@ local config         = require 'config'
 local linkedTable    = require 'linked-table'
 local client         = require 'client'
 
+---@class semantic.options
+---@field uri uri
+---@field state parser.state
+---@field text string
+---@field libGlobals table<string, boolean>
+---@field variable boolean
+---@field annotation boolean
+---@field keyword boolean
+
+--- Raw offsets, as produced across the big dispatch below and consumed
+--- by solveMultilineAndOverlapping's sort/merge pass.
+---@class semantic.token
+---@field start integer
+---@field finish integer
+---@field type integer
+---@field modifieres? integer
+
+--- Positions, as solveMultilineAndOverlapping converts each
+--- semantic.token into on its way out (see converter.packPosition
+--- calls near its end) -- this is what buildTokens actually consumes.
+---@class semantic.packedToken
+---@field start position
+---@field finish position
+---@field type integer
+---@field modifieres? integer
+
 local Care = util.switch()
     : case 'getglobal'
     : case 'setglobal'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.variable then
             return
@@ -54,6 +83,9 @@ local Care = util.switch()
     end)
     : case 'getmethod'
     : case 'setmethod'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.variable then
             return
@@ -69,6 +101,9 @@ local Care = util.switch()
         end
     end)
     : case 'field'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.variable then
             return
@@ -118,6 +153,9 @@ local Care = util.switch()
     : case 'self'
     : case 'getlocal'
     : case 'setlocal'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if options.keyword then
             if source.locPos then
@@ -263,6 +301,9 @@ local Care = util.switch()
     : case 'in'
     : case 'while'
     : case 'repeat'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
@@ -279,6 +320,9 @@ local Care = util.switch()
         end
     end)
     : case 'if'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
@@ -293,6 +337,9 @@ local Care = util.switch()
         end
     end)
     : case 'return'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
@@ -304,6 +351,9 @@ local Care = util.switch()
         }
     end)
     : case 'break'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
@@ -315,13 +365,18 @@ local Care = util.switch()
         }
     end)
     : case 'goto'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
         end
+        -- always set on a 'goto' action (see parser/compile.lua)
+        local keyStart = source.keyStart --[[@as integer]]
         results[#results+1] = {
-            start      = source.keyStart,
-            finish     = source.keyStart + #'goto',
+            start      = keyStart,
+            finish     = keyStart + #'goto',
             type       = define.TokenTypes.keyword,
         }
         results[#results+1] = {
@@ -331,6 +386,9 @@ local Care = util.switch()
         }
     end)
     : case 'label'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
@@ -344,6 +402,9 @@ local Care = util.switch()
     end)
     : case 'binary'
     : case 'unary'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
@@ -356,6 +417,9 @@ local Care = util.switch()
     end)
     : case 'boolean'
     : case 'nil'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
@@ -368,6 +432,9 @@ local Care = util.switch()
         }
     end)
     : case 'string'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
@@ -387,8 +454,8 @@ local Care = util.switch()
                     mod = define.TokenModifiers.modification
                 end
                 results[#results+1] = {
-                    start      = escs[i],
-                    finish     = escs[i + 1],
+                    start      = escs[i] --[[@as integer]],
+                    finish     = escs[i + 1] --[[@as integer]],
                     type       = define.TokenTypes.string,
                     modifieres = mod,
                 }
@@ -396,6 +463,9 @@ local Care = util.switch()
         end
     end)
     : case 'integer'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
@@ -408,6 +478,9 @@ local Care = util.switch()
         }
     end)
     : case 'number'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.keyword then
             return
@@ -419,6 +492,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.class.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -431,6 +507,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.extends.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -442,6 +521,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.type.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -470,6 +552,9 @@ local Care = util.switch()
     end)
     : case 'doc.alias.name'
     : case 'doc.enum.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -481,6 +566,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.param.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -492,6 +580,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.field'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -505,6 +596,9 @@ local Care = util.switch()
         end
     end)
     : case 'doc.field.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -517,6 +611,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.return.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -528,6 +625,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.generic.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -540,6 +640,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.type.string'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -552,6 +655,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.type.function'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -562,15 +668,20 @@ local Care = util.switch()
             type       = define.TokenTypes.keyword,
         }
         if source.async then
+            -- always set together with `async` (see luadoc.lua)
+            local asyncPos = source.asyncPos --[[@as integer]]
             results[#results+1] = {
-                start      = source.asyncPos,
-                finish     = source.asyncPos + #'async',
+                start      = asyncPos,
+                finish     = asyncPos + #'async',
                 type       = define.TokenTypes.keyword,
                 modifieres = define.TokenModifiers.async,
             }
         end
     end)
     : case 'doc.type.table'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -582,6 +693,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.type.arg.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -594,6 +708,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.version.unit'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -605,6 +722,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.see.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -616,17 +736,25 @@ local Care = util.switch()
         }
     end)
     : case 'doc.diagnostic'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
         end
+        -- always set on a 'doc.diagnostic' node (see parser/luadoc.lua)
+        local mode = source.mode --[[@as string]]
         results[#results+1] = {
             start      = source.start,
-            finish     = source.start + #source.mode,
+            finish     = source.start + #mode,
             type       = define.TokenTypes.keyword,
         }
     end)
     : case 'doc.diagnostic.name'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -639,6 +767,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.module'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -651,6 +782,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.tailcomment'
+    ---@param source parser.object
+    ---@param options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, options, results)
         if not options.annotation then
             return
@@ -662,6 +796,9 @@ local Care = util.switch()
         }
     end)
     : case 'nonstandardSymbol.comment'
+    ---@param source parser.object
+    ---@param _options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, _options, results)
         results[#results+1] = {
             start  = source.start,
@@ -670,6 +807,9 @@ local Care = util.switch()
         }
     end)
     : case 'nonstandardSymbol.continue'
+    ---@param source parser.object
+    ---@param _options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, _options, results)
         results[#results+1] = {
             start  = source.start,
@@ -678,6 +818,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.cast.block'
+    ---@param source parser.object
+    ---@param _options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, _options, results)
         results[#results+1] = {
             start      = source.start,
@@ -686,6 +829,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.cast.name'
+    ---@param source parser.object
+    ---@param _options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, _options, results)
         results[#results+1] = {
             start      = source.start,
@@ -694,6 +840,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.type.code'
+    ---@param source parser.object
+    ---@param _options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, _options, results)
         results[#results+1] = {
             start      = source.start,
@@ -703,6 +852,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.operator.name'
+    ---@param source parser.object
+    ---@param _options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, _options, results)
         results[#results+1] = {
             start      = source.start,
@@ -711,6 +863,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.meta.name'
+    ---@param source parser.object
+    ---@param _options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, _options, results)
         results[#results+1] = {
             start      = source.start,
@@ -719,6 +874,9 @@ local Care = util.switch()
         }
     end)
     : case 'doc.attr'
+    ---@param source parser.object
+    ---@param _options semantic.options
+    ---@param results semantic.token[]
     : call(function (source, _options, results)
         results[#results+1] = {
             start      = source.start,
@@ -727,7 +885,8 @@ local Care = util.switch()
         }
     end)
 
----@param results table
+---@param results semantic.packedToken[]
+---@return integer[]
 local function buildTokens(results)
     local tokens = {}
     local lastLine = 0
@@ -764,6 +923,9 @@ local function buildTokens(results)
 end
 
 ---@async
+---@param state parser.state
+---@param results semantic.token[]
+---@return semantic.packedToken[]
 local function solveMultilineAndOverlapping(state, results)
     table.sort(results, function (a, b)
         if a.start == b.start then
@@ -870,7 +1032,9 @@ local function solveMultilineAndOverlapping(state, results)
 end
 
 ---@async
+---@return semantic.token[]|integer[]
 return function (uri, start, finish)
+    ---@type semantic.token[]
     local results = {}
     if not config.get(uri, 'Lua.semantic.enable') then
         return results
@@ -880,10 +1044,12 @@ return function (uri, start, finish)
         return results
     end
 
+    ---@type semantic.options
     local options = {
         uri        = uri,
         state      = state,
-        text       = files.getText(uri),
+        -- non-nil: the file's text is loaded whenever its state is (just checked above)
+        text       = files.getText(uri) --[[@as string]],
         libGlobals = {},
         variable   = config.get(uri, 'Lua.semantic.variable'),
         annotation = config.get(uri, 'Lua.semantic.annotation'),
@@ -905,10 +1071,8 @@ return function (uri, start, finish)
 
     for _, comm in ipairs(state.comms) do
         -- skip virtual comment
-        if comm.virtual then
-            return
-        end
-        if start <= comm.start and comm.finish <= finish then
+        if not comm.virtual
+        and start <= comm.start and comm.finish <= finish then
             -- the same logic as in buildLuaDoc
             local headPos = (comm.type == 'comment.short' and comm.text:match '^%-%s*[@|]()')
                          or (comm.type == 'comment.long'  and comm.text:match '^%s*@()')

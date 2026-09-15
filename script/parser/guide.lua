@@ -73,7 +73,7 @@ local type         = type
 ---@field keyword               integer[]
 ---@field casts                 parser.object[]
 ---@field locPos?              integer
----@field mode?                 '+' | '-'
+---@field mode?                 '+' | '-' | 'disable-next-line' | 'disable-line' | 'disable' | 'enable' -- '+'/'-' on some doc-type nodes, the rest on 'doc.diagnostic' nodes
 ---@field hasGoTo?              true
 ---@field hasReturn?            true
 ---@field hasBreak?             true
@@ -87,6 +87,9 @@ local type         = type
 ---@field varargRef?            boolean|parser.object -- compile.lua sets this to the vararg node itself; only ever read for truthiness
 ---@field const?                boolean
 ---@field groups?               parser.object[]
+---@field asyncPos?             integer -- set by luadoc.lua on '@async' doc nodes
+---@field typeGeneric?          boolean -- read by semantic-tokens.lua but never actually set anywhere; dead
+---@field escs?                 table<integer, integer|string> -- read by semantic-tokens.lua but never actually set anywhere; dead
 ---@field package _root         parser.object
 ---@field package _eachCache?   parser.object[]
 ---@field package _isGlobal?    boolean

@@ -35,6 +35,10 @@ function m.skipSpace(text, offset, inline)
     return 0
 end
 
+---@param text string
+---@param offset integer
+---@return string? word
+---@return integer? start
 function m.findWord(text, offset)
     for i = offset, 1, -1 do
         if not text:sub(i, i):match '[%w_\x80-\xff]' then
@@ -47,6 +51,10 @@ function m.findWord(text, offset)
     return text:sub(1, offset), 1
 end
 
+---@param text string
+---@param offset integer
+---@return string? symbol
+---@return integer? start
 function m.findSymbol(text, offset)
     for i = offset, 1, -1 do
         local char = text:sub(i, i)
@@ -68,6 +76,10 @@ function m.findSymbol(text, offset)
     end
 end
 
+---@param text string
+---@param offset integer
+---@param symbol string
+---@return integer?
 function m.findTargetSymbol(text, offset, symbol)
     offset = m.skipSpace(text, offset)
     for i = offset, 1, -1 do
@@ -83,6 +95,7 @@ end
 ---@param text string
 ---@param offset integer
 ---@param inline? boolean # 必须在同一行中（排除换行符）
+---@return integer?
 function m.findAnyOffset(text, offset, inline)
     for i = offset, 1, -1 do
         local c = text:sub(i, i)

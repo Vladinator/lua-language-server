@@ -4,6 +4,10 @@ local vm         = require 'vm'
 local findSource = require 'core.find-source'
 local jumpSource = require 'core.jump-source'
 
+---@class core.reference.result: jump-source.result
+---@field source parser.object
+
+---@param results core.reference.result[]
 local function sortResults(results)
     -- 先按照顺序排序
     table.sort(results, function (a, b)
@@ -58,6 +62,7 @@ local accept = {
 ---@param uri uri
 ---@param position integer
 ---@param includeDeclaration boolean
+---@return core.reference.result[]?
 return function (uri, position, includeDeclaration)
     local ast = files.getState(uri)
     if not ast then
@@ -73,6 +78,7 @@ return function (uri, position, includeDeclaration)
 
     local refs = vm.getRefs(source)
 
+    ---@type core.reference.result[]
     local results = {}
     for _, ref in ipairs(refs) do
         local src = ref

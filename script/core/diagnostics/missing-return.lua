@@ -21,6 +21,7 @@ local function hasReturn(block)
         return true
     end
     if block.type == 'if' then
+        ---@type boolean?
         local hasElse
         for _, subBlock in ipairs(block) do
             if not hasReturn(subBlock) then
@@ -71,6 +72,7 @@ return function (uri, callback)
             return
         end
         local lastAction = source[#source]
+        ---@type integer
         local pos
         if lastAction then
             pos = lastAction.range or lastAction.finish

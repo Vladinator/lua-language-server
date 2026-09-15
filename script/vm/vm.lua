@@ -10,10 +10,17 @@ local mathHuge       = math.huge
 local weakMT = { __mode = 'kv' }
 
 ---@class vm
+---@field cacheTracker table<table, boolean>
+---@field cache {[string]: table, dead?: boolean}
+---@field cacheVersion? integer
+---@field cacheActiveTime? number
+---@field locked? table<any, boolean>
 local m = {}
 
 m.ID_SPLITE = '\x1F'
 
+---@param source parser.object?
+---@return string?
 function m.getSpecial(source)
     if not source then
         return nil
@@ -37,6 +44,7 @@ function m.getKeyName(source)
     return guide.getKeyName(source)
 end
 
+---@param source parser.object?
 function m.getKeyType(source)
     if not source then
         return nil

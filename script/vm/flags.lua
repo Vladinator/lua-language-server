@@ -78,6 +78,7 @@ end
 ---@param source parser.object
 ---@return table<string, boolean>?
 function vm.deriveFlags(source)
+    ---@type table<string, boolean>?
     local flags
     for name, deriver in pairs(flagDerivers) do
         if deriver(source) then

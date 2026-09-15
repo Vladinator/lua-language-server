@@ -3,6 +3,7 @@ local client = require 'client'
 local await  = require 'await'
 
 ---@async
+---@param data {uri: uri, key: string}[]
 return function (data)
     local uri = data[1].uri
     local key = data[1].key

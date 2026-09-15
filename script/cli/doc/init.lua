@@ -140,6 +140,7 @@ end
 ---runtime call for documentation exporting
 ---@async
 ---@param outputPath string
+---@return string ... docPath, mdPath, and any further exported paths
 function doc.makeDoc(outputPath)
     ws.awaitReady(ws.rootUri)
 

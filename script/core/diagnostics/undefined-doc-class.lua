@@ -22,6 +22,7 @@ return function (uri, callback)
         return
     end
 
+    ---@type table<any, boolean>
     local cache = {}
 
     for _, doc in ipairs(state.ast.docs) do

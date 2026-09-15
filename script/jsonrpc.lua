@@ -7,6 +7,8 @@ local tonumber = tonumber
 local m = {}
 m.type = 'jsonrpc'
 
+---@param pack table
+---@return string
 function m.encode(pack)
     pack.jsonrpc = '2.0'
     local content = json.encode(pack)
@@ -15,7 +17,10 @@ function m.encode(pack)
 end
 
 ---@param reader fun(arg: integer):string
+---@return table<string, string|number>? head
+---@return string? err
 local function readProtoHead(reader)
+    ---@type table<string, string|number>
     local head = {}
     local line = ''
     while true do
@@ -46,6 +51,8 @@ local function readProtoHead(reader)
 end
 
 ---@param reader fun(arg: integer):string
+---@return any res
+---@return string? err
 function m.decode(reader)
     local head, err = readProtoHead(reader)
     if not head then
@@ -55,6 +62,7 @@ function m.decode(reader)
     if not len then
         return nil, 'Proto header error: ' .. inspect(head)
     end
+    ---@cast len integer -- tonumber() was applied to this specific key in readProtoHead
     local content = reader(len)
     if not content then
         return nil, 'Proto read error'

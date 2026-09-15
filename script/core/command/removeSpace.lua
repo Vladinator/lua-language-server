@@ -5,6 +5,7 @@ local lang      = require 'language'
 local converter = require 'proto.converter'
 
 ---@async
+---@param data {uri: uri}
 return function (data)
     local uri   = data.uri
     local text  = files.getText(uri)
@@ -14,6 +15,7 @@ return function (data)
     end
 
     local lines = state.lines
+    ---@type {range: range, newText: string}[]
     local textEdit = {}
     for i = 0, #lines do
         local startOffset  = lines[i]

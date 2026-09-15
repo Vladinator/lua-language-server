@@ -2,8 +2,10 @@ local sfind = string.find
 local ssub  = string.sub
 
 ---@param text string
+---@return { [integer]: integer, size: integer }
 return function (text)
     local current = 1
+    ---@type { [integer]: integer, size: integer }
     local lines = {}
     lines[0] = 1
     lines.size = #text

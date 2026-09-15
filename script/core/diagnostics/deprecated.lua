@@ -66,6 +66,7 @@ return function (uri, callback)
         await.delay()
 
         local message = MESSAGE
+        ---@type string[]?
         local versions
         if deprecated.type == 'doc.version' then
             local validVersions = vm.getValidVersions(deprecated)

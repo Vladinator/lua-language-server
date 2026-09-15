@@ -5,6 +5,7 @@ local ws    = require 'workspace'
 ---@param doc parser.object
 ---@return uri
 local function parseUri(doc)
+    ---@type string
     local uri
     local scheme = furi.split(doc.path)
     if scheme and #scheme >= 2 then

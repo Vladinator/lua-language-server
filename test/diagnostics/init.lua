@@ -48,6 +48,8 @@ local function founded(targets, results)
 end
 
 ---@diagnostic disable: await-in-sync
+---@param script string
+---@param version? string
 function TEST(script, version)
     if version then
         config.set(nil, 'Lua.runtime.version', version)
@@ -55,8 +57,11 @@ function TEST(script, version)
     local newScript, catched = catch(script, '!')
     files.setText(TESTURI, newScript)
     files.open(TESTURI)
+    ---@type any[]
     local origins = {}
+    ---@type any[]
     local filteds = {}
+    ---@type any[]
     local results = {}
     core(TESTURI, false, function (result)
         if DIAG_CARE == result.code
@@ -80,6 +85,7 @@ function TEST(script, version)
         config.set(nil, 'Lua.runtime.version', nil)
     end
 
+    ---@param callback fun(diags: any[])
     return function (callback)
         callback(filteds)
     end

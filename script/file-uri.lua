@@ -88,6 +88,10 @@ function m.decode(uri)
     return value
 end
 
+---@param uri string
+---@return string? scheme
+---@return string? authority
+---@return string? path
 function m.split(uri)
     return uri:match('([^:]*):/?/?([^/]*)(.*)')
 end

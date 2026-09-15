@@ -30,6 +30,7 @@ return function (uri, callback)
         if not bindGroup then
             goto CONTINUE
         end
+        ---@cast bindGroup parser.object[]
         for _, other in ipairs(bindGroup) do
             if  other ~= doc
             and other.type == 'doc.param'

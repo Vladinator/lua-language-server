@@ -61,6 +61,7 @@ local function TEST(data)
         return
     end
     assert(result ~= nil)
+    ---@diagnostic disable-next-line: inject-field -- test-only: clears a legacy field that no longer exists on the type
     result.complete = nil
     result.enableCommon = nil
     if NeedRemoveMeta then

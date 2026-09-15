@@ -106,6 +106,7 @@ function TEST(script)
             end
         end
         assert(result)
+        ---@diagnostic disable-next-line: inject-field -- test-only: clears a legacy field that no longer exists on the type
         result.complete = nil
         if type(expect) == 'function' then
             expect(result)

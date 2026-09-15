@@ -31,6 +31,36 @@ local diagnosticModes = {
     'enable',
 }
 
+---@class vm.completion.edit
+---@field start integer
+---@field finish integer
+---@field newText string
+
+--- One entry of the `results` array threaded through this whole file.
+--- Fields beyond `label` are populated selectively by whichever
+--- completion source produced this entry; see provider.lua's
+--- 'textDocument/completion' handler for which of these actually cross
+--- the wire to the client (the rest, like `match`, are used only
+--- internally within this file for filtering/sorting).
+---@class vm.completion.result
+---@field label string
+---@field kind? integer
+---@field id? integer
+---@field detail? string
+---@field description? string|table
+---@field deprecated? boolean
+---@field sortText? string
+---@field filterText? string
+---@field insertText? string
+---@field insertTextFormat? integer
+---@field commitCharacters? string[]
+---@field command? table
+---@field textEdit? vm.completion.edit
+---@field additionalTextEdits? vm.completion.edit[]
+---@field match? string
+
+---@alias completion.results { [integer]: vm.completion.result, incomplete?: boolean, enableCommon?: boolean }
+
 local stackID = 0
 local stacks = {}
 
@@ -61,6 +91,8 @@ local function clearStack()
 end
 
 ---@async
+---@param id integer
+---@return table?
 local function resolveStack(id)
     local callback = stacks[id]
     if not callback then
@@ -285,6 +317,7 @@ local function buildDesc(source)
     return desc
 end
 
+---@param results completion.results
 local function buildFunction(results, source, value, oop, data)
     local snipType = config.get(guide.getUri(source), 'Lua.completion.callSnippet')
     if snipType == 'Disable' or snipType == 'Both' then
@@ -344,6 +377,7 @@ local function getParams(func, oop)
     return '(' .. table.concat(args, ', ') .. ')'
 end
 
+---@param results completion.results
 local function checkLocal(state, word, position, results)
     local locals = guide.getVisibleLocals(state.ast, position)
     local showParams = config.get(state.uri, 'Lua.completion.showParams')
@@ -412,6 +446,7 @@ local function checkLocal(state, word, position, results)
     end
 end
 
+---@param results completion.results
 local function checkModule(state, word, position, results)
     if not config.get(state.uri, 'Lua.completion.autoRequire') then
         return
@@ -500,6 +535,7 @@ local function checkFieldFromFieldToIndex(state, name, parent, word, position)
     return textEdit, additionalTextEdits
 end
 
+---@param results completion.results
 local function checkFieldThen(state, name, src, word, position, parent, oop, results)
     local value = vm.getObjectFunctionValue(src) or src
     local kind = define.CompletionItemKind.Field
@@ -562,6 +598,7 @@ local function checkFieldThen(state, name, src, word, position, parent, oop, res
 end
 
 ---@async
+---@param results completion.results
 local function checkFieldOfRefs(refs, state, word, startPos, position, parent, oop, results, locals, isGlobal)
     local fields = {}
     local funcs  = {}
@@ -670,6 +707,7 @@ local function checkFieldOfRefs(refs, state, word, startPos, position, parent, o
 end
 
 ---@async
+---@param results completion.results
 local function checkGlobal(state, word, startPos, position, parent, oop, results)
     local locals = guide.getVisibleLocals(state.ast, position)
     local globals = vm.getGlobalSets(state.uri, 'variable')
@@ -678,6 +716,7 @@ end
 
 ---@async
 ---@param parent parser.object
+---@param results completion.results
 local function checkField(state, word, start, position, parent, oop, results)
     if parent.tag == '_ENV' or parent.special == '_G' then
         local globals = vm.getGlobalSets(state.uri, 'variable')
@@ -688,6 +727,7 @@ local function checkField(state, word, start, position, parent, oop, results)
     end
 end
 
+---@param results completion.results
 local function checkTableField(state, word, start, results)
     local source = guide.eachSourceContain(state.ast, start, function (source)
         if  source.start == start
@@ -717,6 +757,7 @@ local function checkTableField(state, word, start, results)
     end)
 end
 
+---@param results completion.results
 local function checkCommon(state, word, position, results)
     local myUri = state.uri
     local showWord = config.get(state.uri, 'Lua.completion.showWord')
@@ -805,6 +846,7 @@ local function checkCommon(state, word, position, results)
     end
 end
 
+---@param results completion.results
 local function checkKeyWord(state, start, position, word, hasSpace, afterLocal, results)
     local text = state.lua
     local snipType = config.get(state.uri, 'Lua.completion.keywordSnippet')
@@ -877,6 +919,7 @@ local function checkKeyWord(state, start, position, word, hasSpace, afterLocal, 
     end
 end
 
+---@param results completion.results
 local function checkProvideLocal(state, word, start, results)
     local block
     guide.eachSourceContain(state.ast, start, function (source)
@@ -913,6 +956,7 @@ local function checkProvideLocal(state, word, start, results)
     end)
 end
 
+---@param results completion.results
 local function checkFunctionArgByDocParam(state, word, startPos, results)
     local func = guide.eachSourceContain(state.ast, startPos, function (source)
         if source.type == 'function' then
@@ -965,6 +1009,7 @@ local function isAfterLocal(state, text, startPos)
     return word == 'local'
 end
 
+---@param results completion.results
 local function collectRequireNames(mode, myUri, literal, source, smark, position, results)
     local collect = {}
     local source_start   = source and smark and (source.start + #smark) or position
@@ -1071,6 +1116,7 @@ local function collectRequireNames(mode, myUri, literal, source, smark, position
     end
 end
 
+---@param results completion.results
 local function checkUri(state, position, results)
     local myUri = guide.getUri(state.ast)
     guide.eachSourceContain(state.ast, position, function (source)
@@ -1099,6 +1145,7 @@ local function checkUri(state, position, results)
     end)
 end
 
+---@param results completion.results
 local function checkLenPlusOne(state, position, results)
     local text = state.lua
     if not text then
@@ -1375,6 +1422,7 @@ local function insertEnum(state, pos, src, enums, isInArray, mark)
     end
 end
 
+---@param results completion.results
 local function checkTypingEnum(state, position, defs, str, results, isInArray)
     local enums = {}
     for _, def in ipairs(defs) do
@@ -1386,6 +1434,7 @@ local function checkTypingEnum(state, position, defs, str, results, isInArray)
     end
 end
 
+---@param results completion.results
 local function checkEqualEnumLeft(state, position, source, results, isInArray)
     if not source then
         return
@@ -1399,6 +1448,7 @@ local function checkEqualEnumLeft(state, position, source, results, isInArray)
     checkTypingEnum(state, position, defs, str, results, isInArray)
 end
 
+---@param results completion.results
 local function checkEqualEnum(state, position, results)
     local text  = state.lua
     if not text then
@@ -1428,6 +1478,7 @@ local function checkEqualEnum(state, position, results)
     checkEqualEnumLeft(state, position, source, results)
 end
 
+---@param results completion.results
 local function checkEqualEnumInString(state, position, results)
     local source = findNearestSource(state, position)
     local parent = source.parent
@@ -1471,6 +1522,7 @@ local function isFuncArg(state, position)
     end)
 end
 
+---@param results completion.results
 local function trySpecial(state, position, results)
     if guide.isInString(state.ast, position) then
         checkUri(state, position, results)
@@ -1484,6 +1536,7 @@ local function trySpecial(state, position, results)
 end
 
 ---@async
+---@param results completion.results
 local function tryIndex(state, position, results)
     local parent, oop = findParentInStringIndex(state, position)
     if not parent then
@@ -1497,6 +1550,7 @@ local function tryIndex(state, position, results)
 end
 
 ---@async
+---@param results completion.results
 local function tryWord(state, position, triggerCharacter, results)
     if triggerCharacter == '('
     or triggerCharacter == '#'
@@ -1560,6 +1614,7 @@ local function tryWord(state, position, triggerCharacter, results)
 end
 
 ---@async
+---@param results completion.results
 local function trySymbol(state, position, results)
     local text = state.lua
     local symbol, start = lookBackward.findSymbol(text, guide.positionToOffset(state, position))
@@ -1609,6 +1664,7 @@ local function getCallArgInfo(call, position)
     return #call.args + 1, nil
 end
 
+---@param results completion.results
 local function checkTableLiteralField(state, position, tbl, fields, results)
     local text = state.lua
     if not text then
@@ -1673,6 +1729,7 @@ local function checkTableLiteralField(state, position, tbl, fields, results)
     end
 end
 
+---@param results completion.results
 local function tryCallArg(state, position, results)
     local call = findCall(state, position)
     if not call then
@@ -1698,6 +1755,7 @@ local function tryCallArg(state, position, results)
     end
 end
 
+---@param results completion.results
 local function tryTable(state, position, results)
     local tbl = findNearestTable(state, position)
     if not tbl then
@@ -1723,6 +1781,7 @@ local function tryTable(state, position, results)
     return false
 end
 
+---@param results completion.results
 local function tryArray(state, position, results)
     local source = findNearestSource(state, position)
     if not source then
@@ -1772,6 +1831,7 @@ local function getLuaDoc(state, position)
     return nil
 end
 
+---@param results completion.results
 local function tryluaDocCate(word, results)
     for _, docType in ipairs {
         'class',
@@ -1852,6 +1912,7 @@ local function getluaDocByErr(state, start, position)
 end
 
 ---@async
+---@param results completion.results
 local function tryluaDocBySource(state, position, source, results)
     if     source.type == 'doc.extends.name' then
         if source.parent.type == 'doc.class' then
@@ -2027,6 +2088,7 @@ local function tryluaDocBySource(state, position, source, results)
 end
 
 ---@async
+---@param results completion.results
 local function tryluaDocByErr(state, position, err, docState, results)
     if     err.type == 'LUADOC_MISS_CLASS_EXTENDS_NAME' then
         local used = {}
@@ -2227,6 +2289,7 @@ local function buildluaDocOfFunction(func, pad)
     return insertText
 end
 
+---@param results completion.results
 local function tryluaDocOfFunction(doc, results, pad)
     if not doc.bindSource then
         return
@@ -2261,6 +2324,7 @@ end
 
 ---Checks for a lua symbol reference in comment
 ---@async
+---@param results completion.results
 local function trySymbolReference(state, position, results)
     local doc = getLuaDoc(state, position)
     if not doc then
@@ -2289,6 +2353,7 @@ local function trySymbolReference(state, position, results)
 end
 
 ---@async
+---@param results completion.results
 local function tryLuaDoc(state, position, results)
     local doc = getLuaDoc(state, position)
     if not doc then
@@ -2324,6 +2389,7 @@ local function tryLuaDoc(state, position, results)
     end
 end
 
+---@param results completion.results
 local function tryComment(state, position, results)
     if #results > 0 then
         return
@@ -2357,6 +2423,7 @@ local function tryComment(state, position, results)
 end
 
 ---@async
+---@param results completion.results
 local function tryCompletions(state, position, triggerCharacter, results)
     if getComment(state, position) then
         trySymbolReference(state, position, results)
@@ -2379,6 +2446,7 @@ local function tryCompletions(state, position, triggerCharacter, results)
 end
 
 ---@async
+---@return completion.results?
 local function completion(uri, position, triggerCharacter)
     local state = files.getLastState(uri) or files.getState(uri)
     if not state then
@@ -2387,6 +2455,7 @@ local function completion(uri, position, triggerCharacter)
     clearStack()
     diagnostic.pause()
     local _ <close> = diagnostic.resume
+    ---@type completion.results
     local results = {}
     tracy.ZoneBeginN 'completion #2'
     tryCompletions(state, position, triggerCharacter, results)
@@ -2400,6 +2469,8 @@ local function completion(uri, position, triggerCharacter)
 end
 
 ---@async
+---@param id integer
+---@return table?
 local function resolve(id)
     local item = resolveStack(id)
     return item

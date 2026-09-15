@@ -48,11 +48,12 @@ mt.fastCalc    = true
 function mt:getCasts()
     local root = guide.getRoot(self.main)
     if not root._casts then
-        root._casts = {}
+        local casts = {}
+        root._casts = casts
         local docs = root.docs
         for _, doc in ipairs(docs) do
             if doc.type == 'doc.cast' and doc.name then
-                root._casts[#root._casts+1] = doc
+                casts[#casts+1] = doc
             end
         end
     end
@@ -240,7 +241,8 @@ function mt:fastWardCasts(pos, node)
     if not self.castIndex then
         return node
     end
-    for i = self.castIndex, #self.casts do
+    local castIndex = self.castIndex
+    for i = castIndex, #self.casts do
         local action = self.casts[i]
         if action.start > pos then
             return node
@@ -269,7 +271,7 @@ function mt:fastWardCasts(pos, node)
             end
         end
     end
-    self.castIndex = self.castIndex + 1
+    self.castIndex = castIndex + 1
     return node
 end
 
@@ -475,8 +477,9 @@ local lookIntoChild = util.switch()
             if lastAssign then
                 tracer:getNode(lastAssign)
             end
-            if tracer.nodes[action] then
-                topNode = tracer.nodes[action]:copy()
+            local actionNode = tracer.nodes[action]
+            if actionNode then
+                topNode = actionNode:copy()
             end
         end
         if action.type == 'repeat' then
@@ -497,8 +500,9 @@ local lookIntoChild = util.switch()
             if lastAssign then
                 tracer:getNode(lastAssign)
             end
-            if tracer.nodes[action] then
-                topNode = tracer.nodes[action]:copy()
+            local actionNode = tracer.nodes[action]
+            if actionNode then
+                topNode = actionNode:copy()
             end
         end
         return topNode, outNode
@@ -522,8 +526,9 @@ local lookIntoChild = util.switch()
             if lastAssign then
                 tracer:getNode(lastAssign)
             end
-            if tracer.nodes[action] then
-                topNode = mainNode:merge(tracer.nodes[action])
+            local actionNode = tracer.nodes[action]
+            if actionNode then
+                topNode = mainNode:merge(actionNode)
             end
         end
         if action.filter then
@@ -946,12 +951,13 @@ function mt:getFallbackFieldNode(source, variable)
         -- never needs this fallback.
         return nil
     end
-    if #self.assigns > 0 then
-        -- there IS a real explicit reassignment somewhere; if getNode
-        -- didn't already resolve narrowing through it, don't
-        -- second-guess that with a fallback anchored elsewhere.
-        return nil
-    end
+    -- Note: an explicit reassignment elsewhere in the same scope
+    -- (self.assigns non-empty) does NOT disqualify this fallback -- only
+    -- one *before* this read would (and getNode's own getLastAssign
+    -- search, tried before this fallback runs, already handles that
+    -- case). A later reassignment is irrelevant to this read, and the
+    -- forward walk below stops at it naturally via lookIntoBlock's own
+    -- assignMap check, so it can never leak into what this read sees.
     local initialNode = vm.compileNode(source)
     if not initialNode or initialNode:isEmpty() then
         return nil

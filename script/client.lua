@@ -313,6 +313,7 @@ local function makeConfigPatch(uri, cfg, change)
             }
         end
     elseif change.action == 'prop' then
+        assert(change.prop)
         if type(info.value) == 'table' and next(info.value) then
             return {
                 op    = 'add',

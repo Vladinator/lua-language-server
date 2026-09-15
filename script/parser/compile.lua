@@ -5115,11 +5115,11 @@ local function initState(lua, version, options)
 
     pushError = function (err)
         local errs = state.errs
-        if err.finish < err.start then
+        if err.start and err.finish and err.finish < err.start then
             err.finish = err.start
         end
         local last = errs[#errs]
-        if last then
+        if last and last.start and last.finish and err.start and err.finish then
             if last.start <= err.start and last.finish >= err.finish then
                 return
             end

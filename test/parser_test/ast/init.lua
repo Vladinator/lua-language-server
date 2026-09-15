@@ -146,12 +146,13 @@ local function test(type)
                 error(('语法树生成失败：%s'):format(err))
             end
             parser.luadoc(state)
-            for _, doc in ipairs(state.ast.docs) do
+            local docs = assert(state.ast.docs)
+            for _, doc in ipairs(docs) do
                 doc.bindGroup = nil
                 doc.bindSources = nil
             end
-            state.ast.docs.groups = nil
-            local result = utility.dump(state.ast.docs, myOption)
+            docs.groups = nil
+            local result = utility.dump(docs, myOption)
             local expect = utility.dump(target_doc, targetOption)
             if result ~= expect then
                 fs.create_directories(ROOT / 'test' / 'log')

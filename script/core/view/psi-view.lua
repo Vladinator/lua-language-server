@@ -52,28 +52,32 @@ local function collectPsi(astNode, state)
         return
     end
 
+    local children
     guide.eachChild(astNode, function(child)
-        if psiNode.children == nil then
-            psiNode.children = {}
+        if not children then
+            children = {}
+            psiNode.children = children
         end
 
         local psi = collectPsi(child, state)
         if psi then
-            psiNode.children[#psiNode.children+1] = psi
+            children[#children+1] = psi
         end
     end)
 
-    if psiNode.children and #psiNode.children > 0 and psiNode.attr then
+    if children and #children > 0 and psiNode.attr then
         local range = psiNode.attr.range
-        if range.start > psiNode.children[1].attr.range.start then
-            range.start = psiNode.children[1].attr.range.start
+        local firstAttr = children[1].attr
+        local lastAttr  = children[#children].attr
+        if firstAttr and range.start > firstAttr.range.start then
+            range.start = firstAttr.range.start
         end
-        if range["end"] < psiNode.children[#psiNode.children].attr.range["end"] then
-            range["end"] = psiNode.children[#psiNode.children].attr.range["end"]
+        if lastAttr and range["end"] < lastAttr.range["end"] then
+            range["end"] = lastAttr.range["end"]
         end
     end
 
-    if not psiNode.children then
+    if not children then
         local subber = subString(state)
         local showText = subber(astNode.start + 1, astNode.finish)
         if string.len(showText) > 30 then

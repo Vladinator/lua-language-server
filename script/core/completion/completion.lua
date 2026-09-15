@@ -1646,7 +1646,7 @@ local function checkTableLiteralField(state, position, tbl, fields, results)
             and not mark[name]
             and matchKey(left, tostring(name)) then
                 local res = {
-                    label      = guide.getKeyName(field),
+                    label      = name,
                     kind       = define.CompletionItemKind.Property,
                     id         = stack(field, function (newField) ---@async
                         return {

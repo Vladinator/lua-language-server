@@ -202,6 +202,9 @@ function m.createFolder(uri, folderName)
 
     local inserted = false
     for i, otherScope in ipairs(m.folders) do
+        -- every entry in m.folders was added by this same function,
+        -- which always sets .uri
+        assert(otherScope.uri)
         if #uri > #otherScope.uri then
             table.insert(m.folders, i, scope)
             inserted = true

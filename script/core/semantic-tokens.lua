@@ -916,6 +916,7 @@ return function (uri, start, finish)
                 -- absolute position of `@` symbol
                 local startOffset = comm.start + headPos
                 if comm.type == 'comment.long' then
+                    assert(comm.mark)
                     startOffset = comm.start + headPos + #comm.mark - 2
                 end
                 results[#results+1] = {

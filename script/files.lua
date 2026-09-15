@@ -410,9 +410,10 @@ function m.delRef(uri)
     if not file then
         return
     end
-    file.ref = (file.ref or 0) - 1
-    log.debug('del ref', uri, file.ref)
-    if file.ref <= 0 and not m.isOpen(uri) then
+    local ref = (file.ref or 0) - 1
+    file.ref = ref
+    log.debug('del ref', uri, ref)
+    if ref <= 0 and not m.isOpen(uri) then
         m.remove(uri)
     end
 end
@@ -509,7 +510,7 @@ function m.compileStateThen(state, file)
     parser.luadoc(state)
     local passed = os.clock() - clock
     if passed > 0.1 then
-        log.warn(('Parse LuaDoc of [%s] takes [%.3f] sec, size [%.3f] kb.'):format(file.uri, passed, #file.text / 1000))
+        log.warn(('Parse LuaDoc of [%s] takes [%.3f] sec, size [%.3f] kb.'):format(file.uri, passed, #(file.text or '') / 1000))
     end
 
     if LAZY and not file.trusted then
@@ -519,12 +520,13 @@ function m.compileStateThen(state, file)
         state = lazy.build(state, cache:writterAndReader(id)):entry()
         passed = os.clock() - clock
         if passed > 0.1 then
-            log.warn(('Convert lazy-table for [%s] takes [%.3f] sec, size [%.3f] kb.'):format(file.uri, passed, #file.text / 1000))
+            log.warn(('Convert lazy-table for [%s] takes [%.3f] sec, size [%.3f] kb.'):format(file.uri, passed, #(file.text or '') / 1000))
         end
     end
 
-    file.compileCount = file.compileCount + 1
-    if file.compileCount >= 3 then
+    local compileCount = (file.compileCount or 0) + 1
+    file.compileCount = compileCount
+    if compileCount >= 3 then
         file.state = state
         log.debug('State persistence:', file.uri)
     end
@@ -543,7 +545,7 @@ function m.checkPreload(uri)
     local client = require 'client'
     if  not m.isOpen(uri)
     and not m.isLibrary(uri)
-    and #file.text >= config.get(uri, 'Lua.workspace.preloadFileSize') * 1000 then
+    and #(file.text or '') >= config.get(uri, 'Lua.workspace.preloadFileSize') * 1000 then
         if not m.notifyCache['preloadFileSize'] then
             m.notifyCache['preloadFileSize'] = {}
             m.notifyCache['skipLargeFileCount'] = 0
@@ -554,7 +556,7 @@ function m.checkPreload(uri)
             local message = lang.script('WORKSPACE_SKIP_LARGE_FILE'
                         , ws.getRelativePath(uri)
                         , config.get(uri, 'Lua.workspace.preloadFileSize')
-                        , #file.text / 1000
+                        , #(file.text or '') / 1000
                     )
             if m.notifyCache['skipLargeFileCount'] <= 1 then
                 client.showMessage('Info', message)
@@ -659,7 +661,7 @@ function m.compileState(uri)
     )
     local passed = os.clock() - clock
     if passed > 0.1 then
-        log.warn(('Compile [%s] takes [%.3f] sec, size [%.3f] kb.'):format(uri, passed, #file.text / 1000))
+        log.warn(('Compile [%s] takes [%.3f] sec, size [%.3f] kb.'):format(uri, passed, #(file.text or '') / 1000))
     end
 
     if not state then

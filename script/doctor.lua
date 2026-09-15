@@ -436,15 +436,17 @@ m.snapshot = private(function ()
         type = 'root',
         info = find(registry),
     }
+    local resultInfo = result.info
+    ---@cast resultInfo -?
     if not registry[1] then
-        result.info[#result.info+1] = private0 {
+        resultInfo[#resultInfo+1] = private0 {
             type = 'thread',
             name = 'main',
             info = findMainThread(),
         }
     end
     if not registry[2] then
-        result.info[#result.info+1] = private0 {
+        resultInfo[#resultInfo+1] = private0 {
             type = '_G',
             name = '_G',
             info = find(_G),
@@ -458,7 +460,7 @@ m.snapshot = private(function ()
         ['function']  = getmetatable(function () end),
         ['thread']    = getmetatable(ccreate(function () end)),
     } do
-        result.info[#result.info+1] = private0 {
+        resultInfo[#resultInfo+1] = private0 {
             type = 'metatable',
             name = name,
             info = find(mt),

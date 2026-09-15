@@ -49,6 +49,9 @@ end
 ---@param pos integer
 ---@return position
 local function diffedPackPosition(state, pos)
+    -- only called (via m.packPosition) when files.hasDiffed(state),
+    -- which guarantees originLines/originText are populated
+    assert(state.originLines)
     local offset       = guide.positionToOffset(state, pos)
     local originOffset = files.diffedOffsetBack(state, offset)
     local originPos    = guide.offsetToPositionByLines(state.originLines, originOffset)
@@ -101,6 +104,9 @@ end
 ---@param position position
 ---@return integer
 local function diffedUnpackPosition(state, position)
+    -- only called (via m.unpackPosition) when files.hasDiffed(state),
+    -- which guarantees originLines/originText are populated
+    assert(state.originLines)
     local row, col = position.line, position.character
     if col > 0 then
         local lineOffset = state.originLines[row]

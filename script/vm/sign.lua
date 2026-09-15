@@ -404,15 +404,17 @@ function vm.getSign(source)
         if not source.bindDocs then
             return nil
         end
+        local sign = source._sign or nil
         for _, doc in ipairs(source.bindDocs) do
             if doc.type == 'doc.generic' then
-                if not source._sign then
-                    source._sign = vm.createSign()
+                if not sign then
+                    sign = vm.createSign()
+                    source._sign = sign
                 end
-                source._sign:addDocGeneric(doc)
+                sign:addDocGeneric(doc)
             end
         end
-        if not source._sign then
+        if not sign then
             return nil
         end
         if source.args then
@@ -421,7 +423,7 @@ function vm.getSign(source)
                 if arg.optional then
                     argNode:addOptional()
                 end
-                source._sign:addSign(argNode)
+                sign:addSign(argNode)
             end
         end
     end
@@ -435,7 +437,8 @@ function vm.getSign(source)
         if not hasGeneric then
             return nil
         end
-        source._sign = vm.createSign()
+        local sign = vm.createSign()
+        source._sign = sign
         if source.type == 'doc.type.function' then
             for _, arg in ipairs(source.args) do
                 if arg.extends then
@@ -443,9 +446,9 @@ function vm.getSign(source)
                     if arg.optional then
                         argNode:addOptional()
                     end
-                    source._sign:addSign(argNode)
+                    sign:addSign(argNode)
                 else
-                    source._sign:addSign(vm.createNode())
+                    sign:addSign(vm.createNode())
                 end
             end
         end

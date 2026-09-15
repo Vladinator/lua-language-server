@@ -66,6 +66,8 @@ end
 ---@async
 function mt:collectReferences()
     await.delay()
+    -- only called after a successful init(), which guarantees self.state
+    assert(self.state)
     ---@async
     guide.eachSourceType(self.state.ast, 'function', function (src)
         local parent = src.parent

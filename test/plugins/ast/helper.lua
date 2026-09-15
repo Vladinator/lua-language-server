@@ -9,20 +9,24 @@ function Run(script, plugin)
 end
 
 local function TestInsertDoc(script)
-    local state = Run(script, function (state)
+    local state = assert(Run(script, function (state)
+        assert(state)
         local comment = assert(helper.buildComment("class", "AA", state.ast[1].start))
         helper.InsertDoc(state.ast, comment)
-    end)
-    assert(state.ast[1].bindDocs)
+    end))
+    local first = assert(state.ast[1])
+    assert(first.bindDocs)
 end
 
 TestInsertDoc("A={}")
 
 local function TestaddClassDoc(script)
-    local state = Run(script, function (state)
+    local state = assert(Run(script, function (state)
+        assert(state)
         assert(helper.addClassDoc(state.ast, state.ast[1], "AA"))
-    end)
-    assert(state.ast[1].bindDocs)
+    end))
+    local first = assert(state.ast[1])
+    assert(first.bindDocs)
 end
 
 TestaddClassDoc [[a={}]]

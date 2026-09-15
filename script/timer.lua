@@ -179,7 +179,9 @@ function mt:remaining()
 end
 
 function mt:onTimer()
-    self:_onTimer()
+    if self._onTimer then
+        self:_onTimer()
+    end
 end
 
 function m.wait(timeout, onTimer)

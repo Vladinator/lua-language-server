@@ -28,6 +28,23 @@ function vm.propagateFlags(from, to)
     end
 end
 
+--- Does `node` carry any registered propagating flag at all? Lets a
+--- caller skip narrowing machinery entirely for a node with nothing a
+--- guard could possibly clear (e.g. vm/compiler.lua only traces a field
+--- access when there's a falsy type or a flag like 'secret' actually on
+--- it -- most fields are neither, so this keeps that common case cheap
+--- and avoids kicking off a field tracer where nothing could change).
+---@param node vm.node
+---@return boolean
+function vm.hasAnyPropagatingFlag(node)
+    for name in pairs(propagatingFlags) do
+        if node:hasFlag(name) then
+            return true
+        end
+    end
+    return false
+end
+
 --- Apply every true entry of a raw `{[name] = boolean}` table (e.g. one
 --- saved on a not-yet-resolved vm.generic placeholder) onto a node.
 ---@param flags table<string, boolean>?

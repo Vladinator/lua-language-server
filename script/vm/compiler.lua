@@ -745,21 +745,27 @@ end
 ---@return (parser.object|vm.generic)?
 function vm.getReturnOfFunction(func, index)
     if func.type == 'function' then
-        if not func._returns then
-            func._returns = {}
+        local returns = func._returns
+        if not returns then
+            returns = {}
+            func._returns = returns
         end
-        if not func._returns[index] then
+        if not returns[index] then
             ---@diagnostic disable-next-line: missing-fields
-            func._returns[index] = {
+            returns[index] = {
                 type        = 'function.return',
                 parent      = func,
                 returnIndex = index,
             }
-            vm.compileNode(func._returns[index])
+            vm.compileNode(returns[index])
         end
-        return func._returns[index]
+        return returns[index]
     end
     if func.type == 'doc.type.function' then
+        -- always populated for a doc.type.function node -- the `?` on
+        -- parser.object's own `returns` field is for the generic base
+        -- class shared by every node type, not this specific shape
+        assert(func.returns)
         local rtn = func.returns[index]
         if not rtn then
             local lastReturn = func.returns[#func.returns]
@@ -854,13 +860,15 @@ end
 ---@param args  parser.object[]
 ---@return vm.node
 local function getReturn(func, index, args)
-    if not func._callReturns then
-        func._callReturns = {}
+    local callReturns = func._callReturns
+    if not callReturns then
+        callReturns = {}
+        func._callReturns = callReturns
     end
-    if not func._callReturns[index] then
+    if not callReturns[index] then
         local call = func.parent
         ---@diagnostic disable-next-line: missing-fields
-        func._callReturns[index] = {
+        callReturns[index] = {
             type   = 'call.return',
             parent = call,
             func   = func,
@@ -870,7 +878,7 @@ local function getReturn(func, index, args)
             finish = call.finish,
         }
     end
-    return vm.compileNode(func._callReturns[index])
+    return vm.compileNode(callReturns[index])
 end
 
 ---@param source parser.object
@@ -891,6 +899,9 @@ function vm.bindAs(source)
             end
         end
         table.sort(ases, function (a, b)
+            -- every entry was filtered into `ases` above requiring
+            -- `doc.touch` truthy, so this always holds
+            assert(a.touch and b.touch)
             return a.touch < b.touch
         end)
     end
@@ -910,6 +921,7 @@ function vm.bindAs(source)
         end
         index = left + (right - left) // 2
         local doc = ases[index]
+        assert(doc.touch)
         if doc.touch < source.finish then
             left = index + 1
         else
@@ -1299,30 +1311,34 @@ local function compileForVars(source, target)
     --  for k, v in pairs(t) do
     --> for k, v in iterator, status, initValue do
     --> local k, v = iterator(status, initValue)
-    if not source._iterator then
-        source._iterator = {
+    local iterator = source._iterator
+    local iterArgs = source._iterArgs
+    if not iterator or not iterArgs then
+        iterator = {
             type = 'dummyfunc',
             parent = source,
         }
-        source._iterArgs = {{},{}}
+        source._iterator = iterator
+        iterArgs = {{},{}}
+        source._iterArgs = iterArgs
         source._iterVars = {}
     end
     -- iterator
-    if not vm.getNode(source._iterator) then
-        selectNode(source._iterator,    source.exps, 1)
+    if not vm.getNode(iterator) then
+        selectNode(iterator,    source.exps, 1)
     end
     -- status
-    if not vm.getNode(source._iterArgs[1]) then
-        selectNode(source._iterArgs[1], source.exps, 2)
+    if not vm.getNode(iterArgs[1]) then
+        selectNode(iterArgs[1], source.exps, 2)
     end
     -- initValue
-    if not vm.getNode(source._iterArgs[2]) then
-        selectNode(source._iterArgs[2], source.exps, 3)
+    if not vm.getNode(iterArgs[2]) then
+        selectNode(iterArgs[2], source.exps, 3)
     end
     if source.keys then
         for i, loc in ipairs(source.keys) do
             if loc == target then
-                local node = getReturn(source._iterator, i, source._iterArgs)
+                local node = getReturn(iterator, i, iterArgs)
                 node:removeOptional()
                 vm.setNode(loc, node)
                 return true
@@ -2034,9 +2050,17 @@ local compilerSwitch = util.switch()
             end)
         end
         if guide.isGet(source) then
-            local tracedNode = vm.traceNode(source)
-            if tracedNode then
-                vm.setNode(source, tracedNode, true)
+            -- Only worth tracing (and only safe to: see the note on
+            -- vm.hasAnyPropagatingFlag) when there's actually something
+            -- a guard could clear -- most field reads are plain,
+            -- non-optional, unflagged values, so this keeps them from
+            -- ever starting a field tracer at all.
+            local staticNode = vm.getNode(source)
+            if staticNode and (staticNode:hasFalsy() or vm.hasAnyPropagatingFlag(staticNode)) then
+                local tracedNode = vm.traceNode(source)
+                if tracedNode then
+                    vm.setNode(source, tracedNode, true)
+                end
             end
         end
     end)

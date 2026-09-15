@@ -3,6 +3,10 @@ local vm    = require 'vm.vm'
 local guide = require 'parser.guide'
 local util  = require 'utility'
 
+---@class parser.object
+---@field package _varargFunction?      boolean
+---@field package _onlyOverloadFunction? boolean
+
 ---@param arg parser.object
 ---@return parser.object?
 local function getDocParam(arg)
@@ -72,6 +76,7 @@ function vm.countParamsOfSource(source)
     local min = 0
     local max = 0
     local def = 0
+    ---@type table<parser.object, boolean>
     local overloads = {}
     if source.bindDocs then
         for _, doc in ipairs(source.bindDocs) do
@@ -80,6 +85,7 @@ function vm.countParamsOfSource(source)
             end
         end
     end
+    ---@type boolean?
     local hasDocFunction
     for nd in vm.compileNode(source):eachObject() do
         if nd.type == 'doc.type.function' and not overloads[nd] then
@@ -117,6 +123,7 @@ end
 ---@return number  max
 ---@return integer def
 function vm.countParamsOfNode(node)
+    ---@type integer?, number?, integer?
     local min, max, def
     for n in node:eachObject() do
         if n.type == 'function'
@@ -139,7 +146,7 @@ end
 
 ---@param func parser.object
 ---@param onlyDoc? boolean
----@param mark? table
+---@param mark? table<parser.object, boolean>
 ---@return integer min
 ---@return number  max
 ---@return integer def
@@ -147,9 +154,12 @@ function vm.countReturnsOfFunction(func, onlyDoc, mark)
     if func.type == 'function' then
         ---@type integer?, number?, integer?
         local min, max, def
+        ---@type boolean?
         local hasDocReturn
         if func.bindDocs then
+            ---@type parser.object?
             local lastReturn
+            ---@type integer
             local n = 0
             ---@type integer?, number?, integer?
             local dmin, dmax, ddef
@@ -163,7 +173,7 @@ function vm.countReturnsOfFunction(func, onlyDoc, mark)
                         ddef = n
                         if  (not ret.name or ret.name[1] ~= '...')
                         and not vm.compileNode(ret):isNullable() then
-                            dmin = n
+                            dmin = n --[[@as integer]]
                         end
                     end
                 end
@@ -210,8 +220,11 @@ end
 ---@return number  max
 ---@return integer def
 function vm.countReturnsOfSource(source)
+    ---@type table<parser.object, boolean>
     local overloads = {}
+    ---@type boolean?
     local hasDocFunction
+    ---@type integer?, number?, integer?
     local min, max, def
     if source.bindDocs then
         for _, doc in ipairs(source.bindDocs) do
@@ -258,11 +271,12 @@ function vm.countReturnsOfSource(source)
             def = ddef
         end
     end
-    return min, max, def
+    -- every path above that can finish the function also sets min/max/def
+    return min --[[@as integer]], max --[[@as number]], def --[[@as integer]]
 end
 
 ---@param func parser.object
----@param mark? table
+---@param mark? table<parser.object, boolean>
 ---@return integer min
 ---@return number  max
 ---@return integer def
@@ -289,7 +303,7 @@ function vm.countReturnsOfCall(func, args, mark)
 end
 
 ---@param list parser.object[]?
----@param mark? table
+---@param mark? table<parser.object, boolean>
 ---@return integer min
 ---@return number  max
 ---@return integer def
@@ -395,6 +409,7 @@ function vm.getExactMatchedFunctions(func, args)
         return funcs
     end
     local uri = guide.getUri(func)
+    ---@type number[]
     local matchScores = {}
     for i, n in ipairs(funcs) do
         matchScores[i] = calcFunctionMatchScore(uri, args, n)
@@ -413,6 +428,7 @@ function vm.getExactMatchedFunctions(func, args)
     end
 
     -- remove functions that have matchScore < maxMatchScore
+    ---@type integer[]
     local needRemove = {}
     for i, matchScore in ipairs(matchScores) do
         if matchScore < maxMatchScore then
@@ -425,20 +441,23 @@ end
 
 ---@param func parser.object
 ---@param args? parser.object[]
----@param mark? table
+---@param mark? table<parser.object, boolean>
 ---@return parser.object[]?
 function vm.getMatchedFunctions(func, args, mark)
+    ---@type parser.object[]
     local funcs = {}
     local node = vm.compileNode(func)
     for n in node:eachObject() do
         if n.type == 'function'
         or n.type == 'doc.type.function' then
+            ---@cast n parser.object
             funcs[#funcs+1] = n
         end
     end
 
     local amin, amax = vm.countList(args, mark)
 
+    ---@type parser.object[]
     local matched = {}
     for _, n in ipairs(funcs) do
         local min, max = vm.countParamsOfFunction(n)
@@ -454,7 +473,7 @@ function vm.getMatchedFunctions(func, args, mark)
     end
 end
 
----@param func table
+---@param func parser.object
 ---@return boolean
 function vm.isVarargFunctionWithOverloads(func)
     if func.type ~= 'function' then
@@ -491,7 +510,7 @@ function vm.isVarargFunctionWithOverloads(func)
     return false
 end
 
----@param func table
+---@param func parser.object
 ---@return boolean
 function vm.isFunctionWithOnlyOverloads(func)
     if func.type ~= 'function' then

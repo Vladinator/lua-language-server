@@ -195,12 +195,14 @@ local function makeSignatures(text, call, pos)
     ---@type table<parser.object, boolean>
     local mark = {}
     for src in node:eachObject() do
-        if (src.type == 'function' and not vm.isVarargFunctionWithOverloads(src))
-        or src.type == 'doc.type.function' then
-            if  not mark[src]
-            and not isEventNotMatch(call, src) then
-                mark[src] = true
-                signs[#signs+1] = makeOneSignature(src, oop, index)
+        if src.type == 'function' or src.type == 'doc.type.function' then
+            ---@cast src parser.object
+            if src.type == 'doc.type.function' or not vm.isVarargFunctionWithOverloads(src) then
+                if  not mark[src]
+                and not isEventNotMatch(call, src) then
+                    mark[src] = true
+                    signs[#signs+1] = makeOneSignature(src, oop, index)
+                end
             end
         elseif src.type == 'global' and src.cate == 'type' then
             ---@cast src vm.global

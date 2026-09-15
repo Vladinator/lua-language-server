@@ -38,9 +38,13 @@ function m.getKeyName(source)
         local special = m.getSpecial(source.node)
         if special == 'rawset'
         or special == 'rawget' then
+            -- may return the raw tableexp integer (see guide.lua's comment
+            -- on its own getKeyNameOfLiteral/getKeyName tableexp handling)
+            ---@diagnostic disable-next-line: return-type-mismatch
             return guide.getKeyNameOfLiteral(source.args[2])
         end
     end
+    ---@diagnostic disable-next-line: return-type-mismatch
     return guide.getKeyName(source)
 end
 

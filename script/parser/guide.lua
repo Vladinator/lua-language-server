@@ -94,7 +94,7 @@ local type         = type
 ---@field package _root         parser.object
 ---@field package _eachCache?   parser.object[]
 ---@field package _isGlobal?    boolean
----@field package _typeCache?   parser.object[][]
+---@field package _typeCache?   table<string, parser.object[]>
 
 ---@class guide
 ---@field debugMode boolean
@@ -207,13 +207,16 @@ local childMap = {
     ['doc.attr']           = {'#names'},
 }
 
----@type table<string, fun(obj: parser.object, list: parser.object[])>
+---@type table<string, fun(obj: parser.object, list: parser.object[])|false>
 local compiledChildMap = setmetatable({}, {__index = function (self, name)
+    ---@cast self table<string, fun(obj: parser.object, list: parser.object[])|false>
+    ---@cast name string
     local defs = childMap[name]
     if not defs then
         self[name] = false
         return false
     end
+    ---@type string[]
     local text = {}
     text[#text+1] = 'local obj, list = ...'
     for _, def in ipairs(defs) do
@@ -240,17 +243,21 @@ end
         end
     end
     local buf = table.concat(text, '\n')
-    local f = load(buf, buf, 't')
+    local f = load(buf, buf, 't') --[[@as fun(obj: parser.object, list: parser.object[])]]
     self[name] = f
     return f
 end})
 
+---@type table<string, fun(obj: parser.object, callback: fun(child: parser.object))|false>
 local eachChildMap = setmetatable({}, {__index = function (self, name)
+    ---@cast self table<string, fun(obj: parser.object, callback: fun(child: parser.object))|false>
+    ---@cast name string
     local defs = childMap[name]
     if not defs then
         self[name] = false
         return false
     end
+    ---@type string[]
     local text = {}
     text[#text+1] = 'local obj, callback = ...'
     for _, def in ipairs(defs) do
@@ -277,7 +284,7 @@ end
         end
     end
     local buf = table.concat(text, '\n')
-    local f = load(buf, buf, 't')
+    local f = load(buf, buf, 't') --[[@as fun(obj: parser.object, callback: fun(child: parser.object))]]
     self[name] = f
     return f
 end})
@@ -301,6 +308,7 @@ m.actionMap = {
 ---@param obj table
 ---@return boolean
 function m.isLiteral(obj)
+    ---@type string?
     local tp = obj.type
     return tp == 'nil'
         or tp == 'boolean'
@@ -337,6 +345,8 @@ function m.getParentFunction(obj)
         if not obj then
             break
         end
+        ---@cast obj -?
+        ---@type string
         local tp = obj.type
         if tp == 'function' or tp == 'main' then
             return obj
@@ -363,6 +373,8 @@ function m.getBlock(obj)
         obj = obj.parent
     end
     -- make stack
+    ---@cast obj -?
+    ---@type string[]
     local stack = {}
     for _ = 1, 10 do
         stack[#stack+1] = ('%s:%s'):format(obj.type, obj.finish)
@@ -383,6 +395,8 @@ function m.getParentBlock(obj)
         if not obj then
             return nil
         end
+        ---@cast obj -?
+        ---@type string
         local tp = obj.type
         if blockTypes[tp] then
             return obj
@@ -400,6 +414,8 @@ function m.getBreakBlock(obj)
         if not obj then
             return nil
         end
+        ---@cast obj -?
+        ---@type string
         local tp = obj.type
         if breakBlockTypes[tp] then
             return obj
@@ -528,7 +544,7 @@ function m.getLocal(source, name, pos)
         and blockTypes[block.type] then
             break
         end
-        block = block.parent
+        block = block.parent --[[@as parser.object]]
     end
 
     m.eachSourceContain(block, pos, function (src)
@@ -542,13 +558,14 @@ function m.getLocal(source, name, pos)
         if not block then
             break
         end
+        ---@type parser.object?
         local res
         if block.locals then
             for _, loc in ipairs(block.locals) do
                 if  loc[1] == name
                 and loc.effect <= pos then
                     if not res or res.effect < loc.effect then
-                        res = loc
+                        res = loc --[[@as parser.object]]
                     end
                 end
             end
@@ -556,20 +573,24 @@ function m.getLocal(source, name, pos)
         if res then
             return res
         end
-        block = block.parent
+        block = block.parent --[[@as parser.object]]
     end
     return nil
 end
 
 --- 获取指定区块中所有的可见局部变量名称
+---@param block parser.object
+---@param pos integer
+---@return table<string, parser.object>
 function m.getVisibleLocals(block, pos)
+    ---@type table<string, parser.object>
     local result = {}
     m.eachSourceContain(m.getRoot(block), pos, function (source)
         local locals = source.locals
         if locals then
             for i = 1, #locals do
                 local loc = locals[i]
-                local name = loc[1]
+                local name = loc[1] --[[@as string]]
                 if loc.effect <= pos then
                     result[name] = loc
                 end
@@ -610,7 +631,7 @@ function m.getStartFinish(source)
     local start  = source.start
     local finish = source.finish
     if source.bfinish and source.bfinish > finish then
-        finish = source.bfinish
+        finish = source.bfinish --[[@as integer]]
     end
     if not start then
         local first = source[1]
@@ -624,11 +645,14 @@ function m.getStartFinish(source)
     return start, finish
 end
 
+---@param source parser.object
+---@return integer? start
+---@return integer? finish
 function m.getRange(source)
     local start  = source.vstart or source.start
     local finish = source.range  or source.finish
     if source.bfinish and source.bfinish > finish then
-        finish = source.bfinish
+        finish = source.bfinish --[[@as integer]]
     end
     if not start then
         local first = source[1]
@@ -679,6 +703,8 @@ function m.isBetweenRange(source, tStart, tFinish)
 end
 
 --- 添加child
+---@param list parser.object[]
+---@param obj parser.object
 local function addChilds(list, obj)
     local tp = obj.type
     if not tp then
@@ -696,7 +722,9 @@ end
 ---@param position integer
 ---@param callback fun(src: parser.object): any
 function m.eachSourceContain(ast, position, callback)
+    ---@type parser.object[]
     local list = { ast }
+    ---@type table<parser.object, boolean>
     local mark = {}
     while true do
         local len = #list
@@ -721,8 +749,14 @@ function m.eachSourceContain(ast, position, callback)
 end
 
 --- 遍历所有在某个范围内的source
+---@param ast parser.object
+---@param start number
+---@param finish number
+---@param callback fun(src: parser.object): any
 function m.eachSourceBetween(ast, start, finish, callback)
+    ---@type parser.object[]
     local list = { ast }
+    ---@type table<parser.object, boolean>
     local mark = {}
     while true do
         local len = #list
@@ -746,6 +780,8 @@ function m.eachSourceBetween(ast, start, finish, callback)
     end
 end
 
+---@param ast parser.object
+---@return table<string, parser.object[]>
 local function getSourceTypeCache(ast)
     local cache = ast._typeCache
     if not cache then
@@ -809,6 +845,7 @@ function m.eachSource(ast, callback)
     if not cache then
         cache = { ast }
         ast._eachCache = cache
+        ---@type table<parser.object, boolean>
         local mark = {}
         local index = 1
         while true do
@@ -929,9 +966,9 @@ function m.offsetToPositionByLines(lines, offset)
         end
         local start = lines[row] - 1
         if start > offset then
-            right = row
+            right = row --[[@as integer]]
         else
-            left  = row
+            left  = row --[[@as integer]]
         end
     end
     local col = offset - lines[row] + 1
@@ -945,13 +982,17 @@ function m.offsetToPosition(state, offset)
     return m.offsetToPositionByLines(state.lines, offset)
 end
 
+---@param state parser.state
+---@param row integer
+---@return integer
 function m.getLineRange(state, row)
     if not state.lines[row] then
         return 0
     end
-    local nextLineStart = state.lines[row + 1] or #state.lua
+    local lua = state.lua or ''
+    local nextLineStart = state.lines[row + 1] or #lua
     for i = nextLineStart - 1, state.lines[row], -1 do
-        local w = state.lua:sub(i, i)
+        local w = lua:sub(i, i)
         if w ~= '\r' and w ~= '\n' then
             return i - state.lines[row] + 1
         end
@@ -982,6 +1023,8 @@ local assignTypeMap = {
     ['doc.type.field']    = true,
     ['doc.type.array']    = true,
 }
+---@param source parser.object
+---@return boolean
 function m.isAssign(source)
     local tp = source.type
     if assignTypeMap[tp] then
@@ -1003,6 +1046,8 @@ local getTypeMap = {
     ['getmethod'] = true,
     ['getindex']  = true,
 }
+---@param source parser.object
+---@return boolean
 function m.isGet(source)
     local tp = source.type
     if getTypeMap[tp] then
@@ -1024,10 +1069,13 @@ function m.getSpecial(source)
     return source.special
 end
 
+---@param obj parser.object?
+---@return string|integer?
 function m.getKeyNameOfLiteral(obj)
     if not obj then
         return nil
     end
+    ---@type string
     local tp = obj.type
     if tp == 'field'
     or     tp == 'method' then
@@ -1049,6 +1097,7 @@ function m.getKeyName(obj)
     if not obj then
         return nil
     end
+    ---@type string
     local tp = obj.type
     if tp == 'getglobal'
     or tp == 'setglobal' then
@@ -1072,6 +1121,8 @@ function m.getKeyName(obj)
     elseif tp == 'getindex'
     or     tp == 'setindex'
     or     tp == 'tableindex' then
+        -- may transitively return the raw tableexp integer described below
+        ---@diagnostic disable-next-line: return-type-mismatch
         return m.getKeyNameOfLiteral(obj.index)
     elseif tp == 'tableexp' then
         -- Genuinely returns the raw integer here (not a string) -- callers
@@ -1102,13 +1153,18 @@ function m.getKeyName(obj)
     elseif tp == 'doc.type.field' then
         return m.getKeyName(obj.name)
     end
+    -- may return the raw tableexp integer described above
+    ---@diagnostic disable-next-line: return-type-mismatch
     return m.getKeyNameOfLiteral(obj)
 end
 
+---@param obj parser.object?
+---@return string?
 function m.getKeyTypeOfLiteral(obj)
     if not obj then
         return nil
     end
+    ---@type string
     local tp = obj.type
     if tp == 'field'
     or     tp == 'method' then
@@ -1124,10 +1180,13 @@ function m.getKeyTypeOfLiteral(obj)
     end
 end
 
+---@param obj parser.object?
+---@return string?
 function m.getKeyType(obj)
     if not obj then
         return nil
     end
+    ---@type string
     local tp = obj.type
     if tp == 'getglobal'
     or tp == 'setglobal' then

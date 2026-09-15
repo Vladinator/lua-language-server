@@ -3,6 +3,18 @@ local guide = require "parser.guide"
 local util  = require 'utility'
 local await = require 'await'
 
+---@class core.folding.result
+---@field start integer
+---@field finish integer
+---@field kind string
+---@field hideLastLine? boolean
+
+---@class core.folding.status
+---@field regions? parser.state.comm[]
+
+---@alias core.folding.handler fun(source: parser.object|parser.state.comm, text: string, results: core.folding.result[], status?: core.folding.status)
+
+---@type table<string, core.folding.handler>
 local care = {
     ['function'] = function (source, _text, results)
         local folding = {
@@ -94,6 +106,8 @@ local care = {
         results[#results+1] = folding
     end,
     ['comment.short'] = function (source, _text, results, status)
+        ---@cast source parser.state.comm
+        ---@cast status -?
         local ltext = source.text:lower()
         ltext = util.trim(ltext, 'left')
         if     ltext:sub(1, #'region') == 'region'
@@ -101,6 +115,7 @@ local care = {
             if not status.regions then
                 status.regions = {}
             end
+            ---@diagnostic disable-next-line: need-check-nil
             status.regions[#status.regions+1] = source
         elseif ltext:sub(1, #'endregion') == 'endregion'
         or     ltext:sub(1, #'#endregion') == '#endregion' then
@@ -162,9 +177,12 @@ return function (uri)
     if not state or not text then
         return nil
     end
+    ---@type core.folding.result[]
     local regions = {}
+    ---@type core.folding.status
     local status = {}
 
+    ---@param source parser.object
     guide.eachSource(state.ast, function (source) ---@async
         local tp = source.type
         if care[tp] then

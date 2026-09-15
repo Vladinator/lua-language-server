@@ -2,6 +2,16 @@ local luadoc = require 'parser.luadoc'
 local guide = require 'parser.guide'
 local _M = {}
 
+-- This return shape is used both as a parser.object-ish comment node
+-- (fed to luadoc.buildAndBindDoc, which reads .type/.text/etc like a
+-- real comment node) and pushed straight into parser.state.comms
+-- (parser.state.comm[]) by InsertDoc below -- an anonymous struct
+-- matches both call sites structurally without picking one nominal
+-- class over the other.
+---@param t string
+---@param value string
+---@param pos integer
+---@return {type: string, start: integer, finish: integer, text: string, virtual: boolean}
 function _M.buildComment(t, value, pos)
     return {
         type    = 'comment.short',
@@ -12,6 +22,8 @@ function _M.buildComment(t, value, pos)
     }
 end
 
+---@param ast parser.object
+---@param comm parser.state.comm
 function _M.InsertDoc(ast, comm)
     local comms = ast.state.comms or {}
     comms[#comms+1] = comm

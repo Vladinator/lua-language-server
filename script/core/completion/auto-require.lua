@@ -49,8 +49,10 @@ function m.check(state, word, position, callback)
         local path = furi.decode(uri)
         local relativePath = workspace.getRelativePath(path)
         local infos = rpath.getVisiblePath(uri, path)
+        ---@type table<string, boolean>
         local testedStem = { }
         for _, sr in ipairs(infos) do
+            ---@type string?
             local stemName
             if sr.searcher == '[[meta]]' then
                 stemName = sr.name
@@ -124,7 +126,8 @@ function m.check(state, word, position, callback)
                     goto CONTINUE
                 end
                 if node.type == 'setfield' or node.type == 'getfield' then
-                    fullKeyPath = "." .. node.field[1] .. fullKeyPath
+                    local fieldName = node.field[1] --[[@as string]]
+                    fullKeyPath = "." .. fieldName .. fullKeyPath
                 end
                 if node.type == 'getlocal' then
                     node = node.node
@@ -138,7 +141,8 @@ function m.check(state, word, position, callback)
             elseif targetSource.type == 'table' then
                 for _, value in ipairs(targetSource) do
                     if value.value.node == node then
-                        fullKeyPath = "." .. value.value[1] .. fullKeyPath
+                        local fieldName = value.value[1] --[[@as string]]
+                        fullKeyPath = "." .. fieldName .. fullKeyPath
                         hit = true
                         break
                     end

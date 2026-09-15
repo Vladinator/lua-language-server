@@ -18,6 +18,7 @@ return function (uri, callback)
         return
     end
 
+    ---@param source parser.object
     local function check(source)
         local node = source.node
         if not node then

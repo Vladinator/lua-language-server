@@ -60,6 +60,7 @@ return function (uri, callback)
         end
         local myTopBlock = getTopFunctionOfIf(src)
         local defs = vm.getDefs(src)
+        ---@type parser.object[]
         local validDefs = {}
         for _, def in ipairs(defs) do
             if def == src then
@@ -91,6 +92,7 @@ return function (uri, callback)
             ::CONTINUE::
         end
         if #validDefs > 0 then
+            ---@type {start: integer, finish: integer, uri: uri}[]
             local related = {}
             for _, def in ipairs(validDefs) do
                 related[#related + 1] = {

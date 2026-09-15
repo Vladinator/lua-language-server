@@ -2,10 +2,9 @@ local byte = string.byte
 local max = 0x7fffffff
 
 ---@class SDBMHash
+---@field cache table<string|integer, string|integer>
 local mt = {}
 mt.__index = mt
-
-mt.cache = nil
 
 ---@param str string
 ---@return integer
@@ -41,10 +40,12 @@ function mt:hash(str)
     end
 end
 
+---@param t table<string|integer, string|integer>
 function mt:setCache(t)
     self.cache = t
 end
 
+---@return table<string|integer, string|integer>
 function mt:getCache()
     return self.cache
 end

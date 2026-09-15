@@ -19,7 +19,7 @@ return function (uri, callback)
     if not state then
         return
     end
-    local cache = vm.getCache 'different-requires'
+    local cache = vm.getCache 'different-requires' --[[@as table<uri, {source: parser.object, require: string}>]]
     guide.eachSpecialOf(state.ast, 'require', function (source)
         local call = source.parent
         if not call or call.type ~= 'call' then

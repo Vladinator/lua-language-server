@@ -98,6 +98,9 @@ function m.flushCache()
     m.cacheTracker[m.cache] = true
 end
 
+---@param name string
+---@param weak? boolean
+---@return table
 function m.getCache(name, weak)
     if m.cacheVersion ~= files.globalVersion then
         m.flushCache()
@@ -106,7 +109,7 @@ function m.getCache(name, weak)
     if not m.cache[name] then
         m.cache[name] = weak and setmetatable({}, weakMT) or {}
     end
-    return m.cache[name]
+    return m.cache[name] --[[@as table]]
 end
 
 local function init()

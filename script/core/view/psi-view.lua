@@ -52,6 +52,7 @@ local function collectPsi(astNode, state)
         return
     end
 
+    ---@type psi.view.node[]?
     local children
     guide.eachChild(astNode, function(child)
         if not children then

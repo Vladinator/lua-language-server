@@ -96,10 +96,10 @@ local function checkOperators(operators, op, value, result, uri, classGlobal, si
         local extends = operator.extends
         if genericMap then
             if exp and vm.containsGenericName(exp) then
-                exp = vm.cloneObject(exp, genericMap) or exp
+                exp = vm.cloneObject(exp, genericMap) or exp --[[@as parser.object|vm.generic]]
             end
             if vm.containsGenericName(extends) then
-                extends = vm.cloneObject(extends, genericMap) or extends
+                extends = vm.cloneObject(extends, genericMap) or extends --[[@as parser.object|vm.generic]]
             end
         end
         if value and exp then

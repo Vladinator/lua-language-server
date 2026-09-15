@@ -1713,6 +1713,7 @@ local function bindReturnOfFunction(source, mfunc, index, args)
                     if nd.type == 'global' or nd.type == 'variable' then
                         result:merge(nd)
                     else
+                        ---@cast nd -vm.global, -vm.variable
                         local clonedObject = vm.cloneObject(nd, resolved)
                         if clonedObject then
                             if clonedObject.type == 'doc.generic.name'

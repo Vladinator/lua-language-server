@@ -14,15 +14,18 @@ local mt = {}
 mt.__index = mt
 mt.type = 'generic'
 
----@param source    table?
+---@param source    vm.node.object?
 ---@param resolved? table<string, vm.node>
----@return vm.object?
+---@return vm.node.object?
 local function cloneObject(source, resolved)
     if not resolved or not source then
         return source
     end
+    ---@cast source parser.object
     if source.type == 'doc.generic.name' then
         local key = source[1]
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local newName = {
             type   = source.type,
             start  = source.start,
@@ -39,6 +42,8 @@ local function cloneObject(source, resolved)
     if source.type == 'doc.type.name' then
         local key = source[1]
         if resolved[key] then
+            ---@type parser.object
+            ---@diagnostic disable-next-line: missing-fields
             local newName = {
                 type   = 'doc.generic.name',
                 start  = source.start,
@@ -52,6 +57,8 @@ local function cloneObject(source, resolved)
         end
     end
     if source.type == 'doc.type' then
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local newType = {
             type     = source.type,
             start    = source.start,
@@ -61,7 +68,7 @@ local function cloneObject(source, resolved)
             types    = {},
         }
         for i, typeUnit in ipairs(source.types) do
-            local newObj     = cloneObject(typeUnit, resolved)
+            local newObj     = cloneObject(typeUnit, resolved) --[[@as parser.object?]]
             newType.types[i] = newObj
         end
         return newType
@@ -88,6 +95,8 @@ local function cloneObject(source, resolved)
         return newArray
     end
     if source.type == 'doc.type.table' then
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local newTable = {
             type   = source.type,
             start  = source.start,
@@ -96,19 +105,23 @@ local function cloneObject(source, resolved)
             fields = {},
         }
         for i, field in ipairs(source.fields) do
+            ---@type parser.object
+            ---@diagnostic disable-next-line: missing-fields
             local newField = {
                 type    = field.type,
                 start   = field.start,
                 finish  = field.finish,
                 parent  = newTable,
-                name    = cloneObject(field.name, resolved),
-                extends = cloneObject(field.extends, resolved),
+                name    = cloneObject(field.name, resolved) --[[@as parser.object]],
+                extends = cloneObject(field.extends, resolved) --[[@as parser.object]],
             }
             newTable.fields[i] = newField
         end
         return newTable
     end
     if source.type == 'doc.type.function' then
+        ---@type parser.object
+        ---@diagnostic disable-next-line: missing-fields
         local newDocFunc = {
             type    = source.type,
             start   = source.start,
@@ -118,12 +131,12 @@ local function cloneObject(source, resolved)
             returns = {},
         }
         for i, arg in ipairs(source.args) do
-            local newObj = cloneObject(arg, resolved)
+            local newObj = cloneObject(arg, resolved) --[[@as parser.object]]
             newObj.optional    = arg.optional
             newDocFunc.args[i] = newObj
         end
         for i, ret in ipairs(source.returns) do
-            local newObj = cloneObject(ret, resolved)
+            local newObj = cloneObject(ret, resolved) --[[@as parser.object]]
             newObj.parent   = newDocFunc
             newObj.optional = ret.optional
             newDocFunc.returns[i] = newObj
@@ -164,6 +177,8 @@ local function cloneObject(source, resolved)
             if needsClone then break end
         end
         if needsClone then
+            ---@type parser.object
+            ---@diagnostic disable-next-line: missing-fields
             local newSign = {
                 type   = source.type,
                 start  = source.start,
@@ -173,7 +188,7 @@ local function cloneObject(source, resolved)
                 signs  = {},
             }
             for i, sign in ipairs(source.signs) do
-                newSign.signs[i] = cloneObject(sign, resolved)
+                newSign.signs[i] = cloneObject(sign, resolved) --[[@as parser.object]]
             end
             return newSign
         end
@@ -274,9 +289,9 @@ function vm.createGeneric(proto, sign, flags)
     return generic
 end
 
----@param source    table?
+---@param source    vm.node.object?
 ---@param resolved? table<string, vm.node>
----@return vm.object?
+---@return vm.node.object?
 function vm.cloneObject(source, resolved)
     return cloneObject(source, resolved)
 end

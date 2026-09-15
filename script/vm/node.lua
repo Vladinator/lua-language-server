@@ -333,6 +333,7 @@ end
 
 ---@param uri uri
 ---@param name string
+---@return vm.node
 function mt:narrow(uri, name)
     if self.optional == true then
         self.optional = nil

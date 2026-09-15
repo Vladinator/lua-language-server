@@ -30,7 +30,7 @@ vm.registerCallNarrowing {
 ---@field name      string
 ---@field source    parser.object | vm.variable
 ---@field assigns   (parser.object | vm.variable)[]
----@field assignMap table<parser.object, true>
+---@field assignMap table<parser.object|vm.variable, true>
 ---@field getMap    table<parser.object, true>
 ---@field careMap   table<parser.object, true>
 ---@field mark      table<parser.object, true>
@@ -48,6 +48,7 @@ mt.fastCalc    = true
 function mt:getCasts()
     local root = guide.getRoot(self.main)
     if not root._casts then
+        ---@type parser.object[]
         local casts = {}
         root._casts = casts
         local docs = root.docs
@@ -116,6 +117,7 @@ function mt:collectLocal()
     local finishPos = 0
 
     local variable = self.source
+    ---@cast variable vm.variable
 
     if  variable.base.type ~= 'local'
     and variable.base.type ~= 'self' then
@@ -193,8 +195,10 @@ end
 ---@param finish integer
 ---@return parser.object?
 function mt:getLastAssign(start, finish)
+    ---@type parser.object?
     local lastAssign
     for _, assign in ipairs(self.assigns) do
+        ---@type parser.object
         local obj
         if assign.type == 'variable' then
             ---@cast assign vm.variable
@@ -292,6 +296,7 @@ local function getNodeTypesWithLiteralField(uri, source, fieldName, literal)
         return
     end
 
+    ---@type [string, boolean][]?
     local tys
 
     for _, c in ipairs(vm.compileNode(loc)) do
@@ -352,6 +357,7 @@ vm.registerEqualityNarrowing {
            and handler.node.type == 'getlocal'
     end,
     narrow = function (tracer, action, topNode, outNode, handler, checker)
+        ---@type [string, boolean][]?
         local tys
         if handler.field then
             tys = getNodeTypesWithLiteralField(tracer.uri, handler.node, handler.field[1], checker)
@@ -453,7 +459,7 @@ local lookIntoChild = util.switch()
             tracer.nodes[action] = topNode
             if outNode then
                 topNode = topNode:copy():setTruthy()
-                outNode = outNode:copy():setFalsy()
+                outNode = outNode:copy():setFalsy() --[[@as vm.node]]
             end
         end
         return topNode, outNode
@@ -513,6 +519,7 @@ local lookIntoChild = util.switch()
     ---@param topNode  vm.node
     ---@param outNode? vm.node
     : call(function (tracer, action, topNode, outNode)
+        ---@type vm.node, vm.node
         local blockNode, mainNode
         if action.filter then
             blockNode, mainNode = tracer:lookIntoChild(action.filter, topNode:copy(), topNode:copy())
@@ -546,8 +553,10 @@ local lookIntoChild = util.switch()
     ---@param topNode  vm.node
     ---@param outNode? vm.node
     : call(function (tracer, action, topNode, outNode)
+        ---@type boolean?
         local hasElse
         local mainNode = topNode:copy()
+        ---@type vm.node[]
         local blockNodes = {}
         for _, subBlock in ipairs(action) do
             tracer:resetCastsIndex(subBlock.start)
@@ -558,6 +567,7 @@ local lookIntoChild = util.switch()
                 hasElse = true
                 mainNode:clear()
             end
+            ---@type boolean?
             local mergedNode
             if subBlock[1] then
                 tracer:lookIntoBlock(subBlock, subBlock.bstart, blockNode:copy())
@@ -603,7 +613,7 @@ local lookIntoChild = util.switch()
             tracer.nodes[action] = topNode
             if outNode then
                 topNode = topNode:copy():setTruthy()
-                outNode = outNode:copy():setFalsy()
+                outNode = outNode:copy():setFalsy() --[[@as vm.node]]
             end
         end
         return topNode, outNode
@@ -620,7 +630,7 @@ local lookIntoChild = util.switch()
             tracer.nodes[action] = topNode
             if outNode then
                 topNode = topNode:copy():setTruthy()
-                outNode = outNode:copy():setFalsy()
+                outNode = outNode:copy():setFalsy() --[[@as vm.node]]
             end
         end
         return topNode, outNode
@@ -637,7 +647,7 @@ local lookIntoChild = util.switch()
             tracer.nodes[action] = topNode
             if outNode then
                 topNode = topNode:copy():setTruthy()
-                outNode = outNode:copy():setFalsy()
+                outNode = outNode:copy():setFalsy() --[[@as vm.node]]
             end
         end
         return topNode, outNode
@@ -796,6 +806,7 @@ local lookIntoChild = util.switch()
             outNode = outNode2:copy()
         elseif action.op.type == '=='
         or     action.op.type == '~=' then
+            ---@type parser.object?, parser.object?
             local handler, checker
             for i = 1, 2 do
                 if guide.isLiteral(action[i]) then
@@ -845,7 +856,10 @@ function mt:lookIntoChild(action, topNode, outNode)
     end
     self.mark[action] = true
     topNode = self:fastWardCasts(action.start, topNode)
-    topNode, outNode = lookIntoChild(action.type, self, action, topNode, outNode)
+    ---@type vm.node, vm.node?
+    local newTopNode, newOutNode = lookIntoChild(action.type, self, action, topNode, outNode)
+    topNode = newTopNode
+    outNode = newOutNode
     return topNode, outNode or topNode
 end
 
@@ -983,6 +997,7 @@ local function createTracer(mode, source, name)
     if tracer then
         return tracer
     end
+    ---@type parser.object?
     local main
     if source.type == 'variable' then
         ---@cast source vm.variable
@@ -1022,6 +1037,7 @@ end
 ---@param source parser.object
 ---@return vm.node?
 function vm.traceNode(source)
+    ---@type tracer.mode?, (parser.object|vm.variable)?, string?
     local mode, base, name
     if vm.getGlobalNode(source) then
         base = vm.getGlobalBase(source)

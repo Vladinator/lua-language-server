@@ -7,12 +7,25 @@ local define   = require 'proto.define'
 local lang     = require 'language'
 local substr   = require 'core.substring'
 
+---@class core.hint.result
+---@field text string
+---@field offset integer
+---@field kind integer
+---@field where string
+---@field source? parser.object
+---@field tooltip? string
+
 ---@async
+---@param uri uri
+---@param results core.hint.result[]
+---@param start integer
+---@param finish integer
 local function typeHint(uri, results, start, finish)
     local state = files.getState(uri)
     if not state then
         return
     end
+    ---@type table<parser.object, boolean>
     local mark = {}
     guide.eachSourceBetween(state.ast, start, finish, function (source) ---@async
         if  source.type ~= 'local'
@@ -47,9 +60,9 @@ local function typeHint(uri, results, start, finish)
         end
         local src = source
         if source.type == 'tablefield' then
-            src = source.field
+            src = source.field --[[@as parser.object]]
         elseif source.type == 'tableindex' then
-            src = source.index
+            src = source.index --[[@as parser.object]]
         end
         if not src then
             return
@@ -68,10 +81,13 @@ local function typeHint(uri, results, start, finish)
     end)
 end
 
+---@param func parser.object
+---@return parser.object[]?
 local function getParams(func)
     if not func.args or #func.args == 0 then
         return nil
     end
+    ---@type parser.object[]
     local params = {}
     for _, arg in ipairs(func.args) do
         if arg.type == '...' then
@@ -85,6 +101,7 @@ local function getParams(func)
     return params
 end
 
+---@param call parser.object
 local function hasLiteralArgInCall(call)
     if not call.args then
         return false
@@ -98,6 +115,10 @@ local function hasLiteralArgInCall(call)
 end
 
 ---@async
+---@param uri uri
+---@param results core.hint.result[]
+---@param start integer
+---@param finish integer
 local function paramName(uri, results, start, finish)
     local paramConfig = config.get(uri, 'Lua.hint.paramName')
     if not paramConfig or paramConfig == 'Disable' then
@@ -107,6 +128,7 @@ local function paramName(uri, results, start, finish)
     if not state then
         return
     end
+    ---@type table<parser.object, boolean>
     local mark = {}
     guide.eachSourceBetween(state.ast, start, finish, function (source) ---@async
         if source.type ~= 'call' then
@@ -123,6 +145,7 @@ local function paramName(uri, results, start, finish)
         if not defs then
             return
         end
+        ---@type parser.object[]?
         local params
         for _, def in ipairs(defs) do
             if def.type == 'function' then
@@ -147,7 +170,7 @@ local function paramName(uri, results, start, finish)
                 local param = params[i]
                 if param and param[1] and param[1] ~= arg[1] then
                     results[#results+1] = {
-                        text    = param[1] .. ':',
+                        text    = (param[1] --[[@as string]]) .. ':',
                         offset  = arg.start,
                         kind    = define.InlayHintKind.Parameter,
                         where   = 'left',
@@ -160,6 +183,10 @@ local function paramName(uri, results, start, finish)
 end
 
 ---@async
+---@param uri uri
+---@param results core.hint.result[]
+---@param start integer
+---@param finish integer
 local function arrayIndex(uri, results, start, finish)
     local state = files.getState(uri)
     if not state then
@@ -170,7 +197,9 @@ local function arrayIndex(uri, results, start, finish)
         return
     end
 
+    ---@type table<parser.object, boolean>
     local mixedOrLargeTable = {}
+    ---@param tbl parser.object
     local function isMixedOrLargeTable(tbl)
         if mixedOrLargeTable[tbl] ~= nil then
             return mixedOrLargeTable[tbl]
@@ -200,6 +229,7 @@ local function arrayIndex(uri, results, start, finish)
                 return
             end
         end
+        ---@type parser.object[]
         local list = {}
         local max  = 0
         for _, field in ipairs(source) do
@@ -231,6 +261,10 @@ local function arrayIndex(uri, results, start, finish)
 end
 
 ---@async
+---@param uri uri
+---@param results core.hint.result[]
+---@param start integer
+---@param finish integer
 local function awaitHint(uri, results, start, finish)
     local awaitConfig = config.get(uri, 'Lua.hint.await')
     if not awaitConfig then
@@ -274,6 +308,10 @@ local blockTypes = {
 }
 
 ---@async
+---@param uri uri
+---@param results core.hint.result[]
+---@param _start integer
+---@param _finish integer
 local function semicolonHint(uri, results, _start, _finish)
     local state = files.getState(uri)
     if not state then
@@ -290,8 +328,8 @@ local function semicolonHint(uri, results, _start, _finish)
         if #src < 1 then return end
 
         for i = 1, #src - 1 do
-            local current = src[i]
-            local next    = src[i+1]
+            local current = src[i] --[[@as parser.object]]
+            local next    = src[i+1] --[[@as parser.object]]
             local left    = current.range or current.finish
             local right   = next.start
             local text    = subber(current.finish, right)
@@ -317,7 +355,7 @@ local function semicolonHint(uri, results, _start, _finish)
         end
 
         if mode == 'All' then
-            local last = src[#src]
+            local last = src[#src] --[[@as parser.object]]
             results[#results+1] = {
                 text    = ';',
                 offset  = last.range or last.finish,
@@ -329,7 +367,11 @@ local function semicolonHint(uri, results, _start, _finish)
 end
 
 ---@async
+---@param uri uri
+---@param start integer
+---@param finish integer
 return function (uri, start, finish)
+    ---@type core.hint.result[]
     local results = {}
     typeHint(uri, results, start, finish)
     paramName(uri, results, start, finish)

@@ -8,6 +8,7 @@ local guide    = require 'parser.guide'
 ---@param nodeMap table<string, vm.node>
 ---@param reachMax integer
 local function buildAsHash(uri, keys, nodeMap, reachMax)
+    ---@type string[]
     local lines = {}
     lines[#lines+1] = '{'
     for _, key in ipairs(keys) do
@@ -47,13 +48,17 @@ end
 ---@param nodeMap table<string, vm.node>
 ---@param reachMax integer
 local function buildAsConst(uri, keys, nodeMap, reachMax)
+    ---@type table<string, string?>
     local literalMap = {}
     for _, key in ipairs(keys) do
         literalMap[key] = vm.getInfer(nodeMap[key]):viewLiterals()
     end
+    ---@param a string
+    ---@param b string
     table.sort(keys, function (a, b)
         return tonumber(literalMap[a]) < tonumber(literalMap[b])
     end)
+    ---@type string[]
     local lines = {}
     lines[#lines+1] = '{'
     for _, key in ipairs(keys) do
@@ -89,10 +94,15 @@ end
 
 ---@param source parser.object
 ---@param fields parser.object[]
+---@return string[] keys
+---@return table<string, boolean> map
 local function getVisibleKeyMap(source, fields)
     local uri  = guide.getUri(source)
+    ---@type string[]
     local keys = {}
+    ---@type table<string, boolean>
     local map  = {}
+    ---@type table<string, boolean>
     local ignored = {}
     for _, field in ipairs(fields) do
         local key = vm.viewKey(field, uri)
@@ -111,6 +121,8 @@ local function getVisibleKeyMap(source, fields)
     for key in pairs(map) do
         keys[#keys+1] = key
     end
+    ---@param a string
+    ---@param b string
     table.sort(keys, function (a, b)
         if a == b then
             return false
@@ -138,6 +150,9 @@ local function getVisibleKeyMap(source, fields)
 end
 
 ---@async
+---@param uri uri
+---@param fields parser.object[]
+---@param keyMap table<string, boolean>
 local function getNodeMap(uri, fields, keyMap)
     ---@type table<string, vm.node>
     local nodeMap = {}
@@ -159,11 +174,13 @@ local function getNodeMap(uri, fields, keyMap)
 end
 
 ---@async
+---@param source parser.object
 ---@param level integer
 ---@return string?
 ---@return integer?
 return function (source, level)
     local uri = guide.getUri(source)
+    ---@type integer
     local maxFields = config.get(uri, 'Lua.hover.previewFields')
     if maxFields <= 0 then
         return nil
@@ -216,6 +233,7 @@ return function (source, level)
         end
     end
 
+    ---@type string
     local result
 
     if isConsts then

@@ -36,7 +36,7 @@ return function (uri, callback)
 
     local delayer = await.newThrottledDelayer(500)
     ---@async
-    guide.eachSourceType(state.ast, 'getlocal', function (src)
+    guide.eachSourceTypes(state.ast, {'getlocal', 'getglobal', 'getfield', 'getindex', 'getmethod'}, function (src)
         delayer:delay()
         local checkNil
         local nxt = src.next

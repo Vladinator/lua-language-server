@@ -214,3 +214,66 @@ local x = f()
 local t = type(x)
 print(t == "number")
 ]]
+
+-- 直接对字段（非局部变量）判空/判密同样应生效（field-path narrowing）
+
+TEST [[
+---@secret-check
+local function issecretvalue(v) return false end
+
+---@class A
+---@field secret s number
+local t = { s = 0 }
+
+print(<!t.s!> + 5)
+if not issecretvalue(t.s) then
+    print(t.s + 5)
+end
+]]
+
+TEST [[
+---@secret-check
+local function issecretvalue(v) return false end
+
+---@class A
+---@field secret s number
+local t = { s = 0 }
+
+-- 未经过判密守卫的分支仍应触发
+if not issecretvalue(t.s) then
+else
+    print(<!t.s!> + 5)
+end
+]]
+
+TEST [[
+---@secret-check
+local function issecretvalue(v) return false end
+
+---@class A
+---@field secret s number
+local t = { s = 0 }
+
+-- 显式重新赋值字段后，窄化依旧生效
+t.s = 1
+if not issecretvalue(t.s) then
+    print(t.s + 5)
+end
+]]
+
+TEST [[
+---@secret-check
+local function issecretvalue(v) return false end
+
+---@class A
+---@field secret s number
+local t1 = { s = 0 }
+
+-- 通过别名访问的字段是独立追踪的路径，需要各自的守卫
+local t2 = t1
+
+print(<!t2.s!> + 5)
+if not issecretvalue(t2.s) then
+    print(t2.s + 5)
+end
+]]

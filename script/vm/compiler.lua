@@ -2033,6 +2033,12 @@ local compilerSwitch = util.switch()
                 end
             end)
         end
+        if guide.isGet(source) then
+            local tracedNode = vm.traceNode(source)
+            if tracedNode then
+                vm.setNode(source, tracedNode, true)
+            end
+        end
     end)
     : case 'setglobal'
     : call(function (source)

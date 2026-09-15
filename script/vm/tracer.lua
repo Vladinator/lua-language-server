@@ -39,6 +39,7 @@ vm.registerCallNarrowing {
 ---@field main      parser.object
 ---@field uri       uri
 ---@field castIndex integer?
+---@field fieldFallbackDone? boolean
 local mt = {}
 mt.__index = mt
 mt.fastCalc    = true
@@ -919,6 +920,50 @@ function mt:getNode(source)
     return self.nodes[source] or nil
 end
 
+--- A field path (`t1.s`) whose value only ever came from the table
+--- constructor that built `t1` (never an explicit `t1.s = ...`
+--- assignment anywhere) has an empty `variable.sets` -- collectLocal
+--- above has nothing to anchor a backward search on, so calcNode's
+--- getLastAssign always comes up empty and narrowing (an enclosing
+--- `if`/guard) never gets a chance to run at all. This walks the block
+--- forward exactly once, starting right after the base variable's own
+--- declaration and seeded with the field's already-resolved static
+--- type (computed structurally by vm/compiler.lua before it ever calls
+--- vm.traceNode), so every tracked occurrence in that walk still gets
+--- narrowed the normal way -- this only supplies the missing starting
+--- point, not a different narrowing mechanism.
+---@param source   parser.object
+---@param variable vm.variable
+---@return vm.node?
+function mt:getFallbackFieldNode(source, variable)
+    if self.fieldFallbackDone then
+        return self.nodes[source] or nil
+    end
+    self.fieldFallbackDone = true
+    if not variable:getParent() then
+        -- not a field path (t1.s) at all -- a plain local/self always
+        -- has at least one real `set` (its own declaration), so it
+        -- never needs this fallback.
+        return nil
+    end
+    if #self.assigns > 0 then
+        -- there IS a real explicit reassignment somewhere; if getNode
+        -- didn't already resolve narrowing through it, don't
+        -- second-guess that with a fallback anchored elsewhere.
+        return nil
+    end
+    local initialNode = vm.compileNode(source)
+    if not initialNode or initialNode:isEmpty() then
+        return nil
+    end
+    local parentBlock = guide.getParentBlock(variable.base)
+    if not parentBlock then
+        return nil
+    end
+    self:lookIntoBlock(parentBlock, variable.base.finish, initialNode:copy())
+    return self.nodes[source] or nil
+end
+
 ---@class vm.node
 ---@field package _tracer vm.tracer
 
@@ -992,5 +1037,9 @@ function vm.traceNode(source)
         return nil
     end
     local node = tracer:getNode(source)
+    if not node and mode == 'local' then
+        ---@cast base vm.variable
+        node = tracer:getFallbackFieldNode(source, base)
+    end
     return node
 end

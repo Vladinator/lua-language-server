@@ -265,3 +265,22 @@ local n
 n = n or 0
 print(n + 1)
 ]]
+
+-- 字段访问也要检查（不仅是局部变量），且窄化同样适用
+TEST [[
+---@class A
+---@field n? number
+local t = { n = 0 }
+
+print(<!t.n!> + 5)
+]]
+
+TEST [[
+---@class A
+---@field n? number
+local t = { n = 0 }
+
+if t.n then
+    print(t.n + 5)
+end
+]]

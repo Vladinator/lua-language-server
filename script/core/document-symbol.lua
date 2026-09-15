@@ -5,6 +5,17 @@ local define   = require 'proto.define'
 local util     = require 'utility'
 local subber   = require 'core.substring'
 
+---@alias core.document-symbol.sub fun(start: integer, finish: integer): string
+
+---@class core.document-symbol.symbol
+---@field name string
+---@field detail string
+---@field kind integer
+---@field range integer[]
+---@field selectionRange integer[]
+---@field valueRange? integer[]
+---@field children? core.document-symbol.symbol[]
+
 ---@param text string
 ---@return string
 local function clipLastLine(text)
@@ -15,6 +26,8 @@ local function clipLastLine(text)
     end
 end
 
+---@param source parser.object
+---@param sub core.document-symbol.sub
 local function buildName(source, sub)
     if source.type == 'setmethod'
     or source.type == 'getmethod' then
@@ -40,10 +53,12 @@ local function buildName(source, sub)
     return clipLastLine(sub(source.start + 1, source.finish))
 end
 
+---@param func parser.object
 local function buildFunctionParams(func)
     if not func.args then
         return ''
     end
+    ---@type string[]
     local params = {}
     for _, arg in ipairs(func.args) do
         if arg.type == 'self' then
@@ -52,17 +67,20 @@ local function buildFunctionParams(func)
         if arg.type == '...' then
             params[#params+1] = '...'
         else
-            params[#params+1] = arg[1] or ''
+            params[#params+1] = (arg[1] or '') --[[@as string]]
         end
         ::CONTINUE::
     end
     return table.concat(params, ', ')
 end
 
+---@param tbl parser.object
+---@param sub core.document-symbol.sub
 local function buildTable(tbl, sub)
+    ---@type string[]
     local buf = {}
     for i = 1, 5 do
-        local field = tbl[i]
+        local field = tbl[i] --[[@as parser.object?]]
         if not field then
             break
         end
@@ -82,10 +100,13 @@ local function buildTable(tbl, sub)
     return table.concat(buf, ', ')
 end
 
+---@param tbl parser.object
+---@param sub core.document-symbol.sub
 local function buildArray(tbl, sub)
+    ---@type string[]
     local buf = {}
     for i = 1, 5 do
-        local field = tbl[i]
+        local field = tbl[i] --[[@as parser.object?]]
         if not field then
             break
         end
@@ -97,9 +118,15 @@ local function buildArray(tbl, sub)
     return table.concat(buf, ', ')
 end
 
+---@param source parser.object
+---@param sub core.document-symbol.sub
+---@param used table<parser.object, boolean>
+---@param symbols core.document-symbol.symbol[]
 local function buildValue(source, sub, used, symbols)
     local name = buildName(source, sub)
+    ---@type integer[]?, integer[]?, integer[]?, integer?
     local range, sRange, valueRange, kind
+    ---@type string[]
     local details = {}
     if source.type == 'local' then
         if source.parent.type == 'funcargs' then
@@ -147,6 +174,7 @@ local function buildValue(source, sub, used, symbols)
     end
     if source.value then
         used[source.value] = true
+        ---@type string|integer|boolean|nil
         local literal = source.value[1]
         if     source.value.type == 'boolean' then
             kind = define.SymbolKind.Boolean
@@ -166,7 +194,7 @@ local function buildValue(source, sub, used, symbols)
             end
         elseif source.value.type == 'table' then
             kind = define.SymbolKind.Object
-            local lastField = source.value[#source.value]
+            local lastField = source.value[#source.value] --[[@as parser.object]]
             if #source.value > 0 then
                 if  lastField.type == 'tableexp'
                 and lastField.tindex == #source.value then
@@ -195,9 +223,11 @@ local function buildValue(source, sub, used, symbols)
                 kind = define.SymbolKind.Function
             end
             valueRange = { source.value.start, source.value.finish }
-            range[1]   = math.min(source.value.start, source.start)
+            -- range is always set by the if/elseif chain above (the only
+            -- way past it without one is an early `return`)
+            range[1]   = math.min(source.value.start, source.start) --[[@as integer]]
         end
-        range      = { range[1], source.value.finish }
+        range      = { (range --[[@as integer[] ]])[1], source.value.finish }
     end
     symbols[#symbols+1] = {
         name           = name,
@@ -209,6 +239,10 @@ local function buildValue(source, sub, used, symbols)
     }
 end
 
+---@param source parser.object
+---@param sub core.document-symbol.sub
+---@param used table<parser.object, boolean>
+---@param symbols core.document-symbol.symbol[]
 local function buildAnonymous(source, sub, used, symbols)
     if used[source] then
         return
@@ -236,8 +270,9 @@ local function buildAnonymous(source, sub, used, symbols)
         }
     elseif source.type == 'table' then
         local kind      = define.SymbolKind.Object
+        ---@type string[]
         local details   = {}
-        local lastField = source[#source]
+        local lastField = source[#source] --[[@as parser.object?]]
         if lastField then
             if  lastField.type == 'tableexp'
             and lastField.tindex == #source then
@@ -264,6 +299,10 @@ local function buildAnonymous(source, sub, used, symbols)
     end
 end
 
+---@param source parser.object
+---@param sub core.document-symbol.sub
+---@param used table<parser.object, boolean>
+---@param symbols core.document-symbol.symbol[]
 local function buildBlock(source, sub, used, symbols)
     if used[source] then
         return
@@ -271,8 +310,9 @@ local function buildBlock(source, sub, used, symbols)
     used[source] = true
     if source.type == 'if' then
         for _, block in ipairs(source) do
+            ---@cast block parser.object
             symbols[#symbols+1] = {
-                name           = block.type:gsub('block$', ''),
+                name           = (block.type:gsub('block$', '')) --[[@as string]],
                 detail         = sub(block.start + 1, block.keyword[4] or block.keyword[2]),
                 kind           = define.SymbolKind.Package,
                 range          = { block.start, block.finish },
@@ -311,6 +351,10 @@ local function buildBlock(source, sub, used, symbols)
     end
 end
 
+---@param source parser.object
+---@param sub core.document-symbol.sub
+---@param used table<parser.object, boolean>
+---@param symbols core.document-symbol.symbol[]
 local function buildSource(source, sub, used, symbols)
     if     source.type == 'local'
     or     source.type == 'setlocal'
@@ -334,6 +378,8 @@ local function buildSource(source, sub, used, symbols)
 end
 
 ---@async
+---@param uri uri
+---@return core.document-symbol.symbol[]?
 local function makeSymbol(uri)
     local state = files.getState(uri)
     if not state then
@@ -341,10 +387,13 @@ local function makeSymbol(uri)
     end
 
     local sub = subber(state)
+    ---@type core.document-symbol.symbol[]
     local symbols = {}
+    ---@type table<parser.object, boolean>
     local used = {}
     local i = 0
     ---@async
+    ---@param source parser.object
     guide.eachSource(state.ast, function (source)
         buildSource(source, sub, used, symbols)
         i = i + 1
@@ -356,9 +405,15 @@ local function makeSymbol(uri)
     return symbols
 end
 
+---@param symbols core.document-symbol.symbol[]
+---@return core.document-symbol.symbol[]?
 local function packChild(symbols)
     local index = 1
+    ---@param min integer
+    ---@param max integer
+    ---@return core.document-symbol.symbol[]?
     local function insertChilds(min, max)
+        ---@type core.document-symbol.symbol[]?
         local list
         while true do
             local symbol = symbols[index]
@@ -386,8 +441,11 @@ local function packChild(symbols)
 end
 
 ---@async
+---@param symbols core.document-symbol.symbol[]
 local function packSymbols(symbols)
     await.delay()
+    ---@param a core.document-symbol.symbol
+    ---@param b core.document-symbol.symbol
     table.sort(symbols, function (a, b)
         local o1 = a.valueRange and a.valueRange[1] or a.selectionRange[1]
         local o2 = b.valueRange and b.valueRange[1] or b.selectionRange[1]

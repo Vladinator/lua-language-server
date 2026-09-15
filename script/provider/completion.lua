@@ -6,9 +6,12 @@ local ws     = require 'workspace'
 
 local isEnable = false
 
+---@return string[]
 local function allWords()
     local str = '\t\n.:(\'"[,#*@|=-{ +?'
+    ---@type table<string, boolean>
     local mark = {}
+    ---@type string[]
     local list = {}
     for c in str:gmatch '.' do
         list[#list+1] = c

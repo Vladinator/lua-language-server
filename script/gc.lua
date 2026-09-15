@@ -1,7 +1,7 @@
 local util = require 'utility'
 
 ---@class gc
----@field package _list table
+---@field package _list any[]
 local mt = {}
 mt.__index = mt
 mt.type = 'gc'
@@ -10,6 +10,7 @@ mt._removed = false
 ---@package
 mt._max = 10
 
+---@param obj any
 local function destroyGCObject(obj)
     local tp = type(obj)
     if tp == 'function' then
@@ -22,6 +23,8 @@ local function destroyGCObject(obj)
     end
 end
 
+---@param obj any
+---@return boolean
 local function isRemoved(obj)
     local tp = type(obj)
     if tp == 'function' then
@@ -48,6 +51,7 @@ local function isRemoved(obj)
     return false
 end
 
+---@param self gc
 local function zip(self)
     local list = self._list
     local index = 1

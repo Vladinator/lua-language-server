@@ -125,9 +125,13 @@ return function (uri, callback)
         return
     end
 
+    ---@type unused-function.mark
     local black = {}
+    ---@type unused-function.mark
     local white = {}
+    ---@type unused-function.mark
     local roots = {}
+    ---@type unused-function.links
     local links = {}
 
     collect(state.ast, white, roots, links)

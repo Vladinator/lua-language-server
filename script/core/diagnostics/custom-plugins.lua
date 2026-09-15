@@ -98,6 +98,7 @@ local function checkTrustLoad(dirPath)
     end
     local filePath = LOGPATH .. '/trusted'
     local trusted = util.loadFile(filePath)
+    ---@type string[]
     local lines = {}
     if trusted then
         for line in util.eachLine(trusted) do

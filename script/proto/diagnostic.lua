@@ -1,6 +1,8 @@
 local util = require 'utility'
 
 ---@class proto.diagnostic
+---@field diagnosticDatas  table<string, {severity: DiagnosticSeverity, status: DiagnosticNeededFileStatus}>
+---@field diagnosticGroups table<string, table<string, boolean>>
 local m = {}
 
 ---@alias DiagnosticSeverity

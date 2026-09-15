@@ -4,17 +4,21 @@ local version = require 'version'
 
 require 'config.env'
 
+---@param value string?
+---@return boolean|number|string?
 local function getValue(value)
+    ---@type boolean|number|string?
+    local result = value
     if     value == 'true' or value == nil then
-        value = true
+        result = true
     elseif value == 'false' then
-        value = false
+        result = false
     elseif tonumber(value) then
-        value = tonumber(value)
+        result = tonumber(value)
     elseif value:sub(1, 1) == '"' and value:sub(-1, -1) == '"' then
-        value = value:sub(2, -2)
+        result = value:sub(2, -2)
     end
-    return value
+    return result
 end
 
 local function loadArgs()
@@ -23,6 +27,7 @@ local function loadArgs()
     for _, v in ipairs(arg) do
         ---@type string?
         local key, tail = v:match '^%-%-([%w_]+)(.*)$'
+        ---@type string?
         local value
         if key then
             value   = tail:match '=(.+)'

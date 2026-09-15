@@ -1,3 +1,5 @@
+---@class without-check-nil
+---@field watch? fun(event: string, ...: any): boolean, any
 local m = {}
 
 local mt = {}
@@ -99,7 +101,9 @@ if _VERSION == 'Lua 5.3' or _VERSION == 'Lua 5.4' or _VERSION == 'Lua 5.5' then
     ]]
 end
 
-for event, func in pairs(mt) do
+---@type table<string, function>
+local mt2 = mt
+for event, func in pairs(mt2) do
     mt[event] = function (...)
         local watch = m.watch
         if not watch then

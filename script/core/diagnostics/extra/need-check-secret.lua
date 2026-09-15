@@ -336,6 +336,7 @@ return function (uri, callback)
     local delayer = await.newThrottledDelayer(500)
 
     ---@async
+    ---@param src parser.object
     guide.eachSourceTypes(state.ast, {'getlocal', 'getglobal', 'getfield', 'getindex', 'getmethod'}, function (src)
         delayer:delay()
 

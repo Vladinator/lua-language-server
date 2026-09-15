@@ -4,6 +4,21 @@ local config     = require 'config'
 local util       = require 'utility'
 local lookback   = require 'core.look-backward'
 
+---@class core.completion.keyword.info
+---@field hasSpace boolean
+---@field isExp boolean
+---@field text string
+---@field start integer
+---@field uri uri
+---@field position integer
+---@field state parser.state
+
+---@class core.completion.keyword.entry
+---@field [1] string
+---@field [2]? fun(info: core.completion.keyword.info, results: completion.results): boolean?
+---@field [3]? fun(info: core.completion.keyword.info): boolean?
+
+---@type core.completion.keyword.entry[]
 local keyWordMap = {
     { 'do', function(info, results)
         if info.hasSpace then
@@ -335,6 +350,7 @@ end"
         if version == 'Lua 5.1' then
             return
         end
+        ---@type parser.object?
         local mostInsideBlock
         guide.eachSourceContain(info.state.ast, info.start, function (src)
             if src.type == 'while'
@@ -348,6 +364,7 @@ end"
             return
         end
         -- 找一下 end 的位置
+        ---@type integer?
         local endPos
         if mostInsideBlock.type == 'while' then
             endPos = mostInsideBlock.keyword[5]
@@ -362,16 +379,18 @@ end"
             return
         end
         local endLine     = guide.rowColOf(endPos)
-        local tabStr = info.state.lua:sub(
+        local tabStr = (info.state.lua or ''):sub(
             info.state.lines[endLine],
             guide.positionToOffset(info.state, endPos)
         )
+        ---@type string
         local newText
         if tabStr:match '^[\t ]*$' then
             newText = '    ::continue::\n' .. tabStr
         else
             newText = '::continue::'
         end
+        ---@type vm.completion.edit[]
         local additional = {}
 
         local word = lookback.findWord(info.state.lua, guide.positionToOffset(info.state, info.start) - 1)

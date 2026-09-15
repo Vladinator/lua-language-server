@@ -33,6 +33,7 @@ return function (uri, callback)
             await.delay()
             local myName = guide.getKeyName(doc)
             local list = { doc }
+            ---@type table<any, boolean>
             local mark = {}
             for i = 1, 999 do
                 local current = list[i]

@@ -47,6 +47,7 @@ brave.on('loadProtoBySocket', function (param)
     assert(lsclient)
     assert(lsmaster)
 
+    ---@param data string
     function lsclient:on_data(data)
         buf = buf .. data
         coroutine.resume(parser)

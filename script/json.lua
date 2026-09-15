@@ -540,6 +540,8 @@ local function decode_item()
     end
 end
 
+---@param str string
+---@return any
 function json.decode(str)
     if type(str) ~= "string" then
         error("expected argument of type string, got " .. type(str))

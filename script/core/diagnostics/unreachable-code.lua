@@ -37,6 +37,7 @@ local function hasReturn(block)
         return true
     end
     if block.type == 'if' then
+        ---@type boolean?
         local hasElse
         for _, subBlock in ipairs(block) do
             if not hasReturn(subBlock) then

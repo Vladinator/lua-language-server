@@ -28,6 +28,7 @@ local literalMap = {
 }
 
 ---@async
+---@param data {uri: uri, range: range}
 return function (data)
     local uri   = data.uri
     local text  = files.getText(uri)

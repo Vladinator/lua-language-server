@@ -7,10 +7,16 @@ local glob     = require 'glob'
 ---@class parser.object
 ---@field package _visibleType? parser.visibleType
 
+---@param patterns string[]
+---@param fieldName string
+---@return boolean
 local function globMatch(patterns, fieldName)
     return glob.glob(patterns)(fieldName)
 end
 
+---@param patterns string[]
+---@param fieldName string
+---@return boolean
 local function luaMatch(patterns, fieldName)
     for i = 1, #patterns do
         if string.find(fieldName, patterns[i]) then
@@ -20,6 +26,8 @@ local function luaMatch(patterns, fieldName)
     return false
 end
 
+---@param source parser.object
+---@return parser.visibleType
 local function getVisibleType(source)
     if guide.isLiteral(source) then
         return 'public'

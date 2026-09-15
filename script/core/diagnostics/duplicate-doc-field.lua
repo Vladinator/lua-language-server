@@ -41,6 +41,7 @@ return function (uri, callback)
         return
     end
 
+    ---@type table<parser.object, string|false>
     local cachedKeys = {}
 
     ---@param field parser.object

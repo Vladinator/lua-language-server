@@ -1,3 +1,6 @@
+---@param key? string
+---@param k any
+---@return string
 local function mergeKey(key, k)
     if not key then
         return k
@@ -10,6 +13,8 @@ local function mergeKey(key, k)
     end
 end
 
+---@param results table<string, any>
+---@param key? string
 local function proxy(results, key)
     return setmetatable({}, {
         __index = function (_, k)
@@ -21,6 +26,10 @@ local function proxy(results, key)
     })
 end
 
+---@param text string
+---@param path string
+---@param results? table<string, any>
+---@return table<string, any>
 return function (text, path, results)
     results = results or {}
     assert(load(text, '@' .. path, "t", proxy(results)))()

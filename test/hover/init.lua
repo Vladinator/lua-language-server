@@ -7,6 +7,7 @@ rawset(_G, 'TEST', true)
 
 ---@diagnostic disable: await-in-sync
 function TEST(script)
+    ---@param expect string
     return function (expect)
         local newScript, catched = catch(script, '?')
         files.setText(TESTURI, newScript)

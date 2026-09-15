@@ -22,6 +22,7 @@ local function hasGet(loc)
     if not loc.ref then
         return false
     end
+    ---@type boolean?
     local weak
     for _, ref in ipairs(loc.ref) do
         if ref.type == 'getlocal' then

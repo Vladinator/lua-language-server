@@ -38,6 +38,7 @@ return function (uri, callback)
     ---@async
     guide.eachSourceTypes(state.ast, {'getlocal', 'getglobal', 'getfield', 'getindex', 'getmethod'}, function (src)
         delayer:delay()
+        ---@type boolean?
         local checkNil
         local nxt = src.next
         if nxt then

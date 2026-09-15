@@ -153,6 +153,7 @@ local function TESTGENERICNAMES(expected)
         files.setText(TESTURI, script)
         local state = files.getState(TESTURI)
         assert(state)
+        ---@type string[]
         local found = {}
         for _, doc in ipairs(state.ast.docs) do
             -- eachSource instead of eachSourceType: the latter's type cache

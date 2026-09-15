@@ -10,6 +10,7 @@ lclient():start(function (client)
     client:initialize()
 
     local text = util.loadFile((ROOT / 'test' / 'example' / 'meta.json'):string())
+    assert(text)
     local meta = json.decode(text)
 
     client:notify('$/api/report', meta)

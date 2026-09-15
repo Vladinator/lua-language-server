@@ -21,6 +21,7 @@ return function (uri, callback)
         return
     end
 
+    ---@type table<parser.object, boolean>
     local mark = {}
     ---@async
     guide.eachSourceType(state.ast, 'break', function (source)

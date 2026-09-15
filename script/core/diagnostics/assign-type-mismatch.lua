@@ -92,6 +92,7 @@ return function (uri, callback)
             end
         end
 
+        ---@type vm.node
         local valueNode = vm.compileNode(value)
         if source.type == 'setindex'
         or source.type == 'tableexp' then

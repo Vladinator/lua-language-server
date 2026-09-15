@@ -36,6 +36,7 @@ return function (uri, callback)
         for _, ref in ipairs(loc.ref) do
             if ref.type == 'setlocal' and ref.value then
                 await.delay()
+                ---@type vm.node
                 local refNode = vm.compileNode(ref)
                 local value = ref.value
 

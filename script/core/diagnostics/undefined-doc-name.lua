@@ -65,6 +65,7 @@ local function isClassGenericParam(source, name, uri)
 
     -- Check if bound to a method on a generic class
     -- Find the function from any doc in the bindGroup
+    ---@type parser.object?
     local func = nil
     if bindGroup then
         for _, other in ipairs(bindGroup) do

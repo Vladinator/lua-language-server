@@ -11,6 +11,7 @@ local function getSource(pos)
     if not state then
         return
     end
+    ---@type parser.object?
     local result
     guide.eachSourceContain(state.ast, pos, function (source)
         if source.type == 'local'

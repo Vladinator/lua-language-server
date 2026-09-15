@@ -1,5 +1,8 @@
 local parser = require 'parser'
 
+---@param str string
+---@param name string
+---@param mode string
 local function check_str(str, name, mode)
     local ast = parser.compile(str, mode, 'Lua 5.3')
     assert(ast)
@@ -18,7 +21,9 @@ local function check_str(str, name, mode)
     end
 end
 
+---@param mode string
 local function check(mode)
+    ---@param list string[]
     return function (list)
         for i, str in ipairs(list) do
             check_str(str, mode .. '-' .. i, mode)

@@ -190,6 +190,9 @@ function mt:request(method, params, callback)
 end
 
 ---@async
+---@param method string
+---@param params? table
+---@return any
 function mt:awaitRequest(method, params)
     return await.wait(function (waker)
         ---@async

@@ -18,6 +18,7 @@ protoDiagnostic.register {
 ---@param i    integer
 ---@return boolean
 local function isYieldAble(defs, i)
+    ---@type boolean?
     local hasFuncDef
     for _, def in ipairs(defs) do
         if def.type == 'function' then

@@ -20,7 +20,8 @@ return function (uri, callback)
     end
 
     guide.eachSourceType(state.ast, 'loop', function (source)
-        local maxNumber = source.max and tonumber(source.max[1])
+        ---@type number?
+        local maxNumber = source.max and tonumber(source.max[1]) or nil
         if not maxNumber then
             return
         end

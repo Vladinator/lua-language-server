@@ -26,6 +26,7 @@ local function findSetField(ast, name, callback)
             if not funcPtr then
                 return
             end
+            ---@type parser.object?
             local func = funcPtr.value
             if not func then
                 return

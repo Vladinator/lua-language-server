@@ -29,6 +29,7 @@ return function (uri, callback)
         if not bindGroup then
             goto CONTINUE
         end
+        ---@type boolean?
         local ok
         for _, other in ipairs(bindGroup) do
             if other.type == 'doc.class' then

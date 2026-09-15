@@ -80,9 +80,13 @@ end
 local statusBuf
 ---@type integer
 local statusPos
+---@type integer
 local statusTop
+---@type table<integer, boolean>
 local statusAry = {}
+---@type table<integer, table>
 local statusRef = {}
+---@type table<integer, table>
 local statusAst = {}
 
 local function find_line()

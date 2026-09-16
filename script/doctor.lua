@@ -27,11 +27,23 @@ _ENV = nil
 local hasPoint       = pcall(sformat, '%p', _G)
 local multiUserValue = not pcall(getuservalue, stderr, '')
 
+---@class doctor.info
+---@field object any -- the original Lua value this node's children were found from
+---@field [integer] doctor.node
+
+---@class doctor.node
+---@field type string
+---@field name string
+---@field info doctor.info
+
+---@param obj any
+---@return string?
 local function getPoint(obj)
     if hasPoint then
         return ('%p'):format(obj)
     else
         local mt = getmetatable(obj)
+        ---@type any
         local ts
         if mt then
             ts = rawget(mt, '__tostring')
@@ -47,6 +59,10 @@ local function getPoint(obj)
     end
 end
 
+---@param obj any
+---@param tp  string
+---@param ext? string
+---@return string
 local function formatObject(obj, tp, ext)
     local text = ('%s:%s'):format(tp, getPoint(obj))
     if ext then
@@ -55,6 +71,8 @@ local function formatObject(obj, tp, ext)
     return text
 end
 
+---@param obj number
+---@return boolean
 local function isInteger(obj)
     if mathType then
         return mathType(obj) == 'integer'
@@ -63,6 +81,8 @@ local function isInteger(obj)
     end
 end
 
+---@param obj any
+---@return string?
 local function getTostring(obj)
     local mt = getmetatable(obj)
     if not mt then
@@ -82,6 +102,8 @@ local function getTostring(obj)
     return str
 end
 
+---@param obj any
+---@return string
 local function formatName(obj)
     local tp = type(obj)
     if tp == 'nil' then
@@ -148,6 +170,7 @@ local function formatName(obj)
     end
 end
 
+---@type table<any, boolean>
 local _private = {}
 
 ---@generic T
@@ -161,18 +184,34 @@ local function private(o)
     return o
 end
 
+---@alias doctor.report {point: string, count: integer, name: string, childs: integer}
+
+---@class doctor
+---@field _ignoreMainThread boolean
+---@field _exclude? any[]
+---@field _cache? boolean
+---@field _lastCache? doctor.node
+---@field snapshot fun(): doctor.node
+---@field catch fun(...: any): string[][]
+---@field report fun(): doctor.report[]
+---@field exclude fun(...: any)
+---@field compare fun(old: doctor.report[], new: doctor.report[]): table
+---@field ignoreMainThread fun(flag: boolean)
+---@field enableCache fun(flag: boolean)
+---@field flushCache fun()
 local m = private {}
 
 m._ignoreMainThread = true
 
 --- 获取内存快照，生成一个内部数据结构。
 --- 一般不用这个API，改用 report 或 catch。
----@return table
+---@return doctor.node
 m.snapshot = private(function ()
     if m._lastCache then
         return m._lastCache
     end
 
+    ---@type table<any, boolean>
     local exclude = {}
     if m._exclude then
         for _, o in ipairs(m._exclude) do
@@ -192,12 +231,18 @@ m.snapshot = private(function ()
 
     private0(exclude)
 
+    ---@type fun(obj: any): doctor.info?
     local find
+    ---@type table<any, doctor.info>
     local mark = private0 {}
 
+    ---@param t      table
+    ---@param result? doctor.info
+    ---@return doctor.info
     local function findTable(t, result)
-        result = result or {}
+        result = result or {} --[[@as doctor.info]]
         local mt = getmetatable(t)
+        ---@type boolean?, boolean?
         local wk, wv
         if mt then
             local mode = rawget(mt, '__mode')
@@ -210,7 +255,7 @@ m.snapshot = private(function ()
                 end
             end
         end
-        for k, v in next, t do
+        for k, v in next, t --[[@as table<any, any>]] do
             if not wk then
                 local keyInfo = find(k)
                 if keyInfo then
@@ -267,8 +312,11 @@ m.snapshot = private(function ()
         return result
     end
 
+    ---@param f      function
+    ---@param result? doctor.info
+    ---@return doctor.info
     local function findFunction(f, result)
-        result = result or {}
+        result = result or {} --[[@as doctor.info]]
         for i = 1, maxinterger do
             local n, v = getupvalue(f, i)
             if not n then
@@ -286,8 +334,11 @@ m.snapshot = private(function ()
         return result
     end
 
+    ---@param u      userdata
+    ---@param result? doctor.info
+    ---@return doctor.info?
     local function findUserData(u, result)
-        result = result or {}
+        result = result or {} --[[@as doctor.info]]
         local maxUserValue = multiUserValue and maxinterger or 1
         for i = 1, maxUserValue do
             local v, b = getuservalue(u, i)
@@ -317,12 +368,15 @@ m.snapshot = private(function ()
         return result
     end
 
+    ---@param trd    thread
+    ---@param result? doctor.info
+    ---@return doctor.info?
     local function findThread(trd, result)
         -- 不查找主线程，主线程一定是临时的（视为弱引用）
         if m._ignoreMainThread and trd == registry[1] then
             return nil
         end
-        result = result or private0 {}
+        result = result or private0 {} --[[@as doctor.info]]
 
         for i = 1, maxinterger do
             local info = getinfo(trd, i, 'Sf')
@@ -359,11 +413,13 @@ m.snapshot = private(function ()
         return result
     end
 
+    ---@return doctor.info?
     local function findMainThread()
         -- 不查找主线程，主线程一定是临时的（视为弱引用）
         if m._ignoreMainThread then
             return nil
         end
+        ---@type doctor.info
         local result = private0 {}
 
         for i = 1, maxinterger do
@@ -476,8 +532,10 @@ end)
 --- 输入既可以是对象实体，也可以是对象的描述（从其他接口的返回值中复制过来）。
 --- 返回字符串数组的数组，每个字符串描述了如何从根节点引用到指定的对象。
 --- 可以同时查找多个对象。
+---@param ... any
 ---@return string[][]
 m.catch = private(function (...)
+    ---@type table<any, boolean>
     local targets = {}
     for i = 1, select('#', ...) do
         local target = select(i, ...)
@@ -486,11 +544,15 @@ m.catch = private(function (...)
         end
     end
     local report = m.snapshot()
+    ---@type string[]
     local path =   {}
+    ---@type string[][]
     local result = {}
+    ---@type table<doctor.info, boolean>
     local mark =   {}
 
     local function push()
+        ---@type string[]
         local resultPath = {}
         for i = 1, #path do
             resultPath[i] = path[i]
@@ -498,23 +560,25 @@ m.catch = private(function (...)
         result[#result+1] = resultPath
     end
 
+    ---@param t doctor.node
     local function search(t)
         path[#path+1] = ('(%s)%s'):format(t.type, t.name)
+        ---@type any
         local addTarget
-        local point = getPoint(t.info.object)
+        local point = getPoint(t.info.object) --[[@as string]]
         if targets[t.info.object] then
             targets[t.info.object] = nil
             addTarget = t.info.object
             push()
         end
-        if targets[point] then
-            targets[point] = nil
+        if targets[point --[[@as string]]] then
+            targets[point --[[@as string]]] = nil
             addTarget = point
             push()
         end
         if not mark[t.info] then
             mark[t.info] = true
-            for _, obj in ipairs(t.info) do
+            for _, obj in ipairs(t.info --[[@as doctor.node[] ]]) do
                 search(obj)
             end
         end
@@ -529,16 +593,17 @@ m.catch = private(function (...)
     return result
 end)
 
----@alias report {point: string, count: integer, name: string, childs: integer}
-
 --- 生成一个内存快照的报告。
 --- 你应当将其输出到一个文件里再查看。
----@return report[]
+---@return doctor.report[]
 m.report = private(function ()
     local snapshot = m.snapshot()
+    ---@type table<string, doctor.report>
     local cache = {}
+    ---@type table<doctor.info, boolean>
     local mark = {}
 
+    ---@param t doctor.node
     local function scan(t)
         local obj = t.info.object
         local tp = type(obj)
@@ -547,7 +612,7 @@ m.report = private(function ()
         or tp == 'function'
         or tp == 'string'
         or tp == 'thread' then
-            local point = getPoint(obj)
+            local point = getPoint(obj) --[[@as string]]
             if not cache[point] then
                 cache[point] = {
                     point  = point,
@@ -560,13 +625,14 @@ m.report = private(function ()
         end
         if not mark[t.info] then
             mark[t.info] = true
-            for _, child in ipairs(t.info) do
+            for _, child in ipairs(t.info --[[@as doctor.node[] ]]) do
                 scan(child)
             end
         end
     end
 
     scan(snapshot)
+    ---@type doctor.report[]
     local list = {}
     for _, info in pairs(cache) do
         list[#list+1] = info
@@ -576,14 +642,19 @@ end)
 
 --- 在进行快照相关操作时排除掉的对象。
 --- 你可以用这个功能排除掉一些数据表。
+---@param ... any
 m.exclude = private(function (...)
     m._exclude = {...}
 end)
 
 --- 比较2个报告
----@return table
+---@param old doctor.report[]
+---@param new doctor.report[]
+---@return { old: doctor.report, new: doctor.report }[]
 m.compare = private(function (old, new)
+    ---@type table<string, doctor.report>
     local newHash = {}
+    ---@type { old: doctor.report, new: doctor.report }[]
     local ret = {}
     for _, info in ipairs(new) do
         newHash[info.point] = info

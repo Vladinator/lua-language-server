@@ -8,7 +8,7 @@ local config = require 'config'
 
 ---@class core.fix-indent.change
 ---@field text string
----@field range { start: { line: integer, character: integer }, ["end"]: { line: integer, character: integer } }
+---@field range? range
 
 ---@class core.fix-indent.edit
 ---@field start integer
@@ -20,6 +20,9 @@ local config = require 'config'
 ---@return core.fix-indent.edit[]|false|nil
 local function removeSpacesAfterEnter(uri, change)
     if not change.text:match '^\r?\n[\t ]+\r?\n$' then
+        return false
+    end
+    if not change.range then
         return false
     end
     local state = files.getState(uri)
@@ -102,6 +105,9 @@ end
 ---@return core.fix-indent.edit[]|false|nil
 local function fixWrongIndent(uri, change)
     if not change.text:match '^\r?\n[\t ]+$' then
+        return false
+    end
+    if not change.range then
         return false
     end
     local state = files.getState(uri)

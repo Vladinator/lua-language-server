@@ -5,6 +5,7 @@ local config = require 'config'
 ---@param uri uri
 ---@param position integer
 ---@param ch string
+---@param options table
 local function typeFormat(results, uri, position, ch, options)
     if ch ~= '\n' then
         return
@@ -33,6 +34,11 @@ local function typeFormat(results, uri, position, ch, options)
     end
 end
 
+---@param uri      uri
+---@param position integer
+---@param ch       string
+---@param options  table
+---@return { text: string, start: integer, finish: integer }[]?
 return function (uri, position, ch, options)
     local state = files.getState(uri)
     if not state then

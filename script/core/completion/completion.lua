@@ -62,12 +62,17 @@ local diagnosticModes = {
 
 ---@alias completion.results { [integer]: vm.completion.result, incomplete?: boolean, enableCommon?: boolean }
 
+---@class vm.completion.resolved
+---@field detail? string
+---@field description? string|markdown
+---@field additionalTextEdits? vm.completion.edit[]
+
 local stackID = 0
----@type table<integer, async fun(): table?>
+---@type table<integer, async fun(): vm.completion.resolved?>
 local stacks = {}
 
 ---@param oldSource parser.object
----@param callback async fun(newSource: parser.object): table
+---@param callback async fun(newSource: parser.object): vm.completion.resolved
 local function stack(oldSource, callback)
     stackID = stackID + 1
     local uri = guide.getUri(oldSource)
@@ -94,7 +99,7 @@ end
 
 ---@async
 ---@param id integer
----@return table?
+---@return vm.completion.resolved?
 local function resolveStack(id)
     local callback = stacks[id]
     if not callback then
@@ -2783,7 +2788,7 @@ end
 
 ---@async
 ---@param id integer
----@return table?
+---@return vm.completion.resolved?
 local function resolve(id)
     local item = resolveStack(id)
     return item

@@ -83,6 +83,9 @@ local function convertIndex(source)
 end
 
 ---@async
+---@param uri uri
+---@param offset integer
+---@return core.reference.result[]?
 return function (uri, offset)
     local ast = files.getState(uri)
     if not ast then

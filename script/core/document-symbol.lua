@@ -457,6 +457,8 @@ local function packSymbols(symbols)
 end
 
 ---@async
+---@param uri uri
+---@return core.document-symbol.symbol[]?
 return function (uri)
     local symbols = makeSymbol(uri)
     if not symbols then

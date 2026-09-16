@@ -23,9 +23,23 @@ local version    = require 'version'
 
 require 'library'
 
+---@class provider.handler
+---@field [1] async fun(params: any): any
+---@field capability? table
+---@field preview? boolean
+---@field abortByFileUpdate? boolean -- set by many handlers but not read anywhere in this codebase; likely client-protocol metadata read elsewhere or dead
+
+--- Shared shapes pulled out of LSP request `params` tables. These are plain
+--- structural aliases (not full LSP-spec classes) covering only the fields
+--- this file actually reads -- `params` itself stays `any` since each
+--- handler's real payload differs per LSP method; declaring one shared class
+--- per method would be disproportionate to what's used here.
+---@alias provider.textDocumentItem { uri: uri, text?: string, version?: integer }
+
 ---@class provider
 local m = {}
 
+---@type table<string, provider.handler>
 m.attributes = {}
 
 ---@async
@@ -68,6 +82,8 @@ function m.updateConfig(uri)
     end
 end
 
+---@param method string
+---@return fun(attrs: provider.handler)
 function m.register(method)
     return function (attrs)
         m.attributes[method] = attrs
@@ -109,7 +125,9 @@ filewatch.event(function (_ev, path) ---@async
 end)
 
 m.register 'initialize' {
+    ---@param params any
     function(params)
+        local params = params --[[@as any]]
         client.init(params)
 
         if params.rootUri then
@@ -118,7 +136,7 @@ m.register 'initialize' {
         end
 
         if params.workspaceFolders then
-            for _, folder in ipairs(params.workspaceFolders) do
+            for _, folder in ipairs(params.workspaceFolders --[[@as table[] ]]) do
                 workspace.create(files.getRealUri(folder.uri), folder.name)
             end
         elseif params.rootUri then
@@ -139,10 +157,13 @@ m.register 'initialize' {
 
 m.register 'initialized'{
     ---@async
+    ---@param params any
     function (params)
+        local params = params --[[@as any]]
         local _ <close> = progress.create(workspace.getFirstScope().uri, lang.script.WINDOW_INITIALIZING, 0.5)
         --- 传递`.luarc.doc.json`文件所在的文件夹路径
         m.updateConfig(params and params.luarcParentUri)
+        ---@type table[]
         local registrations = {}
 
         if client.getAbility 'workspace.didChangeConfiguration.dynamicRegistration' then
@@ -193,6 +214,7 @@ m.register 'workspace/didRenameFiles' {
             fileOperations = {
                 didRename = {
                     filters = function ()
+                        ---@type table[]
                         local filters = {}
                         for i, scp in ipairs(workspace.folders) do
                             local path = furi.decode(scp.uri):gsub('\\', '/')
@@ -212,10 +234,12 @@ m.register 'workspace/didRenameFiles' {
         },
     },
     ---@async
+    ---@param params any
     function (params)
         log.debug('workspace/didRenameFiles', inspect(params))
+        ---@type rename[]
         local renames = {}
-        for _, file in ipairs(params.files) do
+        for _, file in ipairs(params.files --[[@as { oldUri: uri, newUri: uri }[] ]]) do
             local oldUri = furi.normalize(file.oldUri)
             local newUri = furi.normalize(file.newUri)
             if  workspace.isValidLuaUri(oldUri)
@@ -253,15 +277,16 @@ m.register 'workspace/didChangeWorkspaceFolders' {
         },
     },
     ---@async
+    ---@param params any
     function (params)
         log.debug('workspace/didChangeWorkspaceFolders', inspect(params))
-        for _, folder in ipairs(params.event.added) do
+        for _, folder in ipairs(params.event.added --[[@as table[] ]]) do
             local uri = files.getRealUri(folder.uri)
             workspace.create(uri)
             m.updateConfig()
             workspace.reload(scope.getScope(uri))
         end
-        for _, folder in ipairs(params.event.removed) do
+        for _, folder in ipairs(params.event.removed --[[@as table[] ]]) do
             local uri = files.getRealUri(folder.uri)
             workspace.remove(uri)
         end
@@ -270,7 +295,9 @@ m.register 'workspace/didChangeWorkspaceFolders' {
 
 m.register 'textDocument/didOpen' {
     ---@async
+    ---@param params any
     function (params)
+        ---@type provider.textDocumentItem
         local doc      = params.textDocument
         local uri      = files.getRealUri(doc.uri)
         log.debug('didOpen', uri)
@@ -285,7 +312,9 @@ m.register 'textDocument/didOpen' {
 }
 
 m.register 'textDocument/didClose' {
+    ---@param params any
     function (params)
+        ---@type provider.textDocumentItem
         local doc   = params.textDocument
         local uri   = files.getRealUri(doc.uri)
         log.debug('didClose', uri)
@@ -298,9 +327,12 @@ m.register 'textDocument/didClose' {
 
 m.register 'textDocument/didChange' {
     ---@async
+    ---@param params any
     function (params)
         local fixIndent = require 'core.fix-indent'
+        ---@type provider.textDocumentItem
         local doc     = params.textDocument
+        ---@type core.fix-indent.change[]
         local changes = params.contentChanges
         local uri     = files.getRealUri(doc.uri)
         local text    = files.getOriginText(uri)
@@ -330,7 +362,9 @@ m.register 'textDocument/didSave' {
         }
     },
     ---@async
+    ---@param params any
     function (params)
+        ---@type provider.textDocumentItem
         local doc    = params.textDocument
         local uri    = files.getRealUri(doc.uri)
         files.onWatch('save', uri)
@@ -343,7 +377,9 @@ m.register 'textDocument/hover' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
+        ---@type provider.textDocumentItem
         local doc    = params.textDocument
         local uri    = files.getRealUri(doc.uri)
         if not config.get(uri, 'Lua.hover.enable') then
@@ -364,7 +400,7 @@ m.register 'textDocument/hover' {
         if not state then
             return nil
         end
-        local pos = converter.unpackPosition(state, params.position)
+        local pos = converter.unpackPosition(state, params.position --[[@as position]])
         local hover, source, maxLevel = core.byUri(uri, pos, params.level or 1)
         if not hover or not source then
             return nil
@@ -384,7 +420,10 @@ m.register 'textDocument/hover' {
     end
 }
 
+---@param state  parser.state
+---@param result core.reference.result[]
 local function convertDefinitionResult(state, result)
+    ---@type table[]
     local response = {}
     for i, info in ipairs(result) do
         ---@type uri
@@ -423,8 +462,11 @@ m.register 'textDocument/definition' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
-        local uri    = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc    = params.textDocument
+        local uri    = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_DEFINITION, 0.5)
         local state = files.getState(uri)
@@ -432,7 +474,7 @@ m.register 'textDocument/definition' {
             return nil
         end
         local core   = require 'core.definition'
-        local pos = converter.unpackPosition(state, params.position)
+        local pos = converter.unpackPosition(state, params.position --[[@as position]])
         local result = core(uri, pos)
         if not result then
             return nil
@@ -448,8 +490,11 @@ m.register 'textDocument/typeDefinition' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
-        local uri    = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc    = params.textDocument
+        local uri    = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_TYPE_DEFINITION, 0.5)
         local state = files.getState(uri)
@@ -457,7 +502,7 @@ m.register 'textDocument/typeDefinition' {
             return
         end
         local core   = require 'core.type-definition'
-        local pos = converter.unpackPosition(state, params.position)
+        local pos = converter.unpackPosition(state, params.position --[[@as position]])
         local result = core(uri, pos)
         if not result then
             return nil
@@ -473,8 +518,11 @@ m.register 'textDocument/implementation' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
-        local uri    = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc    = params.textDocument
+        local uri    = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_TYPE_DEFINITION, 0.5)
         local state = files.getState(uri)
@@ -482,7 +530,7 @@ m.register 'textDocument/implementation' {
             return
         end
         local core   = require 'core.implementation'
-        local pos = converter.unpackPosition(state, params.position)
+        local pos = converter.unpackPosition(state, params.position --[[@as position]])
         local result = core(uri, pos)
         if not result then
             return nil
@@ -498,8 +546,11 @@ m.register 'textDocument/references' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
-        local uri    = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc    = params.textDocument
+        local uri    = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_REFERENCE, 0.5)
         local state = files.getState(uri)
@@ -507,11 +558,12 @@ m.register 'textDocument/references' {
             return nil
         end
         local core   = require 'core.reference'
-        local pos    = converter.unpackPosition(state, params.position)
-        local result = core(uri, pos, params.context.includeDeclaration)
+        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
+        local result = core(uri, pos, params.context.includeDeclaration --[[@as boolean]])
         if not result then
             return nil
         end
+        ---@type table[]
         local response = {}
         for _, info in ipairs(result) do
             ---@type uri
@@ -532,19 +584,23 @@ m.register 'textDocument/documentHighlight' {
         documentHighlightProvider = true,
     },
     ---@async
+    ---@param params any
     function (params)
         local core = require 'core.highlight'
-        local uri  = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc  = params.textDocument
+        local uri  = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local state = files.getState(uri)
         if not state then
             return nil
         end
-        local pos    = converter.unpackPosition(state, params.position)
+        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
         local result = core(uri, pos)
         if not result then
             return nil
         end
+        ---@type table[]
         local response = {}
         for _, info in ipairs(result) do
             response[#response+1] = {
@@ -564,8 +620,11 @@ m.register 'textDocument/rename' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
-        local uri  = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc  = params.textDocument
+        local uri  = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_RENAME, 0.5)
         local state = files.getState(uri)
@@ -573,11 +632,12 @@ m.register 'textDocument/rename' {
             return nil
         end
         local core = require 'core.rename'
-        local pos    = converter.unpackPosition(state, params.position)
+        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
         local result = core.rename(uri, pos, params.newName)
         if not result then
             return nil
         end
+        ---@type { changes: table<uri, textEdit[]> }
         local workspaceEdit = {
             changes = {},
         }
@@ -599,14 +659,17 @@ m.register 'textDocument/rename' {
 
 m.register 'textDocument/prepareRename' {
     abortByFileUpdate = true,
+    ---@param params any
     function (params)
         local core = require 'core.rename'
-        local uri  = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc  = params.textDocument
+        local uri  = files.getRealUri(doc.uri)
         local state = files.getState(uri)
         if not state then
             return nil
         end
-        local pos    = converter.unpackPosition(state, params.position)
+        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
         local result = core.prepareRename(uri, pos)
         if not result then
             return nil
@@ -620,8 +683,11 @@ m.register 'textDocument/prepareRename' {
 
 m.register 'textDocument/completion' {
     ---@async
+    ---@param params any
     function (params)
-        local uri  = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc  = params.textDocument
+        local uri  = files.getRealUri(doc.uri)
         if not config.get(uri, 'Lua.completion.enable') then
             return
         end
@@ -637,6 +703,7 @@ m.register 'textDocument/completion' {
         if not state then
             return
         end
+        ---@type string?
         local triggerCharacter = params.context and params.context.triggerCharacter
         if config.get(uri, 'editor.acceptSuggestionOnEnter') ~= 'off' then
             if triggerCharacter == '\n'
@@ -647,7 +714,7 @@ m.register 'textDocument/completion' {
         end
         --await.setPriority(1000)
         local clock  = os.clock()
-        local pos    = converter.unpackPosition(state, params.position)
+        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
         local result = core.completion(uri, pos, triggerCharacter)
         local passed = os.clock() - clock
         if passed > 0.1 then
@@ -659,8 +726,9 @@ m.register 'textDocument/completion' {
         tracy.ZoneBeginN 'completion make'
         local _ <close> = tracy.ZoneEnd
         local easy = false
+        ---@type table[]
         local items = {}
-        for i, res in ipairs(result) do
+        for i, res in ipairs(result --[[@as vm.completion.result[] ]]) do
             local item = {
                 label            = res.label,
                 kind             = res.kind,
@@ -681,8 +749,9 @@ m.register 'textDocument/completion' {
                     newText = res.textEdit.newText,
                 },
                 additionalTextEdits = res.additionalTextEdits and (function ()
+                    ---@type table[]
                     local t = {}
-                    for j, edit in ipairs(res.additionalTextEdits) do
+                    for j, edit in ipairs(res.additionalTextEdits --[[@as vm.completion.edit[] ]]) do
                         t[j] = {
                             range   = converter.packRange(
                                 state,
@@ -731,13 +800,14 @@ m.register 'textDocument/completion' {
 
 m.register 'completionItem/resolve' {
     ---@async
+    ---@param item table
     function (item)
         local core = require 'core.completion'
         if not item.data then
             return item
         end
-        local id            = item.data.id
-        local uri           = item.data.uri
+        local id            = item.data.id --[[@as integer]]
+        local uri           = item.data.uri --[[@as uri]]
         --await.setPriority(1000)
         local state = files.getState(uri)
         if not state then
@@ -753,6 +823,7 @@ m.register 'completionItem/resolve' {
             kind  = 'markdown',
         } or item.documentation
         item.additionalTextEdits = resolved.additionalTextEdits and (function ()
+            ---@type table[]
             local t = {}
             for j, edit in ipairs(resolved.additionalTextEdits) do
                 t[j] = {
@@ -778,8 +849,11 @@ m.register 'textDocument/signatureHelp' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
-        local uri = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc = params.textDocument
+        local uri = files.getRealUri(doc.uri)
         if not config.get(uri, 'Lua.signatureHelp.enable') then
             return nil
         end
@@ -789,14 +863,16 @@ m.register 'textDocument/signatureHelp' {
             return nil
         end
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_SIGNATURE, 0.5)
-        local pos = converter.unpackPosition(state, params.position)
+        local pos = converter.unpackPosition(state, params.position --[[@as position]])
         local core = require 'core.signature'
         local results = core(uri, pos)
         if not results then
             return nil
         end
+        ---@type table[]
         local infos = {}
         for i, result in ipairs(results) do
+            ---@type table[]
             local parameters = {}
             for j, param in ipairs(result.params) do
                 parameters[j] = {
@@ -828,8 +904,11 @@ m.register 'textDocument/documentSymbol' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
-        local uri   = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc   = params.textDocument
+        local uri   = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_SYMBOL, 0.5)
         local state = files.getState(uri)
@@ -843,18 +922,19 @@ m.register 'textDocument/documentSymbol' {
         end
 
         ---@async
+        ---@param symbol core.document-symbol.symbol
         local function convert(symbol)
             await.delay()
             symbol.range = converter.packRange(
                 state,
                 symbol.range[1],
                 symbol.range[2]
-            )
+            ) --[[@as any]]
             symbol.selectionRange = converter.packRange(
                 state,
                 symbol.selectionRange[1],
                 symbol.selectionRange[2]
-            )
+            ) --[[@as any]]
             if symbol.name == '' then
                 symbol.name = ' '
             end
@@ -888,11 +968,14 @@ m.register 'textDocument/codeAction' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
         local core        = require 'core.code-action'
-        local uri         = files.getRealUri(params.textDocument.uri)
-        local range       = params.range
-        local diagnostics = params.context.diagnostics
+        ---@type provider.textDocumentItem
+        local doc         = params.textDocument
+        local uri         = files.getRealUri(doc.uri)
+        local range       = params.range --[[@as range]]
+        local diagnostics = params.context.diagnostics --[[@as core.code-action.diag[]?]]
         workspace.awaitReady(uri)
 
         local state = files.getState(uri)
@@ -909,14 +992,17 @@ m.register 'textDocument/codeAction' {
 
         for _, res in ipairs(results) do
             if res.edit then
-                ---@param turi uri
                 for turi, changes in pairs(res.edit.changes) do
                     local tstate = files.getState(turi)
                     if tstate then
-                        for _, change in ipairs(changes) do
-                            change.range = converter.packRange(tstate, change.start, change.finish)
-                            change.start  = nil
-                            change.finish = nil
+                        ---@type table<integer, { range: range, newText: string }>
+                        local anyChanges = changes
+                        for i, change in ipairs(changes) do
+                            local packed = converter.packRange(tstate, change.start, change.finish)
+                            anyChanges[i] = {
+                                range   = packed,
+                                newText = change.newText,
+                            }
                         end
                     end
                 end
@@ -935,8 +1021,11 @@ m.register 'textDocument/codeLens' {
     },
     --abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
-        local uri = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc = params.textDocument
+        local uri = files.getRealUri(doc.uri)
         if not config.get(uri, 'Lua.codeLens.enable') then
             return
         end
@@ -950,6 +1039,7 @@ m.register 'textDocument/codeLens' {
         if not results then
             return nil
         end
+        ---@type table[]
         local codeLens = {}
         for _, result in ipairs(results) do
             codeLens[#codeLens+1] = {
@@ -966,9 +1056,11 @@ m.register 'textDocument/codeLens' {
 
 m.register 'codeLens/resolve' {
     ---@async
+    ---@param codeLen table
     function (codeLen)
         local core = require 'core.code-lens'
-        local command = core.resolve(codeLen.data.uri, codeLen.data.id)
+        local data = codeLen.data --[[@as { uri: uri, id: integer }]]
+        local command = core.resolve(data.uri, data.id)
         codeLen.command = command or converter.command('...', '', {})
         return codeLen
     end
@@ -988,8 +1080,9 @@ m.register 'workspace/executeCommand' {
         },
     },
     ---@async
+    ---@param params any
     function (params)
-        local command = params.command:gsub(':.+', '')
+        local command = (params.command --[[@as string]]):gsub(':.+', '')
         if     command == 'lua.removeSpace' then
             local core = require 'core.command.removeSpace'
             return core(params.arguments[1])
@@ -1026,6 +1119,7 @@ m.register 'workspace/symbol' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
         local _ <close> = progress.create(workspace.getFirstScope().uri, lang.script.WINDOW_PROCESSING_WS_SYMBOL, 0.5)
         local core = require 'core.workspace-symbol'
@@ -1035,6 +1129,7 @@ m.register 'workspace/symbol' {
             return nil
         end
 
+        ---@param symbol core.workspace-symbol.result
         local function convert(symbol)
             local uri = guide.getUri(symbol.source)
             local state = files.getState(uri)
@@ -1042,7 +1137,7 @@ m.register 'workspace/symbol' {
                 return nil
             end
             return {
-                name = symbol.name,
+                name = symbol.name --[[@as string]],
                 kind = symbol.skind,
                 location = converter.location(
                     uri,
@@ -1055,6 +1150,7 @@ m.register 'workspace/symbol' {
             }
         end
 
+        ---@type table[]
         local results = {}
 
         for _, symbol in ipairs(symbols) do
@@ -1065,7 +1161,10 @@ m.register 'workspace/symbol' {
     end
 }
 
+---@param map table<string, integer>
+---@return string[]
 local function toArray(map)
+    ---@type string[]
     local array = {}
     for k in pairs(map) do
         array[#array+1] = k
@@ -1091,9 +1190,12 @@ client.event(function (ev)
                 },
                 abortByFileUpdate = true,
                 ---@async
+                ---@param params any
                 function (params)
                     log.debug('textDocument/semanticTokens/full')
-                    local uri = files.getRealUri(params.textDocument.uri)
+                    ---@type provider.textDocumentItem
+                    local doc = params.textDocument
+                    local uri = files.getRealUri(doc.uri)
                     workspace.awaitReady(uri)
                     await.sleep(0.0)
                     local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_SEMANTIC_FULL, 0.5)
@@ -1120,9 +1222,12 @@ m.register 'textDocument/semanticTokens/range' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
         log.debug('textDocument/semanticTokens/range')
-        local uri = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc = params.textDocument
+        local uri = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_SEMANTIC_RANGE, 0.5)
         await.sleep(0.0)
@@ -1131,7 +1236,7 @@ m.register 'textDocument/semanticTokens/range' {
             return nil
         end
         local core = require 'core.semantic-tokens'
-        local start, finish = converter.unpackRange(state, params.range)
+        local start, finish = converter.unpackRange(state, params.range --[[@as range]])
         local results = core(uri, start, finish)
         return {
             data = results
@@ -1144,9 +1249,12 @@ m.register 'textDocument/foldingRange' {
         foldingRangeProvider = true,
     },
     ---@async
+    ---@param params any
     function (params)
         local core    = require 'core.folding'
-        local uri     = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc     = params.textDocument
+        local uri     = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         if not files.exists(uri) then
             return nil
@@ -1160,6 +1268,7 @@ m.register 'textDocument/foldingRange' {
             return nil
         end
 
+        ---@type table[]
         local results = {}
         for _, region in ipairs(regions) do
             local startLine = converter.packPosition(state, region.start).line
@@ -1185,9 +1294,12 @@ m.register 'textDocument/documentColor' {
         colorProvider = true
     },
     ---@async
+    ---@param params any
     function (params)
         local color = require 'core.color'
-        local uri     = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc     = params.textDocument
+        local uri     = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local state = files.getState(uri)
         if not state then
@@ -1197,6 +1309,7 @@ m.register 'textDocument/documentColor' {
         if not colors then
             return nil
         end
+        ---@type table[]
         local results = {}
         for _, colorValue in ipairs(colors) do
             results[#results+1] = {
@@ -1209,13 +1322,15 @@ m.register 'textDocument/documentColor' {
 }
 
 m.register 'textDocument/colorPresentation' {
+    ---@param params any
     function (params)
-        local color = (require 'core.color').colorToText(params.color)
+        local color = (require 'core.color').colorToText(params.color --[[@as Color]])
         return {{label = color}}
     end
 }
 
 m.register 'window/workDoneProgress/cancel' {
+    ---@param params any
     function (params)
         log.debug('close proto(cancel):', params.token)
         progress.cancel(params.token)
@@ -1261,8 +1376,11 @@ m.register 'textDocument/formatting' {
         documentFormattingProvider = true,
     },
     ---@async
+    ---@param params any
     function(params)
-        local uri = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc = params.textDocument
+        local uri = files.getRealUri(doc.uri)
 
         local state = files.getState(uri)
         if not state then
@@ -1282,6 +1400,7 @@ m.register 'textDocument/formatting' {
             return nil
         end
 
+        ---@type table[]
         local results = {}
         for i, edit in ipairs(edits) do
             results[i] = {
@@ -1299,8 +1418,11 @@ m.register 'textDocument/rangeFormatting' {
         documentRangeFormattingProvider = true,
     },
     ---@async
+    ---@param params any
     function(params)
-        local uri = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc = params.textDocument
+        local uri = files.getRealUri(doc.uri)
 
         local state = files.getState(uri)
         if not state then
@@ -1315,11 +1437,12 @@ m.register 'textDocument/rangeFormatting' {
         pformatting.updateConfig(uri)
 
         local core = require 'core.rangeformatting'
-        local edits = core(uri, params.range, params.options)
+        local edits = core(uri, params.range --[[@as range]], params.options)
         if not edits or #edits == 0 then
             return nil
         end
 
+        ---@type table[]
         local results = {}
         for i, edit in ipairs(edits) do
             results[i] = {
@@ -1341,17 +1464,20 @@ m.register 'textDocument/onTypeFormatting' {
     },
     abortByFileUpdate = true,
     ---@async
+    ---@param params any
     function (params)
-        local uri    = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc    = params.textDocument
+        local uri    = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_TYPE_FORMATTING, 0.5)
-        local ch     = params.ch
+        local ch     = params.ch --[[@as string]]
         local state  = files.getState(uri)
         if not state then
             return nil
         end
         local core   = require 'core.type-formatting'
-        local pos    = converter.unpackPosition(state, params.position)
+        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
         local edits  = core(uri, pos, ch, params.options)
         if not edits or #edits == 0 then
             return nil
@@ -1360,6 +1486,7 @@ m.register 'textDocument/onTypeFormatting' {
         if params.options.insertSpaces then
             tab = (' '):rep(params.options.tabSize)
         end
+        ---@type table[]
         local results = {}
         for i, edit in ipairs(edits) do
             results[i] = {
@@ -1372,6 +1499,7 @@ m.register 'textDocument/onTypeFormatting' {
 }
 
 m.register '$/cancelRequest' {
+    ---@param params any
     function (params)
         proto.close(params.id, define.ErrorCodes.RequestCancelled, 'Request cancelled.')
     end
@@ -1379,8 +1507,11 @@ m.register '$/cancelRequest' {
 
 m.register '$/requestHint' {
     ---@async
+    ---@param params any
     function (params)
-        local uri  = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc  = params.textDocument
+        local uri  = files.getRealUri(doc.uri)
         if not config.get(uri, 'Lua.hint.enable') then
             return
         end
@@ -1390,8 +1521,9 @@ m.register '$/requestHint' {
             return
         end
         local core = require 'core.hint'
-        local start, finish = converter.unpackRange(state, params.range)
+        local start, finish = converter.unpackRange(state, params.range --[[@as range]])
         local results = core(uri, start, finish)
+        ---@type table[]
         local hintResults = {}
         for i, res in ipairs(results) do
             hintResults[i] = {
@@ -1411,8 +1543,11 @@ m.register 'textDocument/inlayHint' {
         },
     },
     ---@async
+    ---@param params any
     function (params)
-        local uri  = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc  = params.textDocument
+        local uri  = files.getRealUri(doc.uri)
         if not config.get(uri, 'Lua.hint.enable') then
             return nil
         end
@@ -1422,19 +1557,21 @@ m.register 'textDocument/inlayHint' {
         if not state then
             return nil
         end
-        local start, finish = converter.unpackRange(state, params.range)
+        local start, finish = converter.unpackRange(state, params.range --[[@as range]])
         local results = core(uri, start, finish)
+        ---@type table[]
         local hintResults = {}
         for i, res in ipairs(results) do
+            ---@type uri?
             local luri = res.source and guide.getUri(res.source)
-            local lstate = files.getState(luri)
+            local lstate = luri and files.getState(luri)
             hintResults[i] = {
                 label        = {
                     {
                         value    = res.text,
                         tooltip  = res.tooltip,
-                        location = lstate and converter.location(
-                            luri,
+                        location = lstate and res.source and converter.location(
+                            luri --[[@as uri]],
                             converter.packRange(
                                 lstate,
                                 res.source.start,
@@ -1475,8 +1612,11 @@ m.register 'textDocument/diagnostic' {
         }
     },
     ---@async
+    ---@param params any
     function (params)
-        local uri = files.getRealUri(params.textDocument.uri)
+        ---@type provider.textDocumentItem
+        local doc = params.textDocument
+        local uri = files.getRealUri(doc.uri)
         workspace.awaitReady(uri)
         local core = require 'provider.diagnostic'
         -- TODO: do some trick
@@ -1514,13 +1654,16 @@ m.register 'workspace/diagnostic' {
     --    }
     --},
     ---@async
+    ---@param params any
     function (params)
         local core = require 'provider.diagnostic'
+        ---@type uri[]
         local excepts = {}
-        for _, id in ipairs(params.previousResultIds) do
+        for _, id in ipairs(params.previousResultIds --[[@as table[] ]]) do
             excepts[#excepts+1] = id.value
         end
         core.clearCacheExcept(excepts)
+        ---@param result provider.diagnostic.pullResult
         local function convertItem(result)
             if result.unchanged then
                 return {
@@ -1539,9 +1682,10 @@ m.register 'workspace/diagnostic' {
                 }
             end
         end
+        local partialResultToken = params.partialResultToken --[[@as any]]
         core.pullDiagnosticScope(function (result)
             proto.notify('$/progress', {
-                token = params.partialResultToken,
+                token = partialResultToken,
                 value = {
                     items = {
                         convertItem(result)
@@ -1555,6 +1699,7 @@ m.register 'workspace/diagnostic' {
 
 m.register '$/api/report' {
     ---@async
+    ---@param params any
     function (params)
         local buildMeta = require 'provider.build-meta'
         local SDBMHash  = require 'SDBMHash'
@@ -1564,6 +1709,7 @@ m.register '$/api/report' {
         local uri  = workspace.getFirstScope().uri
         local hash = uri and ('%08x'):format(SDBMHash():hash(uri))
         local encoding = config.get(nil, 'Lua.runtime.fileEncoding')
+        ---@type string[]
         local nameBuf = {}
         nameBuf[#nameBuf+1] = name
         nameBuf[#nameBuf+1] = hash
@@ -1584,7 +1730,9 @@ m.register '$/api/report' {
 
 m.register '$/psi/view' {
     ---@async
+    ---@param params any
     function (params)
+        local params = params --[[@as any]]
         local uri = files.getRealUri(params.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_TYPE_FORMATTING, 0.5)
@@ -1599,7 +1747,9 @@ m.register '$/psi/view' {
 
 m.register '$/psi/select' {
     ---@async
+    ---@param params any
     function(params)
+        local params = params --[[@as any]]
         local uri = files.getRealUri(params.uri)
         workspace.awaitReady(uri)
         local _<close> = progress.create(uri, lang.script.WINDOW_PROCESSING_TYPE_FORMATTING, 0.5)
@@ -1660,7 +1810,7 @@ files.watch(function (ev, uri)
     if ev == 'update'
     or ev == 'remove' then
         for id, p in pairs(proto.holdon) do
-            if m.attributes[p.method].abortByFileUpdate then
+            if m.attributes[p.method] and m.attributes[p.method].abortByFileUpdate then
                 log.debug('close proto(ContentModified):', id, p.method)
                 --proto.close(id, define.ErrorCodes.ContentModified, 'Content modified.')
             end

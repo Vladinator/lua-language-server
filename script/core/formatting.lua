@@ -1,6 +1,9 @@
 local files      = require("files")
 local log        = require("log")
 
+---@param uri     uri
+---@param options table
+---@return { start: integer, finish: integer, text: string }[]?
 return function(uri, options)
     local suc, codeFormat = pcall(require, "code_format")
     if not suc then

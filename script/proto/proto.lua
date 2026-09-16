@@ -26,15 +26,24 @@ local function logRecieve(proto)
     log.info('rpc recieve:', json.encode(proto))
 end
 
+---@class proto.message
+---@field id?                    integer|string
+---@field method                 string
+---@field params?                any
+---@field package _closeReason?  integer
+---@field package _closeMessage? string
+
 ---@class proto
 local m = {}
 
 m.ability = {}
 m.waiting = {}
+---@type table<integer|string, proto.message>
 m.holdon  = {}
 m.mode    = 'stdio'
 m.client  = nil
 
+---@param proto proto.message
 function m.getMethodName(proto)
     if proto.method:sub(1, 2) == '$/' then
         return proto.method, true
@@ -159,8 +168,10 @@ local secretOption = {
     end
 }
 
+---@type proto.message[]
 m.methodQueue = {}
 
+---@param proto proto.message
 function m.applyMethod(proto)
     logRecieve(proto)
     local method, optional = m.getMethodName(proto)
@@ -223,6 +234,7 @@ function m.applyMethodQueue()
     end
 end
 
+---@param proto proto.message
 function m.doMethod(proto)
     m.methodQueue[#m.methodQueue+1] = proto
     if #m.methodQueue > 1 then
@@ -231,6 +243,9 @@ function m.doMethod(proto)
     timer.wait(0, m.applyMethodQueue)
 end
 
+---@param id      integer|string
+---@param reason  integer?
+---@param message string?
 function m.close(id, reason, message)
     local proto = m.holdon[id]
     if not proto then

@@ -421,10 +421,17 @@ local accept = {
 
 local m = {}
 
+---@class core.rename.result
+---@field start  integer
+---@field finish integer
+---@field text   string
+---@field uri    uri
+
 ---@async
 ---@param uri uri
 ---@param pos integer
 ---@param newname string
+---@return core.rename.result[]?
 function m.rename(uri, pos, newname)
     if not newname then
         return nil
@@ -437,7 +444,7 @@ function m.rename(uri, pos, newname)
     if not source then
         return nil
     end
-    ---@type { start: integer, finish: integer, text: string, uri: uri }[]
+    ---@type core.rename.result[]
     local results = {}
     ---@type table<string, boolean>
     local mark = {}
@@ -481,6 +488,7 @@ end
 
 ---@param uri uri
 ---@param pos integer
+---@return { start: integer, finish: integer, text: string|integer }?
 function m.prepareRename(uri, pos)
     local ast = files.getState(uri)
     if not ast then

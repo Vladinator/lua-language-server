@@ -20,7 +20,7 @@ local pub      = require 'pub'
 ---@field uri           uri
 ---@field ref?          integer
 ---@field trusted?      boolean
----@field rows?         integer[]
+---@field rows?         string[]
 ---@field originText?   string
 ---@field text?         string
 ---@field version?      integer
@@ -275,6 +275,8 @@ function m.setRawText(uri, text)
     m.removeState(file)
 end
 
+---@param uri uri
+---@return string[]?
 function m.getCachedRows(uri)
     local file = m.fileMap[uri]
     if not file then
@@ -283,6 +285,8 @@ function m.getCachedRows(uri)
     return file.rows
 end
 
+---@param uri  uri
+---@param rows string[]?
 function m.setCachedRows(uri, rows)
     local file = m.fileMap[uri]
     if not file then
@@ -386,7 +390,10 @@ function m.getOriginLines(uri)
     return file.originLines
 end
 
+---@param uri uri
+---@return uri[]
 function m.getChildFiles(uri)
+    ---@type uri[]
     local results = {}
     local uris = m.getAllUris(uri)
     for _, curi in ipairs(uris) do

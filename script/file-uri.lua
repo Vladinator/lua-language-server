@@ -112,6 +112,8 @@ function m.isValid(uri)
     return true
 end
 
+---@param uri uri
+---@return uri
 function m.normalize(uri)
     if not m.isValid(uri) then
         return uri

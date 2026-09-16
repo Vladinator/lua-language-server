@@ -370,6 +370,7 @@ end
 ---@param uri uri
 ---@param start integer
 ---@param finish integer
+---@return core.hint.result[]
 return function (uri, start, finish)
     ---@type core.hint.result[]
     local results = {}

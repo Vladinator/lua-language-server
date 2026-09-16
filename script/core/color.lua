@@ -65,6 +65,8 @@ end
 ---@field finish integer
 
 ---@async
+---@param uri uri
+---@return ColorValue[]?
 local function colors(uri)
     local state = files.getState(uri)
     local text  = files.getText(uri)

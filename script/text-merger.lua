@@ -10,7 +10,10 @@ local function getOffsetEncoding()
     return offsetEncoding
 end
 
+---@param text string
+---@return string[]
 local function splitRows(text)
+    ---@type string[]
     local rows = {}
     for line in util.eachLine(text, true) do
         rows[#rows+1] = line
@@ -18,6 +21,9 @@ local function splitRows(text)
     return rows
 end
 
+---@param text? string
+---@param char  integer
+---@return string
 local function getLeft(text, char)
     if not text then
         return ''
@@ -37,6 +43,9 @@ local function getLeft(text, char)
     return left
 end
 
+---@param text? string
+---@param char  integer
+---@return string
 local function getRight(text, char)
     if not text then
         return ''
@@ -56,11 +65,14 @@ local function getRight(text, char)
     return right
 end
 
+---@param rows   string[]
+---@param change core.fix-indent.change
 local function mergeRows(rows, change)
-    local startLine = change.range['start'].line + 1
-    local startChar = change.range['start'].character
-    local endLine   = change.range['end'].line + 1
-    local endChar   = change.range['end'].character
+    local range = change.range --[[@as range]]
+    local startLine = range['start'].line + 1
+    local startChar = range['start'].character
+    local endLine   = range['end'].line + 1
+    local endChar   = range['end'].character
 
     local insertRows = splitRows(change.text)
     local newEndLine = startLine + #insertRows - 1
@@ -98,6 +110,11 @@ local function mergeRows(rows, change)
     end
 end
 
+---@param text    string
+---@param rows?   string[]
+---@param changes core.fix-indent.change[]
+---@return string text
+---@return string[]? rows
 return function (text, rows, changes)
     for _, change in ipairs(changes) do
         if change.range then

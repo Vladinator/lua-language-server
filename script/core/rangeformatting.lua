@@ -2,6 +2,10 @@ local files = require("files")
 local log = require("log")
 local converter = require("proto.converter")
 
+---@param uri     uri
+---@param range   range
+---@param options table
+---@return { start: integer, finish: integer, text: string }[]?
 return function(uri, range, options)
     local state = files.getState(uri)
     if not state then

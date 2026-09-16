@@ -289,6 +289,7 @@ end
 ---@async
 ---@param uri uri
 ---@param offset integer
+---@return core.highlight.result[]?
 return function (uri, offset)
     local state = files.getState(uri)
     if not state then

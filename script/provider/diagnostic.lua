@@ -171,7 +171,9 @@ function m.clear(uri, force)
     log.info('clearDiagnostics', uri)
 end
 
+---@param uris uri[]
 function m.clearCacheExcept(uris)
+    ---@type table<uri, boolean>
     local excepts = {}
     for _, uri in ipairs(uris) do
         excepts[uri] = true
@@ -600,7 +602,10 @@ function m.diagnosticsScope(uri, force, ignoreFileOpenState)
     end, id)
 end
 
+---@alias provider.diagnostic.pullResult { uri: uri, result: table?, unchanged: boolean?, version: integer? }
+
 ---@async
+---@param callback fun(result: provider.diagnostic.pullResult)
 function m.pullDiagnosticScope(callback)
     local processing = 0
 

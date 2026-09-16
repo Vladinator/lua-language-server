@@ -1041,6 +1041,9 @@ local function solveMultilineAndOverlapping(state, results)
 end
 
 ---@async
+---@param uri    uri
+---@param start  integer
+---@param finish number
 ---@return semantic.token[]|integer[]
 return function (uri, start, finish)
     ---@type semantic.token[]

@@ -132,6 +132,8 @@ function mt:simpleMatch(path)
     return nil
 end
 
+---@param path string
+---@return boolean
 function mt:finishMatch(path)
     local paths = {}
     for filename in path:gmatch '[^/\\]+' do
@@ -149,6 +151,8 @@ function mt:finishMatch(path)
     return false
 end
 
+---@param path string
+---@return string
 function mt:getRelativePath(path)
     local root = self.options.root or ''
     if self.options.ignoreCase then
@@ -164,6 +168,7 @@ function mt:getRelativePath(path)
     return path
 end
 
+---@param path     string
 ---@param callback async fun(path: string)
 ---@param hook? async fun(ev: string, ...)
 ---@async
@@ -212,11 +217,17 @@ function mt:scan(path, callback, hook)
     return files
 end
 
+---@param path string
+---@return boolean
 function mt:__call(path)
     path = self:getRelativePath(path)
     return self:finishMatch(path)
 end
 
+---@param pattern  string|string[]
+---@param options?  table
+---@param interface? table<string, function>
+---@return gitignore
 return function (pattern, options, interface)
     local self = setmetatable({
         pattern   = {},

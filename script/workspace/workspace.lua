@@ -4,6 +4,7 @@ local furi       = require 'file-uri'
 local files      = require 'files'
 local config     = require 'config'
 local glob       = require 'glob'
+---@type { os: string }
 local platform   = require 'bee.platform'
 local await      = require 'await'
 local client     = require 'client'
@@ -15,8 +16,11 @@ local inspect    = require 'inspect'
 local lang       = require 'language'
 
 ---@class workspace
+---@field folders scope[]
+---@field rootUri? uri
 local m = {}
 m.type = 'workspace'
+---@type (async fun(ev: string, uri: uri))[]
 m.watchList = {}
 
 --- 注册事件
@@ -25,14 +29,17 @@ function m.watch(callback)
     m.watchList[#m.watchList+1] = callback
 end
 
+---@param ev  string
+---@param uri uri
 function m.onWatch(ev, uri)
     for _, callback in ipairs(m.watchList) do
-        await.call(function ()
+        await.call(function () ---@async
             callback(ev, uri)
         end)
     end
 end
 
+---@param uri uri
 function m.initRoot(uri)
     m.rootUri  = uri
     log.info('Workspace init root: ', uri)
@@ -44,6 +51,8 @@ function m.initRoot(uri)
 end
 
 --- 初始化工作区
+---@param uri        uri
+---@param folderName string
 function m.create(uri, folderName)
     log.info('Workspace create: ', uri)
     local scp = scope.createFolder(uri, folderName)
@@ -57,6 +66,7 @@ function m.create(uri, folderName)
     end
 end
 
+---@param uri uri
 function m.remove(uri)
     log.info('Workspace remove: ', uri)
     for i, scp in ipairs(m.folders) do
@@ -74,22 +84,27 @@ function m.remove(uri)
 end
 
 function m.reset()
-    ---@type scope[]
     m.folders = {}
     m.rootUri = nil
 end
 m.reset()
 
+---@param uri uri
+---@return uri?
 function m.getRootUri(uri)
     local scp = scope.getScope(uri)
     return scp.uri
 end
 
 local globInteferFace = {
+    ---@param path string
+    ---@param data table<string, string|boolean>
+    ---@return string?
     type = function (path, data)
         if data[path] then
-            return data[path]
+            return data[path] --[[@as string?]]
         end
+        ---@type string?
         local result
         pcall(function ()
             if fs.is_directory(fs.path(path)) then
@@ -102,6 +117,9 @@ local globInteferFace = {
         end)
         return result
     end,
+    ---@param path string
+    ---@param data table<string, string|boolean>
+    ---@return string[]?
     list = function (path, data)
         if data[path] == 'file' then
             return nil
@@ -112,6 +130,7 @@ local globInteferFace = {
             return nil
         end
         data[path] = true
+        ---@type string[]
         local paths = {}
         pcall(function ()
             for fullpath, status in fs.pairs(fullPath) do
@@ -134,13 +153,15 @@ local globInteferFace = {
 local addonRepositoryPathUpdated = false
 --- 创建排除文件匹配器
 ---@param scp scope
+---@return gitignore
 function m.getNativeMatcher(scp)
     if scp:get 'nativeMatcher' then
         return scp:get 'nativeMatcher'
     end
 
+    ---@type string[]
     local pattern = {}
-    for path, ignore in pairs(config.get(scp.uri, 'files.exclude')) do
+    for path, ignore in pairs(config.get(scp.uri, 'files.exclude') --[[@as table<string, boolean>]]) do
         if ignore then
             log.debug('Ignore by exclude:', path)
             pattern[#pattern+1] = path
@@ -175,7 +196,7 @@ function m.getNativeMatcher(scp)
             end
         end
     end
-    for _, path in ipairs(config.get(scp.uri, 'Lua.workspace.library')) do
+    for _, path in ipairs(config.get(scp.uri, 'Lua.workspace.library') --[[@as string[] ]]) do
         if not addonRepositoryPathUpdated then
             addonRepositoryPathUpdated = true
             local addonRepositoryPath = config.get(scp.uri, 'Lua.addonRepositoryPath')
@@ -184,10 +205,10 @@ function m.getNativeMatcher(scp)
         local apath = m.getAbsolutePath(scp.uri, path)
         if apath then
             log.debug('Ignore by library:', apath)
-            debug[#pattern+1] = apath
+            pattern[#pattern+1] = apath
         end
     end
-    for _, path in ipairs(config.get(scp.uri, 'Lua.workspace.ignoreDir')) do
+    for _, path in ipairs(config.get(scp.uri, 'Lua.workspace.ignoreDir') --[[@as string[] ]]) do
         log.debug('Ignore directory:', path)
         pattern[#pattern+1] = path
     end
@@ -201,35 +222,44 @@ function m.getNativeMatcher(scp)
     return matcher
 end
 
+---@class workspace.libraryMatcher
+---@field uri      uri
+---@field matcher  gitignore
+---@field isDofile boolean
+
 --- 创建代码库筛选器
 ---@param scp scope
+---@return workspace.libraryMatcher[]
 function m.getLibraryMatchers(scp)
     if scp:get 'libraryMatcher' then
         return scp:get 'libraryMatcher'
     end
     log.debug('Build library matchers:', scp)
 
+    ---@type string[]
     local pattern = {}
-    for path, ignore in pairs(config.get(scp.uri, 'files.exclude')) do
+    for path, ignore in pairs(config.get(scp.uri, 'files.exclude') --[[@as table<string, boolean>]]) do
         if ignore then
             log.debug('Ignore by exclude:', path)
             pattern[#pattern+1] = path
         end
     end
-    for _, path in ipairs(config.get(scp.uri, 'Lua.workspace.ignoreDir')) do
+    for _, path in ipairs(config.get(scp.uri, 'Lua.workspace.ignoreDir') --[[@as string[] ]]) do
         log.debug('Ignore directory:', path)
         pattern[#pattern+1] = path
     end
 
+    ---@type table<string, boolean>
     local librarys = {}
+    ---@type table<string, boolean>
     local dofileRootsSet = {}
-    for _, path in ipairs(config.get(scp.uri, 'Lua.workspace.library')) do
+    for _, path in ipairs(config.get(scp.uri, 'Lua.workspace.library') --[[@as string[] ]]) do
         local apath = m.getAbsolutePath(scp.uri, path)
         if apath then
             librarys[files.normalize(apath)] = true
         end
     end
-    for _, path in ipairs(config.get(scp.uri, 'Lua.workspace.dofileRoots')) do
+    for _, path in ipairs(config.get(scp.uri, 'Lua.workspace.dofileRoots') --[[@as string[] ]]) do
         local apath = m.getAbsolutePath(scp.uri, path)
         if apath then
             local norm = files.normalize(apath)
@@ -240,11 +270,12 @@ function m.getLibraryMatchers(scp)
     local metaPaths = scp:get 'metaPaths'
     log.debug('meta path:', inspect(metaPaths))
     if metaPaths then
-        for _, metaPath in ipairs(metaPaths) do
+        for _, metaPath in ipairs(metaPaths --[[@as string[] ]]) do
             librarys[files.normalize(metaPath)] = true
         end
     end
 
+    ---@type workspace.libraryMatcher[]
     local matchers = {}
     for path in pairs(librarys) do
         if fs.exists(fs.path(path)) then
@@ -269,6 +300,7 @@ end
 
 --- 文件是否被忽略
 ---@param uri uri
+---@return boolean
 function m.isIgnored(uri)
     local scp    = scope.getScope(uri)
     local path   = m.getRelativePath(uri)
@@ -280,6 +312,8 @@ function m.isIgnored(uri)
 end
 
 ---@async
+---@param uri uri
+---@return boolean
 function m.isValidLuaUri(uri)
     if not files.isLua(uri) then
         return false
@@ -292,6 +326,7 @@ function m.isValidLuaUri(uri)
 end
 
 ---@async
+---@param uri uri
 function m.awaitLoadFile(uri)
     m.awaitReady(uri)
     local scp = scope.getScope(uri)
@@ -301,19 +336,21 @@ function m.awaitLoadFile(uri)
     ---@async
     native:scan(furi.decode(uri), function (path)
         local uri = files.getRealUri(furi.encode(path))
-        scp:get('cachedUris')[uri] = true
+        local cachedUris = scp:get('cachedUris') --[[@as table<any, any>]]
+        cachedUris[uri] = true
         ld:loadFile(uri)
     end)
     ld:loadAll(uri)
 end
 
+---@param uri uri
 function m.removeFile(uri)
     for _, scp in ipairs(m.folders) do
         if scp:isChildUri(uri)
         or scp:isLinkedUri(uri) then
             local cachedUris = scp:get 'cachedUris'
             if cachedUris and cachedUris[uri] then
-                cachedUris[uri] = nil
+                (cachedUris --[[@as table<any, any>]])[uri] = nil
                 files.delRef(uri)
             end
         end
@@ -355,10 +392,11 @@ function m.awaitPreload(scp)
         ---@async
         native:scan(furi.decode(scp.uri), function (path)
             local uri = files.getRealUri(furi.encode(path))
-            scp:get('cachedUris')[uri] = true
+            local cachedUris = scp:get('cachedUris') --[[@as table<any, any>]]
+            cachedUris[uri] = true
             ld:loadFile(uri)
         end, function (_) ---@async
-            count = count + 1
+            count = (count + 1) --[[@as integer]]
             if count == 100000 then
                 client.showMessage('Warning', lang.script('WORKSPACE_SCAN_TOO_MUCH', count, furi.decode(scp.uri)))
             end
@@ -381,10 +419,11 @@ function m.awaitPreload(scp)
         ---@async
         libMatcher.matcher:scan(furi.decode(libMatcher.uri), function (path)
             local uri = files.getRealUri(furi.encode(path))
-            scp:get('cachedUris')[uri] = true
+            local cachedUris = scp:get('cachedUris') --[[@as table<any, any>]]
+            cachedUris[uri] = true
             ld:loadFile(uri, libMatcher.uri)
         end, function () ---@async
-            count = count + 1
+            count = (count + 1) --[[@as integer]]
             if count == 100000 then
                 client.showMessage('Warning', lang.script('WORKSPACE_SCAN_TOO_MUCH', count, furi.decode(libMatcher.uri)))
             end
@@ -405,10 +444,11 @@ end
 function m.findUrisByFilePath(path)
     local uri = furi.encode(path)
     local vm    = require 'vm'
-    local resultCache = vm.getCache 'findUrisByFilePath.result'
+    local resultCache = vm.getCache 'findUrisByFilePath.result' --[[@as table<string, uri[]>]]
     if resultCache[path] then
         return resultCache[path]
     end
+    ---@type uri[]
     local results = {}
     if files.exists(uri) then
         results = { uri }
@@ -428,9 +468,14 @@ function m.findUrisByDofile(path, sourceUri)
 
     ---@type string[]
     local roots = config.get(sourceUri, 'Lua.workspace.dofileRoots')
+    ---@type uri[]
     local results = {}
 
+    ---@param absPath? string
     local function addResult(absPath)
+        if not absPath then
+            return
+        end
         local uris = m.findUrisByFilePath(absPath)
         for _, uri in ipairs(uris) do
             results[#results+1] = uri
@@ -472,6 +517,7 @@ end
 ---@return string
 ---@return boolean suc
 function m.getRelativePath(uriOrPath)
+    ---@type string, string
     local path, uri
     if uriOrPath:sub(1, 5) == 'file:' then
         path = furi.decode(uriOrPath)
@@ -517,7 +563,7 @@ function m.flushFiles(scp)
     if not cachedUris then
         return
     end
-    for uri in pairs(cachedUris) do
+    for uri in pairs(cachedUris --[[@as table<any, any>]]) do
         files.delRef(uri)
     end
 end
@@ -526,11 +572,11 @@ end
 function m.resetFiles(scp)
     local cachedUris = scp:get 'cachedUris'
     if cachedUris then
-        for uri in pairs(cachedUris) do
+        for uri in pairs(cachedUris --[[@as table<any, any>]]) do
             files.resetText(uri)
         end
     end
-    for uri in pairs(files.openMap) do
+    for uri in pairs(files.openMap --[[@as table<any, any>]]) do
         if scope.getScope(uri) == scp then
             files.resetText(uri)
         end
@@ -553,7 +599,7 @@ function m.awaitReload(scp)
     local waiting = scp:get('waitingReady')
     if waiting then
         scp:set('waitingReady', nil)
-        for _, waker in ipairs(waiting) do
+        for _, waker in ipairs(waiting --[[@as function[] ]]) do
             waker()
         end
     end
@@ -568,6 +614,7 @@ end
 
 ---等待工作目录加载完成
 ---@async
+---@param uri uri
 function m.awaitReady(uri)
     if m.isReady(uri) then
         return
@@ -576,7 +623,7 @@ function m.awaitReady(uri)
     local waitingReady = scp:get('waitingReady')
                     or   scp:set('waitingReady', {})
     await.wait(function (waker)
-        waitingReady[#waitingReady+1] = waker
+        (waitingReady --[[@as table<any, any>]])[#waitingReady+1] = waker
     end)
 end
 
@@ -601,6 +648,9 @@ function m.isAllReady()
     return true
 end
 
+---@param uri uri
+---@return integer read
+---@return integer max
 function m.getLoadingProcess(uri)
     local scp = scope.getScope(uri)
     ---@type workspace.loading

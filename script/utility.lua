@@ -52,10 +52,16 @@ local function formatNumber(n)
     return str
 end
 
-local TAB = setmetatable({}, { __index = function (self, n)
-    self[n] = stringRep('    ', n)
-    return self[n]
-end})
+---@type table<integer, string>
+local TAB = setmetatable({}, { __index =
+    ---@param self table<integer, string>
+    ---@param n    integer
+    ---@return string
+    function (self, n)
+        self[n] = stringRep('    ', n)
+        return self[n]
+    end
+})
 
 local RESERVED = {
     ['and']      = true,
@@ -87,11 +93,11 @@ local m = {}
 
 --- 打印表的结构
 ---@param tbl any
----@param option? table
+---@param option? table<string, any>
 ---@return string
 function m.dump(tbl, option)
     if not option then
-        option = {}
+        option = {} --[[@as table<string, any>]]
     end
     if type(tbl) ~= 'table' then
         return ('%s'):format(tbl)
@@ -103,6 +109,7 @@ function m.dump(tbl, option)
     ---@type any[]
     local stack = {}
     lines[#lines+1] = '{'
+    ---@param tbl table<any, any>
     local function unpack(tbl)
         local deep = #stack
         mark[tbl] = (mark[tbl] or 0) + 1
@@ -164,9 +171,9 @@ function m.dump(tbl, option)
             end
             local value = tbl[key]
             local tp = type(value)
-            local format = option['format'] and option['format'][key]
+            local format = option['format'] and option['format'][key] --[[@as any]]
             if format then
-                value = format(value, unpack, deep+1, stack)
+                value = (format --[[@as fun(...): any]])(value, unpack, deep+1, stack)
                 tp    = type(value)
             end
             if tp == 'table' then
@@ -205,6 +212,9 @@ function m.equal(valueA, valueB)
     ---@type table<any, boolean>
     local hasChecked = {}
 
+    ---@param a any
+    ---@param b any
+    ---@return boolean
     local function equal(a, b)
         local tp1 = type(a)
         local tp2 = type(b)
@@ -218,14 +228,14 @@ function m.equal(valueA, valueB)
             hasChecked[a] = true
             ---@type table<any, boolean>
             local mark = {}
-            for k, v in pairs(a) do
+            for k, v in pairs(a --[[@as table<any, any>]]) do
                 mark[k] = true
-                local res = equal(v, b[k])
+                local res = equal(v, (b --[[@as table<any, any>]])[k])
                 if not res then
                     return false
                 end
             end
-            for k in pairs(b) do
+            for k in pairs(b --[[@as table<any, any>]]) do
                 if not mark[k] then
                     return false
                 end
@@ -244,24 +254,29 @@ function m.equal(valueA, valueB)
     return equal(valueA, valueB)
 end
 
+---@param tbl? table
+---@return table
 local function sortTable(tbl)
     if not tbl then
-        tbl = {}
+        tbl = {} --[[@as table]]
     end
+    ---@type table<any, any>
     local mt = {}
     ---@type any[]
     local keys = {}
     ---@type table<any, boolean>
     local mark = {}
     local n = 0
-    for key in next, tbl do
+    for key in next, tbl --[[@as table<any, any>]] do
         n=n+1;keys[n] = key
         mark[key] = true
     end
     tableSort(keys)
+    ---@param key   any
+    ---@param value any
     function mt:__newindex(key, value)
         rawset(self, key, value)
-        n=n+1;keys[n] = key
+        n = (n + 1) --[[@as integer]]; keys[n] = key
         mark[key] = true
         if type(value) == 'table' then
             sortTable(value)
@@ -284,7 +299,7 @@ local function sortTable(tbl)
                 keys[i] = key
                 mark[key] = true
             end
-            n = n + m
+            n = (n + m) --[[@as integer]]
         end
         local i = 0
         return function ()
@@ -369,8 +384,9 @@ end
 ---@param sorter? fun(a: K, b: K): boolean
 ---@return fun(): K, V
 function m.sortPairs(t, sorter)
+    ---@type any[]
     local keys = {}
-    for k in pairs(t) do
+    for k in pairs(t --[[@as table<any, any>]]) do
         keys[#keys+1] = k
     end
     tableSort(keys, sorter)
@@ -389,6 +405,9 @@ end
 function m.deepCopy(source, target)
     ---@type table<table, table>
     local mark = {}
+    ---@param a any
+    ---@param b any
+    ---@return any
     local function copy(a, b)
         if type(a) ~= 'table' then
             return a
@@ -400,8 +419,8 @@ function m.deepCopy(source, target)
             b = {}
         end
         mark[a] = b
-        for k, v in pairs(a) do
-            b[copy(k)] = copy(v)
+        for k, v in pairs(a --[[@as table<any, any>]]) do
+            (b --[[@as table<any, any>]])[copy(k)] = copy(v)
         end
         return b
     end
@@ -417,6 +436,8 @@ function m.unpack(t)
     local tid = 0
     ---@type table<any, integer>
     local cache = {}
+    ---@param o any
+    ---@return integer
     local function unpack(o)
         local id = cache[o]
         if not id then
@@ -427,7 +448,7 @@ function m.unpack(t)
                 ---@type table<integer, any>
                 local new = {}
                 result[tid] = new
-                for k, v in next, o do
+                for k, v in next, o --[[@as table<any, any>]] do
                     new[unpack(k)] = unpack(v)
                 end
             else
@@ -441,11 +462,13 @@ function m.unpack(t)
 end
 
 --- 反序列化
----@param t table
+---@param t table<any, any>
 ---@return table
 function m.pack(t)
     ---@type table<any, any>
     local cache = {}
+    ---@param id any
+    ---@return any
     local function pack(id)
         local o = cache[id]
         if o then
@@ -456,7 +479,7 @@ function m.pack(t)
             ---@type table<any, any>
             local new = {}
             cache[id] = new
-            for k, v in next, o do
+            for k, v in next, o --[[@as table<any, any>]] do
                 new[pack(k)] = pack(v)
             end
             return new
@@ -569,6 +592,10 @@ function m.viewLiteral(v)
     return nil
 end
 
+---@param str    string
+---@param start?  integer
+---@param finish? integer
+---@return integer
 function m.utf8Len(str, start, finish)
     local len = 0
     for _ = 1, 10000 do
@@ -607,7 +634,7 @@ end
 function m.revertMap(t)
     ---@type table<any, any>
     local nt = {}
-    for k, v in pairs(t) do
+    for k, v in pairs(t --[[@as table<any, any>]]) do
         nt[v] = k
     end
     return nt
@@ -688,6 +715,7 @@ function m.eachLine(text, keepNL)
             offset = #text + 1
             return lastLine, lineCount
         end
+        ---@type string
         local line
         if text:sub(nl, nl + 1) == '\r\n' then
             if keepNL then
@@ -760,6 +788,8 @@ end
 ---@param ... fun(a: T, b: T): boolean?
 function m.sort(tbl, sorter, ...)
     local sorters = { sorter, ... }
+    ---@param a any
+    ---@param b any
     tableSort(tbl, function (a, b)
         for _, f in ipairs(sorters) do
             local res = f(a, b)
@@ -867,6 +897,7 @@ function switchMT:default(callback)
     return self
 end
 
+---@return table<string, function>
 function switchMT:getMap()
     return self.map
 end
@@ -953,14 +984,18 @@ end
 ---@param default fun(k: K): V
 ---@return table<K, V>
 function m.defaultTable(default)
-    return setmetatable({}, { __index = function (t, k)
-        if k == nil then
-            return nil
+    return setmetatable({}, { __index =
+        ---@param t table<any, any>
+        ---@param k any
+        function (t, k)
+            if k == nil then
+                return nil
+            end
+            local v = default(k) --[[@as any]]
+            t[k] = v
+            return v
         end
-        local v = default(k)
-        t[k] = v
-        return v
-    end })
+    })
 end
 
 ---@param max integer
@@ -971,23 +1006,35 @@ function m.multiTable(max, default)
     local mts = {}
     for i = 1, max - 1 do
         if i < max - 1 then
-            mts[i] = { __index = function (t, k)
-                local v = setmetatable({}, mts[i + 1])
-                t[k] = v
-                return v
-            end }
+            mts[i] = { __index =
+                ---@param t table<any, any>
+                ---@param k any
+                function (t, k)
+                    local v = setmetatable({}, mts[i + 1])
+                    t[k] = v
+                    return v
+                end
+            }
         elseif default then
-            mts[i] = { __index = function (t, k)
-                local v = default(k)
-                t[k] = v
-                return v
-            end }
+            mts[i] = { __index =
+                ---@param t table<any, any>
+                ---@param k any
+                function (t, k)
+                    local v = default(k)
+                    t[k] = v
+                    return v
+                end
+            }
         else
-            mts[i] = { __index = function (t, k)
-                local v = {}
-                t[k] = v
-                return v
-            end }
+            mts[i] = { __index =
+                ---@param t table<any, any>
+                ---@param k any
+                function (t, k)
+                    local v = {}
+                    t[k] = v
+                    return v
+                end
+            }
         end
     end
 
@@ -1000,7 +1047,7 @@ end
 function m.getTableKeys(t, sorter)
     ---@type any[]
     local keys = {}
-    for k in pairs(t) do
+    for k in pairs(t --[[@as table<any, any>]]) do
         keys[#keys+1] = k
     end
     if sorter == true then
@@ -1092,8 +1139,8 @@ end
 ---@param b table
 ---@return table
 function m.tableMerge(a, b)
-    for k, v in pairs(b) do
-        a[k] = v
+    for k, v in pairs(b --[[@as table<any, any>]]) do
+        (a --[[@as table<any, any>]])[k] = v
     end
     return a
 end
@@ -1114,7 +1161,7 @@ end
 function m.keysOf(t)
     ---@type any[]
     local keys = {}
-    for k in pairs(t) do
+    for k in pairs(t --[[@as table<any, any>]]) do
         keys[#keys+1] = k
     end
     return keys
@@ -1126,7 +1173,7 @@ end
 function m.valuesOf(t)
     ---@type any[]
     local values = {}
-    for _, v in pairs(t) do
+    for _, v in pairs(t --[[@as table<any, any>]]) do
         values[#values+1] = v
     end
     return values
@@ -1136,7 +1183,7 @@ end
 ---@return integer
 function m.countTable(t)
     local count = 0
-    for _ in pairs(t) do
+    for _ in pairs(t --[[@as table<any, any>]]) do
         count = count + 1
     end
     return count
@@ -1169,7 +1216,7 @@ end
 function m.map(t, callback)
     ---@type any[]
     local nt = {}
-    for k, v in ipairs(t) do
+    for k, v in ipairs(t --[[@as any[] ]]) do
         nt[k] = callback(v, k)
     end
     return nt
@@ -1215,6 +1262,8 @@ end
 ---@return T[]
 function m.sortK(arr, k, sorter)
     if not sorter then
+        ---@param a any
+        ---@param b any
         sorter = function (a, b)
             return a < b
         end
@@ -1229,6 +1278,8 @@ function m.sortK(arr, k, sorter)
 
     local offset = 1
 
+    ---@param left  integer
+    ---@param right integer
     local function sort(left, right)
         if left >= right then
             return
@@ -1266,16 +1317,21 @@ end
 
 function m.enableFormatString()
     local mt = getmetatable('')
+    ---@param str  string
+    ---@param args table<any, any>
     mt.__mod = function (str, args)
         local count = 0
+        ---@param key string
         return str:gsub('%b{}', function (key)
+            ---@type string?, string?
             local k, fmt = key:match('^{(.-):(.+)}$')
             if not k then
-                k = key:sub(2, -2)
+                k = key:sub(2, -2) --[[@as string]]
             end
+            ---@type any
             local value
             if k == '' then
-                count = count + 1
+                count = (count + 1) --[[@as integer]]
                 value = args[count]
             else
                 value = args[k]
@@ -1295,6 +1351,8 @@ end
 
 function m.enableDividStringAsPath()
     local mt = getmetatable('')
+    ---@param str  string
+    ---@param path string
     mt.__div = function (str, path)
         assert(type(path) == 'string', 'Path must be a string')
         if str == '' then
@@ -1386,6 +1444,9 @@ function m.mergeStruct(...)
     ---@type table<table, table>
     local copyed = {}
 
+    ---@param a any
+    ---@param b any
+    ---@return any
     local function merge(a, b)
         if copyed[b] then
             return copyed[b]
@@ -1399,13 +1460,13 @@ function m.mergeStruct(...)
         copyed[b] = a
         ---@type table<any, boolean>
         local usedKeys = {}
-        for i, v in ipairs(b) do
-            a[#a+1] = v
+        for i, v in ipairs(b --[[@as table<any, any>]]) do
+            (a --[[@as table<any, any>]])[#a+1] = v
             usedKeys[i] = true
         end
-        for k, v in pairs(b) do
+        for k, v in pairs(b --[[@as table<any, any>]]) do
             if not usedKeys[k] then
-                a[k] = merge(a[k], v)
+                (a --[[@as table<any, any>]])[k] = merge(a[k], v)
             end
         end
         return a

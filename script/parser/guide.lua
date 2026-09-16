@@ -721,6 +721,7 @@ end
 ---@param ast parser.object
 ---@param position integer
 ---@param callback fun(src: parser.object): any
+---@return any
 function m.eachSourceContain(ast, position, callback)
     ---@type parser.object[]
     local list = { ast }

@@ -30,7 +30,7 @@ local pub      = require 'pub'
 ---@field id            integer
 ---@field state?        parser.state
 ---@field compileCount? integer
----@field words?        table
+---@field words?        table<string, string[]>
 
 ---@class files
 ---@field lazyCache?   lazy-cacher
@@ -44,6 +44,7 @@ function m.reset()
     m.openMap        = {}
     ---@type table<string, file>
     m.fileMap        = {}
+    ---@type table<uri, files.dllFile>
     m.dllMap         = {}
     m.visible        = {}
     m.globalVersion  = 0
@@ -290,6 +291,8 @@ function m.setCachedRows(uri, rows)
     file.rows = rows
 end
 
+---@param uri uri
+---@return table<string, string[]>?
 function m.getWords(uri)
     local file = m.fileMap[uri]
     if not file then
@@ -318,6 +321,9 @@ function m.getWords(uri)
     return words
 end
 
+---@param uri  uri
+---@param head string
+---@return string[]?
 function m.getWordsOfHead(uri, head)
     local file = m.fileMap[uri]
     if not file then
@@ -476,6 +482,7 @@ end
 
 --- Pairs dll files
 function m.eachDll()
+    ---@type table<uri, files.dllFile>
     local map = {}
     for uri, file in pairs(m.dllMap) do
         map[uri] = file
@@ -808,6 +815,11 @@ function m.isDll(uri)
     return false
 end
 
+---@class files.dllFile
+---@field uri   uri
+---@field opens string[]
+---@field words string[]
+
 --- Save dll, makes opens and words, discard content
 ---@param uri uri
 ---@param content string
@@ -815,6 +827,7 @@ function m.saveDll(uri, content)
     if not content then
         return
     end
+    ---@type files.dllFile
     local file = {
         uri   = uri,
         opens = {},

@@ -83,6 +83,7 @@ local function asDocFunction(source)
 end
 
 ---@param source parser.object
+---@return string[]
 return function (source)
     if source.type == 'function' then
         return asFunction(source)

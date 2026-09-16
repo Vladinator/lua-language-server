@@ -104,10 +104,7 @@ end)
 ---@field version string
 ---@field options brave.param.compile.options
 
----@class brave.param.compile.options
----@field special table<string, string>
----@field unicodeName boolean
----@field nonstandardSymbol table<string, true>
+---@alias brave.param.compile.options parser.state.options
 
 ---@param param brave.param.compile
 brave.on('compile', function (param)

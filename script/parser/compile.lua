@@ -5443,7 +5443,7 @@ local function parseLua()
 end
 
 ---@param lua string
----@param version string
+---@param version? string
 ---@param options? parser.state.options
 local function initState(lua, version, options)
     Lua                 = lua
@@ -5503,6 +5503,11 @@ local function initState(lua, version, options)
     end
 end
 
+---@param lua     string
+---@param mode    'Lua'|'Nil'|'Boolean'|'String'|'Number'|'Name'|'Exp'|'Action'
+---@param version? string
+---@param options? parser.state.options
+---@return parser.state
 return function (lua, mode, version, options)
     Mode = mode
     initState(lua, version, options)

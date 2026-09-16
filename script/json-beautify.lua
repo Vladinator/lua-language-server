@@ -7,6 +7,7 @@ local table_sort = table.sort
 local string_rep = string.rep
 local setmetatable = setmetatable
 
+---@type fun(v: number): "integer"|"float"
 local math_type
 
 if _VERSION == "Lua 5.1" or _VERSION == "Lua 5.2" then
@@ -21,9 +22,15 @@ else
     math_type = math.type
 end
 
+---@alias json-beautify.option { newline: string, indent: string, depth: integer }
+
+---@type table<table, boolean>
 local statusVisited
+---@type string[]
 local statusBuilder
+---@type integer
 local statusDep
+---@type json-beautify.option
 local statusOpt
 
 local defaultOpt = {
@@ -37,12 +44,16 @@ local function encode_newline()
     statusBuilder[#statusBuilder+1] = statusOpt.newline..string_rep(statusOpt.indent, statusDep)
 end
 
+---@type table<string, fun(v: any): string>
 local encode_map = {}
+---@diagnostic disable-next-line: invisible
 local encode_string = json._encode_string
+---@diagnostic disable-next-line: invisible
 for k ,v in next, json._encode_map do
     encode_map[k] = v
 end
 
+---@param v any
 local function encode(v)
     local res = encode_map[type(v)](v)
     statusBuilder[#statusBuilder+1] = res
@@ -54,6 +65,7 @@ function encode_map.string(v)
     return '"'
 end
 
+---@param t table
 function encode_map.table(t)
     local first_val = next(t)
     if first_val == nil then
@@ -68,8 +80,9 @@ function encode_map.table(t)
     end
     statusVisited[t] = true
     if type(first_val) == 'string' then
+        ---@type string[]
         local key = {}
-        for k in next, t do
+        for k in next, t --[[@as table<string, any>]] do
             if type(k) ~= "string" then
                 error("invalid table: mixed or invalid key types: "..k)
             end
@@ -100,8 +113,9 @@ function encode_map.table(t)
         statusVisited[t] = nil
         return "}"
     elseif json.supportSparseArray then
+        ---@type integer
         local max = 0
-        for k in next, t do
+        for k in next, t --[[@as table<integer, any>]] do
             if math_type(k) ~= "integer" or k <= 0 then
                 error("invalid table: mixed or invalid key types: "..k)
             end
@@ -130,12 +144,13 @@ function encode_map.table(t)
         statusDep = statusDep + 1
         encode_newline()
         encode(t[1])
+        ---@type integer
         local count = 2
         while t[count] ~= nil do
             statusBuilder[#statusBuilder+1] = ","
             encode_newline()
             encode(t[count])
-            count = count + 1
+            count = count + 1 --[[@as integer]]
         end
         local k = next(t, count-1)
         if k ~= nil then
@@ -152,10 +167,15 @@ function encode_map.table(t)
     end
 end
 
+---@param option? json-beautify.option
+---@return json-beautify.option
 local function beautify_option(option)
-    return setmetatable(option or {}, defaultOpt)
+    return setmetatable(option or {}, defaultOpt --[[@as metatable]])
 end
 
+---@param builder string[]
+---@param v       any
+---@param option? json-beautify.option
 local function beautify_builder(builder, v, option)
     statusVisited = {}
     statusBuilder = builder
@@ -164,6 +184,9 @@ local function beautify_builder(builder, v, option)
     encode(v)
 end
 
+---@param v       any
+---@param option? json-beautify.option
+---@return string
 local function beautify(v, option)
     beautify_builder({}, v, option)
     return table_concat(statusBuilder)

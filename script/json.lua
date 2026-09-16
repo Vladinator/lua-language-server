@@ -17,7 +17,9 @@ local getmetatable = getmetatable
 local huge = math.huge
 local tiny = -huge
 
+---@type fun(c: integer): string
 local utf8_char
+---@type fun(v: number): "integer"|"float"
 local math_type
 
 if _VERSION == "Lua 5.1" or _VERSION == "Lua 5.2" then
@@ -54,16 +56,28 @@ else
     math_type = math.type
 end
 
+---@class json
+---@field supportSparseArray boolean
+---@field null any -- sentinel value representing JSON `null`; a lightuserdata when `debug.upvalueid` is available, else a unique empty function
+---@field public _encode_map table<string, fun(v: any): string> -- internal; shared with json-beautify.lua/json-edit.lua, which also require this module
+---@field public _encode_string fun(v: string): string -- internal; shared with json-beautify.lua/json-edit.lua
+---@field beautify? fun(v: any, option?: json-beautify.option): string -- set by json-beautify.lua when required
+---@field public _beautify_builder? fun(builder: string[], v: any, option?: json-beautify.option) -- internal; set by json-beautify.lua, used by json-edit.lua
+---@field public _beautify_option? fun(option?: json-beautify.option): json-beautify.option -- internal; set by json-beautify.lua, used by json-edit.lua
+---@field edit? fun(str: string, patch: json-edit.patch, option?: json-beautify.option): string -- set by json-edit.lua when required
 local json = {}
 
 json.supportSparseArray = true
 
 local objectMt = {}
 
+---@return table
 function json.createEmptyObject()
     return setmetatable({}, objectMt)
 end
 
+---@param t table
+---@return boolean
 function json.isObject(t)
     if t[1] ~= nil then
         return false
@@ -79,9 +93,12 @@ else
 end
 
 -- json.encode --
+---@type table<table, boolean>
 local statusVisited
+---@type string[]
 local statusBuilder
 
+---@type table<string, fun(v: any): string>
 local encode_map = {}
 
 local encode_escape_map = {
@@ -95,7 +112,9 @@ local encode_escape_map = {
     [ "\t" ] = "\\t",
 }
 
+---@type table<integer, boolean>
 local decode_escape_set = {}
+---@type table<string, string>
 local decode_escape_map = {}
 for k, v in next, encode_escape_map do
     decode_escape_map[v] = k
@@ -109,6 +128,7 @@ for i = 0, 31 do
     end
 end
 
+---@param v any
 local function encode(v)
     local res = encode_map[type(v)](v)
     statusBuilder[#statusBuilder+1] = res
@@ -118,8 +138,10 @@ encode_map["nil"] = function ()
     return "null"
 end
 
+---@param v string
+---@return string
 local function encode_string(v)
-    return string_gsub(v, '[%z\1-\31\\"]', encode_escape_map)
+    return (string_gsub(v, '[%z\1-\31\\"]', encode_escape_map))
 end
 
 function encode_map.string(v)
@@ -128,6 +150,8 @@ function encode_map.string(v)
     return '"'
 end
 
+---@param v number
+---@return string
 local function convertreal(v)
     local g = string_format('%.16g', v)
     if tonumber(g) == v then
@@ -161,6 +185,7 @@ function encode_map.boolean(v)
     end
 end
 
+---@param t table
 function encode_map.table(t)
     local first_val = next(t)
     if first_val == nil then
@@ -175,8 +200,9 @@ function encode_map.table(t)
     end
     statusVisited[t] = true
     if type(first_val) == 'string' then
+        ---@type string[]
         local keys = {}
-        for k in next, t do
+        for k in next, t --[[@as table<string, any>]] do
             if type(k) ~= "string" then
                 error("invalid table: mixed or invalid key types: "..k)
             end
@@ -200,8 +226,9 @@ function encode_map.table(t)
         statusVisited[t] = nil
         return "}"
     elseif json.supportSparseArray then
+        ---@type integer
         local max = 0
-        for k in next, t do
+        for k in next, t --[[@as table<integer, any>]] do
             if math_type(k) ~= "integer" or k <= 0 then
                 error("invalid table: mixed or invalid key types: "..k)
             end
@@ -227,11 +254,12 @@ function encode_map.table(t)
         end
         statusBuilder[#statusBuilder+1] = "["
         encode(t[1])
+        ---@type integer
         local count = 2
         while t[count] ~= nil do
             statusBuilder[#statusBuilder+1] = ","
             encode(t[count])
-            count = count + 1
+            count = count + 1 --[[@as integer]]
         end
         local k = next(t, count-1)
         if k ~= nil then
@@ -257,6 +285,8 @@ encode_map[ "function" ] = encode_unexpected
 encode_map[ "userdata" ] = encode_unexpected
 encode_map[ "thread"   ] = encode_unexpected
 
+---@param v any
+---@return string
 function json.encode(v)
     statusVisited = {}
     statusBuilder = {}
@@ -273,10 +303,15 @@ json._encode_string = encode_string
 local statusBuf
 ---@type integer
 local statusPos
+---@type integer
 local statusTop
+---@type table<integer, boolean>
 local statusAry = {}
+---@type table<integer, table>
 local statusRef = {}
 
+---@return integer line
+---@return integer col
 local function find_line()
     local line = 1
     local pos = 1
@@ -294,14 +329,17 @@ local function find_line()
     end
 end
 
+---@param msg string
 local function decode_error(msg)
     error(string_format("ERROR: %s at line %d col %d", msg, find_line()), 2)
 end
 
+---@return string?
 local function get_word()
     return string_match(statusBuf, "^[^ \t\r\n%]},]*", statusPos)
 end
 
+---@return integer
 local function next_byte()
     local pos = string_find(statusBuf, "[^ \t\r\n]", statusPos)
     if pos then
@@ -311,6 +349,8 @@ local function next_byte()
     return -1
 end
 
+---@param c string
+---@return true?
 local function consume_byte(c)
     local _, pos = string_find(statusBuf, c, statusPos)
     if pos then
@@ -319,6 +359,7 @@ local function consume_byte(c)
     end
 end
 
+---@param c string
 local function expect_byte(c)
     local _, pos = string_find(statusBuf, c, statusPos)
     if not pos then
@@ -328,14 +369,20 @@ local function expect_byte(c)
     statusPos = pos
 end
 
+---@param s1 string
+---@param s2 string
+---@return string
 local function decode_unicode_surrogate(s1, s2)
     return utf8_char(0x10000 + (tonumber(s1, 16) - 0xd800) * 0x400 + (tonumber(s2, 16) - 0xdc00))
 end
 
+---@param s string
+---@return string
 local function decode_unicode_escape(s)
     return utf8_char(tonumber(s, 16))
 end
 
+---@return string
 local function decode_string()
     local has_unicode_escape = false
     local has_escape = false
@@ -385,6 +432,7 @@ local function decode_string()
     end
 end
 
+---@return number
 local function decode_number()
     local num, c = string_match(statusBuf, '^([0-9]+%.?[0-9]*)([eE]?)', statusPos)
     if not num or string_byte(num, -1) == 0x2E --[[ "." ]] then
@@ -397,9 +445,10 @@ local function decode_number()
         end
     end
     statusPos = statusPos + #num
-    return tonumber(num)
+    return tonumber(num) --[[@as number]]
 end
 
+---@return number
 local function decode_number_zero()
     local num, c = string_match(statusBuf, '^(.%.?[0-9]*)([eE]?)', statusPos)
     if not num or string_byte(num, -1) == 0x2E --[[ "." ]] or string_match(statusBuf, '^.[0-9]+', statusPos) then
@@ -412,9 +461,10 @@ local function decode_number_zero()
         end
     end
     statusPos = statusPos + #num
-    return tonumber(num)
+    return tonumber(num) --[[@as number]]
 end
 
+---@return number?
 local function decode_number_negative()
     statusPos = statusPos + 1
     local c = string_byte(statusBuf, statusPos)
@@ -428,6 +478,7 @@ local function decode_number_negative()
     decode_error("invalid number '" .. get_word() .. "'")
 end
 
+---@return boolean
 local function decode_true()
     if string_sub(statusBuf, statusPos, statusPos+3) ~= "true" then
         decode_error("invalid literal '" .. get_word() .. "'")
@@ -436,6 +487,7 @@ local function decode_true()
     return true
 end
 
+---@return boolean
 local function decode_false()
     if string_sub(statusBuf, statusPos, statusPos+4) ~= "false" then
         decode_error("invalid literal '" .. get_word() .. "'")
@@ -444,6 +496,7 @@ local function decode_false()
     return false
 end
 
+---@return any
 local function decode_null()
     if string_sub(statusBuf, statusPos, statusPos+3) ~= "null" then
         decode_error("invalid literal '" .. get_word() .. "'")
@@ -452,6 +505,7 @@ local function decode_null()
     return json.null
 end
 
+---@return table
 local function decode_array()
     statusPos = statusPos + 1
     if consume_byte "^[ \t\r\n]*%]" then
@@ -464,6 +518,7 @@ local function decode_array()
     return res
 end
 
+---@return table
 local function decode_object()
     statusPos = statusPos + 1
     if consume_byte "^[ \t\r\n]*}" then
@@ -476,6 +531,7 @@ local function decode_object()
     return res
 end
 
+---@type table<integer, fun(): any>
 local decode_uncompleted_map = {
     [ string_byte '"' ] = decode_string,
     [ string_byte "0" ] = decode_number_zero,
@@ -502,19 +558,21 @@ local function unexpected_eol()
     decode_error("unexpected character '<eol>'")
 end
 
+---@type table<integer, fun(): any>
 local decode_map = {}
 for i = 0, 255 do
     decode_map[i] = decode_uncompleted_map[i] or unexpected_character
 end
 decode_map[-1] = unexpected_eol
 
+---@return any
 local function decode()
     return decode_map[next_byte()]()
 end
 
 local function decode_item()
     local top = statusTop
-    local ref = statusRef[top]
+    local ref = statusRef[top] --[[@as table<any, any>]]
     if statusAry[top] then
         ref[#ref+1] = decode()
     else

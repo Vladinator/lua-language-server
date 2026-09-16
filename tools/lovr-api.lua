@@ -1,6 +1,60 @@
+--- Self-defined shapes matching the `lovr-api` data this script reads
+--- (from the `3rd/lovr-api` submodule, an external project this repo
+--- doesn't control) -- not a full reproduction of LÖVR's API schema,
+--- just the fields this generator actually touches.
+---@class lovr-api.param
+---@field name string
+---@field type? string
+---@field description? string
+---@field default? any
+---@field table? lovr-api.param[] -- for `type == 'table'` params, the nested field list
+
+---@class lovr-api.variant
+---@field arguments? lovr-api.param[]
+---@field returns? lovr-api.param[]
+
+---@class lovr-api.func
+---@field name string
+---@field key string -- full dotted/colon syntax to declare the function under, e.g. `lovr.graphics.newMesh`
+---@field description? string
+---@field notes? string
+---@field variants lovr-api.variant[]
+
+---@class lovr-api.object
+---@field name string
+---@field description? string
+---@field notes? string
+---@field supertypes? string[]
+---@field methods? lovr-api.func[]
+
+---@class lovr-api.constant
+---@field name string
+---@field description? string
+---@field notes? string
+
+---@class lovr-api.enum
+---@field name string
+---@field description? string
+---@field notes? string
+---@field values lovr-api.constant[]
+
+---@class lovr-api.callback: lovr-api.func
+
+---@class lovr-api.def
+---@field key string
+---@field description? string
+---@field notes? string
+---@field version? string
+---@field functions? lovr-api.func[]
+---@field objects? lovr-api.object[]
+---@field callbacks? lovr-api.callback[]
+---@field enums? lovr-api.enum[]
+---@field modules? lovr-api.def[]
+
 local fs    = require 'bee.filesystem'
 local fsu   = require 'fs-utility'
 
+---@type lovr-api.def
 local api = dofile('3rd/lovr-api/api/init.lua')
 
 local metaPath    = fs.path 'meta/3rd/lovr'
@@ -24,19 +78,23 @@ local knownTypes = {
     ['Variant']        = 'any',
 }
 
+---@param name string
+---@return string
 local function trim(name)
-    name = name:gsub('^%s+', '')
-    name = name:gsub('%s+$', '')
+    name = (name:gsub('^%s+', ''))
+    name = (name:gsub('%s+$', ''))
     return name
 end
 
 ---@param names string
+---@return string
 local function getTypeName(names)
     if names == '*' then
         return 'any'
     end
+    ---@type string[]
     local types = {}
-    names = names:gsub('%sor%s', '|')
+    names = (names:gsub('%sor%s', '|'))
     for nameVal in names:gmatch '[^|]+' do
         local name = nameVal
         name = trim(name)
@@ -45,6 +103,8 @@ local function getTypeName(names)
     return table.concat(types, '|')
 end
 
+---@param key string
+---@return string
 local function formatIndex(key)
     if key:match '^[%a_][%w_]*$' then
         return key
@@ -52,6 +112,8 @@ local function formatIndex(key)
     return ('[%q]'):format(key)
 end
 
+---@param param lovr-api.param
+---@return string
 local function getOptional(param)
     if param.type == 'table' then
         if not param.table then
@@ -68,9 +130,13 @@ local function getOptional(param)
     end
 end
 
+---@type fun(param: lovr-api.param): string
 local buildType
 
+---@param tbl lovr-api.param[]
+---@return string
 local function buildDocTable(tbl)
+    ---@type string[]
     local fields = {}
     for _, field in ipairs(tbl) do
         if field.name ~= '...' then
@@ -90,10 +156,13 @@ function buildType(param)
     return 'any'
 end
 
+---@param tp lovr-api.object
+---@return string
 local function buildSuper(tp)
     if not tp.supertypes then
         return ''
     end
+    ---@type string[]
     local parents = {}
     for _, parent in ipairs(tp.supertypes) do
         parents[#parents+1] = getTypeName(parent)
@@ -101,12 +170,18 @@ local function buildSuper(tp)
     return (': %s'):format(table.concat(parents, ', '))
 end
 
+---@param desc string
+---@return string
 local function buildMD(desc)
-    return desc:gsub('([\r\n])', '%1---')
-               :gsub('%.  ', '.\n---\n---')
+    return (desc:gsub('([\r\n])', '%1---')
+               :gsub('%.  ', '.\n---\n---'))
 end
 
+---@param desc? string
+---@param notes? string
+---@return string
 local function buildDescription(desc, notes)
+    ---@type string[]
     local lines = {}
     if desc then
         lines[#lines+1] = '---'
@@ -122,8 +197,13 @@ local function buildDescription(desc, notes)
     return table.concat(lines, '\n')
 end
 
+---@param variant lovr-api.variant
+---@param overload? string
+---@return string
 local function buildDocFunc(variant, overload)
+    ---@type string[]
     local params  = {}
+    ---@type string[]
     local returns = {}
     if overload then
         params[1] = ('self: %s'):format(overload)
@@ -133,14 +213,14 @@ local function buildDocFunc(variant, overload)
             params[#params+1] = '...'
         else
             if param.name:find '^[\'"]' then
-                params[#params+1] = ('%s%s: %s|%s'):format(param.name:sub(2, -2), getOptional(param), getTypeName(param.type), param.name)
+                params[#params+1] = ('%s%s: %s|%s'):format(param.name:sub(2, -2), getOptional(param), getTypeName(param.type --[[@as string]]), param.name)
             else
-                params[#params+1] = ('%s%s: %s'):format(param.name, getOptional(param), getTypeName(param.type))
+                params[#params+1] = ('%s%s: %s'):format(param.name, getOptional(param), getTypeName(param.type --[[@as string]]))
             end
         end
     end
     for _, rtn in ipairs(variant.returns or {}) do
-        returns[#returns+1] = ('%s'):format(getTypeName(rtn.type))
+        returns[#returns+1] = ('%s'):format(getTypeName(rtn.type --[[@as string]]))
     end
     return ('fun(%s)%s'):format(
         table.concat(params, ', '),
@@ -148,7 +228,10 @@ local function buildDocFunc(variant, overload)
     )
 end
 
+---@param tp lovr-api.callback
+---@return string
 local function buildMultiDocFunc(tp)
+    ---@type string[]
     local cbs = {}
     for _, variant in ipairs(tp.variants) do
         cbs[#cbs+1] = buildDocFunc(variant)
@@ -156,13 +239,18 @@ local function buildMultiDocFunc(tp)
     return table.concat(cbs, '|')
 end
 
+---@param func lovr-api.func
+---@param typeName? string
+---@return string
 local function buildFunction(func, typeName)
+    ---@type string[]
     local text = {}
     text[#text+1] = buildDescription(func.description, func.notes)
     for i = 2, #func.variants do
         local variant = func.variants[i]
         text[#text+1] = ('---@overload %s'):format(buildDocFunc(variant, typeName))
     end
+    ---@type string[]
     local params = {}
     for _, param in ipairs(func.variants[1].arguments or {}) do
         for paramName in param.name:gmatch '[%a_][%w_]*' do
@@ -199,9 +287,11 @@ local function buildFunction(func, typeName)
     return table.concat(text, '\n')
 end
 
+---@param defs lovr-api.def
 local function buildFile(defs)
     local class = defs.key
     local filePath = libraryPath / (class:gsub('%.', '/') .. '.lua')
+    ---@type string[]
     local text = {}
 
     text[#text+1] = '---@meta'
@@ -216,6 +306,7 @@ local function buildFile(defs)
     end
 
     for _, obj in ipairs(defs.objects or {}) do
+        ---@type table<string, boolean>
         local mark = {}
         text[#text+1] = ''
         text[#text+1] = buildDescription(obj.description, obj.notes)
@@ -251,8 +342,10 @@ local function buildFile(defs)
     fsu.saveFile(filePath, table.concat(text, '\n'))
 end
 
+---@param defs lovr-api.def
 local function buildCallback(defs)
     local filePath = libraryPath / ('callback.lua')
+    ---@type string[]
     local text = {}
 
     text[#text+1] = '---@meta'
@@ -271,6 +364,6 @@ end
 
 buildCallback(api)
 
-for _, module in ipairs(api.modules) do
+for _, module in ipairs(api.modules or {}) do
     buildFile(module)
 end

@@ -26,12 +26,15 @@ local EXP = math.exp(1)
 local PI = math.pi
 local RAD = PI / 180.0
 
+---@class lua51: _G
 local lua51 = {}
 
+---@type table<function|userdata|thread, table>
 local FenvCache = setmetatable({}, { __mode = 'kv' })
 
 ---@param obj any
 ---@param expect string | "'nil'" | "'number'" | "'string'" | "'boolean'" | "'function'" | "'table'" | "'userdata'" | "'thread'"
+---@param level? integer
 local function checkType(obj, expect, level)
     local tp = type(obj)
     if tp ~= expect then
@@ -39,6 +42,9 @@ local function checkType(obj, expect, level)
     end
 end
 
+---@param f     function|integer
+---@param level? integer
+---@return function
 local function getFunc(f, level)
     if type(f) == 'function' then
         return f
@@ -47,6 +53,7 @@ local function getFunc(f, level)
         level = 3
     end
     checkType(f, 'number', level)
+    ---@cast f integer
     if f < 0 then
         error('level must be non-negative', level)
     end
@@ -54,17 +61,23 @@ local function getFunc(f, level)
     if not info then
         error('invalid level', level)
     end
+    ---@cast info -?
     if not info.func then
         error(stringFormat('no function environment for tail call at level %d', f), level)
     end
-    return info.func
+    return info.func --[[@as function]]
 end
 
+---@param name string
+---@return table? tbl
+---@return string? errorPath
 local function findTable(name)
+    ---@type string[]
     local pg = {}
+    ---@type table<any, any>
     local current = lua51._G
     for idVal in stringGmatch(name, '[^%.]+') do
-        local id = idVal
+        local id = idVal --[[@as string?]]
         id = stringMatch(id, '^%s*(.-)%s*$')
         pg[#pg+1] = id
         local field = rawget(current, id)
@@ -74,26 +87,30 @@ local function findTable(name)
         elseif type(field) ~= 'table' then
             return nil, tableConcat(pg, '.')
         end
-        current = field
+        current = field --[[@as table<any, any>]]
     end
     return current
 end
 
+---@param f   function|userdata|thread
+---@param tbl table
 local function setfenv(f, tbl)
     local tp = type(f)
     if tp ~= 'function' and tp ~= 'userdata' and tp ~= 'thread' then
         error [['setfenv' cannot change environment of given object]]
     end
     FenvCache[f] = tbl
-    if debugGetupvalue(f, 1) ~= '_ENV' then
+    if debugGetupvalue(f --[[@as function]], 1) ~= '_ENV' then
         return
     end
     local function dummy()
         return tbl
     end
-    debugUpvaluejoin(f, 1, dummy, 1)
+    debugUpvaluejoin(f --[[@as function]], 1, dummy, 1)
 end
 
+---@param f function
+---@return table?
 local function getfenv(f)
     if FenvCache[f] then
         return FenvCache[f]
@@ -102,31 +119,40 @@ local function getfenv(f)
     return v
 end
 
+---@param t table
+---@return table<any, any>
 local function copyTable(t)
+    ---@type table<any, any>
     local nt = {}
-    for k, v in pairs(t) do
+    for k, v in pairs(t --[[@as table<any, any>]]) do
         nt[k] = v
     end
     return nt
 end
 
+---@param name string
+---@return function
 local function requireLoad(name)
     local msg = ''
     if type(lua51._G.package.loaders) ~= 'table' then
         error("'package.loaders' must be a table", 3)
     end
     for _, searcher in ipairs(lua51._G.package.loaders) do
-        local f = searcher(name)
+        local f = (searcher --[[@as fun(name: string): function|string]])(name)
         if type(f) == 'function' then
             return f
         elseif type(f) == 'string' then
-            msg = msg .. f
+            msg = msg .. f --[[@as string]]
         end
     end
     error(("module '%s' not found:%s"):format(name, msg), 3)
 end
 
+---@param name string
+---@param env  any
+---@return any
 local function requireWithEnv(name, env)
+    ---@type table<string, any>
     local loaded = lua51._G.package.loaded
     if type(name) ~= 'string' then
         error(("bad argument #1 to 'require' (string expected, got %s)"):format(type(name)), 2)
@@ -135,7 +161,7 @@ local function requireWithEnv(name, env)
     if p ~= nil then
         return p
     end
-    local init = requireLoad(name)
+    local init = requireLoad(name) --[[@as fun(name: string): any]]
     if type(env) == 'table' then
         if debug.getupvalue(init, 1) == '_ENV' then
             debug.setupvalue(init, 1, env)
@@ -154,7 +180,10 @@ end
 lua51.arg = arg
 lua51.assert = assert
 lua51.collectgarbage = collectgarbage
+---@param name? string
+---@return function?
 function lua51.dofile(name)
+    ---@type function?, string?
     local f, err
     if name then
         f, err = loadfile(name)
@@ -168,25 +197,41 @@ function lua51.dofile(name)
 end
 lua51.error = error
 lua51._G = lua51
+---@param f function|integer
+---@return table?
 function lua51.getfenv(f)
-    f = getFunc(f)
-    return getfenv(f)
+    local func = getFunc(f)
+    return getfenv(func)
 end
 lua51.getmetatable = getmetatable
 lua51.ipairs = ipairs
+---@param func function
+---@param name? string
+---@return function?
+---@return string? err
 function lua51.load(func, name)
     checkType(func, 'function')
     return load(func, name, 'bt', lua51._G)
 end
+---@param name? string
+---@return function?
+---@return string? err
 function lua51.loadfile(name)
     return loadfile(name, 'bt', lua51._G)
 end
+---@param str  string
+---@param name? string
+---@return function?
+---@return string? err
 function lua51.loadstring(str, name)
     checkType(str, 'string')
     return load(str, name, 'bt', lua51._G)
 end
+---@param name string
+---@param ... fun(mod: table)
 function lua51.module(name, ...)
     checkType(name, 'string')
+    ---@type table<string, any>
     local loaded = lua51._G.package.loaded
     local mod = loaded[name]
     if type(mod) ~= 'table' then
@@ -197,6 +242,7 @@ function lua51.module(name, ...)
         end
         loaded[name] = mod
     end
+    ---@cast mod table
     if mod._NAME == nil then
         mod._M = mod
         mod._NAME = name
@@ -217,20 +263,26 @@ lua51.rawget = rawget
 lua51.rawlen = rawlen
 lua51.rawset = rawset
 lua51.select = select
+---@param f   function|integer
+---@param tbl table
 function lua51.setfenv(f, tbl)
-    f = getFunc(f)
-    setfenv(f, tbl)
+    local func = getFunc(f)
+    setfenv(func, tbl)
 end
 lua51.setmetatable = setmetatable
 lua51.tonumber = tonumber
 lua51.tostring = tostring
 lua51.type = type
 lua51._VERSION = 'Lua 5.1'
+---@param f    function
+---@param msgh function
 function lua51.xpcall(f, msgh)
     checkType(f, 'function')
     checkType(f, 'function')
     return xpcall(f, msgh)
 end
+---@param name string
+---@return any
 function lua51.require(name)
     return requireWithEnv(name, lua51._G)
 end
@@ -250,15 +302,19 @@ lua51.debug.debug = debug.debug
 lua51.debug.getfenv = getfenv
 lua51.debug.gethook = debug.gethook
 lua51.debug.getinfo = debug.getinfo
+---@overload fun(level: integer, loc: integer): string?, any
+---@param ... thread|integer
+---@return string?
+---@return any
 function lua51.debug.getlocal(...)
     local n = select('#', ...)
     if n == 2 then
         local level, loc = ...
         checkType(level, 'number')
-        return debugGetlocal(level, loc)
+        return debugGetlocal(level --[[@as integer]], loc --[[@as integer]])
     else
         local th, level, loc = ...
-        return debugGetlocal(th, level, loc)
+        return debugGetlocal(th --[[@as thread]], level --[[@as integer]], loc --[[@as integer]])
     end
 end
 lua51.debug.getmetatable = debug.getmetatable
@@ -293,26 +349,39 @@ lua51.math = {}
 lua51.math.abs = math.abs
 lua51.math.acos = math.acos
 lua51.math.asin = math.asin
+---@param y number
+---@return number
 function lua51.math.atan(y)
     return mathAtan(y)
 end
+---@param y number
+---@param x number
+---@return number
 function lua51.math.atan2(y, x)
     checkType(x, 'number')
     return mathAtan(y, x)
 end
 lua51.math.ceil = math.ceil
 lua51.math.cos = math.cos
+---@param x number
+---@return number
 function lua51.math.cosh(x)
     return (EXP ^ x + EXP ^ -x) / 2.0
 end
+---@param x number
+---@return number
 function lua51.math.deg(x)
     return x / RAD
 end
+---@return number
 function lua51.math.exp()
     return EXP
 end
 lua51.math.floor = math.floor
 lua51.math.fmod = math.fmod
+---@param x number
+---@return number m
+---@return number e
 function lua51.math.frexp(x)
     if x == 0 then
         return 0.0, 0
@@ -337,12 +406,19 @@ function lua51.math.frexp(x)
     return m, e
 end
 lua51.math.huge = math.huge
+---@param m number
+---@param e number
+---@return number
 function lua51.math.ldexp(m, e)
     return m * (2 ^ e)
 end
+---@param x number
+---@return number
 function lua51.math.log(x)
     return mathLog(x)
 end
+---@param x number
+---@return number
 function lua51.math.log10(x)
     return mathLog(x, 10)
 end
@@ -350,20 +426,29 @@ lua51.math.max = math.max
 lua51.math.min = math.min
 lua51.math.modf = math.modf
 lua51.math.pi = math.pi
+---@param x number
+---@param y number
+---@return number
 function lua51.math.pow(x, y)
     return x ^ y
 end
+---@param x number
+---@return number
 function lua51.math.rad(x)
     return x * RAD
 end
 lua51.math.random = math.random
 lua51.math.randomseed = math.randomseed
 lua51.math.sin = math.sin
+---@param x number
+---@return number
 function lua51.math.sinh(x)
     return (EXP ^ x - EXP ^ -x) / 2.0
 end
 lua51.math.sqrt = math.sqrt
 lua51.math.tan = math.tan
+---@param x number
+---@return number
 function lua51.math.tanh(x)
     local a = EXP ^ x
     local b = EXP ^ -x
@@ -425,10 +510,12 @@ lua51.string.upper = string.upper
 lua51.table = {}
 lua51.table.concat = table.concat
 lua51.table.insert = table.insert
+---@param t table
+---@return integer
 function lua51.table.maxn(t)
     checkType(t, 'table')
     local max = 0
-    for k in pairs(t) do
+    for k in pairs(t --[[@as table<any, any>]]) do
         if type(k) == 'number' then
             if k > max then
                 max = k

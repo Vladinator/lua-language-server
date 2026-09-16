@@ -82,8 +82,13 @@ local invaildKeyWord <const> = {
 local constName <const>      = 'm'
 
 ---@class ffi.builder
+---@field switch_ast switch
+---@field globalAsts any[]
+---@field cacheEnums any
 local builder                = { switch_ast = utility.switch() }
 
+---@param name any
+---@return any
 function builder:getTypeAst(name)
     for _, asts in ipairs(self.globalAsts) do
         if asts[name] then
@@ -92,13 +97,15 @@ function builder:getTypeAst(name)
     end
 end
 
+---@param ast any
+---@return boolean
 function builder:needDeref(ast)
     if not ast then
         return false
     end
     if ast.type == 'typedef' then
         -- maybe no name
-        ast = ast.def[1]
+        ast = ast.def[1] --[[@as any]]
         if type(ast) ~= 'table' then
             return self:needDeref(self:getTypeAst(ast))
         end
@@ -110,18 +117,21 @@ function builder:needDeref(ast)
     end
 end
 
+---@param name any
+---@return string
 function builder:getType(name)
     if type(name) == 'table' then
         local t = ""
+        ---@type boolean?
         local isStruct
         if name.type then
-            t = t .. name.type .. "@"
-            name = name.name
+            t = t .. (name.type --[[@as string]]) .. "@"
+            name = name.name --[[@as any]]
         end
-        for _, part in ipairs(name) do
-            local n = part
+        for _, part in ipairs(name --[[@as any[] ]]) do
+            local n = part --[[@as any]]
             if type(n) == 'table' then
-                n = n.full_name
+                n = n.full_name --[[@as any]]
             end
             if invaildKeyWord[n] then
                 goto continue
@@ -129,14 +139,14 @@ function builder:getType(name)
             if not isStruct then
                 isStruct = self:needDeref(self:getTypeAst(n))
             end
-            t = t .. n
+            t = t .. (n --[[@as string]])
             ::continue::
         end
         -- deref 一级指针
         if isStruct and t:sub(#t) == '*' then
-            t = t:sub(1, #t - 1)
+            t = t:sub(1, #t - 1) --[[@as string]]
         end
-        name = t
+        name = t --[[@as any]]
     end
     if knownTypes[name] then
         return knownTypes[name]
@@ -144,6 +154,8 @@ function builder:getType(name)
     return namespace .. name
 end
 
+---@param ast any
+---@return boolean
 function builder:isVoid(ast)
     if not ast then
         return false
@@ -159,6 +171,8 @@ function builder:isVoid(ast)
     return self:isVoid(self:getTypeAst(typename))
 end
 
+---@param arr any
+---@return string
 local function getArrayType(arr)
     if type(arr) ~= "table" then
         return arr and '[]' or ''
@@ -170,13 +184,18 @@ local function getArrayType(arr)
     return res
 end
 
+---@param name string
+---@return string
 local function getValidName(name)
     return blackKeyWord[name] or name
 end
 
+---@param lines string[]
+---@param tt    any
+---@param name  any
 function builder:buildStructOrUnion(lines, tt, name)
     lines[#lines+1] = '---@class ' .. self:getType(name)
-    for _, field in ipairs(tt.fields or {}) do
+    for _, field in ipairs(tt.fields or {} --[[@as any[] ]]) do
         if field.name and field.type then
             lines[#lines+1] = ('---@field %s %s%s'):format(getValidName(field.name), self:getType(field.type),
                 getArrayType(field.isarray))
@@ -184,9 +203,13 @@ function builder:buildStructOrUnion(lines, tt, name)
     end
 end
 
+---@param lines string[]
+---@param tt    any
+---@param name  any
 function builder:buildFunction(lines, tt, name)
+    ---@type string[]
     local param_names = {}
-    for _, param in ipairs(tt.params or {}) do
+    for _, param in ipairs(tt.params or {} --[[@as any[] ]]) do
         local param_name = getValidName(param.name)
         lines[#lines+1] = ('---@param %s %s%s'):format(param_name, self:getType(param.type), getArrayType(param.idxs))
         param_names[#param_names+1] = param_name
@@ -202,8 +225,11 @@ function builder:buildFunction(lines, tt, name)
     lines[#lines+1] = ('function m.%s(%s) end'):format(name, table.concat(param_names, ', '))
 end
 
+---@param lines string[]
+---@param tt    any
+---@param name  any
 function builder:buildTypedef(lines, tt, name)
-    local def = tt.def[1]
+    local def = tt.def[1] --[[@as any]]
     if type(def) == 'table' and not def.name then
         -- 这个时候没有主类型，只有一个别名,直接创建一个别名结构体
         self.switch_ast(def.type, self, lines, def, name)
@@ -212,14 +238,19 @@ function builder:buildTypedef(lines, tt, name)
     end
 end
 
+---@type fun(enumer: any, val: any): any
 local calculate
 
+---@param enumer any
+---@param val    any
+---@param fn     fun(a: any, b: any): any
+---@return any
 local function binop(enumer, val, fn)
     local e1, e2 = calculate(enumer, val[1]), calculate(enumer, val[2])
     if type(e1) == "number" and type(e2) == "number" then
         return fn(e1, e2)
     else
-        return { e1, e2, op = val.op }
+        return { e1, e2, op = val.op --[[@as any]] }
     end
 end
 do
@@ -243,7 +274,7 @@ do
         if ops[val.op] then
             return binop(enumer, val, ops[val.op])
         end
-        val = util.expandSingle(val)
+        val = util.expandSingle(val) --[[@as any]]
         if type(val) == "string" then
             if enumer[val] then
                 return enumer[val]
@@ -254,23 +285,31 @@ do
     end
 end
 
+---@param enumer any
+---@param name   any
+---@param v      any
+---@return any
 local function pushEnumValue(enumer, name, v)
     v = tonumber(util.expandSingle(v))
-    enumer[name] = v
-    enumer[#enumer+1] = v
+    ;(enumer --[[@as table<any, any>]])[name] = v
+    ;(enumer --[[@as table<any, any>]])[#enumer+1] = v
     return v
 end
 
+---@param lines string[]
+---@param tt    any
+---@param name  any
 function builder:buildEnum(lines, tt, name)
+    ---@type any
     local enumer = {}
-    for i, val in ipairs(tt.values) do
-        local name = val.name
-        local v = val.value
+    for i, val in ipairs(tt.values --[[@as any[] ]]) do
+        local name = val.name --[[@as any]]
+        local v = val.value --[[@as any]]
         if not v then
             if i == 1 then
                 v = 0
             else
-                v = tt.values[i - 1].realValue + 1
+                v = (tt.values[i - 1].realValue --[[@as number]]) + 1
             end
         end
         if type(v) == 'table' and v.op then
@@ -280,8 +319,9 @@ function builder:buildEnum(lines, tt, name)
             val.realValue = pushEnumValue(enumer, name, v)
         end
     end
+    ---@type any[]
     local alias = {}
-    for k, v in pairs(enumer) do
+    for k, v in pairs(enumer --[[@as table<any, any>]]) do
         alias[#alias+1] = type(k) == 'number' and v or ([['%s']]):format(k)
         if type(k) ~= 'number' then
             lines[#lines+1] = ('m.%s = %s'):format(k, v)
@@ -303,6 +343,10 @@ builder.switch_ast
     :case 'typedef'
     :call(builder.buildTypedef)
 
+---@param self         string
+---@param searchString string
+---@param position?    integer
+---@return boolean
 local function stringStartsWith(self, searchString, position)
     if position == nil or position < 0 then
         position = 0
@@ -311,9 +355,13 @@ local function stringStartsWith(self, searchString, position)
 end
 local firstline = ('---@meta \n ---@class %s \n local %s = {}'):format(namespace, constName)
 local m = {}
+---@param lines string[]?
+---@param asts  any[]
+---@param b     ffi.builder
+---@return string[]?
 local function compileCode(lines, asts, b)
     for _, ast in ipairs(asts) do
-        local tt = ast.type
+        local tt = ast.type --[[@as any]]
 
         if tt.type == 'enum' and not stringStartsWith(ast.name, 'enum@') then
             goto continue
@@ -326,7 +374,7 @@ local function compileCode(lines, asts, b)
             lines = lines or { firstline }
             builder.switch_ast(tt.type, b, lines, tt)
         else
-            tt.full_name = ast.name
+            tt.full_name = ast.name --[[@as any]]
             lines = lines or { firstline }
             builder.switch_ast(tt.type, b, lines, tt, tt.full_name)
             lines[#lines+1] = '\n'
@@ -335,13 +383,15 @@ local function compileCode(lines, asts, b)
     end
     return lines
 end
+---@param codes any[]
+---@return string[]?
 function m.compileCodes(codes)
-    ---@class ffi.builder
-    local b = setmetatable({ globalAsts = {}, cacheEnums = {} }, { __index = builder })
+    local b = setmetatable({ globalAsts = {}, cacheEnums = {} }, { __index = builder }) --[[@as ffi.builder]]
 
+    ---@type string[]?
     local lines
     for _, code in ipairs(codes) do
-        local asts = cdriver.process_context(code)
+        local asts = cdriver.process_context(code) --[[@as any[]?]]
         if not asts then
             goto continue
         end
@@ -352,7 +402,9 @@ function m.compileCodes(codes)
     return lines
 end
 
+---@param codes   any[]
 ---@param fileDir fs.path
+---@param uri     uri
 function m.build_single(codes, fileDir, uri)
     local texts = m.compileCodes(codes)
     if not texts then
@@ -363,7 +415,7 @@ function m.build_single(codes, fileDir, uri)
     if fullPath:stem():string():find '%.' then
         local newPath = fullPath:parent_path() / (fullPath:stem():string():gsub('%.', '/') .. ".lua")
         fs.create_directories(newPath:parent_path())
-        fullPath = newPath
+        fullPath = newPath --[[@as fs.path]]
     end
 
     utility.saveFile(tostring(fullPath), table.concat(texts, '\n'))

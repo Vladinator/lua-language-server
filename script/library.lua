@@ -1,4 +1,5 @@
 local fs      = require 'bee.filesystem'
+---@type { os: string }
 local plat    = require 'bee.platform'
 local config  = require 'config'
 local util    = require 'utility'
@@ -18,8 +19,24 @@ local jsonc   = require 'jsonc'
 
 local m = {}
 
+--- The shape of a third-party `config.json`/`config.lua` (arbitrary
+--- user-authored data merged with the fields this module itself sets
+--- while loading it -- `path`/`name`/`dirname`/`plugin` are populated
+--- here, everything else comes from the config file as-is).
+---@class library.3rdConfig
+---@field path      string
+---@field name      string
+---@field dirname?  string
+---@field plugin?   boolean
+---@field words?    string[]
+---@field files?    string[]
+---@field settings? table<string, any>
+
+---@type table<string, boolean>
 m.metaPaths = {}
 
+---@param uri uri
+---@return string?
 local function getDocFormater(uri)
     local version = config.get(uri, 'Lua.runtime.version')
     if client.getOption('viewDocument') then
@@ -53,12 +70,16 @@ local function getDocFormater(uri)
     end
 end
 
+---@param uri  uri
+---@param text string
+---@return string
+---@return integer
 local function convertLink(uri, text)
     local fmt = getDocFormater(uri)
     return text:gsub('%$([%.%w_%:]+)', function (name)
         local lastDot = ''
         if name:sub(-1) == '.' then
-            name = name:sub(1, -2)
+            name = name:sub(1, -2) --[[@as string]]
             lastDot = '.'
         end
         if fmt then
@@ -69,7 +90,7 @@ local function convertLink(uri, text)
     end):gsub('§([%.%w]+)', function (name)
         local lastDot = ''
         if name:sub(-1) == '.' then
-            name = name:sub(1, -2)
+            name = name:sub(1, -2) --[[@as string]]
             lastDot = '.'
         end
         if fmt then
@@ -80,35 +101,47 @@ local function convertLink(uri, text)
     end)
 end
 
+---@param uri  uri
+---@param name string
+---@return string?
 local function createViewDocument(uri, name)
     local fmt = getDocFormater(uri)
     if not fmt then
         return nil
     end
-    name = name:match '[%w_%.%:]+'
+    name = name:match '[%w_%.%:]+' --[[@as string]]
     if name:sub(-1) == '.' then
         name = name:sub(1, -2)
     end
     return ('[%s](%s)'):format(lang.script.HOVER_VIEW_DOCUMENTS, lang.script(fmt, 'pdf-' .. name))
 end
 
+---@param uri      uri
+---@param script   string?
+---@param metaLang table<string, string>
+---@param status   string
+---@return string? text
+---@return boolean? include
 local function compileSingleMetaDoc(uri, script, metaLang, status)
     if not script then
         log.error('no meta?', uri)
         return nil
     end
 
+    ---@type string[]
     local middleBuf = {}
+    ---@type string[]
     local compileBuf = {}
 
     local last = 1
-    for start, lua, finish in script:gmatch '()%-%-%-%#([^\n\r]*)()' do
+    for start, lua, finish in script:gmatch '()%-%-%-%#([^\n\r]*)()' --[[@as fun(): integer, string, integer]] do
         middleBuf[#middleBuf+1] = ('PUSH [===[%s]===]'):format(script:sub(last, start - 1))
         middleBuf[#middleBuf+1] = lua
-        last = finish
+        last = finish --[[@as integer]]
     end
     middleBuf[#middleBuf+1] = ('PUSH [===[%s]===]'):format(script:sub(last))
     local middleScript = table.concat(middleBuf, '\n')
+    ---@type number, boolean
     local version, jit
     if config.get(uri, 'Lua.runtime.version') == 'LuaJIT' then
         version = 5.1
@@ -122,9 +155,11 @@ local function compileSingleMetaDoc(uri, script, metaLang, status)
     local env = setmetatable({
         VERSION = version,
         JIT     = jit,
+        ---@param text string
         PUSH    = function (text)
             compileBuf[#compileBuf+1] = text
         end,
+        ---@param name string
         DES     = function (name)
             local des = metaLang[name]
             if not des then
@@ -133,7 +168,7 @@ local function compileSingleMetaDoc(uri, script, metaLang, status)
             compileBuf[#compileBuf+1] = '---\n'
             for line in util.eachLine(des) do
                 compileBuf[#compileBuf+1] = '---'
-                compileBuf[#compileBuf+1] = convertLink(uri, line)
+                compileBuf[#compileBuf+1] = convertLink(uri, line --[[@as string]])
                 compileBuf[#compileBuf+1] = '\n'
             end
             local viewDocument = createViewDocument(uri, name)
@@ -144,6 +179,7 @@ local function compileSingleMetaDoc(uri, script, metaLang, status)
             end
             compileBuf[#compileBuf+1] = '---\n'
         end,
+        ---@param name string
         DESTAIL = function (name)
             local des = metaLang[name]
             if not des then
@@ -152,7 +188,9 @@ local function compileSingleMetaDoc(uri, script, metaLang, status)
             compileBuf[#compileBuf+1] = convertLink(uri, des):gsub('[\r\n]', '...')
             compileBuf[#compileBuf+1] = '\n'
         end,
+        ---@param str string
         ALIVE   = function (str)
+            ---@type boolean?
             local isAlive
             for piece in str:gmatch '[^%,]+' do
                 if piece:sub(1, 1) == '>' then
@@ -202,8 +240,11 @@ local function compileSingleMetaDoc(uri, script, metaLang, status)
     return text, true
 end
 
+---@param langID string
+---@param result? table<string, string>
+---@return table<string, string>
 local function loadMetaLocale(langID, result)
-    result = result or {}
+    result = result or {} --[[@as table<string, string>]]
     local path = (ROOT / 'locale' / langID / 'meta.lua'):string()
     local localeContent = util.loadFile(path)
     if localeContent then
@@ -230,6 +271,7 @@ local function initBuiltIn(uri)
         loadMetaLocale(langID, metaLang)
     end
 
+    ---@type string[]
     local metaPaths = {}
     scp:set('metaPaths', metaPaths)
     local suc = xpcall(function ()
@@ -281,7 +323,7 @@ local function initBuiltIn(uri)
 end
 
 ---@param libraryDir fs.path
----@return table?
+---@return library.3rdConfig?
 local function loadSingle3rdConfigFromJson(libraryDir)
     local path = libraryDir / 'config.json'
     local configText = fsu.loadFile(path)
@@ -301,11 +343,11 @@ local function loadSingle3rdConfigFromJson(libraryDir)
         return nil
     end
 
-    return cfg
+    return cfg --[[@as library.3rdConfig]]
 end
 
 ---@param libraryDir fs.path
----@return table?
+---@return library.3rdConfig?
 local function loadSingle3rdConfigFromLua(libraryDir)
     local path = libraryDir / 'config.lua'
     local configText = fsu.loadFile(path)
@@ -328,15 +370,17 @@ local function loadSingle3rdConfigFromLua(libraryDir)
         return nil
     end
 
+    ---@type table<string, any>
     local cfg = {}
-    for k, v in pairs(env) do
+    for k, v in pairs(env --[[@as table<string, any>]]) do
         cfg[k] = v
     end
 
-    return cfg
+    return cfg --[[@as library.3rdConfig]]
 end
 
 ---@param libraryDir fs.path
+---@return library.3rdConfig?
 local function loadSingle3rdConfig(libraryDir)
     local cfg = loadSingle3rdConfigFromJson(libraryDir)
     if not cfg then
@@ -344,6 +388,7 @@ local function loadSingle3rdConfig(libraryDir)
         if not cfg then
             return
         end
+        ---@diagnostic disable-next-line: need-check-nil -- always set: this module specifically requires 'json-beautify'
         local jsonbuf = jsonb.beautify(cfg)
         client.requestMessage('Info', lang.script.WINDOW_CONFIG_LUA_DEPRECATED, {
             lang.script.WINDOW_CONVERT_CONFIG_LUA,
@@ -371,9 +416,9 @@ local function loadSingle3rdConfig(libraryDir)
         for i, fname in ipairs(cfg.files) do
             local filename = fname
             if plat.os == 'windows' then
-                filename = filename:gsub('/', '\\')
+                filename = filename:gsub('/', '\\') --[[@as string]]
             else
-                filename = filename:gsub('\\', '/')
+                filename = filename:gsub('\\', '/') --[[@as string]]
             end
             cfg.files[i] = '([%w_]?)' .. filename .. '([%w_]?)'
         end
@@ -384,6 +429,9 @@ end
 
 local innerThirdDir = ROOT / 'meta' / '3rd'
 
+---@param dir     fs.path
+---@param configs library.3rdConfig[]
+---@param inner?  boolean
 local function load3rdConfigInDir(dir, configs, inner)
     if not fs.is_directory(dir) then
         return
@@ -391,6 +439,7 @@ local function load3rdConfigInDir(dir, configs, inner)
     for libraryDir in fs.pairs(dir) do
         local suc, res = xpcall(loadSingle3rdConfig, log.error, libraryDir)
         if suc and res then
+            ---@cast res library.3rdConfig
             if inner then
                 res.dirname = ('${3rd}/%s'):format(res.path)
             else
@@ -401,29 +450,36 @@ local function load3rdConfigInDir(dir, configs, inner)
     end
 end
 
+---@param uri uri
+---@return library.3rdConfig[]
 local function load3rdConfig(uri)
     local scp = scope.getScope(uri)
     local configs = scp:get 'thirdConfigsCache'
     if configs then
         return configs
     end
-    configs = {}
+    configs = {} --[[@as library.3rdConfig[] ]]
     scp:set('thirdConfigsCache', configs)
     load3rdConfigInDir(innerThirdDir, configs, true)
     local thirdDirs = config.get(uri, 'Lua.workspace.userThirdParty')
-    for _, thirdDir in ipairs(thirdDirs) do
+    for _, thirdDir in ipairs(thirdDirs --[[@as string[] ]]) do
         load3rdConfigInDir(fs.path(thirdDir), configs)
     end
     return configs
 end
 
+---@param uri        uri
+---@param cfg        library.3rdConfig
+---@param onlyMemory boolean
 local function apply3rd(uri, cfg, onlyMemory)
+    ---@type config.change[]
     local changes = {}
     if cfg.settings then
         for key, value in pairs(cfg.settings) do
             if type(value) == 'table' then
+                ---@cast value table
                 if #value == 0 then
-                    for k, v in pairs(value) do
+                    for k, v in pairs(value --[[@as table<any, any>]]) do
                         changes[#changes+1] = {
                             key    = key,
                             action = 'prop',
@@ -433,7 +489,7 @@ local function apply3rd(uri, cfg, onlyMemory)
                         }
                     end
                 else
-                    for _, v in ipairs(value) do
+                    for _, v in ipairs(value --[[@as any[] ]]) do
                         changes[#changes+1] = {
                             key    = key,
                             action = 'add',
@@ -472,8 +528,12 @@ local function apply3rd(uri, cfg, onlyMemory)
     client.setConfig(changes, onlyMemory)
 end
 
+---@type table<string, boolean>
 local hasAsked = {}
 ---@async
+---@param uri             uri
+---@param cfg             library.3rdConfig
+---@param checkThirdParty string
 local function askFor3rd(uri, cfg, checkThirdParty)
     if hasAsked[cfg.name] then
         return nil
@@ -526,6 +586,9 @@ local function wholeMatch(a, b)
     return captures[1] == '' and captures[#captures] == ''
 end
 
+---@param uri             uri
+---@param configs         library.3rdConfig[]
+---@param checkThirdParty string
 local function check3rdByWords(uri, configs, checkThirdParty)
     if not files.isLua(uri) then
         return
@@ -565,6 +628,9 @@ local function check3rdByWords(uri, configs, checkThirdParty)
     end, id)
 end
 
+---@param uri             uri
+---@param configs         library.3rdConfig[]
+---@param checkThirdParty string
 local function check3rdByFileName(uri, configs, checkThirdParty)
     local path = ws.getRelativePath(uri)
     if not path then
@@ -602,6 +668,7 @@ local function check3rdByFileName(uri, configs, checkThirdParty)
 end
 
 ---@async
+---@param uri uri
 local function check3rd(uri)
     if ws.isIgnored(uri) then
         return
@@ -613,6 +680,7 @@ local function check3rd(uri)
     elseif checkThirdParty == true then
         checkThirdParty = 'Ask'
     end
+    ---@cast checkThirdParty string
     local scp = scope.getScope(uri)
     if not scp:get 'canCheckThirdParty' then
         return
@@ -625,6 +693,7 @@ local function check3rd(uri)
     check3rdByFileName(uri, thirdConfigs, checkThirdParty)
 end
 
+---@param suri uri
 local function check3rdOfWorkspace(suri)
     local scp = scope.getScope(suri)
     scp:set('thirdConfigsCache', nil)

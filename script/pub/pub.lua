@@ -31,6 +31,7 @@ local m     = {}
 m.type      = 'pub'
 m.ability   = {}
 m.taskMap   = {}
+---@type table<integer, table<string, any>>
 m.allBraves = {}
 m.publicBraves  = {}  -- 公共线程组
 m.privateBraves = {}  -- 专用线程组字典 {padName = {braves}}
@@ -38,6 +39,8 @@ m.publicQueue   = {}  -- 公共任务队列
 m.privateQueues = {}  -- 专用任务队列字典 {padName = {tasks}}
 
 --- 注册酒馆的功能
+---@param name     string
+---@param callback function
 function m.on(name, callback)
     m.ability[name] = callback
 end
@@ -282,6 +285,7 @@ function m.checkDead()
     end
 end
 
+---@param block boolean
 function m.step(block)
     m.checkDead()
     m.recieve(block)

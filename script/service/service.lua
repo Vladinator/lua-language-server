@@ -8,6 +8,7 @@ local util   = require 'utility'
 local files  = require 'files'
 local lang   = require 'language'
 local ws     = require 'workspace'
+---@type { monotonic: fun(): integer }
 local time   = require 'bee.time'
 local fw     = require 'filewatch'
 local furi   = require 'file-uri'
@@ -17,20 +18,30 @@ local client = require 'client'
 require 'jsonc'
 require 'json-beautify'
 
+---@class service.statusInfo
+---@field text     string
+---@field tooltip? string
+
 ---@class service
+---@field workingClock? number
+---@field lastInfo?     service.statusInfo
+---@field lockFile?     file*
 local m = {}
 m.type = 'service'
 m.idleClock = 0.0
 m.sleeping = false
 
+---@return number total
+---@return table<integer, number> mems
 local function countMemory()
+    ---@type table<integer, number>
     local mems = {}
     local total  = 0
     mems[0] = collectgarbage 'count'
-    total = total + collectgarbage 'count'
+    total = (total + collectgarbage 'count') --[[@as number]]
     for id, brave in ipairs(pub.allBraves) do
         mems[id] = brave.memory
-        total = total + brave.memory
+        total = (total + brave.memory) --[[@as number]]
     end
     return total, mems
 end
@@ -42,6 +53,7 @@ function m.reportMemoryCollect()
     local passed = os.clock() - clock
     local totalMemAfter, mems  = countMemory()
 
+    ---@type string[]
     local lines = {}
     lines[#lines+1] = '    --------------- Memory ---------------'
     lines[#lines+1] = ('        Total: %.3f(%.3f) MB'):format(totalMemAfter / 1000.0, totalMemBefore / 1000.0)
@@ -55,6 +67,7 @@ end
 function m.reportMemory()
     local totalMem, mems = countMemory()
 
+    ---@type string[]
     local lines = {}
     lines[#lines+1] = '    --------------- Memory ---------------'
     lines[#lines+1] = ('        Total: %.3f MB'):format(totalMem / 1000.0)
@@ -72,19 +85,20 @@ function m.reportTask()
     local dead      = 0
 
     for co in pairs(await.coMap) do
-        total = total + 1
+        total = (total + 1) --[[@as integer]]
         local status = coroutine.status(co)
         if status == 'running' then
-            running = running + 1
+            running = (running + 1) --[[@as integer]]
         elseif status == 'suspended' then
-            suspended = suspended + 1
+            suspended = (suspended + 1) --[[@as integer]]
         elseif status == 'normal' then
-            normal = normal + 1
+            normal = (normal + 1) --[[@as integer]]
         elseif status == 'dead' then
-            dead = dead + 1
+            dead = (dead + 1) --[[@as integer]]
         end
     end
 
+    ---@type string[]
     local lines = {}
     lines[#lines+1] = '    --------------- Coroutine ---------------'
     lines[#lines+1] = ('        Total:     %d'):format(total)
@@ -100,12 +114,13 @@ function m.reportCache()
     local dead  = 0
 
     for cache in pairs(vm.cacheTracker) do
-        total = total + 1
+        total = (total + 1) --[[@as integer]]
         if cache.dead then
-            dead = dead + 1
+            dead = (dead + 1) --[[@as integer]]
         end
     end
 
+    ---@type string[]
     local lines = {}
     lines[#lines+1] = '    --------------- Cache ---------------'
     lines[#lines+1] = ('        Total: %d'):format(total)
@@ -118,12 +133,13 @@ function m.reportProto()
     local waiting = 0
 
     for _ in pairs(proto.holdon) do
-        holdon = holdon + 1
+        holdon = (holdon + 1) --[[@as integer]]
     end
     for _ in pairs(proto.waiting) do
-        waiting = waiting + 1
+        waiting = (waiting + 1) --[[@as integer]]
     end
 
+    ---@type string[]
     local lines = {}
     lines[#lines+1] = '    ---------------  RPC  ---------------'
     lines[#lines+1] = ('        Holdon:   %d'):format(holdon)
@@ -133,6 +149,7 @@ end
 
 function m.report()
     local t = timer.loop(600.0, function ()
+        ---@type string[]
         local lines = {}
         lines[#lines+1] = ''
         lines[#lines+1] = '========= Medical Examination Report ========='
@@ -212,6 +229,8 @@ function m.reportStatus()
     if not client.getOption('statusBar') then
         return
     end
+    ---@type service.statusInfo
+    ---@diagnostic disable-next-line: missing-fields
     local info = {}
     if m.workingClock and time.monotonic() - m.workingClock > 100 then
         info.text = '$(loading~spin)Lua'
@@ -221,6 +240,7 @@ function m.reportStatus()
         info.text = '😺Lua'
     end
 
+    ---@type string[]
     local tooltips = {}
     local params = {
         ast = files.countStates(),
@@ -250,6 +270,7 @@ end
 
 function m.lockCache()
     local fs = require 'bee.filesystem'
+    ---@type { get_id: fun(): integer }
     local sp = require 'bee.subprocess'
     local cacheDir = string.format('%s/cache', LOGPATH)
     local myCacheDir = string.format('%s/%d'
@@ -257,6 +278,7 @@ function m.lockCache()
         , sp.get_id()
     )
     fs.create_directories(fs.path(myCacheDir))
+    ---@type string?
     local err
     m.lockFile, err = io.open(myCacheDir .. '/.lock', 'wb')
     if err then

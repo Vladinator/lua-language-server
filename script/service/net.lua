@@ -258,6 +258,7 @@ function m.connect(protocol, address, port)
     return setmetatable(s, connect_mt)
 end
 
+---@param timeout? integer
 function m.update(timeout)
     for func, event in selector:wait(timeout or 0) do
         func(event)

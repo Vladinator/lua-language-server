@@ -37,6 +37,7 @@ end
 local m = {}
 
 m.ability = {}
+---@type table<any, any>
 m.waiting = {}
 ---@type table<integer|string, proto.message>
 m.holdon  = {}

@@ -39,6 +39,8 @@ function m.isVSCode()
     return m._isvscode
 end
 
+---@param name string
+---@return any
 function m.getOption(name)
     nonil.enable()
     local option = m.info.initializationOptions[name]

@@ -6,6 +6,7 @@ local wkmt = { __mode = 'k' }
 local m = {}
 m.type = 'await'
 
+---@type table<thread, any>
 m.coMap = setmetatable({}, wkmt)
 m.idMap = {}
 m.delayQueue = {}

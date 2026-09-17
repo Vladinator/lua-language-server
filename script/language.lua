@@ -2,7 +2,9 @@ local fs      = require 'bee.filesystem'
 local util    = require 'utility'
 local lloader = require 'locale-loader'
 
+---@return table<any, any>
 local function supportLanguage()
+    ---@type table<any, any>
     local list = {}
     for path in fs.pairs(ROOT / 'locale') do
         if fs.is_directory(path) then
@@ -49,7 +51,9 @@ end
 local function formatAsArray(str, ...)
     local index = 0
     local args = {...}
+    ---@param pat string
     return str:gsub('%{(.-)%}', function (pat)
+        ---@type any, any
         local id, fmt
         local pos = pat:find(':', 1, true)
         if pos then
@@ -61,7 +65,7 @@ local function formatAsArray(str, ...)
         end
         id = tonumber(id)
         if not id then
-            index = index + 1
+            index = (index + 1) --[[@as integer]]
             id = index
         end
         return ('%'..fmt):format(args[id])
@@ -69,8 +73,11 @@ local function formatAsArray(str, ...)
 end
 
 local function formatAsTable(str, ...)
+    ---@type any
     local args = ...
+    ---@param pat string
     return str:gsub('%{(.-)%}', function (pat)
+        ---@type any, any
         local id, fmt
         local pos = pat:find(':', 1, true)
         if pos then
@@ -96,20 +103,30 @@ local function loadLang(name, language)
         end
     end
     return setmetatable(tbl, {
+        ---@param self any
+        ---@param key  any
         __index = function (self, key)
-            self[key] = key
+            local selfMap = self --[[@as table<any, any>]]
+            selfMap[key] = key
             return key
         end,
+        ---@param self any
+        ---@param key  any
         __call = function (self, key, ...)
-            local str = self[key]
+            local str = (self --[[@as table<any, any>]])[key]
             if not ... then
                 return str
             end
+            ---@type boolean, any
             local suc, res
             if type(...) == 'table' then
-                suc, res = pcall(formatAsTable, str, ...)
+                ---@type boolean, any
+                local s, r = pcall(formatAsTable, str, ...)
+                suc, res = s, r
             else
-                suc, res = pcall(formatAsArray, str, ...)
+                ---@type boolean, any
+                local s, r = pcall(formatAsArray, str, ...)
+                suc, res = s, r
             end
             if suc then
                 return res
@@ -139,17 +156,23 @@ end
 local m = setmetatable({
     id = 'en-us',
 }, {
+    ---@param self any
+    ---@param name string
     __index = function (self, name)
         local tbl = loadLang(name, self.id)
-        self[name] = tbl
+        local selfMap = self --[[@as table<any, any>]]
+        selfMap[name] = tbl
         return tbl
     end,
+    ---@param self any
+    ---@param id   any
     __call = function (self, id)
         local language = getLanguage(id)
         log.info(('VSC language: %s'):format(id))
         log.info(('LS  language: %s'):format(language))
-        for k in pairs(self) do
-            self[k] = nil
+        local selfMap = self --[[@as table<any, any>]]
+        for k in pairs(selfMap) do
+            selfMap[k] = nil
         end
         self.id = language
     end,

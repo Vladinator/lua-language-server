@@ -4,8 +4,11 @@ local scope    = require 'workspace.scope'
 local template = require 'config.template'
 
 ---@alias config.source '"client"'|'"path"'|'"local"'
+---@alias config.changeEntry { uri: uri, key: string, value: any, oldValue: any }
 
 ---@class config.api
+---@field watchList (fun(uri: uri, key: string, value: any, oldValue: any))[]
+---@field changes?  config.changeEntry[]
 local m = {}
 m.watchList = {}
 
@@ -92,8 +95,9 @@ function m.add(uri, key, value)
     assert(unit, 'unknown key: ' .. key)
     local list = m.getRaw(uri, key)
     assert(type(list) == 'table', 'not a list: ' .. key)
+    ---@type any[]
     local copyed = {}
-    for i, v in ipairs(list) do
+    for i, v in ipairs(list --[[@as any[] ]]) do
         if util.equal(v, value) then
             return false
         end
@@ -115,8 +119,9 @@ function m.remove(uri, key, value)
     assert(unit, 'unknown key: ' .. key)
     local list = m.getRaw(uri, key)
     assert(type(list) == 'table', 'not a list: ' .. key)
+    ---@type any[]
     local copyed = {}
-    for i, v in ipairs(list) do
+    for i, v in ipairs(list --[[@as any[] ]]) do
         if not util.equal(v, value) then
             copyed[i] = v
         end
@@ -139,8 +144,9 @@ function m.prop(uri, key, prop, value)
     if util.equal(map[prop], value) then
         return false
     end
+    ---@type table<any, any>
     local copyed = {}
-    for k, v in pairs(map) do
+    for k, v in pairs(map --[[@as table<any, any>]]) do
         copyed[k] = v
     end
     copyed[prop] = value
@@ -185,12 +191,14 @@ function m.getRaw(uri, key)
 end
 
 ---@param scp  scope
+---@return table<string, any>
 function m.getNowTable(scp)
     return scp:get 'config.now'
         or scp:set('config.now', {})
 end
 
 ---@param scp  scope
+---@return table<string, any>
 function m.getRawTable(scp)
     return scp:get 'config.raw'
         or scp:set('config.raw', {})
@@ -200,16 +208,19 @@ end
 ---@param ...  table
 function m.update(scp, ...)
     local oldConfig = m.getNowTable(scp)
+    ---@type table<string, any>
     local newConfig = {}
     scp:set('config.now', newConfig)
     scp:set('config.raw', {})
 
+    ---@param t table<any, any>
+    ---@param left? string
     local function expand(t, left)
         for key, val in pairs(t) do
-            local value = val
-            local fullKey = key
+            local value = val --[[@as any]]
+            local fullKey = key --[[@as any]]
             if left then
-                fullKey = left .. '.' .. key
+                fullKey = (left .. '.' .. key) --[[@as string]]
             end
             if m.nullSymbols[value] then
                 value = m.NULL
@@ -253,7 +264,7 @@ function m.event(uri, key, value, oldValue)
     if not m.changes then
         m.changes = {}
         timer.wait(0, function ()
-            local delay = m.changes
+            local delay = m.changes --[[@as config.changeEntry[] ]]
             m.changes = nil
             for _, info in ipairs(delay) do
                 for _, callback in ipairs(m.watchList) do
@@ -262,6 +273,7 @@ function m.event(uri, key, value, oldValue)
             end
         end)
     end
+    ---@diagnostic disable-next-line: need-check-nil
     m.changes[#m.changes+1] = {
         uri      = uri,
         key      = key,

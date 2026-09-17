@@ -121,6 +121,7 @@ end
 
 ---@param k string
 ---@param v any
+---@return any
 function mt:set(k, v)
     self._data[k] = v
     return v

@@ -14,11 +14,12 @@ local doc = {}
 ---Find file 'doc.json'.
 ---@return fs.path
 local function findDocJson()
+    ---@type fs.path
     local doc_json_path
     if type(DOC_UPDATE) == 'string' then
-        doc_json_path = fs.canonical(fs.path(DOC_UPDATE)) .. '/doc.json'
+        doc_json_path = fs.canonical(fs.path(DOC_UPDATE)) .. '/doc.json' --[[@as fs.path]]
     else
-        doc_json_path = fs.current_path() .. '/doc.json'
+        doc_json_path = fs.current_path() .. '/doc.json' --[[@as fs.path]]
     end
     if fs.exists(doc_json_path) then
         return doc_json_path
@@ -31,12 +32,13 @@ end
 ---@return string # path to be documented
 local function getPathDocUpdate()
     local doc_json_path = findDocJson()
+    ---@type boolean, any
     local ok, doc_path = pcall(
         function ()
             local json = require('json')
             local json_file = io.open(doc_json_path:string(), 'r'):read('*all')
             local json_data = json.decode(json_file)
-            for _, section in ipairs(json_data) do
+            for _, section in ipairs(json_data --[[@as any[] ]]) do
                 if section.type == 'luals.config' then
                     return section.DOC
                 end
@@ -53,15 +55,19 @@ end
 ---clones a module and assigns any internal upvalues pointing to the module to the new clone
 ---useful for sandboxing
 ---@param tbl any module to be cloned
+---@param _new_module? any
+---@param _old_module? any
+---@param _has_seen? table<any, any>
 ---@return any module_clone the cloned module
 local function reinstantiateModule(tbl, _new_module, _old_module, _has_seen)
     _old_module = _old_module or tbl --remember old module only at root
-    _has_seen = _has_seen or {} --remember visited indecies
+    _has_seen = (_has_seen or {}) --[[@as table<any, any>]] --remember visited indecies
     if(type(tbl) == 'table') then
         if _has_seen[tbl] then return _has_seen[tbl] end
+        ---@type table<any, any>
         local clone = {}
         _has_seen[tbl] = true
-        for key, value in pairs(tbl) do
+        for key, value in pairs(tbl --[[@as table<any, any>]]) do
             clone[key] = reinstantiateModule(value, _new_module or clone, _old_module, _has_seen)
         end
         setmetatable(clone, getmetatable(tbl))
@@ -69,6 +75,7 @@ local function reinstantiateModule(tbl, _new_module, _old_module, _has_seen)
     elseif(type(tbl) == 'function') then
         local func = tbl
         if _has_seen[func] then return _has_seen[func] end --copy function pointers instead of building clones
+        ---@type any[]
         local upvalues = {}
         local i = 1
         while true do
@@ -102,7 +109,7 @@ require 'utility'
 require 'provider.markdown'
 
 ---Gets config file's doc gen overrides.
----@return table dirty_module clone of the export module modified by user buildscript
+---@return any dirty_module clone of the export module modified by user buildscript
 local function injectBuildScript()
     local sub_path = config.get(ws.rootUri, 'Lua.docScriptPath')
     local module = reinstantiateModule( ( require 'cli.doc.export' ) )
@@ -110,7 +117,7 @@ local function injectBuildScript()
     if sub_path == '' then
         return module
     end
-    local resolved_path = fs.absolute(fs.path(DOC)):string() .. sub_path
+    local resolved_path = fs.absolute(fs.path(DOC)):string() .. (sub_path --[[@as string]])
     local f <close> = io.open(resolved_path, 'r')
     if not f then
         error('could not open config file at '..tostring(resolved_path))
@@ -158,13 +165,14 @@ function doc.makeDoc(outputPath)
 
     local dirty_export = injectBuildScript()
 
-    local globals = dirty_export.gatherGlobals()
+    local globals = dirty_export.gatherGlobals() --[[@as any]]
 
     local docs = dirty_export.makeDocs(globals, function (i, max)
         prog:setMessage(('%d/%d'):format(i, max))
         prog:setPercentage((i) / max * 100)
-    end)
+    end) --[[@as any]]
 
+    ---@type boolean, any, any
     local ok, outPaths, err = dirty_export.serializeAndExport(docs, outputPath)
     if not ok then
         error(err)
@@ -182,7 +190,7 @@ function doc.runCLI()
     end
 
     if type(DOC) ~= 'string' then
-        print(lang.script('CLI_CHECK_ERROR_TYPE', type(DOC)))
+        print(lang.script('CLI_CHECK_ERROR_TYPE', type(DOC --[[@as any]])))
         return
     end
 
@@ -198,6 +206,7 @@ function doc.runCLI()
     --- 如果指定了'--configpath'，则获取`.luarc.doc.json` 配置文件的文件夹路径(不包含文件名）
     --- This option is passed into the callback function of the initialized method in provide.
     --- 该选项会被传入到`provide`中的`initialized`方法的回调函数中
+    ---@type uri?
     local luarcParentUri
     if CONFIGPATH then
         luarcParentUri = furi.encode(fs.absolute(fs.path(CONFIGPATH)):parent_path():string())
@@ -227,7 +236,7 @@ function doc.runCLI()
 
         local dirty_export = injectBuildScript()
 
-        local globals = dirty_export.gatherGlobals()
+        local globals = dirty_export.gatherGlobals() --[[@as any]]
 
         local docs = dirty_export.makeDocs(globals, function (i, max)
             if os.clock() - lastClock > 0.2 then
@@ -240,16 +249,17 @@ function doc.runCLI()
                     .. tostring(i) .. '/' .. tostring(max)
                 io.write(output)
             end
-        end)
+        end) --[[@as any]]
         io.write('\x0D')
 
         if not DOC_OUT_PATH then
             DOC_OUT_PATH = fs.current_path():string()
         end
 
+        ---@type boolean, any, any
         local ok, outPaths, err = dirty_export.serializeAndExport(docs, DOC_OUT_PATH)
         print(lang.script('CLI_DOC_DONE'))
-        for i, path in ipairs(outPaths) do
+        for i, path in ipairs(outPaths --[[@as any[] ]]) do
             local this_err = (type(err) == 'table') and err[i] or nil
             print(this_err or files.normalize(path))
         end

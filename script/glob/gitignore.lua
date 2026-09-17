@@ -21,6 +21,7 @@ function lpegPattern:match(s) end
 ---@field T  fun(label: string|integer): glob.lpegPattern
 ---@field P  fun(v: glob.lpegPattern|string|integer|table): glob.lpegPattern
 ---@field S  fun(s: string): glob.lpegPattern
+---@field R  fun(...: string): glob.lpegPattern
 ---@field V  fun(name: string): glob.lpegPattern
 
 ---@type glob.lpegM
@@ -188,7 +189,7 @@ function mt:getRelativePath(path)
     local root = (self.options.root or '') --[[@as string]]
     if self.options.ignoreCase then
         path = path:lower()
-        root = root:lower()
+        root = root:lower() --[[@as string]]
     end
     path = path:gsub('^[/\\]+', ''):gsub('[/\\]+', '/')
     root = root:gsub('^[/\\]+', ''):gsub('[/\\]+', '/')

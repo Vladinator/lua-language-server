@@ -9,9 +9,12 @@ require 'provider.code-lens'
 
 local m = {}
 
+---@type table<string, any>[]
 m.fillings = {}
+---@type table<string, string>
 m.resolvedMap = {}
 
+---@param provider table<string, any>
 local function mergeFillings(provider)
     for _, filling in ipairs(m.fillings) do
         for k, v in pairs(filling) do
@@ -19,8 +22,8 @@ local function mergeFillings(provider)
                 if not provider[k] then
                     provider[k] = {}
                 end
-                for kk, vv in pairs(v) do
-                    provider[k][kk] = vv
+                for kk, vv in pairs(v --[[@as table<any, any>]]) do
+                    (provider[k] --[[@as table<any, any>]])[kk] = vv
                 end
             else
                 provider[k] = v
@@ -29,6 +32,7 @@ local function mergeFillings(provider)
     end
 end
 
+---@param t table<string, any>
 local function resolve(t)
     for k, v in pairs(t) do
         if type(v) == 'table' then
@@ -45,6 +49,7 @@ local function resolve(t)
     end
 end
 
+---@return table<string, any>
 function m.getProvider()
     local provider = {
         offsetEncoding = client.getOffsetEncoding(),
@@ -73,10 +78,13 @@ function m.getProvider()
     return provider
 end
 
+---@param t table<string, any>
 function m.filling(t)
     m.fillings[#m.fillings+1] = t
 end
 
+---@param key string
+---@param value string
 function m.resolve(key, value)
     m.resolvedMap[key] = value
 end

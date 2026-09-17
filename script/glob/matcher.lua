@@ -1,3 +1,4 @@
+---@type glob.lpegM
 local m = require 'lpeglabel'
 
 local Slash  = m.S('/\\')^1
@@ -6,16 +7,37 @@ local Char   = 1 - Symbol
 local Path   = (1 - m.S[[\/*?"<>|]])^1 * Slash
 local NoWord = #(m.P(-1) + Symbol)
 
+---@alias glob.exp.type
+---| '"word"'
+---| '"char"'
+---| '"**"'
+---| '"*"'
+---| '"?"'
+---| '"[]"'
+---| '"/"'
+
+---@class glob.exp
+---@field type  glob.exp.type
+---@field value any
+
+---@class glob.state
+---@field [integer] glob.exp
+---@field neg?  boolean
+---@field root? boolean
+
 ---@class glob.matcher
 ---@field needDirectory? boolean
 ---@field matcher any
----@field state any
+---@field state glob.state
 ---@field options any
 ---@overload fun(path: string): any
 local mt = {}
 mt.__index = mt
 mt.__name = 'matcher'
 
+---@param state glob.state
+---@param index integer
+---@return any
 function mt:exp(state, index)
     local exp = state[index]
     if not exp then
@@ -38,6 +60,10 @@ function mt:exp(state, index)
     end
 end
 
+---@param exp   glob.exp
+---@param state glob.state
+---@param index integer
+---@return any
 function mt:word(exp, state, index)
     local current = self:exp(exp.value, 1)
     assert(current)
@@ -49,6 +75,10 @@ function mt:word(exp, state, index)
     end
 end
 
+---@param exp   glob.exp
+---@param state glob.state
+---@param index integer
+---@return any
 function mt:char(exp, state, index)
     local current = m.P(exp.value)
     local after = self:exp(state, index)
@@ -59,7 +89,11 @@ function mt:char(exp, state, index)
     end
 end
 
-function mt:anyPath(_, state, index)
+---@param exp   glob.exp?
+---@param state glob.state
+---@param index integer
+---@return any
+function mt:anyPath(exp, state, index)
     local after = self:exp(state, index)
     if after then
         return m.P {
@@ -72,7 +106,11 @@ function mt:anyPath(_, state, index)
     end
 end
 
-function mt:anyChar(_, state, index)
+---@param exp   glob.exp?
+---@param state glob.state
+---@param index integer
+---@return any
+function mt:anyChar(exp, state, index)
     local after = self:exp(state, index)
     if after then
         return m.P {
@@ -85,7 +123,11 @@ function mt:anyChar(_, state, index)
     end
 end
 
-function mt:oneChar(_, state, index)
+---@param exp   glob.exp?
+---@param state glob.state
+---@param index integer
+---@return any
+function mt:oneChar(exp, state, index)
     local after = self:exp(state, index)
     if after then
         return Char * after
@@ -94,11 +136,17 @@ function mt:oneChar(_, state, index)
     end
 end
 
+---@param exp   glob.exp
+---@param state glob.state
+---@param index integer
+---@return any
 function mt:range(exp, state, index)
     local after = self:exp(state, index)
+    ---@type string[]
     local ranges = {}
+    ---@type string[]
     local selects = {}
-    for _, range in ipairs(exp.value) do
+    for _, range in ipairs(exp.value --[[@as string[][] ]]) do
         if #range == 1 then
             selects[#selects+1] = range[1]
         elseif #range == 2 then
@@ -113,7 +161,11 @@ function mt:range(exp, state, index)
     end
 end
 
-function mt:slash(_, state, index)
+---@param exp   glob.exp?
+---@param state glob.state
+---@param index integer
+---@return any
+function mt:slash(exp, state, index)
     local after = self:exp(state, index)
     if after then
         return after
@@ -123,6 +175,8 @@ function mt:slash(_, state, index)
     end
 end
 
+---@param state glob.state
+---@return any
 function mt:pattern(state)
     if state.root then
         local after = self:exp(state, 1)
@@ -152,14 +206,14 @@ function mt:__call(path)
     return self.matcher:match(path)
 end
 
----@param state any
+---@param state   glob.state
 ---@param options any
 ---@return glob.matcher?
 return function (state, options)
     local self = setmetatable({
         options = options,
         state   = state,
-    }, mt --[[@as metatable]])
+    }, mt --[[@as metatable]]) --[[@as glob.matcher]]
     self.matcher = self:pattern(state)
     if not self.matcher then
         return nil

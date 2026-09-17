@@ -3,15 +3,19 @@ local parser = require 'parser'
 local guide  = require 'parser.guide'
 local util   = require 'utility'
 
+---@param node parser.object
+---@return string
 local function nodeId(node)
 	return node.type .. ':' .. node.start .. ':' .. node.finish
 end
 
+---@param str any
+---@return any
 local function shorten(str)
 	if type(str) ~= 'string' then
 		return str
 	end
-	str = str:gsub('\n', '\\\\n')
+	str = str:gsub('\n', '\\\\n') --[[@as string]]
 	if #str <= 20 then
 		return str
 	else
@@ -19,41 +23,49 @@ local function shorten(str)
 	end
 end
 
+---@param k any
+---@param v any
+---@return string
 local function getTooltipLine(k, v)
 	if type(v) == 'table' then
 		if v.type then
-			v = '<node ' .. v.type .. '>'
+			v = '<node ' .. v.type .. '>' --[[@as string]]
 		else
 			v = '<table>'
 		end
 	end
-	v = tostring(v)
+	v = tostring(v) --[[@as string]]
 	v = v:gsub('"', '\\"')
 	return k .. ': ' .. shorten(v) .. '\\n'
 end
 
+---@param node parser.object
+---@return string
 local function getTooltip(node)
-	local str = ''
+	---@type string[]
+	local parts = {}
 	local skipNodes = {parent = true, start = true, finish = true, type = true}
-	str = str .. getTooltipLine('start', node.start)
-	str = str .. getTooltipLine('finish', node.finish)
-	for k, v in util.sortPairs(node, function (a, b)
+	parts[#parts+1] = getTooltipLine('start', node.start)
+	parts[#parts+1] = getTooltipLine('finish', node.finish)
+	for k, v in util.sortPairs(node --[[@as table<any, any>]], function (a, b)
 		return tostring(a) < tostring(b)
 	end) do
 		if type(k) ~= 'number' and not skipNodes[k] then
-			str = str .. getTooltipLine(k, v)
+			parts[#parts+1] = getTooltipLine(k, v)
 		end
 	end
 	for i = 1, math.min(#node, 15) do
-		str = str .. getTooltipLine(i, node[i])
+		parts[#parts+1] = getTooltipLine(i, node[i])
 	end
 	if #node > 15 then
-		str = str .. getTooltipLine('15..' .. #node, '(...)')
+		parts[#parts+1] = getTooltipLine('15..' .. #node, '(...)')
 	end
-	return str
+	return table.concat(parts)
 end
 
 local nodeEntry = '\t"%s" [\n\t\tlabel="%s\\l%s\\l"\n\t\ttooltip="%s"\n\t]'
+---@param node parser.object
+---@return string
 local function getNodeLabel(node)
 	local keyName = guide.getKeyName(node)
 	if node.type == 'binary' or node.type == 'unary' then
@@ -64,7 +76,11 @@ local function getNodeLabel(node)
 	return nodeEntry:format(nodeId(node), node.type, shorten(keyName) or '', getTooltip(node))
 end
 
+---@param writer file*
+---@return fun(node: parser.object?, parent?: parser.object)
 local function getVisualizeVisitor(writer)
+	---@param node   parser.object?
+	---@param parent parser.object?
 	local function visitNode(node, parent)
 		if node == nil then return end
 		writer:write(getNodeLabel(node))
@@ -83,6 +99,8 @@ end
 
 local export = {}
 
+---@param code   string
+---@param writer file*
 function export.visualizeAst(code, writer)
 	local state = parser.compile(code, 'Lua', _G['LUA_VER'] or 'Lua 5.4')
 	writer:write('digraph AST {\n')
@@ -91,16 +109,18 @@ function export.visualizeAst(code, writer)
 	writer:write('}\n')
 end
 
+---@return integer
 function export.runCLI()
 	lang(LOCALE)
-	local file = _G['VISUALIZE']
+	local file = _G['VISUALIZE'] --[[@as string]]
 	local code, err = io.open(file)
 	if not code then
 		io.stderr:write('failed to open ' .. file .. ': ' .. (err or '?'))
 		return 1
 	end
-	code = code:read('a')
-	return export.visualizeAst(code, io.stdout)
+	local content = code:read('a')
+	export.visualizeAst(content, io.stdout)
+	return 0
 end
 
 return export

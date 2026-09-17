@@ -12,6 +12,7 @@ local client    = require 'client'
 local converter = require 'proto.converter'
 local loading   = require 'workspace.loading'
 local scope     = require 'workspace.scope'
+---@type { time: fun(): number }
 local time      = require 'bee.time'
 local ltable    = require 'linked-table'
 local furi      = require 'file-uri'
@@ -19,7 +20,11 @@ local json      = require 'json'
 local fw        = require 'filewatch'
 local vm        = require 'vm.vm'
 
+---@alias diagnosticProvider.errRelated { uri?: uri, message?: string, start: integer, finish: integer }
+---@alias diagnosticProvider.errInfo { version?: string[]|string, related?: diagnosticProvider.errRelated[] }
+
 ---@class diagnosticProvider
+---@field cache table<uri, table[]|false>
 local m = {}
 m.cache = {}
 m.sleepRest = 0.0
@@ -33,27 +38,33 @@ local function concat(t, sep)
     return table.concat(t, sep)
 end
 
+---@param uri uri
+---@param err parser.state.err
+---@return table?
 local function buildSyntaxError(uri, err)
     local state = files.getState(uri)
     local text  = files.getText(uri)
     if not text or not state then
         return
     end
+    local info = err.info --[[@as diagnosticProvider.errInfo?]]
     local message = lang.script('PARSER_' .. err.type, err.info)
 
     if err.version then
-        local version = err.info and err.info.version or config.get(uri, 'Lua.runtime.version')
-        message = message .. ('(%s)'):format(lang.script('DIAG_NEED_VERSION'
+        local version = info and info.version or config.get(uri, 'Lua.runtime.version')
+        message = (message .. ('(%s)'):format(lang.script('DIAG_NEED_VERSION'
             , concat(err.version, '/')
             , version
-        ))
+        ))) --[[@as string]]
     end
 
-    local related = err.info and err.info.related
+    local related = info and info.related
+    ---@type table[]?
     local relatedInformation
     if related then
         relatedInformation = {}
-        for _, rel in ipairs(related) do
+        for _, rel in ipairs(related --[[@as diagnosticProvider.errRelated[] ]]) do
+            ---@type string
             local rmessage
             if rel.message then
                 rmessage = lang.script('PARSER_' .. rel.message)
@@ -74,7 +85,7 @@ local function buildSyntaxError(uri, err)
     return {
         code     = err.type:lower():gsub('_', '-'),
         range    = converter.packRange(state, err.start, err.finish),
-        severity = define.DiagnosticSeverity[err.level],
+        severity = define.DiagnosticSeverity[err.level --[[@as string]]],
         source   = lang.script.DIAG_SYNTAX_CHECK,
         message  = message,
         data     = 'syntax',
@@ -83,16 +94,20 @@ local function buildSyntaxError(uri, err)
     }
 end
 
+---@param uri uri
+---@param diag any
+---@return table?
 local function buildDiagnostic(uri, diag)
     local state = files.getState(uri)
     if not state then
         return
     end
 
+    ---@type table[]?
     local relatedInformation
     if diag.related then
         relatedInformation = {}
-        for _, rel in ipairs(diag.related) do
+        for _, rel in ipairs(diag.related --[[@as any[] ]]) do
             local rtext = files.getText(rel.uri)
             if not rtext then
                 goto CONTINUE
@@ -112,29 +127,35 @@ local function buildDiagnostic(uri, diag)
     return {
         range    = converter.packRange(state, diag.start, diag.finish),
         source   = lang.script.DIAG_DIAGNOSTICS,
-        severity = diag.level,
-        message  = diag.message,
-        code     = diag.code,
-        tags     = diag.tags,
-        data     = diag.data,
+        severity = diag.level --[[@as any]],
+        message  = diag.message --[[@as any]],
+        code     = diag.code --[[@as any]],
+        tags     = diag.tags --[[@as any]],
+        data     = diag.data --[[@as any]],
 
         relatedInformation = relatedInformation,
     }
 end
 
+---@param a table[]?
+---@param b table[]?
+---@param c table[]?
+---@return table[]?
 local function mergeDiags(a, b, c)
     if not a and not b and not c then
         return nil
     end
+    ---@type table[]
     local t = {}
 
+    ---@param diags table[]?
     local function merge(diags)
         if not diags then
             return
         end
         for i = 1, #diags do
-            local diag = diags[i]
-            local severity = diag.severity
+            local diag = diags[i] --[[@as any]]
+            local severity = diag.severity --[[@as any]]
             if severity == define.DiagnosticSeverity.Hint
             or severity == define.DiagnosticSeverity.Information then
                 if #t > 10000 then
@@ -188,6 +209,7 @@ end
 ---@param uri? uri
 ---@param force? boolean
 function m.clearAll(uri, force)
+    ---@type scope?
     local scp
     if uri then
         scp = scope.getScope(uri)
@@ -207,11 +229,15 @@ function m.clearAll(uri, force)
     end
 end
 
+---@param uri uri
+---@param ast parser.state
+---@return table[]?
 function m.syntaxErrors(uri, ast)
     if #ast.errs == 0 then
         return nil
     end
 
+    ---@type table[]
     local results = {}
 
     pcall(function ()
@@ -228,10 +254,13 @@ function m.syntaxErrors(uri, ast)
     return results
 end
 
+---@param diags table[]?
+---@return table[]?
 local function copyDiagsWithoutSyntax(diags)
     if not diags then
         return nil
     end
+    ---@type table[]
     local copyed = {}
     for _, diag in ipairs(diags) do
         if diag.data ~= 'syntax' then
@@ -302,8 +331,9 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
 
     local syntax = m.syntaxErrors(uri, state)
 
+    ---@type table[]
     local diags = {}
-    local lastDiag = copyDiagsWithoutSyntax(m.cache[uri])
+    local lastDiag = copyDiagsWithoutSyntax(m.cache[uri] --[[@as table[]? ]])
     local function pushResult()
         tracy.ZoneBeginN 'mergeSyntaxAndDiags'
         local _ <close> = tracy.ZoneEnd
@@ -340,17 +370,18 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
         diags[#diags+1] = buildDiagnostic(uri, result)
 
         if not isScopeDiag and time.time() - lastPushClock >= 500 then
-            lastPushClock = time.time()
+            lastPushClock = time.time() --[[@as number]]
             pushResult()
         end
     end, function (checkedName)
         if not lastDiag then
             return
         end
-        for i, diag in ipairs(lastDiag) do
+        local checkedDiags = lastDiag --[[@as table[] ]]
+        for i, diag in ipairs(checkedDiags) do
             if diag.code == checkedName then
-                lastDiag[i] = lastDiag[#lastDiag]
-                lastDiag[#lastDiag] = nil
+                checkedDiags[i] = checkedDiags[#checkedDiags]
+                checkedDiags[#checkedDiags] = nil
             end
         end
     end, ignoreFileState)
@@ -400,6 +431,7 @@ function m.pullDiagnostic(uri, isScopeDiag)
     prog:setMessage(ws.getRelativePath(uri))
 
     local syntax = m.syntaxErrors(uri, state)
+    ---@type table[]
     local diags = {}
 
     xpcall(core, log.error, uri, isScopeDiag, function (result)
@@ -439,7 +471,7 @@ function m.refreshScopeDiag(event, uri)
 
     ---@async
     await.call(function ()
-        local delay = config.get(uri, 'Lua.diagnostics.workspaceDelay') / 1000
+        local delay = (config.get(uri, 'Lua.diagnostics.workspaceDelay') --[[@as number]]) / 1000
         if delay < 0 then
             return
         end
@@ -541,6 +573,7 @@ function m.awaitDiagnosticsScope(suri, callback)
     end)
     local clock = os.clock()
     local bar <close> = progress.create(suri, lang.script.WORKSPACE_DIAGNOSTIC, 1)
+    ---@type boolean?
     local cancelled
     bar:onCancel(function ()
         log.info('Cancel workspace diagnostics')
@@ -565,7 +598,7 @@ function m.awaitDiagnosticsScope(suri, callback)
         while loading.count() > 0 do
             await.sleep(1.0)
         end
-        i = i + 1
+        i = (i + 1) --[[@as integer]]
         bar:setMessage(('%d/%d'):format(i, #uris))
         bar:setPercentage(i / #uris * 100)
         callback(uri)
@@ -620,7 +653,7 @@ function m.pullDiagnosticScope(callback)
                     processing = processing - 1
                 end)
 
-                local delay = config.get(scp.uri, 'Lua.diagnostics.workspaceDelay') / 1000
+                local delay = (config.get(scp.uri, 'Lua.diagnostics.workspaceDelay') --[[@as number]]) / 1000
                 if delay < 0 then
                     return
                 end

@@ -1,3 +1,4 @@
+---@type glob.lpegM
 local m = require 'lpeglabel'
 local matcher = require 'glob.matcher'
 
@@ -45,17 +46,24 @@ local parser = m.P {
                     + m.V'RangeWord',
 }
 
+---@class glob
+---@field pattern string[]
+---@field options table<string, any>
+---@field passed  glob.matcher[]
+---@field refused glob.matcher[]
+---@field errors  table[]
 local mt = {}
 mt.__index = mt
 mt.__name = 'glob'
 
+---@param pat string
 function mt:addPattern(pat)
     if type(pat) ~= 'string' then
         return
     end
     self.pattern[#self.pattern+1] = pat
     if self.options.ignoreCase then
-        pat = pat:lower()
+        pat = pat:lower() --[[@as string]]
     end
     local states, err = parser:match(pat)
     if not states then
@@ -81,11 +89,13 @@ function mt:setOption(op, val)
     self.options[op] = val
 end
 
+---@param path string
+---@return boolean
 function mt:__call(path)
     if self.options.ignoreCase then
-        path = path:lower()
+        path = path:lower() --[[@as string]]
     end
-    path = path:gsub('^[/\\]+', '')
+    path = path:gsub('^[/\\]+', '') --[[@as string]]
     for _, refused in ipairs(self.refused) do
         if refused(path) then
             return false
@@ -99,6 +109,9 @@ function mt:__call(path)
     return false
 end
 
+---@param pattern string|string[]
+---@param options? table<any, any>
+---@return glob
 return function (pattern, options)
     local self = setmetatable({
         pattern = {},

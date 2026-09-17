@@ -26,7 +26,31 @@ local brave = require 'brave'
 brave.register({id}, {taskChName:q}, {replyChName:q})
 ]]
 
+---@class pub.brave
+---@field id          integer
+---@field thread      any
+---@field taskMap     table<any, any>
+---@field currentTask integer?
+---@field memory      number
+---@field taskCh      any
+---@field replyCh     any
+---@field busy        boolean
+---@field privatePad  string?
+
+---@class pub.task
+---@field id        integer
+---@field name      string
+---@field params    any
+---@field callback? function
+---@field removed?  boolean
+
 ---@class pub
+---@field ability        table<string, function>
+---@field taskMap        table<any, pub.task>
+---@field publicBraves   pub.brave[]
+---@field privateBraves  table<string, pub.brave[]>
+---@field publicQueue    pub.task[]
+---@field privateQueues  table<string, pub.task[]>
 local m     = {}
 m.type      = 'pub'
 m.ability   = {}
@@ -49,6 +73,7 @@ end
 ---@param num integer
 ---@param privatePad string?
 function m.recruitBraves(num, privatePad)
+    ---@type pub.brave[]
     local braveList
     if privatePad then
         -- 专用线程组
@@ -99,8 +124,8 @@ function m.recruitBraves(num, privatePad)
 end
 
 --- 查找一个空闲的勇者
----@param braveList table
----@return table?
+---@param braveList pub.brave[]
+---@return pub.brave?
 local function findIdleBrave(braveList)
     for _, brave in ipairs(braveList) do
         if not brave.busy then
@@ -111,6 +136,8 @@ local function findIdleBrave(braveList)
 end
 
 --- 给勇者推送任务
+---@param info pub.task
+---@return boolean
 function m.pushTask(info)
     if info.removed then
         return false
@@ -143,6 +170,9 @@ function m.pushTask(info)
 end
 
 --- 从勇者处接收任务反馈
+---@param brave  pub.brave
+---@param id     any
+---@param result any
 function m.popTask(brave, id, result)
     local info = m.taskMap[id]
     if not info then
@@ -179,6 +209,9 @@ function m.popTask(brave, id, result)
 end
 
 --- 从勇者处接收报告
+---@param brave  pub.brave
+---@param name   string
+---@param params any
 function m.popReport(brave, name, params)
     local abil = m.ability[name]
     if not abil then
@@ -222,7 +255,9 @@ function m.task(name, params, callback)
     return m.pushTask(info)
 end
 
+---@param brave pub.brave
 function m.reciveFromPad(brave)
+    ---@type boolean, any, any
     local suc, name, result = brave.replyCh:pop()
     if not suc then
         return false
@@ -236,6 +271,7 @@ function m.reciveFromPad(brave)
 end
 
 --- 接收反馈
+---@param block boolean
 function m.recieve(block)
     if block then
         -- 使用 select 等待数据

@@ -37,6 +37,7 @@ local m = {}
 ---@param ... string
 ---@return string
 local function mergeString(...)
+    ---@type string[]
     local buf = {}
     for i = 1, select('#', ...) do
         local str = select(i, ...)
@@ -47,6 +48,8 @@ local function mergeString(...)
     return table.concat(buf, '.')
 end
 
+---@param lines string[]
+---@param comment string
 local function addComments(lines, comment)
     if comment == '' then
         return
@@ -65,6 +68,7 @@ local function addMethod(lines, name, method)
     end
     addComments(lines, method.comment)
     lines[#lines+1] = ('---@source %s'):format(method.location:gsub('#', ':'))
+    ---@type string[]
     local params = {}
     for _, param in ipairs(method.params) do
         lines[#lines+1] = ('---@param %s %s'):format(param.name, param.typeName)
@@ -87,6 +91,7 @@ end
 ---@param class meta.class
 ---@return string
 local function buildText(root, class)
+    ---@type string[]
     local lines = {}
 
     addComments(lines, class.comment)
@@ -115,7 +120,10 @@ local function buildText(root, class)
     return table.concat(lines, '\n')
 end
 
+---@param api meta
+---@return string
 local function buildRootText(api)
+    ---@type string[]
     local lines = {}
 
     lines[#lines+1] = ('---@class %s'):format(api.root)
@@ -129,9 +137,10 @@ end
 ---@param api meta
 function m.build(path, api)
 
+    ---@type table<string, string[]>
     local files = util.multiTable(2, function ()
         return { '---@meta' }
-    end)
+    end) --[[@as table<string, string[]>]]
 
     files[api.root][#files[api.root]+1] = buildRootText(api)
 

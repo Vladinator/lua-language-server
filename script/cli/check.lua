@@ -1,34 +1,53 @@
 local lang       = require 'language'
+---@type { os: string }
 local platform   = require 'bee.platform'
-local subprocess = require 'bee.subprocess'
 local json       = require 'json'
 local jsonb      = require 'json-beautify'
 local util       = require 'utility'
 
+-- `json`'s `beautify` field is only set once `json-beautify.lua` is required (as above),
+-- so it's declared optional on the shared `json` class; narrow it here via a fresh local.
+local jsonBeautify = jsonb.beautify
+assert(jsonBeautify, 'json-beautify was not loaded')
+
+---@class proc
+---@field wait fun(self: proc): integer?, string?
+
+---@type { spawn: fun(...): proc?, string? }
+local subprocess = require 'bee.subprocess'
+
 local export = {}
 
+---@param threadId integer
 local function logFileForThread(threadId)
     return LOGPATH .. '/check-partial-' .. threadId .. '.json'
 end
 
+---@param minIndex integer
+---@param numThreads number
+---@param threadId integer
+---@param format string
+---@param quiet boolean
+---@return string[]
 local function buildArgs(minIndex, numThreads, threadId, format, quiet)
+    ---@type string[]
     local args = {}
     local skipNext = false
     for i = minIndex, #arg do
-        local arg = arg[i]
+        local a = arg[i]
         -- --check needs to be transformed into --check_worker
-        if arg:lower():match('^%-%-check$') or arg:lower():match('^%-%-check=') then
-            args[#args + 1] = arg:gsub('%-%-%w*', '--check_worker')
+        if a:lower():match('^%-%-check$') or a:lower():match('^%-%-check=') then
+            args[#args + 1] = a:gsub('%-%-%w*', '--check_worker')
         -- --check_out_path needs to be removed if we have more than one thread
-        elseif arg:lower():match('%-%-check_out_path') and numThreads > 1 then
-            if not arg:match('%-%-[%w_]*=') then
+        elseif a:lower():match('%-%-check_out_path') and numThreads > 1 then
+            if not a:match('%-%-[%w_]*=') then
                 skipNext = true
             end
         else
             if skipNext then
                 skipNext = false
             else
-                args[#args + 1] = arg
+                args[#args + 1] = a
             end
         end
     end
@@ -50,6 +69,7 @@ end
 function export.runCLI()
     local numThreads = tonumber(NUM_THREADS or 1) or 1
 
+    ---@type string
     local exe
     local minIndex = -1
     while arg[minIndex] do
@@ -66,6 +86,7 @@ function export.runCLI()
         print(lang.script('CLI_CHECK_MULTIPLE_WORKERS', numThreads))
     end
 
+    ---@type proc[]
     local procs = {}
     for i = 1, numThreads do
         local process, err = subprocess.spawn({buildArgs(minIndex, numThreads, i, CHECK_FORMAT, QUIET)})
@@ -83,25 +104,28 @@ function export.runCLI()
     end
 
     if numThreads > 1 then
+        ---@type table<string, table[]>
         local mergedResults = {}
+        ---@type integer
         local count = 0
         for i = 1, numThreads do
-            local result = json.decode(util.loadFile(logFileForThread(i)) or '[]')
+            local result = json.decode(util.loadFile(logFileForThread(i)) or '[]') --[[@as table<string, table[]>]]
             for k, v in pairs(result) do
                 local entries = mergedResults[k] or {}
                 mergedResults[k] = entries
                 for _, entry in ipairs(v) do
                     entries[#entries + 1] = entry
-                    count = count + 1
+                    count = (count + 1) --[[@as integer]]
                 end
             end
         end
 
-        local outpath = nil
-
+        ---@type string?
+        local outpath
         if CHECK_FORMAT == 'json' or CHECK_OUT_PATH then
-            outpath = CHECK_OUT_PATH or LOGPATH .. '/check.json'
-            util.saveFile(outpath, jsonb.beautify(mergedResults))
+            local resolvedPath = CHECK_OUT_PATH or (LOGPATH .. '/check.json')
+            outpath = resolvedPath
+            util.saveFile(resolvedPath, jsonBeautify(mergedResults))
         end
 
         if not QUIET then

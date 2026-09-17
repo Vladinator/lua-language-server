@@ -11,8 +11,9 @@
 ---@alias string.merger.infos string.merger.info[]
 
 -- 根据二分法找到最近的开始位置
----@param diffs  table
----@param offset any
+---@param diffs  string.merger.info[]
+---@param offset integer
+---@param key    'start'|'cstart'
 ---@return string.merger.info
 local function getNearDiff(diffs, offset, key)
     local min = 1
@@ -41,6 +42,7 @@ local function getNearDiff(diffs, offset, key)
     return diffs[min]
 end
 
+---@class string.merger
 local m = {}
 
 ---把文本与差异进行合并
@@ -49,18 +51,22 @@ local m = {}
 ---@return string
 ---@return string.merger.infos
 function m.mergeDiff(text, diffs)
+    ---@type string.merger.infos
     local info = {}
     for i, diff in ipairs(diffs) do
         info[i] = {
-            start  = diff.start,
-            finish = diff.finish,
-            text   = diff.text,
+            start   = diff.start,
+            finish  = diff.finish,
+            text    = diff.text,
+            cstart  = 0,
+            cfinish = 0,
         }
     end
     table.sort(info, function (a, b)
         return a.start < b.start
     end)
     local cur = 1
+    ---@type string[]
     local buf = {}
     local delta = 0
     for _, diff in ipairs(info) do
@@ -86,6 +92,7 @@ function m.getOffset(info, offset)
         return offset, offset
     end
     if offset <= diff.finish then
+        ---@type integer?, integer?
         local start, finish
         if offset == diff.start then
             start = diff.cstart
@@ -119,6 +126,7 @@ function m.getOffsetBack(info, offset)
         return offset, offset
     end
     if offset <= diff.cfinish then
+        ---@type integer?, integer?
         local start, finish
         if offset == diff.cstart then
             start = diff.start

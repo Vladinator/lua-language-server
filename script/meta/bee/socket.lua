@@ -46,7 +46,7 @@ function fd:close() end
 function fd:listen() end
 
 ---@param addr string
----@param port integer
+---@param port? integer
 ---@return boolean
 ---@return string?
 function fd:connect(addr, port) end

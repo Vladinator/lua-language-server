@@ -2,6 +2,10 @@ local json     = require 'json'
 local template = require 'config.template'
 local util     = require 'utility'
 
+---@alias tools.configuration.type string|tools.configuration.type[]
+
+---@param temp config.unit
+---@return tools.configuration.type
 local function getType(temp)
     if temp.name == 'Boolean' then
         return 'boolean'
@@ -22,11 +26,14 @@ local function getType(temp)
         return 'object'
     end
     if temp.name == 'Or' then
-        return { getType(temp.subs[1]), getType(temp.subs[2]) }
+        local subs = assert(temp.subs)
+        return { getType(subs[1]), getType(subs[2]) }
     end
     error('Unknown type: ' .. temp.name)
 end
 
+---@param temp config.unit
+---@return any
 local function getDefault(temp)
     local default = temp.default
     if default == nil and temp.hasDefault then
@@ -40,16 +47,23 @@ local function getDefault(temp)
     return default
 end
 
+---@param temp config.unit
+---@return any[]|fun(): any[]|nil
 local function getEnum(temp)
     return temp.enums
 end
 
+---@param name string
+---@param temp config.unit
+---@return string[]?
 local function getEnumDesc(name, temp)
     -- Array 类型的枚举挂在子单元 sub.enums 上（如 Lua.runtime.nonstandardSymbol）
     local enums = temp.enums or (temp.sub and temp.sub.enums)
     if not enums then
         return nil
     end
+    ---@cast enums any[] -- see TODO.md: `enums` can also be `fun(): any[]` here, not resolved (pre-existing)
+    ---@type string[]
     local descs = {}
     -- Lua.diagnostics.disable 的枚举（诊断名）复用 locale 中已有的
     -- config.diagnostics.<诊断名> 描述，避免为 disable 单独维护一份文案
@@ -69,17 +83,38 @@ local function getEnumDesc(name, temp)
     return descs
 end
 
+---@class tools.configuration.schema
+---@field scope? string
+---@field type? tools.configuration.type
+---@field default any
+---@field enum? any[]|fun(): any[]
+---@field markdownDescription? string
+---@field description? string
+---@field markdownEnumDescriptions? string[]
+---@field items? tools.configuration.schema
+---@field title? string
+---@field additionalProperties? boolean
+---@field properties? table<string, tools.configuration.schema>
+---@field patternProperties? table<string, tools.configuration.schema>
+
+---@param conf tools.configuration.schema
+---@param temp config.unit
 local function insertArray(conf, temp)
+    local sub = assert(temp.sub)
     conf.items = {
-        type = getType(temp.sub),
-        enum = getEnum(temp.sub),
+        type = getType(sub),
+        enum = getEnum(sub),
     }
 end
 
+---@param name string
+---@param conf tools.configuration.schema
+---@param temp config.unit
 local function insertHash(name, conf, temp)
     conf.title = name:match '[^%.]+$'
     conf.additionalProperties = false
 
+    local subvalue = assert(temp.subvalue)
     if type(conf.default) == 'table' and next(conf.default) then
         local default = conf.default
         conf.default = nil
@@ -88,25 +123,26 @@ local function insertHash(name, conf, temp)
         if util.stringStartWith(descHead, '%config.diagnostics') then
             descHead = '%config.diagnostics'
         end
-        for key, value in pairs(default) do
+        for key, value in pairs(default --[[@as table<string, any>]]) do
             conf.properties[key] = {
-                type    = getType( temp.subvalue),
+                type    = getType(subvalue),
                 default = value,
-                enum    = getEnum( temp.subvalue),
+                enum    = getEnum(subvalue),
                 description = descHead .. '.' .. key .. '%',
             }
         end
     else
         conf.patternProperties = {
             ['.*'] = {
-                type    = getType( temp.subvalue),
-                default = getDefault( temp.subvalue),
-                enum    = getEnum( temp.subvalue),
+                type    = getType(subvalue),
+                default = getDefault(subvalue),
+                enum    = getEnum(subvalue),
             }
         }
     end
 end
 
+---@type table<string, tools.configuration.schema>
 local config = {}
 
 for name, temp in pairs(template) do

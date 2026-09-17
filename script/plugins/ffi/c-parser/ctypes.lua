@@ -494,7 +494,7 @@ local function register_function(lst, item)
     return register_decl_item(lst, id, item.spec)
 end
 
-local function register_static_function(lst, item)
+local function register_static_function(_, _)
     return true
 end
 

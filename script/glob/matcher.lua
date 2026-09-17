@@ -159,7 +159,7 @@ return function (state, options)
     local self = setmetatable({
         options = options,
         state   = state,
-    }, mt)
+    }, mt --[[@as metatable]])
     self.matcher = self:pattern(state)
     if not self.matcher then
         return nil

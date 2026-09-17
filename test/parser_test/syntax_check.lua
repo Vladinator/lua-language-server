@@ -2,6 +2,9 @@ local parser = require 'parser'
 
 local EXISTS = {}
 
+---@param a any
+---@param b any
+---@return boolean
 local function eq(a, b)
     if a == EXISTS and b ~= nil then
         return true
@@ -11,14 +14,15 @@ local function eq(a, b)
         return false
     end
     if tp1 == 'table' then
+        ---@type table<any, true>
         local mark = {}
-        for k in pairs(a) do
+        for k in pairs(a --[[@as table<any, any>]]) do
             if not eq(a[k], b[k]) then
                 return false
             end
             mark[k] = true
         end
-        for k in pairs(b) do
+        for k in pairs(b --[[@as table<any, any>]]) do
             if not mark[k] then
                 return false
             end
@@ -28,6 +32,9 @@ local function eq(a, b)
     return a == b
 end
 
+---@param offset integer
+---@param lns    table<integer, integer>
+---@return integer?
 local function getLine(offset, lns)
     for i = 0, #lns do
         if  offset >= lns[i]
@@ -37,6 +44,9 @@ local function getLine(offset, lns)
     end
 end
 
+---@param offset integer
+---@param lns    table<integer, integer>
+---@return integer?
 local function getPosition(offset, lns)
     for i = 0, #lns do
         if  offset >= lns[i]
@@ -46,47 +56,65 @@ local function getPosition(offset, lns)
     end
 end
 
+---@alias syntax_check.target [integer, integer]
+
 ---@param script string
 ---@param sep string
+---@return string
+---@return syntax_check.target[]
 local function catchTarget(script, sep)
     local pattern = ('()<%%%s.-%%%s>()'):format(sep, sep)
+    ---@type table<integer, integer>
     local lns = {}
     lns[0] = 0
     for pos in script:gmatch '()\n' do
-        lns[#lns+1] = pos
+        lns[#lns+1] = pos --[[@as integer]]
     end
     lns[#lns+1] = math.maxinteger
+    ---@type string[]
     local codes = {}
     local pos   = 1
+    ---@type syntax_check.target[]
     local list = {}
     local cuted = 0
     local lastLine = 0
-    for a, b in script:gmatch(pattern) do
+    for rawA, rawB in script:gmatch(pattern) --[[@as fun(): (integer?, integer?)]] do
+        local a = assert(rawA)
+        local b = assert(rawB)
         codes[#codes+1] = script:sub(pos, a - 1)
         codes[#codes+1] = script:sub(a + 2, b - 3)
         pos = b
-        local line1 = getLine(a + 1, lns)
+        local line1 = assert(getLine(a + 1, lns))
         if line1 ~= lastLine then
             cuted = 0
             lastLine = line1
         end
-        cuted = cuted + 2
-        local left = getPosition(a + 1, lns) - cuted
-        local line2 = getLine(b - 3, lns)
+        cuted = cuted + 2 --[[@as integer]]
+        local left = assert(getPosition(a + 1, lns)) - cuted
+        local line2 = assert(getLine(b - 3, lns))
         if line2 ~= lastLine then
             cuted = 0
             lastLine = line2
         end
-        local right = getPosition(b - 3, lns) - cuted
-        cuted = cuted + 2
+        local right = assert(getPosition(b - 3, lns)) - cuted
+        cuted = cuted + 2 --[[@as integer]]
         list[#list+1] = { left, right }
     end
     codes[#codes+1] = script:sub(pos)
     return table.concat(codes), list
 end
 
+---@type string?
 local Version
 
+---@class syntax_check.expect
+---@field type    string
+---@field multi?  integer
+---@field version? any
+---@field info?    any
+
+---@param script string
+---@return fun(expect?: syntax_check.expect)
 local function TEST(script)
     return function (expect)
         local newScript, list = catchTarget(script, '!')
@@ -106,6 +134,7 @@ local function TEST(script)
             assert(#errs == 1)
         end
         assert(first)
+        assert(target)
         assert(first.type == expect.type)
         assert(first.start == target[1])
         assert(first.finish == target[2])
@@ -114,6 +143,8 @@ local function TEST(script)
     end
 end
 
+---@param version string
+---@return fun(script: string): fun(expect?: syntax_check.expect)
 function TestWith(version)
     return function (script)
         return function (expect)

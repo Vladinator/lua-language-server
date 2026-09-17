@@ -563,7 +563,7 @@ local searchFieldSwitch = util.switch()
 ---@param suri uri
 ---@param object vm.global
 ---@param key string|number|integer|boolean|vm.global|vm.ANY|vm.ANYDOC
----@param pushResult fun(field: vm.object, isMark?: boolean)
+---@param pushResult async fun(field: vm.object, isMark?: boolean)
 function vm.getClassFields(suri, object, key, pushResult)
     ---@type table<string, boolean>
     local mark = {}

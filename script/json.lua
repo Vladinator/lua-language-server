@@ -65,6 +65,7 @@ end
 ---@field public _beautify_builder? fun(builder: string[], v: any, option?: json-beautify.option) -- internal; set by json-beautify.lua, used by json-edit.lua
 ---@field public _beautify_option? fun(option?: json-beautify.option): json-beautify.option -- internal; set by json-beautify.lua, used by json-edit.lua
 ---@field edit? fun(str: string, patch: json-edit.patch, option?: json-beautify.option): string -- set by json-edit.lua when required
+---@field decode_jsonc? fun(str: string): any -- set by jsonc.lua when required
 local json = {}
 
 json.supportSparseArray = true

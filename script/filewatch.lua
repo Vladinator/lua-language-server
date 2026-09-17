@@ -1,13 +1,15 @@
 local fw    = require 'bee.filewatch'
 local fs    = require 'bee.filesystem'
 local sys   = require 'bee.sys'
-local plat  = require 'bee.platform'
+local plat  = require 'bee.platform' --[[@as { os: string }]]
 local await = require 'await'
 local files = require 'files'
 
 local MODIFY = 1 << 0
 local RENAME = 1 << 1
 
+---@param filename string
+---@return boolean
 local function isExists(filename)
     local path = fs.path(filename)
     local suc, exists = pcall(fs.exists, path)
@@ -31,7 +33,13 @@ end
 ---@class filewatch
 local m = {}
 
+---@class filewatch.watching
+---@field count integer
+---@field watch any
+
+---@type (async fun(ev: string, path: string))[]
 m._eventList = {}
+---@type table<string, filewatch.watching>
 m._watchings = {}
 
 ---@async
@@ -59,6 +67,7 @@ function m.watch(path, recursive, filter)
         }
         log.debug('fw.add', path)
     end
+    ---@type boolean?
     local removed
     return function ()
         if removed then
@@ -78,19 +87,25 @@ function m.event(callback)
     m._eventList[#m._eventList+1] = callback
 end
 
+---@param ev string
+---@param path string
 function m._callEvent(ev, path)
     for _, callback in ipairs(m._eventList) do
-        await.call(function ()
-            callback(ev, path)
-        end)
+        await.call(
+            ---@async
+            function ()
+                callback(ev, path)
+            end)
     end
 end
 
 function m.update()
+    ---@type table<string, integer>?
     local collect
     for _, watching in pairs(m._watchings) do
         local watch = watching.watch
         for _ = 1, 10000 do
+            ---@type string?, string
             local ev, path = watch:select()
             if not ev then
                 break

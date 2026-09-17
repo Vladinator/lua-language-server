@@ -2,18 +2,30 @@ local timer = require 'timer'
 
 local wkmt = { __mode = 'k' }
 
+---@class await.co
+---@field closers table<function, true>
+---@field priority boolean
+
 ---@class await
 local m = {}
 m.type = 'await'
 
----@type table<thread, any>
+---@type table<thread, await.co>
 m.coMap = setmetatable({}, wkmt)
+---@type table<any, table<thread, function|true>>
 m.idMap = {}
+---@type (fun()|false)[]
 m.delayQueue = {}
 m.delayQueueIndex = 1
+---@type thread[]
 m.needClose = {}
 m._enable = true
+---@type fun(errMsg: string)?
+m.errorHandle = nil
 
+---@param id any
+---@param co thread
+---@param callback function?
 local function setID(id, co, callback)
     if not coroutine.isyieldable(co) then
         return
@@ -30,18 +42,25 @@ function m.setErrorHandle(errHandle)
     m.errorHandle = errHandle
 end
 
-function m.checkResult(co, ...)
-    local suc, err = ...
+---@param co thread
+---@param suc boolean
+---@param ... any
+---@return boolean suc
+---@return any ...
+function m.checkResult(co, suc, ...)
     if not suc and m.errorHandle then
-        m.errorHandle(debug.traceback(co, err))
+        m.errorHandle(debug.traceback(co, (...)))
     end
-    return ...
+    return suc, ...
 end
+
 
 --- 创建一个任务
 ---@param callback async fun()
+---@param ... any
 function m.call(callback, ...)
     local co = coroutine.create(callback)
+    ---@type table<function, true>
     local closers = {}
     m.coMap[co] = {
         closers  = closers,
@@ -68,6 +87,8 @@ end
 
 --- 创建一个任务，并挂起当前线程，当任务完成后再延续当前线程/若任务被关闭，则返回nil
 ---@async
+---@param callback async fun(...): any
+---@param ... any
 function m.await(callback, ...)
     if not coroutine.isyieldable() then
         return callback(...)
@@ -81,12 +102,15 @@ function m.await(callback, ...)
 end
 
 --- 设置一个id，用于批量关闭任务
+---@param id any
+---@param callback function?
 function m.setID(id, callback)
     local co = coroutine.running()
     setID(id, co, callback)
 end
 
 --- 根据id批量关闭任务
+---@param id any
 function m.close(id)
     local map = m.idMap[id]
     if not map then
@@ -104,11 +128,16 @@ function m.close(id)
     end
 end
 
+---@param id any
+---@param co thread?
+---@return boolean
 function m.hasID(id, co)
     co = co or coroutine.running()
     return m.idMap[id] and m.idMap[id][co] ~= nil
 end
 
+---@param id any
+---@param callback function?
 function m.unique(id, callback)
     m.close(id)
     m.setID(id, callback)
@@ -135,10 +164,12 @@ function m.sleep(time)
 end
 
 --- 等待直到唤醒
----@param callback function
+---@param callback fun(resume: fun(...: any), ...: any)
+---@param ... any
 ---@async
 function m.wait(callback, ...)
     local co = coroutine.running()
+    ---@type boolean?
     local resumed
     callback(function (...)
         if resumed then
@@ -163,7 +194,7 @@ function m.delay()
         return
     end
     local co = coroutine.running()
-    local current = m.coMap[co]
+    local current = assert(m.coMap[co])
     -- TODO
     if current.priority then
         return
@@ -177,6 +208,9 @@ function m.delay()
     return coroutine.yield()
 end
 
+---@class await.throttledDelayer
+---@field factor integer
+---@field calls integer
 local throttledDelayer = {}
 throttledDelayer.__index = throttledDelayer
 
@@ -192,6 +226,8 @@ function throttledDelayer:delay()
     end
 end
 
+---@param factor integer
+---@return await.throttledDelayer
 function m.newThrottledDelayer(factor)
     return setmetatable({
         factor = factor,
@@ -209,6 +245,8 @@ function m.stop()
     coroutine.yield()
 end
 
+---@param passed number
+---@param waker function
 local function warnStepTime(passed, waker)
     if passed < 2 then
         log.warn(('Await step takes [%.3f] sec.'):format(passed))
@@ -227,6 +265,7 @@ local function warnStepTime(passed, waker)
 end
 
 --- 步进
+---@return boolean
 function m.step()
     for i = #m.needClose, 1, -1 do
         coroutine.close(m.needClose[i])
@@ -253,8 +292,9 @@ function m.step()
     end
 end
 
+---@param n integer?
 function m.setPriority(n)
-    m.coMap[coroutine.running()].priority = true
+    assert(m.coMap[coroutine.running()]).priority = true
 end
 
 function m.enable()

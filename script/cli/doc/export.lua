@@ -1,4 +1,3 @@
----@diagnostic disable: await-in-sync, param-type-mismatch
 local ws       = require 'workspace'
 local vm       = require 'vm'
 local guide    = require 'parser.guide'
@@ -35,31 +34,31 @@ local furi     = require 'file-uri'
 ---| 'type'
 
 ---@class docUnion broadest possible collection of exported docs, these are never all together.
----@field [1] string in name when table, always the same as view
----@field args docUnion[] list of argument docs passed to function
----@field async boolean has @async tag
----@field defines docUnion[] list of places where this is doc is defined and how its defined there
----@field deprecated boolean has @deprecated tag
----@field desc string code commentary
----@field extends string | docUnion ? what type this 'is'. string:<Parent_Class> for type: 'type', docUnion for type: 'function', string<primative> for other type 's
----@field fields docUnion[] class's fields
----@field file string path to where this token is defined
----@field finish [integer, integer] 0-indexed [line, column] position of end of token
----@field name string canonical name
----@field rawdesc string same as desc, but may have other things for types doc.retun andr doc.param (unused?)
----@field returns docUnion | docUnion[] list of docs for return values. if singluar, then always {type: 'undefined'}? might be a bug.
----@field start [integer, integer] 0-indexed [line, column] position of start of token
----@field type doctype role that this token plays in documentation. different from the 'type'/'class' this token is
----@field types docUnion[] type union? unclear. seems to be related to alias, maybe
----@field view string full method name, class, basal type, or unknown. in name table same as [1]
----@field visible 'package'|'private'|'protected'|'public' visibilty tag
+---@field [1]? string in name when table, always the same as view
+---@field args? docUnion[] list of argument docs passed to function
+---@field async? boolean has @async tag
+---@field defines? docUnion[] list of places where this is doc is defined and how its defined there
+---@field deprecated? boolean has @deprecated tag
+---@field desc? string code commentary
+---@field extends? string | docUnion what type this 'is'. string:<Parent_Class> for type: 'type', docUnion for type: 'function', string<primative> for other type 's
+---@field fields? docUnion[] class's fields
+---@field file? string path to where this token is defined
+---@field finish? [integer, integer] 0-indexed [line, column] position of end of token
+---@field name? string canonical name
+---@field rawdesc? string same as desc, but may have other things for types doc.retun andr doc.param (unused?)
+---@field returns? docUnion | docUnion[] list of docs for return values. if singluar, then always {type: 'undefined'}? might be a bug.
+---@field start? [integer, integer] 0-indexed [line, column] position of start of token
+---@field type? doctype role that this token plays in documentation. different from the 'type'/'class' this token is
+---@field types? docUnion[] type union? unclear. seems to be related to alias, maybe
+---@field view? string full method name, class, basal type, or unknown. in name table same as [1]
+---@field visible? 'package'|'private'|'protected'|'public' visibilty tag
 
 local export = {}
 
 function export.getLocalPath(uri)
-    local file_canonical = fs.canonical(furi.decode(uri)):string()
-    local doc_canonical = fs.canonical(DOC):string()
-    local relativePath = fs.relative(file_canonical, doc_canonical):string()
+    local file_canonical = fs.canonical(fs.path(furi.decode(uri))):string()
+    local doc_canonical = fs.canonical(fs.path(DOC)):string()
+    local relativePath = fs.relative(fs.path(file_canonical), fs.path(doc_canonical)):string()
     if relativePath == "" or relativePath:sub(1, 2) == '..' then
         -- not under project directory
         return '[FOREIGN] ' .. file_canonical
@@ -86,8 +85,8 @@ end
 
 --- recursively generate documentation all parser objects downstream of `source`
 ---@async
----@param source parser.object | vm.global
----@param has_seen table? keeps track of visited nodes in documentation tree
+---@param source parser.object | vm.global | vm.generic | string | number | boolean | nil
+---@param has_seen table<parser.object|vm.global|vm.generic, true>? keeps track of visited nodes in documentation tree
 ---@return docUnion | [docUnion] | string | number | boolean | nil 
 function export.documentObject(source, has_seen)
     --is this a primative type? then we dont need to process it.
@@ -102,9 +101,11 @@ function export.documentObject(source, has_seen)
 
     --is this an array type? then process each array item and collect it
     if (#source > 0 and next(source, #source) == nil) then
+        ---@cast source parser.object[]
+        ---@type (docUnion|string|number|boolean)[]
         local objs = {} --make a pure numerical array
         for i, child in ipairs(source) do
-            objs[i] = export.documentObject(child, has_seen)
+            objs[i] = export.documentObject(child, has_seen) --[[@as docUnion|string|number|boolean]]
         end
         return objs
     end
@@ -115,7 +116,10 @@ function export.documentObject(source, has_seen)
     --check if this source has a type (no type sources are usually autogen'd anon functions's return values that are not explicitly stated)
     if not obj.type then return obj end
 
-    local res = export.makeDocObject[obj.type](source, obj, has_seen)
+    --`obj.type` is a runtime string, so the specific handler stored under that key cannot be
+    --resolved statically; every handler shares this common calling convention, so document it here.
+    local handler = export.makeDocObject[obj.type] --[[@as async fun(source: parser.object|vm.global|vm.generic, obj: docUnion, has_seen?: table<parser.object|vm.global|vm.generic, true>): (boolean|docUnion[]|nil)]]
+    local res = handler(source, obj, has_seen)
     if res == false then
         return nil
     end
@@ -130,30 +134,46 @@ export.makeDocObject = setmetatable({}, {__index = function(t, k)
     end
 end})
 
+---@async
+---@param source parser.object | vm.global | vm.generic
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
+---@return docUnion
 export.makeDocObject['INIT'] = function(source, has_seen)
     ---@as docUnion
     local ok, desc = pcall(getDesc, source)
     local rawok, rawdesc = pcall(getDesc, source, true)
     return {
         type = source.cate or source.type,
-        name = export.documentObject((source.getCodeName and source:getCodeName()) or source.name, has_seen),
+        name = export.documentObject((source.getCodeName and source:getCodeName()) or source.name, has_seen) --[[@as string]],
         start = source.start and {guide.rowColOf(source.start)},
         finish = source.finish and {guide.rowColOf(source.finish)},
-        types = export.documentObject(source.types, has_seen),
+        types = export.documentObject(source.types, has_seen) --[[@as docUnion[] ]],
         view = vm.getInfer(source):view(ws.rootUri),
         desc = ok and desc or nil,
         rawdesc = rawok and rawdesc or nil,
     }
 end
 
+---@async
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['doc.alias'] = function(source, obj, has_seen)
     obj.file = export.getLocalPath(guide.getUri(source))
 end
 
+---@async
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['doc.enum'] = function(source, obj, has_seen)
     obj.file = export.getLocalPath(guide.getUri(source))
 end
 
+---@async
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['doc.field'] = function(source, obj, has_seen)
     if source.field.type == 'doc.field.name' then
         obj.name = source.field[1]
@@ -161,23 +181,31 @@ export.makeDocObject['doc.field'] = function(source, obj, has_seen)
         obj.name = ('[%s]'):format(vm.getInfer(source.field):view(ws.rootUri))
     end
     obj.file = export.getLocalPath(guide.getUri(source))
-    obj.extends = source.extends and export.documentObject(source.extends, has_seen) --check if bug?
+    obj.extends = source.extends and export.documentObject(source.extends, has_seen) --[[@as string|docUnion]] --check if bug?
     obj.async = vm.isAsync(source, true) and true or false --if vm.isAsync(set, true) then result.defines[#result.defines].extends['async'] = true end
     obj.deprecated = vm.getDeprecated(source) and true or false --  if (depr and not depr.versions) the result.defines[#result.defines].extends['deprecated'] = true end
     obj.visible = vm.getVisibleType(source)
 end
 
+---@async
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['doc.class'] = function(source, obj, has_seen)
     local extends = source.extends or source.value --doc.class or other
     local field = source.field or source.method
     obj.name = type(field) == 'table' and field[1] or nil
     obj.file = export.getLocalPath(guide.getUri(source))
-    obj.extends = extends and export.documentObject(extends, has_seen)
+    obj.extends = extends and export.documentObject(extends, has_seen) --[[@as string|docUnion]]
     obj.async = vm.isAsync(source, true) and true or false
     obj.deprecated = vm.getDeprecated(source) and true or false
     obj.visible = vm.getVisibleType(source)
 end
 
+---@async
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['doc.field.name'] = function(source, obj, has_seen)
     obj['[1]'] = export.documentObject(source[1], has_seen)
     obj.view = source[1]
@@ -185,38 +213,68 @@ end
 
 export.makeDocObject['doc.type.arg.name'] = export.makeDocObject['doc.field.name']
 
+---@async
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['doc.type.function'] = function(source, obj, has_seen)
-    obj.args = export.documentObject(source.args, has_seen)
-    obj.returns = export.documentObject(source.returns, has_seen)
+    obj.args = export.documentObject(source.args, has_seen) --[[@as docUnion[] ]]
+    obj.returns = export.documentObject(source.returns, has_seen) --[[@as docUnion|docUnion[] ]]
 end
 
+---@async
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['doc.type.table'] = function(source, obj, has_seen)
-    obj.fields = export.documentObject(source.fields, has_seen)
+    obj.fields = export.documentObject(source.fields, has_seen) --[[@as docUnion[] ]]
 end
 
+---@async
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['funcargs'] = function(source, obj, has_seen)
+    ---@cast source parser.object[]
+    ---@type docUnion[]
     local objs = {} --make a pure numerical array
     for i, child in ipairs(source) do
-        objs[i] = export.documentObject(child, has_seen)
+        objs[i] = export.documentObject(child, has_seen) --[[@as docUnion]]
     end
     return objs
 end
 
+---@async
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['function'] = function(source, obj, has_seen)
-    obj.args = export.documentObject(source.args, has_seen)
+    obj.args = export.documentObject(source.args, has_seen) --[[@as docUnion[] ]]
     obj.view = getLabel(source, source.parent.type == 'setmethod', 1)
     local _, _, max = vm.countReturnsOfFunction(source)
-    if max > 0 then obj.returns = {} end
+    if max > 0 then obj.returns = {} --[[@as docUnion[] ]] end
     for i = 1, max do
-        obj.returns[i] = export.documentObject(vm.getReturnOfFunction(source, i), has_seen) --check if bug?
+        (obj.returns --[[@as docUnion[] ]])[i] = export.documentObject(vm.getReturnOfFunction(source, i), has_seen) --[[@as docUnion]] --check if bug?
     end
 end
 
+---@async
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['function.return'] = function(source, obj, has_seen)
-    obj.desc = source.comment and getDesc(source.comment)
-    obj.rawdesc = source.comment and getDesc(source.comment, true)
+    local comment = source.comment
+    --`comment` is only a plain string on 'doc.resume' enum-default/additional nodes, which
+    --'function.return' never produces; otherwise it's a comment-carrying object node.
+    if type(comment) == 'table' then
+        obj.desc = getDesc(comment --[[@as parser.object]]) --[[@as string?]]
+        obj.rawdesc = getDesc(comment --[[@as parser.object]], true) --[[@as string?]]
+    end
 end
 
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['local'] = function(source, obj, has_seen)
     obj.name = source[1]
 end
@@ -231,29 +289,41 @@ export.makeDocObject['setindex'] = export.makeDocObject['doc.class']
 
 export.makeDocObject['setmethod'] = export.makeDocObject['doc.class']
 
+---@param source parser.object
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['tableindex'] = function(source, obj, has_seen)
     obj.name = source.index[1]
 end
 
+---@async
+---@param source vm.global
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['type'] = function(source, obj, has_seen)
     if export.makeDocObject['variable'](source, obj, has_seen) == false then
         return false
     end
-    obj.fields = {}
+    obj.fields = {} --[[@as docUnion[] ]]
+    ---@async
     vm.getClassFields(ws.rootUri, source, vm.ANY, function (next_source, mark)
         if next_source.type == 'doc.field'
         or next_source.type == 'setfield'
         or next_source.type == 'setmethod'
         or next_source.type == 'tableindex'
         then
-            table.insert(obj.fields, export.documentObject(next_source, has_seen))
+            table.insert(obj.fields --[[@as docUnion[] ]], export.documentObject(next_source, has_seen) --[[@as docUnion]])
         end
     end)
     table.sort(obj.fields, export.sortDoc)
 end
 
+---@async
+---@param source vm.global
+---@param obj docUnion
+---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['variable'] = function(source, obj, has_seen)
-    obj.defines = {}
+    obj.defines = {} --[[@as docUnion[] ]]
     for _, set in ipairs(source:getSets(ws.rootUri)) do
         if set.type == 'setglobal'
         or set.type == 'setfield'
@@ -263,28 +333,30 @@ export.makeDocObject['variable'] = function(source, obj, has_seen)
         or set.type == 'doc.enum'
         or set.type == 'doc.class'
         then
-            table.insert(obj.defines, export.documentObject(set, has_seen))
+            table.insert(obj.defines --[[@as docUnion[] ]], export.documentObject(set, has_seen) --[[@as docUnion]])
         end
     end
-    if #obj.defines == 0 then return false end
+    if #(obj.defines --[[@as docUnion[] ]]) == 0 then return false end
     table.sort(obj.defines, export.sortDoc)
 end
 
 ---gathers the globals that are to be exported in documentation
 ---@async
----@return table globals
+---@return vm.global[] globals
 function export.gatherGlobals()
     return util.valuesOf(vm.getExportableGlobals())
 end
 
 ---builds a lua table of based on `globals` and their elements
 ---@async
----@param globals table
+---@param globals vm.global[]
 ---@param callback fun(i, max)
+---@return docUnion[]
 function export.makeDocs(globals, callback)
+    ---@type docUnion[]
     local docs = {}
     for i, globalVar in ipairs(globals) do
-        table.insert(docs, export.documentObject(globalVar))
+        table.insert(docs, export.documentObject(globalVar) --[[@as docUnion]])
         callback(i, #globals)
     end
     docs[#docs+1] = export.getLualsConfig()
@@ -292,6 +364,7 @@ function export.makeDocs(globals, callback)
     return docs
 end
 
+---@return docUnion
 function export.getLualsConfig()
     return {
         name = 'LuaLS',
@@ -304,7 +377,7 @@ end
 
 ---takes the table from `makeDocs`, serializes it, and exports it
 ---@async
----@param docs table
+---@param docs docUnion[]
 ---@param outputDir string
 ---@return boolean ok, string[] outputPaths, (string|nil)[]? errs
 function export.serializeAndExport(docs, outputDir)
@@ -314,34 +387,38 @@ function export.serializeAndExport(docs, outputDir)
     --export to json
     local old_jsonb_supportSparseArray = jsonb.supportSparseArray
     jsonb.supportSparseArray = true
-    local jsonOk, jsonErr = util.saveFile(jsonPath, jsonb.beautify(docs))
+    local jsonOk, jsonErr = util.saveFile(jsonPath, assert(jsonb.beautify)(docs))
     jsonb.supportSparseArray = old_jsonb_supportSparseArray
 
 
     --export to markdown
     local md  = markdown()
     for _, class in ipairs(docs) do
-        md:add('md', '# ' .. class.name)
+        md:add('md', '# ' .. assert(class.name))
         md:emptyLine()
         md:add('md', class.desc)
         md:emptyLine()
         if class.defines then
             for _, define in ipairs(class.defines) do
-                if define.extends then
+                if type(define.extends) == 'table' then
                     md:add('lua', define.extends.view)
                     md:emptyLine()
                 end
             end
         end
         if class.fields then
+            ---@type table<string, true>
             local mark = {}
             for _, field in ipairs(class.fields) do
-                if not mark[field.name] then
-                    mark[field.name] = true
-                    md:add('md', '## ' .. field.name)
+                local fieldName = assert(field.name)
+                if not mark[fieldName] then
+                    mark[fieldName] = true
+                    md:add('md', '## ' .. fieldName)
                     md:emptyLine()
-                    md:add('lua', field.extends.view)
-                    md:emptyLine()
+                    if type(field.extends) == 'table' then
+                        md:add('lua', field.extends.view)
+                        md:emptyLine()
+                    end
                     md:add('md', field.desc)
                     md:emptyLine()
                 end

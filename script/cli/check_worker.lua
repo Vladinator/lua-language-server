@@ -13,10 +13,16 @@ local fs        = require 'bee.filesystem'
 local provider  = require 'provider'
 local await     = require 'await'
 require 'plugin'
+
+-- `json`'s `beautify` field is only set once `json-beautify.lua` is required (as above),
+-- so it's declared optional on the shared `json` class; narrow it here via a fresh local.
+local jsonBeautify = jsonb.beautify
+assert(jsonBeautify, 'json-beautify was not loaded')
 require 'vm'
 
 local export = {}
 
+---@type table<string, string>
 local colors
 
 if not os.getenv('NO_COLOR') then
@@ -56,6 +62,7 @@ for k, v in pairs(define.DiagnosticSeverity) do
     severity_str[v] = k
 end
 
+---@type string?
 local pwd
 
 ---@param path string
@@ -80,8 +87,10 @@ local function report_pretty(uri, diags)
         end
     end)
 
-    for _, d in ipairs(diags) do
+    for _, d in ipairs(diags --[[@as table[] ]]) do
+        ---@type any
         local rstart = d.range.start
+        ---@type any
         local rend = d.range['end']
         local severity = severity_str[d.severity]
         print(
@@ -123,8 +132,8 @@ local function report_progress(i, max, results)
     local filesWithErrors = 0
     local errors = 0
     for _, diags in pairs(results) do
-        filesWithErrors = filesWithErrors + 1
-        errors = errors + #diags
+        filesWithErrors = filesWithErrors + 1 --[[@as integer]]
+        errors = errors + #diags --[[@as integer]]
     end
 
     clear_line()
@@ -161,13 +170,13 @@ local function apply_check_level(uri, checkLevel)
 end
 
 local function downgrade_checks_to_opened(uri)
-    local diagStatus = config.get(uri, 'Lua.diagnostics.neededFileStatus')
+    local diagStatus = config.get(uri, 'Lua.diagnostics.neededFileStatus') --[[@as table<string, string>]]
     for d, status in pairs(diagStatus) do
         if status == 'Any' or status == 'Any!' then
             diagStatus[d] = 'Opened!'
         end
     end
-    for d, status in pairs(protoDiag.getDefaultStatus()) do
+    for d, status in pairs(protoDiag.getDefaultStatus() --[[@as table<string, string>]]) do
         if status == 'Any' or status == 'Any!' then
             diagStatus[d] = 'Opened!'
         end
@@ -183,7 +192,7 @@ function export.runCLI()
     local quiet = QUIET or numThreads > 1
 
     if type(CHECK_WORKER) ~= 'string' then
-        print(lang.script('CLI_CHECK_ERROR_TYPE', type(CHECK_WORKER)))
+        print(lang.script('CLI_CHECK_ERROR_TYPE', type(CHECK_WORKER --[[@as any]])))
         return
     end
 
@@ -266,18 +275,20 @@ function export.runCLI()
 
     local count = 0
     for uri, result in pairs(results) do
-        count = count + #result
+        count = (count + #result) --[[@as integer]]
         if #result == 0 then
             results[uri] = nil
         end
     end
 
-    local outpath = nil
+    ---@type string?
+    local outpath
 
     if CHECK_FORMAT == 'json' or CHECK_OUT_PATH then
-        outpath = CHECK_OUT_PATH or LOGPATH .. '/check.json'
+        local resolvedPath = CHECK_OUT_PATH or (LOGPATH .. '/check.json')
+        outpath = resolvedPath
         -- Always write result, even if it's empty to make sure no one accidentally looks at an old output after a successful run.
-        util.saveFile(outpath, jsonb.beautify(results))
+        util.saveFile(resolvedPath, jsonBeautify(results))
     end
 
     if not quiet then

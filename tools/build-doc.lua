@@ -2,6 +2,7 @@ package.path = package.path .. ';script/?.lua;script/?/init.lua;tools/?.lua;tool
 
 log = require 'log'
 local fs       = require 'bee.filesystem'
+---@type table<string, tools.configuration.schema>
 local config   = require 'configuration'
 local markdown = require 'provider.markdown'
 local util     = require 'utility'
@@ -9,9 +10,11 @@ local lloader  = require 'locale-loader'
 local json     = require 'json-beautify'
 local diagd    = require 'proto.diagnostic'
 
+---@param locale table<string, any>
 local function mergeDiagnosticGroupLocale(locale)
     for groupName, names in pairs(diagd.diagnosticGroups) do
         local key = ('config.diagnostics.%s'):format(groupName)
+        ---@type string[]
         local list = {}
         for name in util.sortPairs(names) do
             list[#list+1] = ('* %s'):format(name)
@@ -21,7 +24,9 @@ local function mergeDiagnosticGroupLocale(locale)
     end
 end
 
+---@return table<string, table<string, any>>
 local function getLocale()
+    ---@type table<string, table<string, any>>
     local locale = {}
 
     for dirPath in fs.pairs(fs.path 'locale') do
@@ -39,6 +44,9 @@ end
 
 local localeMap = getLocale()
 
+---@param lang string
+---@param desc string?
+---@return string?
 local function getDesc(lang, desc)
     if not desc then
         return nil
@@ -54,15 +62,18 @@ local function getDesc(lang, desc)
     return locale[id]
 end
 
+---@param conf tools.configuration.schema
+---@return string
 local function view(conf)
     if type(conf.type) == 'table' then
+        ---@type string[]
         local subViews = {}
         for i = 1, #conf.type do
-            subViews[i] = conf.type[i]
+            subViews[i] = conf.type[i] --[[@as string]]
         end
         return table.concat(subViews, ' | ')
     elseif conf.type == 'array' then
-        return ('Array<%s>'):format(view(conf.items))
+        return ('Array<%s>'):format(view(assert(conf.items)))
     elseif conf.type == 'object' then
         if conf.properties then
             local _, first = next(conf.properties)
@@ -80,11 +91,17 @@ local function view(conf)
     end
 end
 
+---@param md markdown
+---@param lang string
+---@param conf tools.configuration.schema
 local function buildType(md, lang, conf)
     md:add('md', '## type')
     md:add('ts', view(conf))
 end
 
+---@param md markdown
+---@param lang string
+---@param conf tools.configuration.schema
 local function buildDesc(md, lang, conf)
     local desc = conf.markdownDescription or conf.description
     desc = getDesc(lang, desc)
@@ -96,6 +113,9 @@ local function buildDesc(md, lang, conf)
     md:emptyLine()
 end
 
+---@param md markdown
+---@param lang string
+---@param conf tools.configuration.schema
 local function buildDefault(md, lang, conf)
     local default = conf.default
     if default == json.null then
@@ -104,10 +124,12 @@ local function buildDefault(md, lang, conf)
     md:add('md', '## default')
     if conf.type == 'object' then
         if not default then
-            default = {}
-            for k, v in pairs(conf.properties) do
-                default[k] = v.default
+            ---@type table<string, any>
+            local newDefault = {}
+            for k, v in pairs(assert(conf.properties)) do
+                newDefault[k] = v.default
             end
+            default = newDefault
         end
         local list = util.getTableKeys(default, true)
         if #list == 0 then
@@ -116,7 +138,7 @@ local function buildDefault(md, lang, conf)
         end
         md:add('jsonc', '{')
         for i, k in ipairs(list) do
-            local desc = getDesc(lang, conf.properties[k].description)
+            local desc = getDesc(lang, assert(conf.properties)[k].description)
             if desc then
                 md:add('jsonc', '    /*')
                 md:add('jsonc', ('    %s'):format(desc:gsub('\n', '\n    ')))
@@ -134,11 +156,23 @@ local function buildDefault(md, lang, conf)
     end
 end
 
+---@param enum any[]|fun(): any[]
+---@return any[]
+local function resolveEnum(enum)
+    if type(enum) == 'function' then
+        return enum()
+    end
+    return enum
+end
+
+---@param md markdown
+---@param lang string
+---@param conf tools.configuration.schema
 local function buildEnum(md, lang, conf)
     if conf.enum then
         md:add('md', '## enum')
         md:emptyLine()
-        for i, enum in ipairs(conf.enum) do
+        for i, enum in ipairs(resolveEnum(conf.enum)) do
             local desc = getDesc(lang, conf.markdownEnumDescriptions and conf.markdownEnumDescriptions[i])
             if desc then
                 md:add('md', ('* ``%s``: %s'):format(json.encode(enum), desc))
@@ -155,7 +189,7 @@ local function buildEnum(md, lang, conf)
         if first and first.enum then
             md:add('md', '## enum')
             md:emptyLine()
-            for i, enum in ipairs(first.enum) do
+            for i, enum in ipairs(resolveEnum(first.enum)) do
                 local desc = getDesc(lang, conf.markdownEnumDescriptions and conf.markdownEnumDescriptions[i])
                 if desc then
                     md:add('md', ('* ``%s``: %s'):format(json.encode(enum), desc))
@@ -168,11 +202,12 @@ local function buildEnum(md, lang, conf)
         end
     end
 
-    if conf.type == 'array' and conf.items.enum then
+    if conf.type == 'array' and conf.items and conf.items.enum then
         md:add('md', '## enum')
         md:emptyLine()
-        for i, enum in ipairs(conf.items.enum) do
-            local desc = getDesc(lang, conf.markdownEnumDescriptions and conf.markdownEnumDescriptions[i])
+        local markdownEnumDescriptions = conf.markdownEnumDescriptions
+        for i, enum in ipairs(resolveEnum(assert(conf.items).enum)) do
+            local desc = getDesc(lang, markdownEnumDescriptions and markdownEnumDescriptions[i])
             if desc then
                 md:add('md', ('* ``%s``: %s'):format(json.encode(enum), desc))
             else
@@ -184,6 +219,7 @@ local function buildEnum(md, lang, conf)
     end
 end
 
+---@param lang string
 local function buildMarkdown(lang)
     local dir = fs.path 'doc' / lang
     fs.create_directories(dir)

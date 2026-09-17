@@ -3,7 +3,7 @@ local utf16   = require 'encoder.utf16'
 local utf16le = utf16('le', utf8.codepoint '�')
 local utf16be = utf16('be', utf8.codepoint '�')
 
----@alias encoder.encoding '"utf8"'|'"utf16"'|'"utf16le"'|'"utf16be"'
+---@alias encoder.encoding '"utf8"'|'"utf16"'|'"utf16le"'|'"utf16be"'|'"ansi"'
 
 ---@alias encoder.bom '"no"'|'"yes"'|'"auto"'
 
@@ -13,6 +13,7 @@ local m = {}
 ---@param s        string
 ---@param i?       integer
 ---@param j?       integer
+---@return integer
 function m.len(encoding, s, i, j)
     i = i or 1
     j = j or #s
@@ -26,7 +27,7 @@ function m.len(encoding, s, i, j)
         return #us // 2
     end
     if encoding == 'utf8' then
-        return utf8.len(s, i, j, true)
+        return utf8.len(s, i, j, true) or (j - i + 1)
     end
     log.error('Unsupport len encoding:', encoding)
     return j - i + 1
@@ -36,11 +37,12 @@ end
 ---@param s        string
 ---@param n        integer
 ---@param i?       integer
+---@return integer
 function m.offset(encoding, s, n, i)
     i = i or 1
     if encoding == 'utf16'
     or encoding == 'utf16le' then
-        local line = s:match('[^\r\n]*', i)
+        local line = assert(s:match('[^\r\n]*', i))
         if not line:find '[\x80-\xff]' then
             return n + i - 1
         end
@@ -49,7 +51,7 @@ function m.offset(encoding, s, n, i)
         return #os + i
     end
     if encoding == 'utf16be' then
-        local line = s:match('[^\r\n]*', i)
+        local line = assert(s:match('[^\r\n]*', i))
         if not line:find '[\x80-\xff]' then
             return n + i - 1
         end
@@ -58,7 +60,7 @@ function m.offset(encoding, s, n, i)
         return #os + i
     end
     if encoding == 'utf8' then
-        return utf8.offset(s, n, i)
+        return (utf8.offset(s, n, i))
     end
     log.error('Unsupport offset encoding:', encoding)
     return n + i - 1

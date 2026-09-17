@@ -5,24 +5,41 @@ local strmatch = string.match
 local utf8char = utf8.char
 local tconcat = table.concat
 
+---@class encoder.utf16.codec
+---@field toutf8   fun(s: string): string
+---@field fromutf8 fun(s: string): string
+
+---@param code integer
+---@return string
 local function be_tochar(code)
     return strchar((code >> 8) & 0xFF, code & 0xFF)
 end
 
+---@param s string
+---@param i integer
+---@return integer
 local function be_tobyte(s, i)
     local h, l = strbyte(s, i, i+1)
     return (h << 8) | l
 end
 
+---@param code integer
+---@return string
 local function le_tochar(code)
     return strchar(code & 0xFF, (code >> 8) & 0xFF)
 end
 
+---@param s string
+---@param i integer
+---@return integer
 local function le_tobyte(s, i)
     local l, h = strbyte(s, i, i+1)
     return (h << 8) | l
 end
 
+---@param tochar fun(code: integer): string
+---@param code   integer
+---@return string
 local function utf16char(tochar, code)
     if code < 0x10000 then
         return tochar(code)
@@ -32,6 +49,11 @@ local function utf16char(tochar, code)
     end
 end
 
+---@param s      string
+---@param n      integer
+---@param tobyte fun(s: string, i: integer): integer
+---@return integer? nextIndex
+---@return integer? code
 local function utf16next(s, n, tobyte)
     if n > #s then
         return
@@ -55,6 +77,11 @@ local function utf16next(s, n, tobyte)
     end
 end
 
+---@param s      string
+---@param tobyte fun(s: string, i: integer): integer
+---@return fun(_: any, n: integer): integer?, integer?
+---@return string
+---@return integer
 local function utf16codes(s, tobyte)
     return function (_, n)
         return utf16next(s, n, tobyte)
@@ -62,6 +89,9 @@ local function utf16codes(s, tobyte)
 end
 
 local _utf8byte = utf8.codes ""
+---@param s string
+---@param n integer
+---@return integer
 local function utf8byte(s, n)
     local _, code = _utf8byte(s, n-1)
     return code
@@ -78,6 +108,10 @@ end
  U+40000.. U+FFFFF F1..F3 80..BF 80..BF 80..BF
 U+100000..U+10FFFF F4     80..8F 80..BF 80..BF
 ]]
+---@param s string
+---@param n integer
+---@return integer? nextIndex
+---@return integer? code
 local function utf8next(s, n)
     if n > #s then
         return
@@ -105,12 +139,22 @@ local function utf8next(s, n)
     end
 end
 
+---@param s string
+---@return fun(s: string, n: integer): integer?, integer?
+---@return string
+---@return integer
 local function utf8codes(s)
     return utf8next, s, 1
 end
 
-return function (what, replace)
-    local tobyte, tochar
+---@param what    "be"|"le"
+---@param replace integer?
+---@return encoder.utf16.codec
+local function create(what, replace)
+    ---@type fun(s: string, i: integer): integer
+    local tobyte
+    ---@type fun(code: integer): string
+    local tochar
     if what == "be" then
         tobyte = be_tobyte
         tochar = be_tochar
@@ -120,7 +164,10 @@ return function (what, replace)
     end
     local utf8replace  = replace and utf8char(replace)
     local utf16replace = replace and utf16char(tochar, replace)
+    ---@param s string
+    ---@return string
     local function toutf8(s)
+        ---@type string[]
         local r = {}
         for _, code in utf16codes(s, tobyte) do
             if code == nil then
@@ -135,7 +182,10 @@ return function (what, replace)
         end
         return tconcat(r)
     end
+    ---@param s string
+    ---@return string
     local function fromutf8(s)
+        ---@type string[]
         local r = {}
         for _, code in utf8codes(s) do
             if code == nil then
@@ -155,3 +205,5 @@ return function (what, replace)
         fromutf8 = fromutf8,
     }
 end
+
+return create

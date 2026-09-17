@@ -11,12 +11,22 @@ require 'provider'
 
 local counter = util.counter()
 
+---@class languageClient.out: proto.message
+---@field result? any
+---@field error?  any
+
+---@class languageClient.waiting
+---@field id       integer
+---@field method   string
+---@field params   any
+---@field callback fun(result: any, error: any)
+
 ---@class languageClient
----@field _outs table
+---@field _outs table<integer, languageClient.out>
 ---@field _gc   gc
----@field _waiting table
----@field _methods table
----@field onSend function
+---@field _waiting table<integer, languageClient.waiting>
+---@field _methods table<string, fun(params: any): any>
+---@field onSend fun(self: languageClient, data: languageClient.out)
 local mt = {}
 mt.__index = mt
 
@@ -25,8 +35,9 @@ function mt:__close()
 end
 
 function mt:_fakeProto()
-    ---@diagnostic disable-next-line: duplicate-set-field
-    proto.send = function (data)
+    ---@type any
+    local protoAny = proto
+    protoAny.send = function (data)
         self._outs[#self._outs+1] = data
         if self.onSend then
             self:onSend(data)
@@ -46,11 +57,12 @@ end
 
 function mt:_localLoadFile()
     local awaitTask = pub.awaitTask
+    ---@type any
+    local pubAny = pub
     ---@async
     ---@param name   string
     ---@param params any
-    ---@diagnostic disable-next-line: duplicate-set-field
-    pub.awaitTask = function (name, params)
+    pubAny.awaitTask = function (name, params)
         if name == 'loadFile' then
             local path = params
             return util.loadFile(path)
@@ -89,13 +101,16 @@ local defaultClientOptions = {
 }
 
 ---@async
+---@param params? table
 function mt:initialize(params)
     local initParams = util.tableMerge(params or {}, defaultClientOptions)
     self:awaitRequest('initialize', initParams)
     self:notify('initialized', initParams)
 end
 
+---@return string
 function mt:reportHangs()
+    ---@type string[]
     local hangs = {}
     hangs[#hangs+1] = ('====== C -> S ======')
     for _, waiting in util.sortPairs(self._waiting) do
@@ -130,6 +145,7 @@ function mt:start(callback)
         finished = true
     end)
 
+    ---@type number
     local jumpedTime = 0
 
     while true do
@@ -144,7 +160,7 @@ function mt:start(callback)
             goto CONTINUE
         end
         timer.timeJump(1.0)
-        jumpedTime = jumpedTime + 1.0
+        jumpedTime = jumpedTime + 1.0 --[[@as number]]
         if jumpedTime > 2 * 60 * 60 then
             error('two hours later ...\n' .. self:reportHangs())
         end
@@ -156,6 +172,8 @@ function mt:start(callback)
     CLI = false
 end
 
+---@param obj any
+---@return any
 function mt:gc(obj)
     return self._gc:add(obj)
 end
@@ -165,6 +183,8 @@ function mt:remove()
 end
 
 ---@async
+---@param method string
+---@param params any
 function mt:notify(method, params)
     proto.doMethod {
         method = method,
@@ -174,10 +194,14 @@ function mt:notify(method, params)
 end
 
 ---@async
+---@param method string
+---@param params any
+---@param callback fun(result: any, error: any)
 function mt:request(method, params, callback)
     local id = counter()
     self._waiting[id] = {
         id       = id,
+        method   = method,
         params   = params,
         callback = callback,
     }
@@ -207,6 +231,7 @@ function mt:awaitRequest(method, params)
     end)
 end
 
+---@return boolean
 function mt:update()
     local outs = self._outs
     if #outs == 0 then
@@ -218,6 +243,7 @@ function mt:update()
             local callback = self._methods[out.method]
             if callback then
                 local result = callback(out.params)
+                ---@async
                 await.call(function ()
                     if out.id then
                         proto.doResponse {
@@ -230,8 +256,9 @@ function mt:update()
                 error('Unknown method: ' .. out.method)
             end
         else
-            local callback = self._waiting[out.id].callback
-            self._waiting[out.id] = nil
+            local id = assert(out.id) --[[@as integer]]
+            local callback = self._waiting[id].callback
+            self._waiting[id] = nil
             callback(out.result, out.error)
         end
     end
@@ -239,7 +266,7 @@ function mt:update()
 end
 
 ---@param method string
----@param callback async fun(params: any): any
+---@param callback fun(params: any): any
 function mt:register(method, callback)
     self._methods[method] = callback
 end

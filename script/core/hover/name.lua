@@ -19,7 +19,7 @@ local function asLocal(source)
 end
 
 ---@param source parser.object
----@param oop boolean
+---@param oop boolean?
 local function asField(source, oop)
     ---@type string?
     local class

@@ -1,4 +1,4 @@
-local platform  = require 'bee.platform'
+local platform  = require 'bee.platform' --[[@as { os: string }]]
 local files     = require 'files'
 local furi      = require 'file-uri'
 local workspace = require "workspace"
@@ -14,11 +14,12 @@ local m = {}
 ---@field scp scope
 ---@field nameMap table<string, string>
 ---@field visibleCache table<string, require-manager.visibleResult[]>
----@field requireCache table<string, table>
+---@field requireCache table<string, require-manager.cacheEntry>
 local mt = {}
 mt.__index = mt
 
 ---@alias require-manager.visibleResult { searcher: string, name: string }
+---@alias require-manager.cacheEntry { results: uri[], searcherMap: table<uri, string>? }
 
 ---@param scp scope
 ---@return require-manager
@@ -62,6 +63,7 @@ end
 function mt:getRequireResultByPath(path)
     local vm  = require 'vm'
     local uri = furi.encode(path)
+    ---@type require-manager.visibleResult[]
     local result = {}
     if vm.isMetaFile(uri) then
         local metaName = vm.getMetaName(uri)
@@ -75,8 +77,8 @@ function mt:getRequireResultByPath(path)
             return result
         end
     end
-    local searchers   = config.get(self.scp.uri, 'Lua.runtime.path')
-    local strict      = config.get(self.scp.uri, 'Lua.runtime.pathStrict')
+    local searchers   = config.get(self.scp.uri, 'Lua.runtime.path') --[[@as string[] ]]
+    local strict      = config.get(self.scp.uri, 'Lua.runtime.pathStrict') --[[@as boolean]]
     local libUri      = files.getLibraryUri(self.scp.uri, uri)
     local libraryPath = libUri and furi.decode(libUri)
     for _, searcherVal in ipairs(searchers) do
@@ -89,6 +91,7 @@ function mt:getRequireResultByPath(path)
         end
         local cutedPath = path
         local currentPath = path
+        ---@type string?
         local head
         local pos = 1
         if not isAbsolute then
@@ -154,12 +157,15 @@ end
 ---@return table<uri, string>?
 function mt:searchUrisByRequireName(name, suri)
     local vm          = require 'vm'
-    local searchers   = config.get(self.scp.uri, 'Lua.runtime.path')
-    local strict      = config.get(self.scp.uri, 'Lua.runtime.pathStrict')
-    local separator   = config.get(self.scp.uri, 'Lua.completion.requireSeparator')
+    local searchers   = config.get(self.scp.uri, 'Lua.runtime.path') --[[@as string[] ]]
+    local strict      = config.get(self.scp.uri, 'Lua.runtime.pathStrict') --[[@as boolean]]
+    local separator   = config.get(self.scp.uri, 'Lua.completion.requireSeparator') --[[@as string]]
     local path        = name:gsub('%' .. separator, '/')
+    ---@type uri[]
     local results     = {}
+    ---@type table<uri, string>
     local searcherMap = {}
+    ---@type table<uri, true>
     local excludes    = {}
 
     local pluginSuccess, pluginResults = plugin.dispatch('ResolveRequire', self.scp.uri, name, suri)
@@ -234,7 +240,9 @@ function mt:findUrisByRequireName(suri, name)
         }
         self.requireCache[name] = cache
     end
+    ---@type uri[]
     local results = {}
+    ---@type table<uri, string>
     local searcherMap = {}
     for _, uri in ipairs(cache.results) do
         if uri ~= suri then
@@ -273,9 +281,9 @@ end
 ---@param name string
 ---@return boolean
 function m.isMatchedUri(suri, uri, name)
-    local searchers   = config.get(suri, 'Lua.runtime.path')
-    local strict      = config.get(suri, 'Lua.runtime.pathStrict')
-    local separator   = config.get(suri, 'Lua.completion.requireSeparator')
+    local searchers   = config.get(suri, 'Lua.runtime.path') --[[@as string[] ]]
+    local strict      = config.get(suri, 'Lua.runtime.pathStrict') --[[@as boolean]]
+    local separator   = config.get(suri, 'Lua.completion.requireSeparator') --[[@as string]]
     local path        = name:gsub('%' .. separator, '/')
 
     for _, searcher in ipairs(searchers) do

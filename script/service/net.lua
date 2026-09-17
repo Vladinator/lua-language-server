@@ -6,6 +6,12 @@ local selector = select.create()
 local SELECT_READ <const> = select.SELECT_READ
 local SELECT_WRITE <const> = select.SELECT_WRITE
 
+---@class net.socket
+---@field public _fd bee.socket.fd
+---@field public _flags integer
+---@field public _event table<string, fun(...): any>
+
+---@param s net.socket
 local function fd_clr_read(s)
     if s._flags & SELECT_READ == 0 then
         return
@@ -14,6 +20,7 @@ local function fd_clr_read(s)
     selector:event_mod(s._fd, s._flags)
 end
 
+---@param s net.socket
 local function fd_set_write(s)
     if s._flags & SELECT_WRITE ~= 0 then
         return
@@ -22,6 +29,7 @@ local function fd_set_write(s)
     selector:event_mod(s._fd, s._flags)
 end
 
+---@param s net.socket
 local function fd_clr_write(s)
     if s._flags & SELECT_WRITE == 0 then
         return
@@ -30,6 +38,10 @@ local function fd_clr_write(s)
     selector:event_mod(s._fd, s._flags)
 end
 
+---@param self net.socket
+---@param name string
+---@param ... any
+---@return any ...
 local function on_event(self, name, ...)
     local f = self._event[name]
     if f then
@@ -37,6 +49,7 @@ local function on_event(self, name, ...)
     end
 end
 
+---@param self net.socket
 local function close(self)
     local fd = self._fd
     on_event(self, "close")
@@ -45,13 +58,22 @@ local function close(self)
 end
 
 local stream_mt = {}
+---@class net.stream: net.socket
+---@field public _writebuf string
+---@field public shutdown_r boolean
+---@field public shutdown_w boolean
 local stream = {}
 stream_mt.__index = stream
+---@param self net.stream
+---@param name string
+---@param func fun(...): any
 function stream_mt:__newindex(name, func)
     if name:sub(1, 3) == "on_" then
         self._event[name:sub(4)] = func
     end
 end
+---@param self net.stream
+---@param data string
 function stream:write(data)
     if self.shutdown_w then
         return
@@ -64,9 +86,12 @@ function stream:write(data)
     end
     self._writebuf = self._writebuf .. data
 end
+---@param self net.stream
+---@return boolean
 function stream:is_closed()
     return self.shutdown_w and self.shutdown_r
 end
+---@param self net.stream
 function stream:close()
     if not self.shutdown_r then
         self.shutdown_r = true
@@ -78,12 +103,15 @@ function stream:close()
         close(self)
     end
 end
+---@param self net.stream
 local function close_write(self)
     fd_clr_write(self)
     if self.shutdown_r then
         close(self)
     end
 end
+---@param s net.stream
+---@param event integer
 local function update_stream(s, event)
     if event & SELECT_READ ~= 0 then
         local data = s._fd:recv()
@@ -110,38 +138,57 @@ local function update_stream(s, event)
 end
 
 local listen_mt = {}
+---@class net.listen: net.socket
+---@field public shutdown_r boolean
 local listen = {}
 listen_mt.__index = listen
+---@param self net.listen
+---@param name string
+---@param func fun(...): any
 function listen_mt:__newindex(name, func)
     if name:sub(1, 3) == "on_" then
         self._event[name:sub(4)] = func
     end
 end
+---@param self net.listen
+---@return boolean
 function listen:is_closed()
     return self.shutdown_r
 end
+---@param self net.listen
 function listen:close()
     self.shutdown_r = true
     close(self)
 end
 
 local connect_mt = {}
+---@class net.connect: net.socket
+---@field public _writebuf string
+---@field public shutdown_w boolean
 local connect = {}
 connect_mt.__index = connect
+---@param self net.connect
+---@param name string
+---@param func fun(...): any
 function connect_mt:__newindex(name, func)
     if name:sub(1, 3) == "on_" then
         self._event[name:sub(4)] = func
     end
 end
+---@param self net.connect
+---@param data string
 function connect:write(data)
     if data == "" then
         return
     end
     self._writebuf = self._writebuf .. data
 end
+---@param self net.connect
+---@return boolean
 function connect:is_closed()
     return self.shutdown_w
 end
+---@param self net.connect
 function connect:close()
     self.shutdown_w = true
     close(self)
@@ -149,7 +196,13 @@ end
 
 local m = {}
 
+---@param protocol "tcp"|"udp"|"unix"|"tcp6"|"udp6"
+---@param address string
+---@param port? integer
+---@return net.listen?
+---@return string?
 function m.listen(protocol, address, port)
+    ---@type bee.socket.fd?
     local fd; do
         local err
         fd, err = socket.create(protocol)
@@ -157,7 +210,7 @@ function m.listen(protocol, address, port)
             return nil, err
         end
         if protocol == "unix" then
-            fs.remove(address)
+            fs.remove(fs.path(address))
         end
     end
     do
@@ -174,6 +227,7 @@ function m.listen(protocol, address, port)
             return nil, err
         end
     end
+    ---@type net.listen
     local s = {
         _fd = fd,
         _flags = SELECT_READ,
@@ -189,6 +243,7 @@ function m.listen(protocol, address, port)
             return
         elseif new_fd == false then
         else
+            ---@type net.stream
             local new_s = setmetatable({
                 _fd = new_fd,
                 _flags = SELECT_READ,
@@ -206,10 +261,16 @@ function m.listen(protocol, address, port)
             end
         end
     end)
-    return setmetatable(s, listen_mt)
+    return (setmetatable(s, listen_mt))
 end
 
+---@param protocol "tcp"|"udp"|"unix"|"tcp6"|"udp6"
+---@param address string
+---@param port? integer
+---@return net.connect?
+---@return string?
 function m.connect(protocol, address, port)
+    ---@type bee.socket.fd?
     local fd; do
         local err
         fd, err = socket.create(protocol)
@@ -224,6 +285,7 @@ function m.connect(protocol, address, port)
             return nil, err
         end
     end
+    ---@type net.connect
     local s = {
         _fd = fd,
         _flags = SELECT_WRITE,
@@ -236,26 +298,27 @@ function m.connect(protocol, address, port)
         local ok, err = fd:status()
         if ok then
             on_event(s, "connected")
-            setmetatable(s, stream_mt)
-            if s._writebuf ~= "" then
-                update_stream(s, SELECT_WRITE)
-                if s._writebuf ~= "" then
-                    s._flags = SELECT_READ | SELECT_WRITE
+            setmetatable(s, stream_mt --[[@as metatable]])
+            local stream_s = s --[[@as net.stream]]
+            if stream_s._writebuf ~= "" then
+                update_stream(stream_s, SELECT_WRITE)
+                if stream_s._writebuf ~= "" then
+                    stream_s._flags = SELECT_READ | SELECT_WRITE
                 else
-                    s._flags = SELECT_READ
+                    stream_s._flags = SELECT_READ
                 end
             else
-                s._flags = SELECT_READ
+                stream_s._flags = SELECT_READ
             end
-            selector:event_add(s._fd, s._flags, function (event)
-                update_stream(s, event)
+            selector:event_add(stream_s._fd, stream_s._flags, function (event)
+                update_stream(stream_s, event)
             end)
         else
             s:close()
             on_event(s, "error", err)
         end
     end)
-    return setmetatable(s, connect_mt)
+    return (setmetatable(s, connect_mt))
 end
 
 ---@param timeout? integer

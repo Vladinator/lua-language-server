@@ -1,4 +1,10 @@
 local fs             = require 'bee.filesystem'
+
+---@class log.bee_time
+---@field time      fun(): integer
+---@field monotonic fun(): integer
+
+---@type log.bee_time
 local time           = require 'bee.time'
 
 local monotonic      = time.monotonic
@@ -12,6 +18,17 @@ local mathModf       = math.modf
 local debugGetInfo   = debug.getinfo
 local ioStdErr       = io.stderr
 
+---@class log
+---@field file?       file*
+---@field startTime   integer
+---@field size        integer
+---@field maxSize     integer
+---@field level       string
+---@field levelMap    table<string, integer>
+---@field path?       string
+---@field prefixLen?  integer
+---@field print?      boolean
+---@field firstError? string
 local m = {}
 
 m.file = nil
@@ -27,6 +44,8 @@ m.levelMap = {
     ['error'] = 5,
 }
 
+---@param src string
+---@return string
 local function trimSrc(src)
     if src:sub(1, 1) == '@' then
         src = src:sub(2)
@@ -50,17 +69,25 @@ local function init_log_file()
     end
 end
 
+---@param level string
+---@param ... any
+---@return string?
 local function pushLog(level, ...)
     if not m.path then
         return
     end
+    ---@type { n: integer, [integer]: any }
     local t = tablePack(...)
     for i = 1, t.n do
         t[i] = tostring(t[i])
     end
-    local str = tableConcat(t, '\t', 1, t.n)
+    local joined = tableConcat(t, '\t', 1, t.n)
+    ---@type string
+    local str
     if level == 'error' then
-        str = str .. '\n' .. debugTraceBack(nil, 3)
+        str = joined .. '\n' .. debugTraceBack(nil, 3)
+    else
+        str = joined
     end
     local info = debugGetInfo(3, 'Sl')
     local text = m.raw(0, level, str, info.source, info.currentline, monotonic())
@@ -68,22 +95,28 @@ local function pushLog(level, ...)
     return text
 end
 
+---@param ... any
 function m.trace(...)
     pushLog('trace', ...)
 end
 
+---@param ... any
 function m.debug(...)
     pushLog('debug', ...)
 end
 
+---@param ... any
 function m.info(...)
     pushLog('info', ...)
 end
 
+---@param ... any
 function m.warn(...)
     pushLog('warn', ...)
 end
 
+---@param ... any
+---@return string?
 function m.error(...)
     -- Don't use tail calls,
     -- Otherwise, the count of `debug.getinfo` will be wrong
@@ -91,6 +124,13 @@ function m.error(...)
     return msg
 end
 
+---@param thd         integer
+---@param level       string
+---@param msg         string
+---@param source      string
+---@param currentline integer
+---@param clock       integer
+---@return string
 function m.raw(thd, level, msg, source, currentline, clock)
     if m.levelMap[level] < (m.levelMap[m.level] or m.levelMap['info']) then
         return msg
@@ -111,7 +151,7 @@ function m.raw(thd, level, msg, source, currentline, clock)
     if #level < 5 then
         agl = (' '):rep(5 - #level)
     end
-    local buf
+    local buf ---@type string
     if currentline == -1 then
         buf = ('[%s.%03.f][%s]%s[#%d]: %s\n'):format(timestr, ms * 1000, level, agl, thd, msg)
     else
@@ -134,7 +174,10 @@ function m.raw(thd, level, msg, source, currentline, clock)
     return buf
 end
 
+---@param root fs.path
+---@param path fs.path
 function m.init(root, path)
+    ---@type string?
     local lastBuf
     if m.file then
         m.file:close()

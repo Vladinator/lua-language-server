@@ -195,7 +195,7 @@ TestIndividualDisabled('?[', 'local a = t?[1]')
 -- 无点号可选链与 LuaJIT 无关：主开关 enableLuaJITExtensions 不启用它
 ---@param script string
 local function TestMasterSwitchDisabled(script)
-    local state = parser.compile(script, 'Lua', 'LuaJIT', { enableLuaJITExtensions = true })
+    local state = parser.compile(script, 'Lua', 'LuaJIT', { enableLuaJITExtensions = true, nonstandardSymbol = {} })
     if #state.errs == 0 then
         error(('主开关不应启用无点号可选链：%s'):format(script))
     end

@@ -52,7 +52,7 @@ end
 
 --- 初始化工作区
 ---@param uri        uri
----@param folderName string
+---@param folderName? string
 function m.create(uri, folderName)
     log.info('Workspace create: ', uri)
     local scp = scope.createFolder(uri, folderName)
@@ -614,7 +614,7 @@ end
 
 ---等待工作目录加载完成
 ---@async
----@param uri uri
+---@param uri? uri
 function m.awaitReady(uri)
     if m.isReady(uri) then
         return
@@ -627,7 +627,7 @@ function m.awaitReady(uri)
     end)
 end
 
----@param uri uri
+---@param uri? uri
 ---@return boolean
 function m.isReady(uri)
     local scp = scope.getScope(uri)

@@ -3,6 +3,20 @@ local cpp = {}
 local typed = require("plugins.ffi.c-parser.typed")
 local c99 = require("plugins.ffi.c-parser.c99")
 
+---@class Ctx
+---@field incdirs {quote: string[], system: string[]}
+---@field defines table<string, table?>
+---@field ifmode (boolean|string)[]
+---@field output string[]
+---@field current_dir string[]
+
+---@class LineList
+---@type {nr: integer, line: string, tk?: table}[]
+
+---@class Exp
+---@field op? string
+---@field [1]? any
+
 local SEP = package.config:sub(1,1)
 
 local function shl(a, b)
@@ -41,12 +55,13 @@ end
 
 local gcc_default_defines
 do
+    ---@type table?
     local default_defines
 
     local function shallow_copy(t)
         local u = {}
         for k,v in pairs(t) do
-            u[k] = v
+            u[k] = v --[[@as any]]
         end
         return u
     end
@@ -63,12 +78,17 @@ do
         local blank_ctx = {
             incdirs = {},
             defines = {},
+            ---@type any[]
             ifmode = { true },
             output = {},
             current_dir = {},
         }
         typed.set_type(blank_ctx, "Ctx")
+        ---@type Ctx?
         local ctx = cpp.parse_file("-", pd, blank_ctx)
+        if not ctx then
+            return {}
+        end
 
         ctx.defines["__builtin_va_list"] = { "char", "*" }
         ctx.defines["__extension__"] = {}
@@ -79,7 +99,7 @@ do
         ctx.defines["__inline"] = { "inline" }
 
         default_defines = ctx.defines
-        return shallow_copy(ctx.defines)
+        return shallow_copy(default_defines)
     end
 end
 
@@ -88,10 +108,12 @@ local function cpp_include_paths()
     if not pd then
         return { quote = {}, system = { "/usr/include"} }
     end
+    ---@type {quote: string[], system: string[]}
     local res = {
         quote = {},
         system = {},
     }
+    ---@type string?
     local mode = nil
     for line in pd:lines() do
         if line:find([[#include "..." search starts here]], 1, true) then
@@ -171,6 +193,8 @@ for _, rules in pairs(states) do
     rules.pattern = out ~= "[]" and out
 end
 
+---@param buf string[]?
+---@param txt string
 local function add(buf, txt)
     if not buf then
         buf = {}
@@ -179,10 +203,13 @@ local function add(buf, txt)
     return buf
 end
 
-cpp.initial_processing = typed("FILE* -> LineList", function(fd)
+cpp.initial_processing = typed("file* -> LineList", function(fd)
+    ---@type string[]?
     local backslash_buf
+    ---@type string[]?
     local buf
     local state = "any"
+    ---@type {nr: integer, line: string}[]
     local output = {}
     local linenr = 0
     for lineVal in fd:lines() do
@@ -285,6 +312,7 @@ cpp.tokenize = typed("string -> table", function(line)
 end)
 
 local function find_file(ctx, filename, mode, is_next)
+    ---@type string[]
     local paths = {}
     local current_dir = ctx.current_dir[#ctx.current_dir]
     if mode == "quote" or is_next then
@@ -308,7 +336,7 @@ local function find_file(ctx, filename, mode, is_next)
     end
     for _, path in ipairs(paths) do
         local pathname = path..SEP..filename
-        local fd, err = io.open(pathname, "r")
+        local fd = io.open(pathname, "r")
         if fd then
             return pathname, fd
         end
@@ -318,6 +346,7 @@ end
 
 local parse_expression = typed("{string} -> Exp?", function(tokens)
     local text = table.concat(tokens, " ")
+    ---@type table?, string?, any, any, string?
     local exp, err, _, _, fragment = c99.match_preprocessing_expression_grammar(text)
     if not exp then
         print("Error parsing expression: " .. tostring(err) .. ": " .. text .. " AT " .. tostring(fragment))
@@ -332,6 +361,7 @@ eval_exp = typed("Ctx, Exp -> number", function(ctx, exp)
     if not exp.op then
         local val = exp[1]
         typed.check(val, "string")
+        ---@type table?
         local defined = ctx.defines[val]
         if defined then
             assert(type(defined) == "table")
@@ -400,11 +430,14 @@ eval_exp = typed("Ctx, Exp -> number", function(ctx, exp)
 end)
 
 local consume_parentheses = typed("{string}, number, LineList, number -> {{string}}, number", function(tokens, start, linelist, cur)
+    ---@type string[][]
     local args = {}
     local i = start + 1
+    ---@type string[]
     local arg = {}
     local stack = 0
     while true do
+        ---@type string?
         local token = tokens[i]
         if token == nil then
             repeat
@@ -448,7 +481,7 @@ end)
 local function array_copy(t)
     local t2 = {}
     for i,v in ipairs(t) do
-        t2[i] = v
+        t2[i] = v --[[@as any]]
     end
     return t2
 end
@@ -458,6 +491,7 @@ local function table_remove(list, pos, n)
 end
 
 local function table_replace_n_with(list, at, n, values)
+    ---@type integer
     local old = #list
     debug("TRNW?", list, "AT", at, "N", n, "VALUES", values)
     --assert(is_sequence(list))
@@ -480,12 +514,12 @@ end)
 local macro_expand
 
 local mark_noloop = typed("table, string, number -> ()", function(noloop, token, n)
-    noloop[token] = math.max(noloop[token] or 0, n)
+    noloop[token] = math.max(noloop[token] or 0, n) --[[@as integer]]
 end)
 
 local shift_noloop = typed("table, number -> ()", function(noloop, n)
     for token, v in pairs(noloop) do
-        noloop[token] = v + n
+        noloop[token] = v + n --[[@as integer]]
     end
 end)
 
@@ -498,6 +532,7 @@ local replace_args = typed("Ctx, {string}, table, LineList, number -> ()", funct
     local hash_next = false
     local join_next = false
     while true do
+        ---@type string?
         local token = tokens[i]
         if not token then
             break
@@ -537,10 +572,12 @@ end)
 macro_expand = typed("Ctx, {string}, LineList, number, boolean -> ()", function(ctx, tokens, linelist, cur, expr_mode)
     local i = 1
     -- TODO propagate noloop into replace_args. recurse into macro_expand storing a proper offset internally.
+    ---@type table<string, integer>
     local noloop = {}
     while true do
         ::continue::
         debug(i, tokens)
+        ---@type string?
         local token = tokens[i]
         if not token then
             break
@@ -554,6 +591,7 @@ macro_expand = typed("Ctx, {string}, LineList, number, boolean -> ()", function(
                 goto continue
             end
         end
+        ---@type table?
         local define = ctx.defines[token]
         if define and valid_noloop(noloop, token, i) then
             debug(token, define)
@@ -563,8 +601,8 @@ macro_expand = typed("Ctx, {string}, LineList, number, boolean -> ()", function(
                     local args, j = consume_parentheses(tokens, i + 1, linelist, cur)
                     debug("args:", #args, args)
                     local named_args = {}
-                    for i = 1, #define.args do
-                        named_args[define.args[i]] = args[i] or {}
+                    for ai = 1, #define.args do
+                        named_args[define.args[ai]] = args[ai] or {}
                     end
                     local expansion = array_copy(repl)
                     replace_args(ctx, expansion, named_args, linelist, cur)
@@ -601,11 +639,12 @@ macro_expand = typed("Ctx, {string}, LineList, number, boolean -> ()", function(
 end)
 
 local run_expression = typed("Ctx, {string} -> boolean", function(ctx, tks)
+    ---@type table?
     local exp = parse_expression(tks)
     return eval_exp(ctx, exp) ~= 0
 end)
 
-cpp.parse_file = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(filename, fd, ctx)
+cpp.parse_file = typed("string, file*?, Ctx? -> Ctx?, string?", function(filename, fd, ctx)
     if not ctx then
         ctx = {
             incdirs = cpp_include_paths(),
@@ -618,6 +657,7 @@ cpp.parse_file = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(filenam
         typed.set_type(ctx, "Ctx")
         -- if not absolute path
         if not filename:match("^/") then
+            ---@type string?, file*?
             local found_name, found_fd = find_file(ctx, filename, "system")
             if found_fd then
                 filename, fd = found_name, found_fd
@@ -628,6 +668,7 @@ cpp.parse_file = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(filenam
     local current_dir = filename:gsub("/[^/]*$", "")
     if current_dir == filename then
         current_dir = "."
+        ---@type string?, file*?
         local found_name, found_fd = find_file(ctx, filename, "system")
         if found_fd then
             filename, fd = found_name, found_fd
@@ -635,7 +676,12 @@ cpp.parse_file = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(filenam
     end
     table.insert(ctx.current_dir, current_dir)
 
+    ---@type string?
     local err
+    ---@type string?
+    local inc_filename
+    ---@type file*?
+    local inc_fd
     if not fd then
         fd, err = io.open(filename, "rb")
         if not fd then
@@ -668,6 +714,7 @@ cpp.parse_file = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(filenam
             end
             if tk.directive == "define" then
                 local k = tk.id
+                ---@type table?
                 local v = tk.args and tk or tk.repl
                 ctx.defines[k] = v
             elseif tk.directive == "undef" then
@@ -690,7 +737,8 @@ cpp.parse_file = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(filenam
                 local name = tk.exp[1]
                 local mode = tk.exp.mode
                 local is_next = (tk.directive == "include_next")
-                local inc_filename, inc_fd, err = find_file(ctx, name, mode, is_next)
+                ---@type string?, file*?, string?
+                inc_filename, inc_fd, err = find_file(ctx, name, mode, is_next)
                 if not inc_filename then
                     -- fall back to trying to load an #include "..." as #include <...>;
                     -- this is necessary for Mac system headers
@@ -735,11 +783,12 @@ cpp.parse_file = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(filenam
     return ctx, nil
 end)
 
-cpp.parse_context = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(context, _, ctx)
+cpp.parse_context = typed("string, file*?, Ctx? -> Ctx?, string?", function(context, _, ctx)
     if not ctx then
         ctx = {
             incdirs = {},--,cpp_include_paths(),
             defines = {},--gcc_default_defines(),
+            ---@type any[]
             ifmode = { true },
             output = {},
             current_dir = {}
@@ -789,6 +838,7 @@ cpp.parse_context = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(cont
             end
             if tk.directive == "define" then
                 local k = tk.id
+                ---@type table?
                 local v = tk.args and tk or tk.repl
                 ctx.defines[k] = v
             elseif tk.directive == "undef" then
@@ -800,7 +850,6 @@ cpp.parse_context = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(cont
             elseif tk.directive == "if" then
                 table.insert(ifmode, run_expression(ctx, tk.exp))
             elseif tk.directive == "elif" then
----@diagnostic disable-next-line: assign-type-mismatch
                 ifmode[#ifmode] = "skip"
             elseif tk.directive == "else" then
                 ifmode[#ifmode] = not ifmode[#ifmode]
@@ -812,6 +861,7 @@ cpp.parse_context = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(cont
                 local name = tk.exp[1]
                 local mode = tk.exp.mode
                 local is_next = (tk.directive == "include_next")
+                ---@type string?, file*?, string?
                 local inc_filename, inc_fd, err = find_file(ctx, name, mode, is_next)
                 if not inc_filename then
                     -- fall back to trying to load an #include "..." as #include <...>;
@@ -858,10 +908,13 @@ cpp.parse_context = typed("string, FILE*?, Ctx? -> Ctx?, string?", function(cont
 end)
 
 cpp.expand_macro = typed("string, table -> string", function(macro, define_set)
+    ---@type Ctx
     local ctx = typed.table("Ctx", setmetatable({
         defines = define_set,
     }, { __index = error, __newindex = error }))
+    ---@type string[]
     local tokens = { macro }
+    ---@type LineList
     local linelist = typed.table("LineList", { { nr = 1, line = macro } })
     macro_expand(ctx, tokens, linelist, 1, false)
     return table.concat(tokens, " ")

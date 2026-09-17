@@ -10,7 +10,7 @@ local files       = require 'files'
 local guide       = require 'parser.guide'
 
 ---@param source parser.object
----@param oop boolean
+---@param oop boolean?
 local function asFunction(source, oop)
     local name  = buildName(source, oop)
     local args  = buildArgs(source)
@@ -218,7 +218,7 @@ end
 
 ---@async
 ---@param source parser.object
----@param oop boolean
+---@param oop boolean?
 ---@param level integer
 return function (source, oop, level)
     if     source.type == 'function'

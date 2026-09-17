@@ -35,7 +35,7 @@ local defs = {}
 
 c99.tracing = false
 
-defs["trace"] = function(s, i)
+defs["trace"] = function()
     ---@diagnostic disable-next-line: empty-block -- debug scaffold, kept commented out on purpose
     if c99.tracing then
         --local location = require("titan-compiler.location")

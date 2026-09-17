@@ -1,7 +1,15 @@
 local wssymbol = require("core.workspace-symbol")
 local guide = require("parser.guide")
 
+---@alias markdown.item
+---| { type: 'markdown', markdown: markdown }
+---| { type: 'text', language: string, text: string }
+---| { type: 'splitline' }
+---| { type: 'emptyline' }
+
 ---@class markdown
+---@field [integer] markdown.item
+---@field _cacheResult? string
 local mt = {}
 mt.__index = mt
 mt.__name = 'markdown'
@@ -10,9 +18,12 @@ mt._splitLine = false
 
 ---Converts `[mySymbol](lua://mySymbol)` into a link that points to the origin of `mySymbol`.
 ---@param txt string
+---@return string
 local function processSymbolReferences(txt)
+	---@param linkText string
+	---@param symbol string
 	local function replacer(linkText, symbol)
-		local source ---@type table
+		local source ---@type parser.object?
 
 		for _, match in ipairs(wssymbol(symbol)) do
 			if match.name == symbol then
@@ -32,7 +43,8 @@ local function processSymbolReferences(txt)
 		return string.format("[%s](%s)", linkText, uri)
 	end
 
-	return string.gsub(txt, "%[([^]]*)%]%(lua://([^)]+)%)", replacer)
+	local result = string.gsub(txt, "%[([^]]*)%]%(lua://([^)]+)%)", replacer)
+	return result
 end
 
 function mt:__tostring()
@@ -41,6 +53,7 @@ end
 
 ---@param language string
 ---@param text? string|markdown
+---@return markdown
 function mt:add(language, text)
     if not text then
         return self
@@ -62,6 +75,7 @@ function mt:add(language, text)
     return self
 end
 
+---@return markdown
 function mt:splitLine()
     self._cacheResult = nil
     self[#self+1] = {
@@ -70,6 +84,7 @@ function mt:splitLine()
     return self
 end
 
+---@return markdown
 function mt:emptyLine()
     self._cacheResult = nil
     self[#self+1] = {
@@ -78,14 +93,17 @@ function mt:emptyLine()
     return self
 end
 
+---@param nl? string
 ---@return string
 function mt:string(nl)
     if self._cacheResult then
         return self._cacheResult
     end
+    ---@type string[]
     local lines = {}
     local language = 'md'
 
+    ---@param markdown markdown
     local function concat(markdown)
         for _, obj in ipairs(markdown) do
             if obj.type == 'splitline' then
@@ -158,6 +176,7 @@ function mt:string(nl)
     return result
 end
 
+---@return markdown
 return function ()
     return setmetatable({}, mt)
 end

@@ -10,6 +10,7 @@ local string_gsub = string.gsub
 local string_sub = string.sub
 local string_format = string.format
 
+---@type fun(c: integer): string
 local utf8_char
 
 if _VERSION == "Lua 5.1" or _VERSION == "Lua 5.2" then
@@ -52,21 +53,27 @@ local encode_escape_map = {
     [ "\t" ] = "\\t",
 }
 
+---@type table<integer, true>
 local decode_escape_set = {}
+---@type table<string, string>
 local decode_escape_map = {}
 for k, v in next, encode_escape_map do
     decode_escape_map[v] = k
-    decode_escape_set[string_byte(v, 2)] = true
+    decode_escape_set[assert(string_byte(v, 2))] = true
 end
 
 ---@type string
 local statusBuf
 ---@type integer
 local statusPos
+---@type integer
 local statusTop
+---@type boolean[]
 local statusAry = {}
+---@type table<integer, table>
 local statusRef = {}
 
+---@return integer line, integer col
 local function find_line()
     local line = 1
     local pos = 1
@@ -84,14 +91,19 @@ local function find_line()
     end
 end
 
+---@param msg string
+---@return any
 local function decode_error(msg)
     error(string_format("ERROR: %s at line %d col %d", msg, find_line()), 2)
 end
 
+---@return string?
 local function get_word()
     return string_match(statusBuf, "^[^ \t\r\n%]},]*", statusPos)
 end
 
+---@param b integer
+---@return boolean?
 local function skip_comment(b)
     if b ~= 47 --[[ '/' ]] then
         return
@@ -118,11 +130,12 @@ local function skip_comment(b)
     end
 end
 
+---@return integer
 local function next_byte()
     local pos = string_find(statusBuf, "[^ \t\r\n]", statusPos)
     if pos then
         statusPos = pos
-        local b = string_byte(statusBuf, pos)
+        local b = assert(string_byte(statusBuf, pos))
         if not skip_comment(b) then
             return b
         end
@@ -131,14 +144,20 @@ local function next_byte()
     return -1
 end
 
+---@param s1 string
+---@param s2 string
+---@return string
 local function decode_unicode_surrogate(s1, s2)
     return utf8_char(0x10000 + (tonumber(s1, 16) - 0xd800) * 0x400 + (tonumber(s2, 16) - 0xdc00))
 end
 
+---@param s string
+---@return string
 local function decode_unicode_escape(s)
     return utf8_char(tonumber(s, 16))
 end
 
+---@return string
 local function decode_string()
     local has_unicode_escape = false
     local has_escape = false
@@ -188,6 +207,7 @@ local function decode_string()
     end
 end
 
+---@return number
 local function decode_number()
     local num, c = string_match(statusBuf, '^([0-9]+%.?[0-9]*)([eE]?)', statusPos)
     if not num or string_byte(num, -1) == 0x2E --[[ "." ]] then
@@ -200,9 +220,10 @@ local function decode_number()
         end
     end
     statusPos = statusPos + #num
-    return tonumber(num)
+    return assert(tonumber(num))
 end
 
+---@return number
 local function decode_number_zero()
     local num, c = string_match(statusBuf, '^(.%.?[0-9]*)([eE]?)', statusPos)
     if not num or string_byte(num, -1) == 0x2E --[[ "." ]] or string_match(statusBuf, '^.[0-9]+', statusPos) then
@@ -215,9 +236,10 @@ local function decode_number_zero()
         end
     end
     statusPos = statusPos + #num
-    return tonumber(num)
+    return assert(tonumber(num))
 end
 
+---@return number
 local function decode_number_negative()
     statusPos = statusPos + 1
     local c = string_byte(statusBuf, statusPos)
@@ -228,9 +250,10 @@ local function decode_number_negative()
             return -decode_number()
         end
     end
-    decode_error("invalid number '" .. get_word() .. "'")
+    return decode_error("invalid number '" .. get_word() .. "'")
 end
 
+---@return true
 local function decode_true()
     if string_sub(statusBuf, statusPos, statusPos+3) ~= "true" then
         decode_error("invalid literal '" .. get_word() .. "'")
@@ -239,6 +262,7 @@ local function decode_true()
     return true
 end
 
+---@return false
 local function decode_false()
     if string_sub(statusBuf, statusPos, statusPos+4) ~= "false" then
         decode_error("invalid literal '" .. get_word() .. "'")
@@ -247,6 +271,7 @@ local function decode_false()
     return false
 end
 
+---@return any
 local function decode_null()
     if string_sub(statusBuf, statusPos, statusPos+3) ~= "null" then
         decode_error("invalid literal '" .. get_word() .. "'")
@@ -255,8 +280,10 @@ local function decode_null()
     return json.null
 end
 
+---@return any[]
 local function decode_array()
     statusPos = statusPos + 1
+    ---@type any[]
     local res = {}
     local chr = next_byte()
     if chr == 93 --[[ ']' ]] then
@@ -269,8 +296,10 @@ local function decode_array()
     return res
 end
 
+---@return table
 local function decode_object()
     statusPos = statusPos + 1
+    ---@type table
     local res = {}
     local chr = next_byte()
     if chr == 125 --[[ ']' ]] then
@@ -283,44 +312,50 @@ local function decode_object()
     return res
 end
 
+---@type table<integer, fun(): any>
 local decode_uncompleted_map = {
-    [ string_byte '"' ] = decode_string,
-    [ string_byte "0" ] = decode_number_zero,
-    [ string_byte "1" ] = decode_number,
-    [ string_byte "2" ] = decode_number,
-    [ string_byte "3" ] = decode_number,
-    [ string_byte "4" ] = decode_number,
-    [ string_byte "5" ] = decode_number,
-    [ string_byte "6" ] = decode_number,
-    [ string_byte "7" ] = decode_number,
-    [ string_byte "8" ] = decode_number,
-    [ string_byte "9" ] = decode_number,
-    [ string_byte "-" ] = decode_number_negative,
-    [ string_byte "t" ] = decode_true,
-    [ string_byte "f" ] = decode_false,
-    [ string_byte "n" ] = decode_null,
-    [ string_byte "[" ] = decode_array,
-    [ string_byte "{" ] = decode_object,
+    [ assert(string_byte '"') ] = decode_string,
+    [ assert(string_byte "0") ] = decode_number_zero,
+    [ assert(string_byte "1") ] = decode_number,
+    [ assert(string_byte "2") ] = decode_number,
+    [ assert(string_byte "3") ] = decode_number,
+    [ assert(string_byte "4") ] = decode_number,
+    [ assert(string_byte "5") ] = decode_number,
+    [ assert(string_byte "6") ] = decode_number,
+    [ assert(string_byte "7") ] = decode_number,
+    [ assert(string_byte "8") ] = decode_number,
+    [ assert(string_byte "9") ] = decode_number,
+    [ assert(string_byte "-") ] = decode_number_negative,
+    [ assert(string_byte "t") ] = decode_true,
+    [ assert(string_byte "f") ] = decode_false,
+    [ assert(string_byte "n") ] = decode_null,
+    [ assert(string_byte "[") ] = decode_array,
+    [ assert(string_byte "{") ] = decode_object,
 }
+---@return any
 local function unexpected_character()
     decode_error("unexpected character '" .. string_sub(statusBuf, statusPos, statusPos) .. "'")
 end
+---@return any
 local function unexpected_eol()
     decode_error("unexpected character '<eol>'")
 end
 
+---@type table<integer, fun(): any>
 local decode_map = {}
 for i = 0, 255 do
     decode_map[i] = decode_uncompleted_map[i] or unexpected_character
 end
 decode_map[-1] = unexpected_eol
 
+---@return any
 local function decode()
     return decode_map[next_byte()]()
 end
 
 local function decode_item()
     local top = statusTop
+    ---@type table<integer|string, any>
     local ref = statusRef[top]
     if statusAry[top] then
         ref[#ref+1] = decode()

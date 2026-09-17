@@ -1,7 +1,7 @@
 local m = {}
 
 local function tableLenEqual(t, len)
-    for _key, _value in pairs(t) do
+    for _, _ in pairs(t) do
         len = len - 1
         if len < 0 then
             return false

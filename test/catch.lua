@@ -1,13 +1,40 @@
+---@class catch.lpegPattern
+---@operator mul(catch.lpegPattern|string|integer): catch.lpegPattern
+---@operator add(catch.lpegPattern|string|integer): catch.lpegPattern
+---@operator sub(catch.lpegPattern|string|integer): catch.lpegPattern
+---@operator pow(integer): catch.lpegPattern
+local lpegPattern = {}
+
+---@param s string
+---@return any[]? results
+---@return any err
+function lpegPattern:match(s) end
+
+---@class catch.lpegM
+---@field P  fun(v: catch.lpegPattern|string|integer|table): catch.lpegPattern
+---@field V  fun(name: string): catch.lpegPattern
+---@field C  fun(pat: catch.lpegPattern): catch.lpegPattern
+---@field Cc fun(v: any): catch.lpegPattern
+---@field Cp fun(): catch.lpegPattern
+---@field S  fun(s: string): catch.lpegPattern
+---@field Ct fun(pat: catch.lpegPattern): catch.lpegPattern
+
+---@type catch.lpegM
 local m = require 'lpeglabel'
 
 ---@class catched
+---@field [integer] any
 ---@operator add: catched
 local mt = {}
 
+---@return catched
 local function catchedTable()
     return setmetatable({}, mt)
 end
 
+---@param a catched?
+---@param b catched?
+---@return catched?
 function mt.__add(a, b)
     if not a or not b then
         return a or b
@@ -22,6 +49,9 @@ function mt.__add(a, b)
     return t
 end
 
+---@param script string
+---@param seps string
+---@return any[]
 local function parseTokens(script, seps)
     local parser = m.P {
         m.Ct(m.V 'Token'^0),
@@ -32,7 +62,7 @@ local function parseTokens(script, seps)
         Text  = m.Cc 'TX' * m.C((1 - m.V 'Nl' - m.V 'Mark')^1),
     }
     local results = parser:match(script)
-    return results
+    return results --[[@as any[] ]]
 end
 
 ---@param script string
@@ -41,8 +71,11 @@ end
 ---@return table<string, catched>
 return function (script, seps)
     local tokens = parseTokens(script, seps)
+    ---@type string[]
     local newBuf = {}
+    ---@type table<string, catched>
     local result = {}
+    ---@type { char: string, position: integer }[]
     local marks  = {}
 
     for s in seps:gmatch '.' do
@@ -53,23 +86,23 @@ return function (script, seps)
     local line       = 0
     local skipOffset = 0
     for i = 1, #tokens, 3 do
-        local offset = tokens[i + 0]
-        local mode   = tokens[i + 1]
-        local text   = tokens[i + 2]
+        local offset = tokens[i + 0] --[[@as integer]]
+        local mode   = tokens[i + 1] --[[@as string]]
+        local text   = tokens[i + 2] --[[@as string]]
         if mode == 'TX' then
             newBuf[#newBuf+1] = text
         end
         if mode == 'NL' then
             newBuf[#newBuf+1] = text
-            line = line + 1
-            lineOffset = offset + #text - skipOffset
+            line = (line + 1) --[[@as integer]]
+            lineOffset = (offset + #text - skipOffset) --[[@as integer]]
         end
         if mode == 'ML' then
             marks[#marks+1] = {
                 char     = text,
                 position = line * 10000 + offset - skipOffset - lineOffset,
             }
-            skipOffset = skipOffset + 1 + #text
+            skipOffset = (skipOffset + 1 + #text) --[[@as integer]]
         end
         if mode == 'MR' then
             for j = #marks, 1, -1 do
@@ -81,7 +114,7 @@ return function (script, seps)
                     break
                 end
             end
-            skipOffset = skipOffset + 1 + #text
+            skipOffset = (skipOffset + 1 + #text) --[[@as integer]]
         end
     end
 

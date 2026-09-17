@@ -11,10 +11,12 @@ local tconcat = table.concat
 
 _ENV = nil
 
+---@alias lazytable.info { [1]: table<any, any>, [2]: integer, [3]: table<any, any>? }
+
 ---@class lazytable.builder
 ---@field source     table
 ---@field codeMap    table<integer, string>
----@field dumpMark   table<table, integer>
+---@field dumpMark   table<any, integer>
 ---@field excludes   table<table, true>
 ---@field refMap     table<any, integer>
 ---@field instMap    table<integer, table|function|thread|userdata>
@@ -71,12 +73,14 @@ local function formatValue(v)
     return sformat('%q', v)
 end
 
----@param info {[1]: table, [2]: integer, [3]: table?}
+---@param info lazytable.info
 ---@return string
 local function dump(info)
+    ---@type string[]
     local codeBuf = {}
 
     codeBuf[#codeBuf + 1] = 'return{{'
+    ---@type boolean?
     local hasFields
     for k, v in pairs(info[1]) do
         if hasFields then
@@ -135,9 +139,11 @@ function mt:getObjectID(obj)
         return id
     end
 
+    ---@type table<any, any>
     local fields = {}
+    ---@type table<any, integer>?
     local objs
-    for k, v in pairs(obj) do
+    for k, v in pairs(obj --[[@as table<any, any>]]) do
         local tp = type(v)
         if tp == 'string' or tp == 'number' or tp == 'boolean' then
             fields[k] = v
@@ -187,9 +193,10 @@ function mt:entry()
     local tableID = self.tableID
     ---@type table<table, integer>
     local idMap   = {}
-    ---@type table<table, table[]>
+    ---@type table<table, lazytable.info>
     local infoMap = setmt({}, {
         __mode = 'v',
+        ---@param map table<table, lazytable.info>
         __index = function (map, t)
             local id   = idMap[t]
             local code = codeMap[id]
@@ -203,7 +210,7 @@ function mt:entry()
             --if sbyte(code, 1, 1) ~= 27 then
             --    codeMap[id] = sdump(f, true)
             --end
-            local info = f()
+            local info = f() --[[@as lazytable.info]]
             map[t] = info
             return info
         end
@@ -239,8 +246,10 @@ function mt:entry()
         end,
         __newindex = function(t, k, v)
             local info   = infoMap[t]
+            ---@type table<any, any>
             local fields = info and info[1] or {}
             local len    = info and info[2] or 0
+            ---@type table<any, any>?
             local objs   = info and info[3]
             fields[k]    = nil
             if objs then
@@ -264,10 +273,10 @@ function mt:entry()
                     objs[k] = id
                 end
             end
-            info = { fields, len, objs }
+            info = { fields, len, objs } --[[@as lazytable.info]]
             local id = idMap[t]
             local code = dump(info)
-            infoMap[id] = nil
+            infoMap[t] = nil
             codeMap[id] = nil
             codeMap[id] = code
         end,
@@ -285,6 +294,7 @@ function mt:entry()
             end
             local fields = info[1]
             local objs   = info[3]
+            ---@type any[]
             local keys   = {}
             for k in pairs(fields) do
                 keys[#keys+1] = k
@@ -307,6 +317,7 @@ function mt:entry()
 
     setmt(instMap, {
         __mode  = 'v',
+        ---@param map table<integer, table>
         __index = function (map, id)
             local inst  = {}
             idMap[inst] = id

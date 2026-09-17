@@ -1,6 +1,6 @@
 ---@class linked-table
----@field _left  table
----@field _right table
+---@field _left  table<any, any>
+---@field _right table<any, any>
 local mt = {}
 mt.__index = mt
 mt._size = 0
@@ -205,6 +205,7 @@ end
 ---@param revert? boolean
 ---@return string
 function mt:dump(start, revert)
+    ---@type string[]
     local t = {}
     for node in self:pairs(start, revert) do
         t[#t+1] = tostring(node)

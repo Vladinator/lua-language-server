@@ -6,6 +6,12 @@ local Char   = 1 - Symbol
 local Path   = (1 - m.S[[\/*?"<>|]])^1 * Slash
 local NoWord = #(m.P(-1) + Symbol)
 
+---@class glob.matcher
+---@field needDirectory? boolean
+---@field matcher any
+---@field state any
+---@field options any
+---@overload fun(path: string): any
 local mt = {}
 mt.__index = mt
 mt.__name = 'matcher'
@@ -130,18 +136,25 @@ function mt:pattern(state)
     end
 end
 
+---@return boolean
 function mt:isNeedDirectory()
     return self.needDirectory == true
 end
 
+---@return boolean
 function mt:isNegative()
     return self.state.neg == true
 end
 
+---@param path string
+---@return any
 function mt:__call(path)
     return self.matcher:match(path)
 end
 
+---@param state any
+---@param options any
+---@return glob.matcher?
 return function (state, options)
     local self = setmetatable({
         options = options,

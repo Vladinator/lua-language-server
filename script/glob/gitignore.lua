@@ -1,3 +1,29 @@
+---@class glob.lpegPattern
+---@operator mul(glob.lpegPattern|string|integer): glob.lpegPattern
+---@operator add(glob.lpegPattern|string|integer): glob.lpegPattern
+---@operator sub(glob.lpegPattern|string|integer): glob.lpegPattern
+---@operator unm(): glob.lpegPattern
+---@operator pow(integer): glob.lpegPattern
+---@operator div(string|table|function): glob.lpegPattern
+local lpegPattern = {}
+
+---@param s string
+---@return any[]? results
+---@return any err
+function lpegPattern:match(s) end
+
+---@class glob.lpegM
+---@field Cg fun(pat: glob.lpegPattern, name?: string): glob.lpegPattern
+---@field Cc fun(v: any): glob.lpegPattern
+---@field Ct fun(pat: glob.lpegPattern): glob.lpegPattern
+---@field Cs fun(pat: glob.lpegPattern): glob.lpegPattern
+---@field C  fun(pat: glob.lpegPattern): glob.lpegPattern
+---@field T  fun(label: string|integer): glob.lpegPattern
+---@field P  fun(v: glob.lpegPattern|string|integer|table): glob.lpegPattern
+---@field S  fun(s: string): glob.lpegPattern
+---@field V  fun(name: string): glob.lpegPattern
+
+---@type glob.lpegM
 local m = require 'lpeglabel'
 local matcher = require 'glob.matcher'
 
@@ -45,22 +71,23 @@ local parser = m.P {
 
 ---@class gitignore
 ---@field pattern string[]
----@field options table
+---@field options table<string, any>
 ---@field errors table[]
----@field matcher table
----@field interface function[]
+---@field matcher glob.matcher[]
+---@field interface table<string, function>
 ---@field data table
 local mt = {}
 mt.__index = mt
 mt.__name = 'gitignore'
 
+---@param pat string
 function mt:addPattern(pat)
     if type(pat) ~= 'string' then
         return
     end
     self.pattern[#self.pattern+1] = pat
     if self.options.ignoreCase then
-        pat = pat:lower()
+        pat = pat:lower() --[[@as string]]
     end
     local states, err = parser:match(pat)
     if not states then
@@ -91,6 +118,9 @@ function mt:setInterface(key, func)
     self.interface[key] = func
 end
 
+---@param name string
+---@param params any
+---@return any
 function mt:callInterface(name, params)
     local func = self.interface[name]
     return func(params, self.data)
@@ -135,6 +165,7 @@ end
 ---@param path string
 ---@return boolean
 function mt:finishMatch(path)
+    ---@type string[]
     local paths = {}
     for filename in path:gmatch '[^/\\]+' do
         paths[#paths+1] = filename
@@ -154,7 +185,7 @@ end
 ---@param path string
 ---@return string
 function mt:getRelativePath(path)
-    local root = self.options.root or ''
+    local root = (self.options.root or '') --[[@as string]]
     if self.options.ignoreCase then
         path = path:lower()
         root = root:lower()
@@ -173,10 +204,13 @@ end
 ---@param hook? async fun(ev: string, ...)
 ---@async
 function mt:scan(path, callback, hook)
+    ---@type string[]
     local files = {}
+    ---@type string[]
     local list = {}
 
     ---@async
+    ---@param current string
     local function check(current)
         local fileType = self:callInterface('type', current)
         if fileType == 'file' then
@@ -187,7 +221,7 @@ function mt:scan(path, callback, hook)
         elseif fileType == 'directory' then
             local result = self:callInterface('list', current)
             if type(result) == 'table' then
-                for _, path0 in ipairs(result) do
+                for _, path0 in ipairs(result --[[@as string[] ]]) do
                     local filename = path0:match '([^/\\]+)[/\\]*$'
                     if  filename
                     and filename ~= '.'
@@ -225,7 +259,7 @@ function mt:__call(path)
 end
 
 ---@param pattern  string|string[]
----@param options?  table
+---@param options?  table<any, any>
 ---@param interface? table<string, function>
 ---@return gitignore
 return function (pattern, options, interface)

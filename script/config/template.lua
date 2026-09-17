@@ -3,10 +3,18 @@ local define = require 'proto.define'
 local diag   = require 'proto.diagnostic'
 
 ---@class config.unit
----@field caller function
+---@field caller? function
 ---@field loader function
 ---@field _checker fun(self: config.unit, value: any): boolean
 ---@field name     string
+---@field enums?   any[]|fun(): any[]
+---@field default? any
+---@field hasDefault? boolean
+---@field sub?     config.unit
+---@field subkey?  config.unit
+---@field subvalue? config.unit
+---@field sep?     string
+---@field subs?    config.unit[]
 ---@operator shl:  config.unit
 ---@operator shr:  config.unit
 ---@operator call: config.unit
@@ -14,7 +22,8 @@ local mt = {}
 mt.__index = mt
 
 function mt:__call(...)
-    self:caller(...)
+    local caller = self.caller --[[@as fun(self: config.unit, ...: any)]]
+    caller(self, ...)
     return self
 end
 
@@ -41,8 +50,10 @@ function mt:checker(v)
         -- re-resolve the live set on every check instead.
         local enums = self.enums
         if type(enums) == 'function' then
-            enums = enums()
+            enums = enums() --[[@as any[] ]]
         end
+        ---@cast enums any[]
+        ---@type boolean?
         local ok
         for _, enum in ipairs(enums) do
             if util.equal(enum, v) then
@@ -57,8 +68,14 @@ function mt:checker(v)
     return self:_checker(v)
 end
 
+---@type table<string, table<any, any>>
 local units = {}
 
+---@param name    string
+---@param default any
+---@param checker fun(self: config.unit, value: any): boolean?
+---@param loader  fun(self: config.unit, value: any): any
+---@param caller? fun(self: config.unit, ...: any)
 local function register(name, default, checker, loader, caller)
     units[name] = {
         name     = name,
@@ -72,6 +89,7 @@ end
 ---@class config.master
 ---@field [string] config.unit
 local Type = setmetatable({}, { __index = function (_, name)
+    ---@type table<any, any>
     local unit = {}
     for k, v in pairs(units[name]) do
         unit[k] = v
@@ -106,17 +124,19 @@ end)
 register('Array', {}, function (self, value)
     return type(value) == 'table'
 end, function (self, value)
+    local sub = self.sub --[[@as config.unit]]
+    ---@type any[]
     local t = {}
     if #value == 0 then
-        for k in pairs(value) do
-            if self.sub:checker(k) then
-                t[#t+1] = self.sub:loader(k)
+        for k in pairs(value --[[@as table<any, any>]]) do
+            if sub:checker(k) then
+                t[#t+1] = sub:loader(k)
             end
         end
     else
-        for _, v in ipairs(value) do
-            if self.sub:checker(v) then
-                t[#t+1] = self.sub:loader(v)
+        for _, v in ipairs(value --[[@as any[] ]]) do
+            if sub:checker(v) then
+                t[#t+1] = sub:loader(v)
             end
         end
     end
@@ -126,20 +146,22 @@ end, function (self, sub)
 end)
 
 register('Hash', {}, function (self, value)
+    local subkey   = self.subkey   --[[@as config.unit]]
+    local subvalue = self.subvalue --[[@as config.unit]]
     if type(value) == 'table' then
         if #value == 0 then
-            for k, v in pairs(value) do
-                if not self.subkey:checker(k)
-                or not self.subvalue:checker(v) then
+            for k, v in pairs(value --[[@as table<any, any>]]) do
+                if not subkey:checker(k)
+                or not subvalue:checker(v) then
                     return false
                 end
             end
         else
-            if not self.subvalue:checker(true) then
+            if not subvalue:checker(true) then
                 return false
             end
-            for _, v in ipairs(value) do
-                if not self.subkey:checker(v) then
+            for _, v in ipairs(value --[[@as any[] ]]) do
+                if not subkey:checker(v) then
                     return false
                 end
             end
@@ -147,26 +169,30 @@ register('Hash', {}, function (self, value)
         return true
     end
     if type(value) == 'string' then
-        return  self.subkey:checker('')
-            and self.subvalue:checker(true)
+        return  subkey:checker('')
+            and subvalue:checker(true)
     end
 end, function (self, value)
     if type(value) == 'table' then
+        ---@type table<any, any>
         local t = {}
         if #value == 0 then
-            for k, v in pairs(value) do
+            for k, v in pairs(value --[[@as table<any, any>]]) do
                 t[k] = v
             end
         else
-            for _, k in pairs(value) do
+            for _, k in pairs(value --[[@as table<any, any>]]) do
                 t[k] = true
             end
         end
         return t
     end
     if type(value) == 'string' then
+        ---@type table<any, any>
         local t = {}
-        for s in value:gmatch('[^' .. self.sep .. ']+') do
+        local sep = self.sep --[[@as string]]
+        local strValue = value --[[@as string]]
+        for s in strValue:gmatch('[^' .. sep .. ']+') do
             t[s] = true
         end
         return t

@@ -3,17 +3,36 @@ package.path = package.path .. ';script/?.lua;tools/?.lua'
 local fs   = require 'bee.filesystem'
 local util = require 'utility'
 
+---@class locale.entry
+---@field key     string
+---@field line    integer
+---@field space   string
+---@field comment? string
+---@field content string[]
+
+---@class locale.data
+---@field map  table<string, locale.entry>
+---@field list locale.entry[]
+
+---@param text string
+---@return string?
 local function getLongStringMark(text)
     return text:match '^%[[=]*%['
 end
 
+---@param text string
+---@param mark string
+---@return boolean
 local function isLongStringFinish(text, mark)
     local emark = mark:gsub('%[', ']')
     return util.stringEndWith(text, emark)
 end
 
+---@param filePath fs.path
+---@return locale.data
 local function loadLocaleFile(filePath)
     local fileContent = util.loadFile(filePath:string())
+    ---@type locale.data
     local data = {
         map  = {},
         list = {},
@@ -21,11 +40,14 @@ local function loadLocaleFile(filePath)
     if not fileContent then
         return data
     end
+    ---@type locale.entry?
     local current
+    ---@type string|false?
     local inLongString
     for lineVal, lineCount in util.eachLine(fileContent) do
         if inLongString then
-            current.content[#current.content+1] = lineVal
+            local curEntry = current --[[@as locale.entry]]
+            curEntry.content[#curEntry.content+1] = lineVal
             if isLongStringFinish(lineVal, inLongString) then
                 inLongString = nil
             end
@@ -40,7 +62,7 @@ local function loadLocaleFile(filePath)
         if key then
             current = {
                 key     = key,
-                line    = lineCount,
+                line    = lineCount --[[@as integer]],
                 space   = space,
                 comment = comment,
                 content = {},
@@ -65,12 +87,16 @@ local function loadLocaleFile(filePath)
     return data
 end
 
+---@type string[]
 local localeNames = {}
 for fullPath in fs.pairs(fs.path('locale')) do
     localeNames[#localeNames+1] = fullPath:filename():string()
 end
 
+---@param allKeys string[]
+---@param list locale.entry[]
 local function mergeList(allKeys, list)
+    ---@type table<string, boolean>
     local keyMap = {}
     local leftFix = 0
 
@@ -108,6 +134,9 @@ local function mergeList(allKeys, list)
     end
 end
 
+---@param key string
+---@param lastKey string?
+---@return boolean
 local function needSplit(key, lastKey)
     if not lastKey then
         return false
@@ -115,11 +144,21 @@ local function needSplit(key, lastKey)
     return key:match '%w+' ~= lastKey:match '%w+'
 end
 
+---@param localeName string
+---@param allKeys string[]
+---@param localeMap table<string, locale.data>
+---@param fileName string
+---@return string
 local function buildLocaleFile(localeName, allKeys, localeMap, fileName)
+    ---@type string[]
     local lines = {}
+    ---@type string?
     local lastKey
+    ---@type string[][]
     local blocks = {}
+    ---@type string[]
     local currentBlock = {}
+    ---@type table<string, boolean>
     local usedKeys = {}
     blocks[#blocks+1] = currentBlock
     for _, key in ipairs(allKeys) do
@@ -146,6 +185,7 @@ local function buildLocaleFile(localeName, allKeys, localeMap, fileName)
     for _, block in ipairs(blocks) do
         for _, key in ipairs(block) do
             local data = localeMap[localeName].map[key]
+            ---@type string?
             local comment
             if data then
                 local needTranslate = false
@@ -153,8 +193,8 @@ local function buildLocaleFile(localeName, allKeys, localeMap, fileName)
                     local utfLen  = 0
                     local charLen = 0
                     for _, line in ipairs(data.content) do
-                        utfLen  = utfLen  + util.utf8Len(line)
-                        charLen = charLen + #line
+                        utfLen  = (utfLen  + util.utf8Len(line)) --[[@as integer]]
+                        charLen = (charLen + #line) --[[@as integer]]
                     end
                     if charLen > 0 and utfLen / charLen < 0.8 then
                         needTranslate = true
@@ -197,8 +237,11 @@ local function buildLocaleFile(localeName, allKeys, localeMap, fileName)
     return table.concat(lines, '\n')
 end
 
+---@param fileName string
 local function processFile(fileName)
+    ---@type string[]
     local allKeys = {}
+    ---@type table<string, locale.data>
     local localeMap = {}
     for _, localeName in ipairs(localeNames) do
         local localeData = loadLocaleFile(fs.path('locale') / localeName / (fileName .. '.lua'))

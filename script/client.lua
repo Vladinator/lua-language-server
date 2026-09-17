@@ -12,6 +12,13 @@ local inspect   = require 'inspect'
 local jsone     = require 'json-edit'
 local jsonc     = require 'jsonc'
 
+---@class client
+---@field _client?         string
+---@field _isvscode?       boolean
+---@field _offsetEncoding? string
+---@field _eventList       (async fun(ev: string))[]
+---@field info             any
+---@field _ready?          boolean
 local m = {}
 m._eventList = {}
 
@@ -43,30 +50,36 @@ end
 ---@return any
 function m.getOption(name)
     nonil.enable()
-    local option = m.info.initializationOptions[name]
+    local option = m.info.initializationOptions[name] --[[@as any]]
     nonil.disable()
     return option
 end
 
+---@param name string
+---@return any
 function m.getAbility(name)
     if not m.info
     or not m.info.capabilities then
         return nil
     end
+    ---@type any
     local current = m.info.capabilities
     while true do
         local parent, nextPos = name:match '^([^%.]+)()'
+        ---@cast parent string?
+        ---@cast nextPos integer?
         if not parent then
             break
         end
-        current = current[parent]
+        ---@cast nextPos integer
+        current = current[parent] --[[@as any]]
         if not current then
             return current
         end
         if nextPos > #name then
             break
         else
-            name = name:sub(nextPos + 1)
+            name = name:sub(nextPos + 1) --[[@as string]]
         end
     end
     return current
@@ -78,7 +91,7 @@ function m.getOffsetEncoding()
     end
     local clientEncodings = m.getAbility 'offsetEncoding'
     if type(clientEncodings) == 'table' then
-        for _, encoding in ipairs(clientEncodings) do
+        for _, encoding in ipairs(clientEncodings --[[@as any[] ]]) do
             if encoding == 'utf-8' then
                 m._offsetEncoding = 'utf-8'
                 return m._offsetEncoding
@@ -89,8 +102,9 @@ function m.getOffsetEncoding()
     return m._offsetEncoding
 end
 
+---@return string
 local function packMessage(...)
-    local strs = table.pack(...)
+    local strs = table.pack(...) --[[@as table<any, any>]]
     for i = 1, strs.n do
         strs[i] = tostring(strs[i])
     end
@@ -123,7 +137,9 @@ function m.requestMessage(type, message, titles, callback)
         type = define.MessageType[type] or 3,
         message = message,
     })
+    ---@type table<string, integer>
     local map = {}
+    ---@type table[]
     local actions = {}
     for i, title in ipairs(titles) do
         actions[i] = {
@@ -167,9 +183,10 @@ function m.logMessage(type, ...)
     })
 end
 
+---@param path string
 function m.watchFiles(path)
     path = path:gsub('\\', '/')
-               :gsub('[%[%]%{%}%*%?]', '\\%1')
+               :gsub('[%[%]%{%}%*%?]', '\\%1') --[[@as string]]
     local registration = {
         id              = path,
         method          = 'workspace/didChangeWatchedFiles',
@@ -213,6 +230,7 @@ end
 ---@param changes config.change[]
 ---@return config.change[]
 local function getValidChanges(uri, changes)
+    ---@type config.change[]
     local newChanges = {}
     if not uri then
         return changes
@@ -243,7 +261,7 @@ local function searchPatchInfo(cfg, rawKey)
 
     ---@param key string
     ---@param parentKey string
-    ---@param parentValue table
+    ---@param parentValue any
     ---@return json.patchInfo?
     local function searchOnce(key, parentKey, parentValue)
         if parentValue == nil then
@@ -258,12 +276,12 @@ local function searchPatchInfo(cfg, rawKey)
         if parentValue[key] then
             return {
                 key   = parentKey .. '/' .. key,
-                value = parentValue[key],
+                value = parentValue[key] --[[@as any]],
             }
         end
         for pos in key:gmatch '()%.' do
             local k = key:sub(1, pos - 1)
-            local v = parentValue[k]
+            local v = parentValue[k] --[[@as any]]
             local info = searchOnce(key:sub(pos + 1), parentKey .. '/' .. k, v)
             if info then
                 return info
@@ -355,7 +373,12 @@ local function editConfigJson(uri, path, changes)
     for _, change in ipairs(changes) do
         local patch = makeConfigPatch(uri, res, change)
         if patch then
-            text = jsone.edit(text, patch, { indent = '    ' })
+            ---@diagnostic disable-next-line: missing-fields
+            ---@type json-beautify.option
+            local editOption = { indent = '    ' }
+            local editFn = jsone.edit --[[@as fun(str: string, patch: any, option?: json-beautify.option): string?]]
+            local newText = editFn(text, patch, editOption) --[[@as string?]]
+            text = newText --[[@as string]]
         end
     end
     return text
@@ -364,6 +387,7 @@ end
 ---@param changes config.change[]
 ---@param applied config.change[]
 local function removeAppliedChanges(changes, applied)
+    ---@type table<config.change, boolean>
     local appliedMap = {}
     for _, change in ipairs(applied) do
         appliedMap[change] = true
@@ -447,6 +471,8 @@ local function tryModifyRC(uri, finalChanges, create)
     return true
 end
 
+---@param uri uri?
+---@param finalChanges config.change[]
 local function tryModifyClient(uri, finalChanges)
     if #finalChanges == 0 then
         return false
@@ -456,6 +482,7 @@ local function tryModifyClient(uri, finalChanges)
         return false
     end
     local scp = scope.getScope(uri)
+    ---@type config.change[]
     local scpChanges = {}
     for _, change in ipairs(finalChanges) do
         if  change.uri
@@ -486,6 +513,7 @@ local function tryModifyClientGlobal(finalChanges)
         log.info('Client does not support modifying config')
         return
     end
+    ---@type config.change[]
     local changes = {}
     for _, change in ipairs(finalChanges) do
         if change['global'] then
@@ -507,6 +535,7 @@ end
 ---@param changes config.change[]
 ---@return string
 local function buildMaunuallyMessage(changes)
+    ---@type string[]
     local message = {}
     for _, change in ipairs(changes) do
         if change.action == 'add' then
@@ -523,6 +552,7 @@ end
 ---@param changes config.change[]
 ---@param onlyMemory? boolean
 function m.setConfig(changes, onlyMemory)
+    ---@type config.change[]
     local finalChanges = {}
     for _, change in ipairs(changes) do
         if     change.action == 'add' then
@@ -584,6 +614,7 @@ function m.editText(uri, edits)
     if not state then
         return
     end
+    ---@type textEdit[]
     local textEdits = {}
     for i, edit in ipairs(edits) do
         textEdits[i] = converter.textEdit(converter.packRange(state, edit.start, edit.finish), edit.text)
@@ -604,6 +635,7 @@ end
 ---@param editors textMultiEditor[]
 function m.editMultiText(editors)
     local files = require 'files'
+    ---@type table<uri, textEdit[]>
     local changes = {}
     for _, editor in ipairs(editors) do
         local uri = editor.uri
@@ -630,10 +662,14 @@ function m.event(callback)
     m._eventList[#m._eventList+1] = callback
 end
 
+---@param ev string
 function m._callEvent(ev)
     for _, callback in ipairs(m._eventList) do
+        ---@async
         await.call(function ()
-            callback(ev)
+            local cb    = callback --[[@as async fun(ev: string)]]
+            local event = ev --[[@as string]]
+            cb(event)
         end)
     end
 end

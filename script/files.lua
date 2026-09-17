@@ -1,3 +1,4 @@
+---@type { os: string }
 local platform = require 'bee.platform'
 local fs       = require 'bee.filesystem'
 local config   = require 'config'
@@ -13,6 +14,7 @@ local encoder  = require 'encoder'
 local scope    = require 'workspace.scope'
 local lazy     = require 'lazytable'
 local cacher   = require 'lazy-cacher'
+---@type { get_id: fun(): integer }
 local sp       = require 'bee.subprocess'
 local pub      = require 'pub'
 
@@ -32,8 +34,16 @@ local pub      = require 'pub'
 ---@field compileCount? integer
 ---@field words?        table<string, string[]>
 
+---@class files.openInfo
+---@field cache table
+
 ---@class files
----@field lazyCache?   lazy-cacher
+---@field lazyCache?     lazy-cacher
+---@field watchList      (async fun(ev: string, uri: uri))[]
+---@field notifyCache    table<string, any>
+---@field assocVersion   integer
+---@field openMap        table<uri, files.openInfo>
+---@field _pairsCache?   any
 local m = {}
 
 m.watchList      = {}
@@ -41,6 +51,7 @@ m.notifyCache    = {}
 m.assocVersion   = -1
 
 function m.reset()
+    ---@type table<uri, files.openInfo>
     m.openMap        = {}
     ---@type table<string, file>
     m.fileMap        = {}
@@ -193,6 +204,7 @@ function m.setText(uri, text, isTrust, callback)
         return
     end
     --log.debug('setText', uri)
+    ---@type boolean?
     local create
     if not m.fileMap[uri] then
         m.fileMap[uri] = {
@@ -305,12 +317,14 @@ function m.getWords(uri)
     if file.words then
         return file.words
     end
+    ---@type table<string, string[]>
     local words = {}
     file.words = words
     local text = file.text
     if not text then
         return
     end
+    ---@type table<string, boolean>
     local mark = {}
     for word in text:gmatch '([%a_][%w_]+)' do
         if #word >= 3 and not mark[word] then
@@ -454,6 +468,7 @@ end
 ---@return uri[]
 function m.getAllUris(suri)
     local scp = suri and scope.getScope(suri) or nil
+    ---@type uri[]
     local files = {}
     local i = 0
     for uri in pairs(m.fileMap) do
@@ -565,7 +580,8 @@ function m.checkPreload(uri)
             m.notifyCache['skipLargeFileCount'] = 0
         end
         if not m.notifyCache['preloadFileSize'][uri] then
-            m.notifyCache['preloadFileSize'][uri] = true
+            local preloadFileSize = m.notifyCache['preloadFileSize'] --[[@as table<any, any>]]
+            preloadFileSize[uri] = true
             m.notifyCache['skipLargeFileCount'] = m.notifyCache['skipLargeFileCount'] + 1
             local message = lang.script('WORKSPACE_SKIP_LARGE_FILE'
                         , ws.getRelativePath(uri)
@@ -626,6 +642,9 @@ function m.compileStateAsync(uri, callback)
     end)
 end
 
+---@param uri uri
+---@param state parser.state
+---@return parser.state
 local function pluginOnTransformAst(uri, state)
     local plugin   = require 'plugin'
     ---TODO: maybe deepcopy astNode
@@ -779,8 +798,9 @@ end
 
 --- 获取文件关联
 function m.getAssoc(uri)
+    ---@type any[]
     local patt = {}
-    for k, v in pairs(config.get(uri, 'files.associations')) do
+    for k, v in pairs(config.get(uri, 'files.associations') --[[@as table<any, any>]]) do
         if v == 'lua' then
             patt[#patt+1] = k
         end
@@ -846,6 +866,7 @@ function m.saveDll(uri, content)
     if #file.opens == 0 then
         return
     end
+    ---@type table<string, boolean>
     local mark = {}
     for word in content:gmatch '(%a[%w_]+)\0' do
         if word:sub(1, 3) ~= 'lua' then
@@ -891,6 +912,7 @@ function m.countStates()
     return n
 end
 
+---@type string?
 local addonsPath
 
 ---Updates the variable 'addonsPath' with the user's configuration.
@@ -916,6 +938,7 @@ end
 ---@param path string
 ---@return string resolvedPath
 function m.resolvePathPlaceholders(path)
+    ---@param key string
     path = path:gsub("%$%{(.-)%}", function(key)
         if key == "3rd" then
             return (ROOT / "meta" / "3rd"):string()
@@ -985,10 +1008,10 @@ function m.normalize(path)
     if platform.os == 'windows' then
         path = path:gsub('[/\\]+', '\\')
                    :gsub('[/\\]+$', '')
-                   :gsub('^(%a:)$', '%1\\')
+                   :gsub('^(%a:)$', '%1\\') --[[@as string]]
     else
         path = path:gsub('[/\\]+', '/')
-                   :gsub('[/\\]+$', '')
+                   :gsub('[/\\]+$', '') --[[@as string]]
     end
     return path
 end
@@ -1001,6 +1024,7 @@ end
 
 function m.onWatch(ev, uri)
     for _, callback in ipairs(m.watchList) do
+        ---@async
         await.call(function ()
             callback(ev, uri)
         end)

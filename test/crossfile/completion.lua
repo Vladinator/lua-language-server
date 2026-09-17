@@ -1,6 +1,7 @@
 local files    = require 'files'
 local core     = require 'core.completion'
 local furi     = require 'file-uri'
+---@type { os: string }
 local platform = require 'bee.platform'
 local util     = require 'utility'
 local config   = require 'config'
@@ -21,7 +22,9 @@ local Cared = {
     ['textEdit'] = true,
 }
 
+---@param results any[]
 local function removeMetas(results)
+    ---@type integer[]
     local removes = {}
     for i, res in ipairs(results) do
         if res.description and res.description:find 'meta' then
@@ -32,15 +35,18 @@ local function removeMetas(results)
 end
 
 ---@diagnostic disable: await-in-sync
+---@param data any
 local function TEST(data)
+    ---@type uri?
     local mainUri
+    ---@type any
     local pos
-    for _, info in ipairs(data) do
+    for _, info in ipairs(data --[[@as any[] ]]) do
         local uri = furi.encode(TESTROOT .. info.path)
         local script = info.content or ''
         if info.main then
             local newScript, catched = catch(script, '?')
-            pos = catched['?'][1][1]
+            pos = catched['?'][1][1] --[[@as any]]
             script = newScript
             mainUri = uri
         end
@@ -49,34 +55,35 @@ local function TEST(data)
     end
 
     local _ <close> = function ()
-        for _, info in ipairs(data) do
+        for _, info in ipairs(data --[[@as any[] ]]) do
             files.remove(furi.encode(TESTROOT .. info.path))
         end
     end
 
-    local expect = data.completion
-    local result = core.completion(mainUri, pos, '')
+    local expect = data.completion --[[@as any]]
+    local result = core.completion(mainUri --[[@as uri]], pos, '')
     if not expect then
         assert(result == nil)
         return
     end
     assert(result ~= nil)
-    ---@diagnostic disable-next-line: inject-field -- test-only: clears a legacy field that no longer exists on the type
+    ---@diagnostic disable-next-line: inject-field, no-unknown -- test-only: clears a legacy field that no longer exists on the type
     result.complete = nil
     result.enableCommon = nil
     if NeedRemoveMeta then
         removeMetas(result)
     end
     for _, item in ipairs(result) do
+        local anyItem = item --[[@as table<any, any>]]
         if item.id then
             local r = core.resolve(item.id)
-            for k, v in pairs(r or {}) do
-                item[k] = v
+            for k, v in pairs(r or {} --[[@as table<any, any>]]) do
+                anyItem[k] = v
             end
         end
-        for k in pairs(item) do
+        for k in pairs(anyItem) do
             if not Cared[k] then
-                item[k] = nil
+                anyItem[k] = nil
             end
         end
         if item['description'] then
@@ -84,17 +91,20 @@ local function TEST(data)
                 : gsub('\r\n', '\n')
         end
     end
-    for _, eitem in ipairs(expect) do
+    for _, eitem in ipairs(expect --[[@as any[] ]]) do
         if eitem['description'] then
-            eitem['description'] = eitem['description']
-                : gsub('%$(.-)%$', _G)
+            eitem['description'] = (eitem['description']
+                : gsub('%$(.-)%$', _G)) --[[@as any]]
         end
     end
     assert(result)
     assert(compare.eq(expect, result))
 end
 
+---@param cfg table<any, any>
+---@param f fun()
 local function WITH_CONFIG(cfg, f)
+    ---@type table<any, any>
     local prev = { }
     for k, v in pairs(cfg) do
         prev[k] = config.get(nil, k)

@@ -25,12 +25,12 @@ local function loadArgs()
     ---@type string?
     local lastKey
     for _, v in ipairs(arg) do
-        ---@type string?
+        ---@type string?, string?
         local key, tail = v:match '^%-%-([%w_]+)(.*)$'
         ---@type string?
         local value
         if key then
-            value   = tail:match '=(.+)'
+            value   = (tail --[[@as string]]):match '=(.+)'
             lastKey = nil
             if not value then
                 lastKey = key
@@ -43,7 +43,8 @@ local function loadArgs()
             end
         end
         if key then
-            _G[key:upper():gsub('-', '_')] = getValue(value)
+            local globalKey = key:upper():gsub('-', '_')
+            ;(_G --[[@as table<string, any>]])[globalKey] = getValue(value)
         end
     end
 end
@@ -55,8 +56,8 @@ local rootPath    = currentPath:gsub('[/\\]*[^/\\]-$', '')
 
 rootPath = (rootPath == '' and '.' or rootPath)
 ROOT     = fs.path(util.expandPath(rootPath))
-LOGPATH  = LOGPATH  and util.expandPath(LOGPATH)  or (ROOT:string() .. '/log')
-METAPATH = METAPATH and util.expandPath(METAPATH) or (ROOT:string() .. '/meta')
+LOGPATH  = (LOGPATH  and util.expandPath(LOGPATH)  or (ROOT:string() .. '/log')) --[[@as string]]
+METAPATH = (METAPATH and util.expandPath(METAPATH) or (ROOT:string() .. '/meta')) --[[@as string]]
 
 util.enableCloseFunction()
 util.enableFormatString()

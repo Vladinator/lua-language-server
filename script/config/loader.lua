@@ -6,6 +6,7 @@ local scope     = require 'workspace.scope'
 local inspect   = require 'inspect'
 local jsonc     = require 'jsonc'
 
+---@param msg any
 local function errorMessage(msg)
     proto.notify('window/showMessage', {
         type = 3,
@@ -17,6 +18,8 @@ end
 ---@class config.loader
 local m = {}
 
+---@param uri uri
+---@param filename string
 ---@return table?
 function m.loadRCConfig(uri, filename)
     local scp  = scope.getScope(uri)
@@ -40,6 +43,8 @@ function m.loadRCConfig(uri, filename)
     return res
 end
 
+---@param uri uri
+---@param filename? string
 ---@return table?
 function m.loadLocalConfig(uri, filename)
     if not filename then
@@ -119,11 +124,11 @@ function m.loadClientConfig(uri)
     end
 
     local newConfig = {
-        ['Lua']                                 = configs[1],
-        ['files.associations']                  = configs[2],
-        ['files.exclude']                       = configs[3],
-        ['editor.semanticHighlighting.enabled'] = configs[4],
-        ['editor.acceptSuggestionOnEnter']      = configs[5],
+        ['Lua']                                 = configs[1] --[[@as any]],
+        ['files.associations']                  = configs[2] --[[@as any]],
+        ['files.exclude']                       = configs[3] --[[@as any]],
+        ['editor.semanticHighlighting.enabled'] = configs[4] --[[@as any]],
+        ['editor.acceptSuggestionOnEnter']      = configs[5] --[[@as any]],
     }
 
     return newConfig

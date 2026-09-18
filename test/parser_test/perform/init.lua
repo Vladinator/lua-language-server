@@ -2,9 +2,13 @@ local fs = require 'bee.filesystem'
 local parser = require 'parser'
 local utility = require 'utility'
 
+---@param path fs.path
+---@return fun(): fs.path?
 local function scanDirectory(path)
+    ---@type fs.path[]
     local files = {}
 
+    ---@param path fs.path
     local function scan(path)
         if fs.is_directory(path) then
             for path in fs.pairs(path) do
@@ -26,6 +30,7 @@ end
 
 local function performTest()
     local targetPath = ROOT
+    ---@type table<fs.path, string>
     local files = {}
     local size = 0
     for path in scanDirectory(targetPath) do
@@ -54,18 +59,20 @@ local function performTest()
     print(('综合性能测试完成，总大小[%.3f]kb，速度[%.3f]mb/s，用时[%.3f]秒'):format(size / 1000, size / passed / 1000 / 1000, passed))
 end
 
+---@param path string
 local function test(path)
     local buf = utility.loadFile(path)
     if not buf then
         return
     end
     local testTimes = 10
+    ---@type parser.state?
     local state
     local clock = os.clock()
     for i = 1, testTimes do
         state = parser.compile(buf, 'Lua', 'Lua 5.4')
         if not state then
-            error(('文件解析失败：%s'):format(path:string()))
+            error(('文件解析失败：%s'):format(path))
         end
         if os.clock() - clock > 1.0 then
             testTimes = i

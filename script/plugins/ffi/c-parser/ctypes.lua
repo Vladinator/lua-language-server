@@ -1,3 +1,24 @@
+---@alias ctypes.array any[]
+
+---@class ctypes.CType
+---@field type any
+---@field name any
+---@field idxs any
+---@field def any
+---@field ret any
+---@field params any
+---@field vararg any
+---@field fields any
+---@field values any
+---@field [any] any
+
+---@alias ctypes.TypeList table<any, any>
+
+---@class ctypes.Decl
+---@field spec any
+---@field ids any
+---@field func any
+
 local ctypes = { TESTMODE = false }
 
 local inspect = require("inspect")
@@ -5,26 +26,36 @@ local utility = require 'utility'
 local util = require 'plugins.ffi.c-parser.util'
 local typed = require("plugins.ffi.c-parser.typed")
 
+---@type fun(t1: any, t2: any): boolean
 local equal_declarations
 
-local add_type = typed("TypeList, string, CType -> ()", function (lst, name, typ)
-    lst[name] = typ
-    table.insert(lst, { name = name, type = typ })
-end)
+---@type fun(lst: ctypes.TypeList, name: string, typ: ctypes.CType)
+local add_type = typed("TypeList, string, CType -> ()",
+    ---@param lst ctypes.TypeList
+    ---@param name string
+    ---@param typ ctypes.CType
+    function (lst, name, typ)
+        lst[name] = typ
+        table.insert(lst, { name = name, type = typ })
+    end)
 
 -- Compare two lists of declarations
-local equal_lists = typed("array, array -> boolean", function (l1, l2)
-    if #l1 ~= #l2 then
-        return false
-    end
-    for i, p1 in ipairs(l1) do
-        local p2 = l2[i]
-        if not equal_declarations(p1, p2) then
+---@type fun(l1: ctypes.array, l2: ctypes.array): boolean
+local equal_lists = typed("array, array -> boolean",
+    ---@param l1 ctypes.array
+    ---@param l2 ctypes.array
+    function (l1, l2)
+        if #l1 ~= #l2 then
             return false
         end
-    end
-    return true
-end)
+        for i, p1 in ipairs(l1) do
+            local p2 = l2[i]
+            if not equal_declarations(p1, p2) then
+                return false
+            end
+        end
+        return true
+    end)
 
 equal_declarations = function (t1, t2)
     if type(t1) == "string" or type(t2) == "nil" then
@@ -64,12 +95,20 @@ local function extract_modifiers(ret_pointer, items)
     end
 end
 
+---@param name_src any
+---@return boolean ok
+---@return any name
+---@return any ret_pointer
+---@return any idxs
 local function get_name(name_src)
+    ---@type any[]
     local ret_pointer = {}
     if name_src == nil then
         return false, "could not find a name: " .. inspect(name_src), nil
     end
+    ---@type any
     local name
+    ---@type table<any, any>
     local indices = {}
     if type(name_src) == "string" then
         if is_modifier(name_src) then
@@ -78,66 +117,80 @@ local function get_name(name_src)
             name = name_src
         end
     else
-        name_src = name_src.declarator or name_src
+        name_src = name_src.declarator or name_src --[[@as any]]
         if type(name_src[1]) == "table" then
             extract_modifiers(ret_pointer, name_src[1])
         else
             extract_modifiers(ret_pointer, name_src)
         end
-        for _, part in ipairs(name_src) do
+        for _, part in ipairs(name_src --[[@as any[] ]]) do
             if part.idx then
                 table.insert(indices, part.idx)
             end
         end
-        name = name_src.name
+        name = name_src.name --[[@as any]]
     end
     return true, name, ret_pointer, next(indices) and indices
 end
 
+---@type fun(lst: ctypes.TypeList, spec: any, ret_pointer: any): any[]?, string?
 local get_type
+---@type fun(lst: ctypes.TypeList, fields_src: any): any, string?
 local get_fields
 
-local convert_value = typed("TypeList, table -> CType?, string?", function (lst, src)
-    local name = nil
-    local ret_pointer = {}
-    local idxs = nil
+---@type fun(lst: ctypes.TypeList, src: any): ctypes.CType?, string?
+local convert_value = typed("TypeList, table -> CType?, string?",
+    ---@param lst ctypes.TypeList
+    ---@param src any
+    function (lst, src)
+        ---@type any
+        local name = nil
+        ---@type any[]
+        local ret_pointer = {}
+        ---@type any
+        local idxs = nil
 
-    if type(src.id) == "table" or type(src.ids) == "table" then
-        src.id = util.expandSingle(src.id)
-        src.ids = util.expandSingle(src.ids)
-        -- FIXME multiple ids, e.g.: int *x, y, *z;
-        local ok
+        if type(src.id) == "table" or type(src.ids) == "table" then
+            local anySrc = src --[[@as table<any, any>]]
+            anySrc.id = util.expandSingle(anySrc.id)
+            anySrc.ids = util.expandSingle(anySrc.ids)
+            -- FIXME multiple ids, e.g.: int *x, y, *z;
+            local ok
 ---@diagnostic disable-next-line: cast-local-type
-        ok, name, ret_pointer, idxs = get_name(src.id or src.ids)
-        if not ok then
-            return nil, name
+            ok, name, ret_pointer, idxs = get_name(src.id or src.ids)
+            if not ok then
+                return nil, name
+            end
         end
-    end
 
-    local typ, err = get_type(lst, src, ret_pointer)
-    if not typ then
-        return nil, err
-    end
+        local typ, err = get_type(lst, src, ret_pointer)
+        if not typ then
+            return nil, err
+        end
 
-    return typed.table("CType", {
-        name = name,
-        type = typ,
-        idxs = idxs,
-    }), nil
-end)
+        return typed.table("CType", {
+            name = name,
+            type = typ,
+            idxs = idxs,
+        }), nil
+    end)
 
+---@param field_src any
+---@param fields any
+---@return boolean?
 local function convert_fields(field_src, fields)
     if field_src.ids then
-        for _, id in ipairs(field_src.ids) do
-            id.type = utility.deepCopy(field_src.type)
-            if id.type and id[1] then
-                for _, v in ipairs(id[1]) do
-                    table.insert(id.type, v)
+        for _, id in ipairs(field_src.ids --[[@as any[] ]]) do
+            local anyId = id --[[@as table<any, any>]]
+            anyId.type = utility.deepCopy(field_src.type)
+            if anyId.type and anyId[1] then
+                for _, v in ipairs(anyId[1] --[[@as any[] ]]) do
+                    table.insert(anyId.type, v)
                 end
-                if id[1].idx then
-                    id.isarray = true
+                if anyId[1].idx then
+                    anyId.isarray = true
                 end
-                id[1] = nil
+                anyId[1] = nil
             end
             table.insert(fields, id)
         end
@@ -146,6 +199,11 @@ local function convert_fields(field_src, fields)
 end
 
 -- Interpret field data from `field_src` and add it to `fields`.
+---@param lst ctypes.TypeList
+---@param field_src any
+---@param fields any
+---@return boolean?
+---@return string?
 local function add_to_fields(lst, field_src, fields)
     if type(field_src) == "table" and not field_src.ids then
         assert(field_src.type.type == "union")
@@ -153,7 +211,7 @@ local function add_to_fields(lst, field_src, fields)
         if not subfields then
             return nil, err
         end
-        for _, subfield in ipairs(subfields) do
+        for _, subfield in ipairs(subfields --[[@as any[] ]]) do
             table.insert(fields, subfield)
         end
         return true
@@ -168,9 +226,12 @@ local function add_to_fields(lst, field_src, fields)
     end
 end
 
+---@param lst ctypes.TypeList
+---@param fields_src any
 get_fields = function (lst, fields_src)
+    ---@type any[]
     local fields = {}
-    for _, field_src in ipairs(fields_src) do
+    for _, field_src in ipairs(fields_src --[[@as any[] ]]) do
         local ok, err = add_to_fields(lst, field_src, fields)
         if not ok then
             return false, err
@@ -179,11 +240,13 @@ get_fields = function (lst, fields_src)
     return fields
 end
 
+---@param values any
 local function get_enum_items(_, values)
+    ---@type any[]
     local items = {}
-    for _, v in ipairs(values) do
+    for _, v in ipairs(values --[[@as any[] ]]) do
         -- TODO store enum actual values
-        table.insert(items, { name = v.id, value = v.value })
+        table.insert(items, { name = v.id --[[@as any]], value = v.value --[[@as any]] })
     end
     return items
 end
@@ -197,7 +260,14 @@ local function getAnonymousID(t)
     return v:sub(e + 1)
 end
 
+---@type fun(lst: ctypes.TypeList, specid: string?, spectype: string, parts: ctypes.array, partsfield: string, get_parts: function): ctypes.CType, string
 local get_composite_type = typed("TypeList, string?, string, array, string, function -> CType, string",
+    ---@param lst ctypes.TypeList
+    ---@param specid string?
+    ---@param spectype string
+    ---@param parts any
+    ---@param partsfield string
+    ---@param get_parts fun(lst: ctypes.TypeList, parts: any): any, string?
     function (lst, specid, spectype, parts, partsfield, get_parts)
         local name = specid
         local key = spectype .. "@" .. (name or ctypes.TESTMODE and 'anonymous' or getAnonymousID(parts))
@@ -207,10 +277,11 @@ local get_composite_type = typed("TypeList, string?, string, array, string, func
             lst[key] = typed.table("CType", {
                 type = spectype,
                 name = name,
-            })
+            }) --[[@as ctypes.CType]]
         end
 
         if parts then
+            ---@type any
             local err
             parts, err = get_parts(lst, parts)
             if not parts then
@@ -221,8 +292,8 @@ local get_composite_type = typed("TypeList, string?, string, array, string, func
         local typ = typed.table("CType", {
             type = spectype,
             name = name,
-            [partsfield] = parts,
-        })
+            [partsfield] = parts --[[@as any]],
+        }) --[[@as ctypes.CType]]
 
         if lst[key] then
             if typ[partsfield] and lst[key][partsfield] and not equal_declarations(typ, lst[key]) then
@@ -234,6 +305,8 @@ local get_composite_type = typed("TypeList, string?, string, array, string, func
         return typ, key
     end)
 
+---@param lst ctypes.TypeList
+---@param spec any
 local function get_structunion(lst, spec)
     if spec.fields and not spec.fields[1] then
         spec.fields = { spec.fields }
@@ -241,26 +314,31 @@ local function get_structunion(lst, spec)
     return get_composite_type(lst, spec.id, spec.type, spec.fields, "fields", get_fields)
 end
 
+---@param lst ctypes.TypeList
+---@param spec any
 local function get_enum(lst, spec)
     if spec.values and not spec.values[1] then
         spec.values = { spec.values }
     end
     local typ, key = get_composite_type(lst, spec.id, spec.type, spec.values, "values", get_enum_items)
     if typ.values then
-        for _, value in ipairs(typ.values) do
+        for _, value in ipairs(typ.values --[[@as any[] ]]) do
             add_type(lst, value.name, typ)
         end
     end
     return typ, key
 end
 
+---@param lst ctypes.TypeList
+---@param item any
+---@param get_fn fun(lst: ctypes.TypeList, item: any): any, any
 local function refer(lst, item, get_fn)
     if item.id and not item.fields then
-        local key = item.type .. "@" .. item.id
+        local key = (item.type .. "@" .. item.id) --[[@as string]]
         local su_typ = lst[key]
         if not su_typ then
             return {
-                type = item.type,
+                type = item.type --[[@as any]],
                 name = { item.id },
             }
         end
@@ -274,17 +352,22 @@ local function refer(lst, item, get_fn)
     end
 end
 
+---@type fun(val: any): any
 local calculate
 
+---@param val any
+---@param fn fun(a: number, b: number): number
 local function binop(val, fn)
+    ---@type any, any
     local e1, e2 = calculate(val[1]), calculate(val[2])
     if type(e1) == "number" and type(e2) == "number" then
         return fn(e1, e2)
     else
-        return { e1, e2, op = val.op }
+        return { e1, e2, op = val.op --[[@as any]] }
     end
 end
 
+---@param val any
 calculate = function (val)
     if type(val) == "string" then
         return tonumber(val)
@@ -354,7 +437,11 @@ local qualifiers = {
     ["register"] = true,
 }
 
+---@param lst ctypes.TypeList
+---@param spec any
+---@param ret_pointer any
 get_type = function (lst, spec, ret_pointer)
+    ---@type any[]
     local tarr = {}
     if type(spec.type) == "string" then
         spec.type = { spec.type }
@@ -386,7 +473,7 @@ get_type = function (lst, spec, ret_pointer)
         end
     end
     if #ret_pointer > 0 then
-        for _, item in ipairs(ret_pointer) do
+        for _, item in ipairs(ret_pointer --[[@as any[] ]]) do
             if type(item) == "table" and item.idx then
                 table.insert(tarr, { idx = calculate(item.idx) })
             else
@@ -397,34 +484,44 @@ get_type = function (lst, spec, ret_pointer)
     return tarr, nil
 end
 
+---@param param any
 local function is_void(param)
     return #param.type == 1 and param.type[1] == "void"
 end
 
-local get_params = typed("TypeList, array -> array, boolean", function (lst, params_src)
-    local params = {}
-    local vararg = false
+---@type fun(lst: ctypes.TypeList, params_src: ctypes.array): ctypes.array, boolean
+local get_params = typed("TypeList, array -> array, boolean",
+    ---@param lst ctypes.TypeList
+    ---@param params_src any
+    function (lst, params_src)
+        ---@type any[]
+        local params = {}
+        local vararg = false
 
-    assert(not params_src.param)
+        assert(not params_src.param)
 
-    for _, param_src in ipairs(params_src) do
-        if param_src == "..." then
-            vararg = true
-        else
-            local param, err = convert_value(lst, param_src.param)
-            if not param then
-                return nil, err
-            end
-            if not is_void(param) then
-                table.insert(params, param)
+        for _, param_src in ipairs(params_src --[[@as any[] ]]) do
+            if param_src == "..." then
+                vararg = true
+            else
+                local param, err = convert_value(lst, param_src.param)
+                if not param then
+                    return nil, err
+                end
+                if not is_void(param) then
+                    table.insert(params, param)
+                end
             end
         end
-    end
-    return params, vararg
-end)
+        return params, vararg
+    end)
 
+---@param register_item_fn fun(lst: ctypes.TypeList, id: any, spec: any): boolean, string?
+---@param lst ctypes.TypeList
+---@param ids any
+---@param spec any
 local register_many = function (register_item_fn, lst, ids, spec)
-    for _, id in ipairs(ids) do
+    for _, id in ipairs(ids --[[@as any[] ]]) do
         local ok, err = register_item_fn(lst, id, spec)
         if not ok then
             return false, err
@@ -433,6 +530,9 @@ local register_many = function (register_item_fn, lst, ids, spec)
     return true, nil
 end
 
+---@param lst ctypes.TypeList
+---@param id any
+---@param spec any
 local register_decl_item = function (lst, id, spec)
     local ok, name, ret_pointer, idxs = get_name(id.decl)
     if not ok then
@@ -443,6 +543,7 @@ local register_decl_item = function (lst, id, spec)
     if not ret_type then
         return false, err
     end
+    ---@type any
     local typ
     if id.decl.params then
         local params, vararg = get_params(lst, id.decl.params)
@@ -458,13 +559,13 @@ local register_decl_item = function (lst, id, spec)
             },
             params = params,
             vararg = vararg,
-        })
+        }) --[[@as any]]
     else
         typ = typed.table("CType", {
             type = ret_type,
             name = name,
             idxs = idxs,
-        })
+        }) --[[@as any]]
     end
 
     if lst[name] then
@@ -478,17 +579,22 @@ local register_decl_item = function (lst, id, spec)
     return true, nil
 end
 
+---@param lst ctypes.TypeList
+---@param ids any
+---@param spec any
 local register_decls = function (lst, ids, spec)
     return register_many(register_decl_item, lst, ids, spec)
 end
 
 -- Convert an table produced by an `extern inline` declaration
 -- into one compatible with `register_decl`.
+---@param lst ctypes.TypeList
+---@param item any
 local function register_function(lst, item)
     local id = {
         decl = {
-            name = item.func.name,
-            params = item.func.params,
+            name = item.func.name --[[@as any]],
+            params = item.func.params --[[@as any]],
         }
     }
     return register_decl_item(lst, id, item.spec)
@@ -498,54 +604,70 @@ local function register_static_function(_, _)
     return true
 end
 
-local register_typedef_item = typed("TypeList, table, table -> boolean, string?", function (lst, id, spec)
-    local ok, name, ret_pointer = get_name(id.decl)
-    if not ok then
-        return false, name or "failed"
-    end
-    local def, err = get_type(lst, spec, ret_pointer)
-    if not def then
-        return false, err or "failed"
-    end
-    local typ = typed.table("CType", {
-        type = "typedef",
-        name = name,
-        def = def,
-    })
-
-    if lst[name] then
-        if not equal_declarations(lst[name], typ) then
-            return false,
-                "inconsistent declaration for " .. name .. " - " .. inspect(lst[name]) .. " VERSUS " .. inspect(typ)
+---@type fun(lst: ctypes.TypeList, id: any, spec: any): boolean, string?
+local register_typedef_item = typed("TypeList, table, table -> boolean, string?",
+    ---@param lst ctypes.TypeList
+    ---@param id any
+    ---@param spec any
+    function (lst, id, spec)
+        local ok, name, ret_pointer = get_name(id.decl)
+        if not ok then
+            return false, name or "failed"
         end
-    end
-    add_type(lst, name, typ)
+        local def, err = get_type(lst, spec, ret_pointer)
+        if not def then
+            return false, err or "failed"
+        end
+        local typ = typed.table("CType", {
+            type = "typedef",
+            name = name,
+            def = def,
+        }) --[[@as any]]
 
-    return true, nil
-end)
+        if lst[name] then
+            if not equal_declarations(lst[name], typ) then
+                return false,
+                    "inconsistent declaration for " .. name .. " - " .. inspect(lst[name]) .. " VERSUS " .. inspect(typ)
+            end
+        end
+        add_type(lst, name, typ)
 
+        return true, nil
+    end)
+
+---@param lst ctypes.TypeList
+---@param item any
 local register_typedefs = function (lst, item)
     return register_many(register_typedef_item, lst, item.ids, item.spec)
 end
 
+---@param lst ctypes.TypeList
+---@param item any
 local function register_structunion(lst, item)
     return get_structunion(lst, item.spec)
 end
 
+---@param lst ctypes.TypeList
+---@param item any
 local function register_enum(lst, item)
     return get_enum(lst, item.spec)
 end
 
+---@param array any
 local function to_set(array)
+    ---@type table<any, boolean>
     local set = {}
-    for _, v in ipairs(array) do
+    for _, v in ipairs(array --[[@as any[] ]]) do
         set[v] = true
     end
     return set
 end
 
-ctypes.register_types = typed("{Decl} -> TypeList?, string?", function (parsed)
-    local lst = typed.table("TypeList", {})
+---@type fun(parsed: ctypes.Decl[]): ctypes.TypeList?, string?
+ctypes.register_types = typed("{Decl} -> TypeList?, string?",
+    ---@param parsed ctypes.Decl[]
+    function (parsed)
+    local lst = typed.table("TypeList", {}) --[[@as ctypes.TypeList]]
     for _, item in ipairs(parsed) do
         typed.check(item.spec, "table")
         local spec_set = to_set(item.spec)

@@ -9,6 +9,8 @@ local typed = {}
 
 local FAST = false
 
+---@param xs any
+---@return boolean
 local function is_sequence(xs)
    if type(xs) ~= "table" then
       return false
@@ -17,7 +19,7 @@ local function is_sequence(xs)
       return true
    end
    local l = #xs
-   for k, _ in pairs(xs) do
+   for k, _ in pairs(xs --[[@as table<any, any>]]) do
       if type(k) ~= "number" or k < 1 or k > l or math.floor(k) ~= k then
          return false
       end
@@ -43,13 +45,17 @@ local function typed_table(typ, t)
    return set_type(t, typ)
 end
 
+---@param val any
+---@param expected string
+---@return boolean?
+---@return string? actual
 local function try_check(val, expected)
    local optional = expected:match("^(.*)%?$")
    if optional then
       if val == nil then
          return true
       end
-      expected = optional
+      expected = optional --[[@as string]]
    end
 
    local seq_type = expected:match("^{(.+)}$")
@@ -59,7 +65,7 @@ local function try_check(val, expected)
             return true
          end
          local allok = true
-         for _, v in ipairs(val) do
+         for _, v in ipairs(val --[[@as any[] ]]) do
             local ok = try_check(v, seq_type)
             if not ok then
                allok = false
@@ -96,18 +102,25 @@ local function typed_check(val, expected, category, n)
    end
 end
 
+---@param s string
+---@param sep string
+---@return string[]
 local function split(s, sep)
+   ---@type integer, integer?, integer?
    local i, j, k = 1, s:find(sep, 1)
+   ---@type string[]
    local out = {}
    while j do
       table.insert(out, s:sub(i, j - 1))
-      i = k + 1
+      i = (k --[[@as integer]]) + 1
       j, k = s:find(sep, i)
    end
    table.insert(out, s:sub(i, #s))
    return out
 end
 
+---@param types string
+---@param fn function
 local function typed_function(types, fn)
    local inp, outp = types:match("(.*[^%s])%s*%->%s*([^%s].*)")
    local ins = split(inp, ",%s*")

@@ -3,6 +3,7 @@ local util = require 'utility'
 ---@class proto.diagnostic
 ---@field diagnosticDatas  table<string, {severity: DiagnosticSeverity, status: DiagnosticNeededFileStatus}>
 ---@field diagnosticGroups table<string, table<string, boolean>>
+---@field _errNames? table<string, true>
 local m = {}
 
 ---@alias DiagnosticSeverity
@@ -44,6 +45,7 @@ end
 
 ---@return table<string, DiagnosticSeverity>
 function m.getDefaultSeverity()
+    ---@type table<string, DiagnosticSeverity>
     local severity = {}
     for name, info in pairs(m.diagnosticDatas) do
         severity[name] = info.severity
@@ -53,6 +55,7 @@ end
 
 ---@return table<string, DiagnosticNeededFileStatus>
 function m.getDefaultStatus()
+    ---@type table<string, DiagnosticNeededFileStatus>
     local status = {}
     for name, info in pairs(m.diagnosticDatas) do
         status[name] = info.status
@@ -60,7 +63,9 @@ function m.getDefaultStatus()
     return status
 end
 
+---@return table<string, string>
 function m.getGroupSeverity()
+    ---@type table<string, string>
     local group = {}
     for name in pairs(m.diagnosticGroups) do
         group[name] = 'Fallback'
@@ -68,7 +73,9 @@ function m.getGroupSeverity()
     return group
 end
 
+---@return table<string, string>
 function m.getGroupStatus()
+    ---@type table<string, string>
     local group = {}
     for name in pairs(m.diagnosticGroups) do
         group[name] = 'Fallback'
@@ -79,6 +86,7 @@ end
 ---@param name string
 ---@return string[]
 m.getGroups = util.cacheReturn(function (name)
+    ---@type string[]
     local groups = {}
     for groupName, nameMap in pairs(m.diagnosticGroups) do
         if nameMap[name] then
@@ -101,6 +109,7 @@ end)
 ---@return table<string, true>
 function m.getDiagAndErrNameMap()
     if not m._errNames then
+        ---@type table<string, true>
         local names = {}
         for _, fileName in ipairs {'parser.compile', 'parser.luadoc'} do
             local path = package.searchpath(fileName, package.path)
@@ -108,9 +117,9 @@ function m.getDiagAndErrNameMap()
                 local f = io.open(path)
                 if f then
                     for line in f:lines() do
-                        local name = line:match([=[type%s*=%s*['"](%u[%u_]+%u)['"]]=])
+                        local name = line:match([=[type%s*=%s*['"](%u[%u_]+%u)['"]]=]) --[[@as string?]]
                         if name then
-                            local id = name:lower():gsub('_', '-')
+                            local id = (name:lower():gsub('_', '-')) --[[@as string]]
                             names[id] = true
                         end
                     end
@@ -120,6 +129,7 @@ function m.getDiagAndErrNameMap()
         end
         m._errNames = names
     end
+    ---@type table<string, true>
     local names = {}
     for name in pairs(m._errNames) do
         names[name] = true

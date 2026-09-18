@@ -1,3 +1,8 @@
+---@class luadoc.lpegM
+---@field S fun(s: string): any
+---@field R fun(...: string): any
+
+---@type luadoc.lpegM
 local m          = require 'lpeglabel'
 local re         = require 'parser.relabel'
 local guide      = require 'parser.guide'
@@ -90,7 +95,7 @@ Symbol              <-  ({} {
     er = '\r',
     et = '\t',
     ev = '\v',
-    name = (m.R('az', 'AZ', '09', '\x80\xff') + m.S('_')) * (m.R('az', 'AZ', '09', '\x80\xff') + m.S('_.*-'))^0,
+    name = ((m.R('az', 'AZ', '09', '\x80\xff') + m.S('_')) * (m.R('az', 'AZ', '09', '\x80\xff') + m.S('_.*-'))^0) --[[@as any]],
     Char10 = function (char)
         ---@type integer?
         char = tonumber(char)

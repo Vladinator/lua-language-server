@@ -1,6 +1,9 @@
 local helper = require 'plugins.astHelper'
 local parser = require 'parser'
 
+---@param script string
+---@param plugin fun(state: parser.state)
+---@return parser.state
 function Run(script, plugin)
     local state = parser.compile(script, "Lua", "Lua 5.4")
     plugin(state)
@@ -35,8 +38,11 @@ TestaddClassDoc [[a={}]]
 
 TestaddClassDoc [[local a={}]]
 
+---@param script string
+---@param index? integer
 local function TestaddClassDocAtParam(script, index)
     index = index or 1
+    ---@type parser.object?
     local arg
     local state = Run(script, function (state)
         local func = state.ast[1].value
@@ -44,21 +50,26 @@ local function TestaddClassDocAtParam(script, index)
         ok, arg = helper.addClassDocAtParam(state.ast, "AA", func, index)
         assert(ok)
     end)
-    assert(arg.bindDocs)
+    local arg2 = assert(arg)
+    assert(arg2.bindDocs)
 end
 
 TestaddClassDocAtParam [[
     function a(b) end
 ]]
 
+---@param script string
+---@param index? integer
 local function TestaddParamTypeDoc(script, index)
     index = index or 1
+    ---@type parser.object?
     local func
     Run(script, function (state)
-        func = state.ast[1].value
+        func = state.ast[1].value --[[@as parser.object]]
         assert(helper.addParamTypeDoc(state.ast, "string", func.args[index]))
     end)
-    assert(func.args[index].bindDocs)
+    local func2 = assert(func)
+    assert(func2.args[index].bindDocs)
 end
 
 TestaddParamTypeDoc [[

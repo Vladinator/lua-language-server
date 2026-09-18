@@ -7,26 +7,30 @@ local compare = require 'compare'
 rawset(_G, 'TEST', true)
 
 ---@diagnostic disable: await-in-sync
+---@param expect any
 local function TEST(expect)
-    local sourcePos, sourceUri
-    for _, file in ipairs(expect) do
+    ---@type integer?
+    local sourcePos
+    ---@type uri?
+    local sourceUri
+    for _, file in ipairs(expect --[[@as any[] ]]) do
         local script, list = catch(file.content, '?')
         local uri          = furi.encode(file.path)
         files.setText(uri, script)
         files.compileState(uri)
         if #list['?'] > 0 then
             sourceUri = uri
-            sourcePos = (list['?'][1][1] + list['?'][1][2]) // 2
+            sourcePos = ((list['?'][1][1] --[[@as integer]]) + (list['?'][1][2] --[[@as integer]])) // 2
         end
     end
 
     local _ <close> = function ()
-        for _, info in ipairs(expect) do
+        for _, info in ipairs(expect --[[@as any[] ]]) do
             files.remove(furi.encode(info.path))
         end
     end
 
-    local hover = core.byUri(sourceUri, sourcePos, 1)
+    local hover = core.byUri(sourceUri --[[@as uri]], sourcePos --[[@as integer]], 1)
     assert(hover)
     local content = tostring(hover):gsub('\r\n', '\n')
     assert(compare.eq(content, expect.hover))

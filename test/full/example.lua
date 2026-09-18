@@ -8,31 +8,36 @@ local luadoc = require "parser".luadoc
 
 -- 临时
 ---@diagnostic disable: await-in-sync
+---@param path fs.path
 local function testIfExit(path)
     config.set(nil, 'Lua.workspace.preloadFileSize', 1000000000)
     local buf = util.loadFile(path:string())
     if buf then
+        ---@type table<string, any>?
         local state
 
         local clock = os.clock()
         local max = 1
+        ---@type number
         local need
         local compileClock = 0
         local luadocClock = 0
         local noderClock = 0
+        ---@type integer
         local total
         for i = 1, max do
-            ---@type table
-            state = TEST(buf)
+            state = TEST(buf) --[[@as table<string, any>]]
             local luadocStart = os.clock()
             luadoc(state)
             local luadocPassed = os.clock() - luadocStart
             local passed = os.clock() - clock
             local noderStart = os.clock()
             local noderPassed = os.clock() - noderStart
-            compileClock = compileClock + state.compileClock
-            luadocClock  = luadocClock  + luadocPassed
-            noderClock   = noderClock   + noderPassed
+            local curState = state --[[@as table<string, any>]]
+            local curCompileClock = curState.compileClock --[[@as number]]
+            compileClock = (compileClock + curCompileClock) --[[@as number]]
+            luadocClock  = (luadocClock  + luadocPassed) --[[@as number]]
+            noderClock   = (noderClock   + noderPassed) --[[@as number]]
             if passed >= 1.0 or i == max then
                 need = passed / i
                 total = i
@@ -49,6 +54,7 @@ local function testIfExit(path)
 
         local clock = os.clock()
         local max = 100
+        ---@type number
         local need
         for i = 1, max do
             files.open(TESTURI)

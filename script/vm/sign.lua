@@ -77,7 +77,6 @@ function mt:resolve(uri, args)
     end
 
     ---@type table<string, vm.node>
-    ---@type table<string, vm.node>
     local resolved = {}
     ---@type table<string, boolean>
     local visited = {}
@@ -147,7 +146,7 @@ function mt:resolve(uri, args)
                             -- V[] matching list<T>: look up [integer] field,
                             -- find which class generic it references, then
                             -- map V directly to the sign's concrete parameter
-                            local vKey = object.node[1]
+                            local vKey = object.node[1] --[[@as string]]
                             -- First try @field annotations
                             vm.getClassFields(uri, classGlobal, vm.declareGlobal('type', 'integer'), function (field)
                                 if field.extends then
@@ -292,7 +291,7 @@ function mt:resolve(uri, args)
         local genericsNames   = {}
         for obj in sign:eachObject() do
             if obj.type == 'doc.generic.name' then
-                genericsNames[obj[1]] = true
+                genericsNames[obj[1] --[[@as string]]] = true
                 goto CONTINUE
             end
             if obj.type == 'doc.type.table'
@@ -304,7 +303,7 @@ function mt:resolve(uri, args)
                 local hasGeneric
                 guide.eachSourceType(obj, 'doc.generic.name', function (src)
                     hasGeneric = true
-                    genericsNames[src[1]] = true
+                    genericsNames[src[1] --[[@as string]]] = true
                 end)
                 if hasGeneric then
                     goto CONTINUE

@@ -10,6 +10,7 @@ local util   = require 'utility'
 
 local path = ROOT / 'script'
 
+---@type uri[]
 local uris = {}
 
 files.reset()
@@ -58,6 +59,7 @@ print('基准全量诊断用时：', passed)
 vm.clearNodeCache()
 
 local clock = os.clock()
+---@type table<uri, {passed: number, uri: uri}>
 local compileDatas = {}
 
 for uri in files.eachFile() do
@@ -76,6 +78,7 @@ for uri in files.eachFile() do
     ::CONTINUE::
 end
 
+---@type string[]
 local printTexts = {}
 for uri, data in util.sortPairs(compileDatas, function (a, b)
     return compileDatas[a].passed > compileDatas[b].passed

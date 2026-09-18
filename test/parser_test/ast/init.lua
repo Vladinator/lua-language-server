@@ -27,6 +27,7 @@ end
 local ignoreList = {
     'specials', 'locals', 'ref', 'node', 'parent', 'extParent', 'returns', 'state', 'mirror', 'next', 'vararg', 'originalComment', 'typeCache', 'eachCache', 'bindSource'
 }
+---@type table<string, boolean>
 local ignoreMap = {}
 for i, v in ipairs(ignoreList) do
     ignoreMap[v] = true
@@ -36,6 +37,8 @@ IGNORE_MAP = ignoreMap
 
 local myOption = {
     alignment = true,
+    ---@param keys any[]
+    ---@param keymap any
     sorter = function (keys, keymap)
         table.sort(keys, function (a, b)
             local tp1 = type(a)
@@ -77,6 +80,8 @@ local myOption = {
 
 local targetOption = {
     alignment = true,
+    ---@param keys any[]
+    ---@param keymap any
     sorter = function (keys, keymap)
         table.sort(keys, function (a, b)
             local tp1 = type(a)
@@ -105,6 +110,8 @@ local targetOption = {
     end,
 }
 
+---@param myBuf string
+---@param targetBuf string
 local function autoFix(myBuf, targetBuf)
     local info = debug.getinfo(3, 'Sl')
     local filename = info.source:sub(2)
@@ -150,6 +157,7 @@ local function test(type)
             local docs = assert(ast.docs)
             for _, doc in ipairs(docs) do
                 doc.bindGroup = nil
+                ---@diagnostic disable-next-line: inject-field, no-unknown -- test-only: clears a legacy field that no longer exists on the type
                 doc.bindSources = nil
             end
             docs.groups = nil

@@ -1,17 +1,23 @@
+---@type { os: string }
 local platform = require 'bee.platform'
 
 ---@alias uri string
 
 local escPatt = '[^%w%-%.%_%~%/]'
 
+---@param c string
+---@return string
 local function esc(c)
     return ('%%%02X'):format(c:byte())
 end
 
+---@param str string
+---@return string
 local function normalize(str)
-    return str:gsub('%%(%x%x)', function (n)
-        return string.char(tonumber(n, 16))
+    local result = str:gsub('%%(%x%x)', function (n)
+        return string.char(tonumber(n, 16) --[[@as integer]])
     end)
+    return result
 end
 
 local m = {}
@@ -48,6 +54,7 @@ function m.encode(path)
     end
 
     --lower-case windows drive letters in /C:/fff or C:/fff
+    ---@type integer?, integer?, string?
     local start, finish, drive = path:find '/(%u):'
     if drive and finish then
         path = path:sub(1, start) .. drive:lower() .. path:sub(finish, -1)
@@ -74,6 +81,7 @@ function m.decode(uri)
     scheme    = normalize(scheme)
     authority = normalize(authority)
     path      = normalize(path)
+    ---@type string
     local value
     if scheme == 'file' and #authority > 0 and #path > 1 then
         value = '//' .. authority .. path

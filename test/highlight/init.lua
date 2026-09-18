@@ -3,6 +3,9 @@ local core  = require 'core.highlight'
 local files = require 'files'
 local catch = require 'catch'
 
+---@param targets [integer, integer][]
+---@param results [integer, integer][]
+---@return boolean
 local function founded(targets, results)
     if #targets ~= #results then
         return false
@@ -19,19 +22,21 @@ local function founded(targets, results)
     return true
 end
 
+---@param script string
 function TEST(script)
     local newScript, catched = catch(script, '!')
     files.setText(TESTURI, newScript)
     for _, enter in ipairs(catched['!']) do
-        local start, finish = enter[1], enter[2]
+        local start, finish = enter[1] --[[@as integer]], enter[2] --[[@as integer]]
         local pos = (start + finish) // 2
         local positions = core(TESTURI, pos)
         assert(positions)
+        ---@type [integer, integer][]
         local results = {}
         for _, position in ipairs(positions) do
             results[#results+1] = { position.start, position.finish }
         end
-        assert(founded(catched['!'], results))
+        assert(founded(catched['!'] --[[@as [integer, integer][] ]], results))
     end
     files.remove(TESTURI)
 end

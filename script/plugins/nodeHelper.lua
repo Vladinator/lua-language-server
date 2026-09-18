@@ -2,6 +2,7 @@ local _M = {}
 
 ---@class node.match.pattern
 ---@field next node.match.pattern?
+---@field [string] any
 
 ---@param source any
 ---@param pattern any
@@ -16,8 +17,8 @@ local function deepCompare(source, pattern)
         return source == pattern
     end
 
-    for key2, value2 in pairs(pattern) do
-        local value1 = source[key2]
+    for key2, value2 in pairs(pattern --[[@as table<any, any>]]) do
+        local value1 = source[key2] --[[@as any]]
         if value1 == nil or not deepCompare(value1, value2) then
             return false
         end
@@ -47,6 +48,7 @@ local vaildVarRegex = "()([a-zA-Z][a-zA-Z0-9_]*)()"
 ---@param pattern string
 ---@return node.match.pattern?, string?
 function _M.createFieldPattern(pattern)
+    ---@type node.match.pattern
     local ret = { next = nil }
     local next = ret
     local init = 1
@@ -64,11 +66,12 @@ function _M.createFieldPattern(pattern)
         if startpos ~= init then
             return nil, "invalid pattern"
         end
+        ---@type node.match.pattern
         local field = matched == "*" and { next = nil }
             or { field = { type = 'field', matched }, type = 'getfield', next = nil }
         next.next = field
         next = field
-        pattern = pattern:sub(endpos)
+        pattern = pattern:sub(endpos) --[[@as string]]
     end
     return ret
 end

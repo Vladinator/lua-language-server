@@ -1,10 +1,12 @@
+---@type { monotonic: fun(): integer }
 local time         = require 'bee.time'
 local setmetatable = setmetatable
 local mathMax      = math.max
 local mathFloor    = math.floor
 local monotonic    = time.monotonic
 local xpcall       = xpcall
-local logError     = log.error
+---@type any
+local logError     = (log --[[@as any]]).error
 
 _ENV = nil
 
@@ -13,10 +15,12 @@ local maxFrame = 0
 local curIndex = 0
 local tarFrame = 0
 local fwFrame  = 0
+---@type (timer|false)[][]
 local freeQueue = {}
 ---@type (timer|false)[][]
 local timer = {}
 
+---@return (timer|false)[]
 local function allocQueue()
     local n = #freeQueue
     if n > 0 then
@@ -28,6 +32,8 @@ local function allocQueue()
     end
 end
 
+---@param self timer
+---@param timeout integer
 local function mTimeout(self, timeout)
     if self._pauseRemaining or self._running then
         return
@@ -43,6 +49,7 @@ local function mTimeout(self, timeout)
     q[#q + 1] = self
 end
 
+---@param self timer
 local function mWakeup(self)
     if self._removed then
         return
@@ -56,7 +63,7 @@ local function mWakeup(self)
     end
     if self._timerCount then
         if self._timerCount > 1 then
-            self._timerCount = self._timerCount - 1
+            self._timerCount = (self._timerCount - 1) --[[@as integer]]
             mTimeout(self, self._timeout)
         else
             self._removed = true
@@ -66,6 +73,8 @@ local function mWakeup(self)
     end
 end
 
+---@param self timer
+---@return integer
 local function getRemaining(self)
     if self._removed then
         return 0
@@ -105,7 +114,10 @@ local m = {}
 ---@field package _onTimer? fun(self: timer)
 ---@field package _timeoutFrame integer
 ---@field package _timeout integer
----@field package _timerCount integer
+---@field package _timerCount? integer
+---@field package _removed? boolean
+---@field package _running? boolean
+---@field package _pauseRemaining? integer
 local mt = {}
 mt.__index = mt
 mt.type = 'timer'
@@ -184,6 +196,9 @@ function mt:onTimer()
     end
 end
 
+---@param timeout number
+---@param onTimer? fun(self: timer)
+---@return timer
 function m.wait(timeout, onTimer)
     local _timeout = mathMax(mathFloor(timeout * 1000.0), 1)
     local t = setmetatable({
@@ -195,6 +210,9 @@ function m.wait(timeout, onTimer)
     return t
 end
 
+---@param timeout number
+---@param onTimer? fun(self: timer)
+---@return timer
 function m.loop(timeout, onTimer)
     local _timeout = mathFloor(timeout * 1000.0)
     local t = setmetatable({
@@ -205,6 +223,10 @@ function m.loop(timeout, onTimer)
     return t
 end
 
+---@param timeout number
+---@param count integer
+---@param onTimer? fun(self: timer)
+---@return timer
 function m.timer(timeout, count, onTimer)
     if count == 0 then
         return m.loop(timeout, onTimer)
@@ -227,11 +249,11 @@ local lastClock = monotonic()
 function m.update()
     local currentClock = monotonic() + fwFrame
     local delta = currentClock - lastClock
-    lastClock = currentClock
+    lastClock = currentClock --[[@as integer]]
     if curIndex ~= 0 then
         curFrame = curFrame - 1
     end
-    maxFrame = maxFrame + delta
+    maxFrame = (maxFrame + delta) --[[@as integer]]
     tarFrame = mathFloor(maxFrame)
     while curFrame < maxFrame do
         curFrame = curFrame + 1
@@ -239,6 +261,7 @@ function m.update()
     end
 end
 
+---@param delta number
 function m.timeJump(delta)
     fwFrame = fwFrame + mathFloor(delta * 1000.0)
 end

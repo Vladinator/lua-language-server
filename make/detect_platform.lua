@@ -1,5 +1,18 @@
+---@class detect_platform.luamake
+---@field platform? string
+---@field target? string
+---@field arch? string
+---@field workdir string
+---@field cc? string
+---@field ar? string
+---@field flags? string[]
+---@field ldflags? string[]
+---@field notest? boolean
+
+---@type detect_platform.luamake
 local lm = require 'luamake'
 
+---@type { os: string }
 local platform = require 'bee.platform'
 
 if     platform.os == 'macos' then
@@ -65,6 +78,7 @@ local function detectWindowsArch()
     return "ia32"
 end
 
+---@return string
 local function detectPosixArch()
     local f <close> = assert(io.popen("uname -m", 'r'))
     return f:read 'l':lower()

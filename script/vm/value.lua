@@ -229,7 +229,7 @@ function vm.getBoolean(v)
     return result
 end
 
----@param v vm.object
+---@param v vm.object?
 ---@return table<any, boolean>?
 ---@return integer
 function vm.getLiterals(v)

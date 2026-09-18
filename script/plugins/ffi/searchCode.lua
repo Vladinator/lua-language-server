@@ -1,7 +1,10 @@
 local vm = require 'vm'
 
+---@param arg vm.object?
+---@return string[]
 local function getLiterals(arg)
     local literals = vm.getLiterals(arg)
+    ---@type string[]
     local res = {}
     if not literals then
         return res
@@ -14,16 +17,18 @@ local function getLiterals(arg)
     return res
 end
 
+---@param CdefReference core.reference.result
 ---@return string[]?
 local function getCode(CdefReference)
-    local target = CdefReference.target
+    local target = CdefReference.target --[[@as parser.object]]
     if not (target.type == 'field' and target.parent.type == 'getfield') then
         return
     end
-    target = target.parent.parent
+    target = target.parent.parent --[[@as parser.object]]
     if target.type == 'call' then
         return getLiterals(target.args and target.args[1])
     elseif target.type == 'local' then
+        ---@type string[]
         local res = {}
         for _, o in ipairs(target.ref) do
             if o.parent.type ~= 'call' then
@@ -46,10 +51,14 @@ local function getCode(CdefReference)
 end
 
 ---@async
+---@param CdefReference core.reference.result[]?
+---@param target_uri uri
+---@return string[]?
 return function (CdefReference, target_uri)
     if not CdefReference then
         return nil
     end
+    ---@type string[]?
     local codeResults
     for _, v in ipairs(CdefReference) do
         if v.uri ~= target_uri then

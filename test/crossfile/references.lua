@@ -6,6 +6,9 @@ local catch    = require 'catch'
 
 rawset(_G, 'TEST', true)
 
+---@param targets [integer, integer, uri][]
+---@param results [integer, integer, uri][]
+---@return boolean
 local function founded(targets, results)
     if #targets ~= #results then
         return false
@@ -25,11 +28,15 @@ local function founded(targets, results)
     return true
 end
 
+---@param datas any
 local function TEST(datas)
+    ---@type [integer, integer, uri][]
     local targetList = {}
+    ---@type catched?
     local sourceList
+    ---@type uri?
     local sourceUri
-    for i, data in ipairs(datas) do
+    for i, data in ipairs(datas --[[@as any[] ]]) do
         local uri = furi.encode(TESTROOT .. data.path)
         local newScript, catched = catch(data.content, '!?~')
         if catched['!'] or catched['~'] then
@@ -50,19 +57,22 @@ local function TEST(datas)
     end
 
     local _ <close> = function ()
-        for _, info in ipairs(datas) do
+        for _, info in ipairs(datas --[[@as any[] ]]) do
             files.remove(furi.encode(TESTROOT .. info.path))
         end
     end
 
-    local sourcePos = (sourceList[1][1] + sourceList[1][2]) // 2
-    local positions = core(sourceUri, sourcePos, true)
+    local sourceList2 = assert(sourceList)
+    local sourcePos = ((sourceList2[1][1] --[[@as integer]]) + (sourceList2[1][2] --[[@as integer]])) // 2
+    local positions = core(assert(sourceUri), sourcePos, true)
     if positions then
+        ---@type [integer, integer, uri][]
         local result = {}
         for i, position in ipairs(positions) do
+            local target = position.target --[[@as {uri: uri, start: integer, finish: integer}]]
             result[i] = {
-                position.target.start,
-                position.target.finish,
+                target.start,
+                target.finish,
                 position.uri,
             }
         end

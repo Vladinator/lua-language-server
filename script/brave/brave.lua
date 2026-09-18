@@ -1,10 +1,23 @@
 local channel = require 'bee.channel'
-local epoll   = require 'bee.epoll'
 
-local reqPad
-local resPad
+---@class brave.epollFd
+---@field event_add fun(self: brave.epollFd, fd: userdata, events: integer): boolean?, string?
+---@field wait fun(self: brave.epollFd, timeout?: integer): fun(): any?, integer?
+---@field close fun(self: brave.epollFd): boolean?, string?
+
+---@type { EPOLLIN: integer, create: fun(max_events: integer): brave.epollFd? }
+local epoll = require 'bee.epoll'
+
+---@type any
+local log = log
+
+local reqPad ---@type bee.channel.object?
+local resPad ---@type bee.channel.object?
 
 ---@class pub_brave
+---@field id? integer
+---@field ability table<string, fun(params: any): any>
+---@field queue? { name: string, params: any }[]
 local m = {}
 m.type = 'brave'
 m.ability = {}
@@ -23,8 +36,9 @@ function m.register(id, taskChName, replyChName)
     assert(reqPad, 'task channel not found: ' .. taskChName)
     assert(resPad, 'reply channel not found: ' .. replyChName)
 
-    if #m.queue > 0 then
-        for _, info in ipairs(m.queue) do
+    local queue = m.queue
+    if queue and #queue > 0 then
+        for _, info in ipairs(queue) do
             resPad:push(info.name, info.params)
         end
     end
@@ -34,16 +48,21 @@ function m.register(id, taskChName, replyChName)
 end
 
 --- 注册能力
+---@param name string
+---@param callback fun(params: any): any
 function m.on(name, callback)
     m.ability[name] = callback
 end
 
 --- 报告
+---@param name string
+---@param params any
 function m.push(name, params)
     if m.id and resPad then
         resPad:push(name, params)
     else
-        m.queue[#m.queue+1] = {
+        local queue = assert(m.queue)
+        queue[#queue+1] = {
             name   = name,
             params = params,
         }
@@ -52,15 +71,19 @@ end
 
 --- 开始找工作
 function m.start()
-    local epfd <close> = assert(epoll.create(16))
+    local reqPad = assert(reqPad)
+    local resPad = assert(resPad)
+    local epfd <close> = assert(epoll.create(16)) --[[@as brave.epollFd]]
     epfd:event_add(reqPad:fd(), epoll.EPOLLIN)
 
     m.push('mem', collectgarbage 'count')
     while true do
         for _, event in epfd:wait() do
-            if event & epoll.EPOLLIN ~= 0 then
+            if (event --[[@as integer]]) & epoll.EPOLLIN ~= 0 then
+                ---@type boolean, string?, integer?, any
                 local ok, name, id, params = reqPad:pop()
                 if ok then
+                    local name = name --[[@as string]]
                     local ability = m.ability[name]
                     if not ability then
                         resPad:push(id)

@@ -5,9 +5,13 @@ local catch  = require 'catch'
 local guide  = require 'parser.guide'
 local config = require 'config'
 
+---@param text string
+---@param positions core.rename.result[]
+---@return string
 local function replace(text, positions)
     local state = files.getState(TESTURI)
     assert(state)
+    ---@type string[]
     local buf = {}
     table.sort(positions, function (a, b)
         return a.start < b.start
@@ -24,9 +28,13 @@ local function replace(text, positions)
     return table.concat(buf)
 end
 
+---@param oldName string
+---@param newName string
 function TEST(oldName, newName)
     return function (oldScript)
         return function (expectScript)
+            local oldScript = oldScript --[[@as string]]
+            local expectScript = expectScript --[[@as string]]
             files.setText(TESTURI, oldScript)
             local state = files.getState(TESTURI)
             assert(state)

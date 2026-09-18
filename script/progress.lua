@@ -2,17 +2,29 @@ local proto  = require 'proto.proto'
 local util   = require 'utility'
 local timer  = require "timer"
 local config = require 'config'
+---@type { time: fun(): number }
 local time   = require 'bee.time'
 
 local nextToken = util.counter()
 
 local m = {}
 
+---@type table<integer, progress>
 m.map = {}
 
 ---@class progress
----@field _uri   uri
----@field _token integer
+---@field _uri         uri?
+---@field _token       integer
+---@field _title?      string
+---@field _message?    string
+---@field _removed     boolean
+---@field _clock       number
+---@field _delay       number
+---@field _percentage  number
+---@field _showed      boolean
+---@field _dirty       boolean
+---@field _updated     number
+---@field public _onCancel? fun(prog: progress)
 local mt = {}
 mt.__index     = mt
 mt._title      = nil
@@ -73,6 +85,7 @@ function mt:setPercentage(per)
 end
 
 ---取消事件
+---@param callback fun(prog: progress)
 function mt:onCancel(callback)
     self._onCancel = callback
     self:update()
@@ -168,6 +181,7 @@ function m.create(uri, title, delay)
 end
 
 ---取消一个进度条
+---@param token integer
 function m.cancel(token)
     local prog = m.map[token]
     if not prog then

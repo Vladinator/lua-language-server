@@ -776,7 +776,7 @@ TEST [[
 ]]
 [[
 (global) _G: _G {
-    arg: string[],
+    arg: table<integer, string>,
     assert: function,
     collectgarbage: function,
     coroutine: coroutinelib,

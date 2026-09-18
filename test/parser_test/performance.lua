@@ -16,6 +16,8 @@ local fs     = require 'bee.filesystem'
 local util   = require 'utility'
 local parser = require 'parser'
 
+---@param fspath fs.path
+---@param callback fun(path: fs.path)
 local function scanFiles(fspath, callback)
     if fs.is_directory(fspath) then
         for subpath in fs.pairs(fspath) do
@@ -27,22 +29,24 @@ local function scanFiles(fspath, callback)
 end
 
 print('Scanning files...')
+---@type string[]
 local fileNames = {}
 scanFiles(fs.path(path), function (fullPath)
-    if fullPath:extension():string() ~= '.lua' then
+    if fullPath:extension() ~= '.lua' then
         return
     end
     fileNames[#fileNames+1] = fullPath:string()
 end)
 
 print('Loading files...')
+---@type string[]
 local files = {}
 local size = 0
 for _, fileName in ipairs(fileNames) do
     local file = util.loadFile(fileName)
     if file then
         files[#files+1] = file
-        size = size + #file
+        size = (size + #file) --[[@as integer]]
     end
 end
 

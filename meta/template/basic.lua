@@ -1,7 +1,7 @@
 ---@meta _
 
 ---#DES 'arg'
----@type string[]
+---@type table<integer, string>
 arg = {}
 
 ---#DES 'assert'

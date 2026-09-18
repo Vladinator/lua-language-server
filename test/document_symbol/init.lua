@@ -6,6 +6,8 @@ rawset(_G, 'TEST', true)
 
 local EXISTS = {}
 
+---@param a any
+---@param b any
 local function eq(a, b)
     if a == EXISTS and b ~= nil then
         return true
@@ -15,14 +17,15 @@ local function eq(a, b)
         return false
     end
     if tp1 == 'table' then
+        ---@type table<any, boolean>
         local mark = {}
-        for k in pairs(a) do
+        for k in pairs(a --[[@as table<any, any>]]) do
             if not eq(a[k], b[k]) then
                 return false
             end
             mark[k] = true
         end
-        for k in pairs(b) do
+        for k in pairs(b --[[@as table<any, any>]]) do
             if not mark[k] then
                 return false
             end
@@ -32,13 +35,14 @@ local function eq(a, b)
     return a == b
 end
 
+---@param symbols any[]
 local function checkArcoss(symbols)
     local lastFinish = 0
     for _, symbol in ipairs(symbols) do
         assert(symbol.range[1] <= symbol.selectionRange[1])
         assert(symbol.range[2] >= symbol.selectionRange[2])
         assert(symbol.range[2] > lastFinish)
-        lastFinish = symbol.range[2]
+        lastFinish = symbol.range[2] --[[@as integer]]
         if symbol.children then
             checkArcoss(symbol.children)
         end
@@ -46,6 +50,7 @@ local function checkArcoss(symbols)
 end
 
 ---@diagnostic disable: await-in-sync
+---@param script string
 function TEST(script)
     return function (expect)
         files.setText(TESTURI, script)

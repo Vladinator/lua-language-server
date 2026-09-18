@@ -1,4 +1,7 @@
-local main, exec
+---@type integer?
+local main
+---@type boolean?
+local exec
 local i = 1
 while arg[i] do
     if     arg[i] == '-E' then
@@ -37,6 +40,7 @@ if main then
     end
 end
 
+---@type string?
 local root
 do
     if main then
@@ -55,7 +59,7 @@ do
         root = package.cpath:match("([^;]+)" .. pattern .. pattern .. "$")
         arg[0] = root .. package.config:sub(1, 1) .. 'main.lua'
     end
-    root = root:gsub('[/\\]', package.config:sub(1, 1))
+    root = (root --[[@as string]]):gsub('[/\\]', package.config:sub(1, 1))
 end
 
 package.path = table.concat({

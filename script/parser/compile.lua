@@ -1667,19 +1667,19 @@ local function parseNumber10(start)
     if ssub(Lua, offset, offset) == '.' then
         local floatPart = smatch(Lua, '^' .. digitPattern .. '*', offset + 1)
         integer = false
-        offset = offset + #floatPart + 1
+        offset = (offset + #floatPart + 1) --[[@as integer]]
     end
     -- exp part
     local echar = ssub(Lua, offset, offset)
     if CharMapE10[echar] then
         integer = false
-        offset = offset + 1
+        offset = (offset + 1) --[[@as integer]]
         local nextChar = ssub(Lua, offset, offset)
         if CharMapSign[nextChar] then
-            offset = offset + 1
+            offset = (offset + 1) --[[@as integer]]
         end
         local exp = smatch(Lua, '^' .. digitPattern .. '*', offset)
-        offset = offset + #exp
+        offset = (offset + #exp) --[[@as integer]]
         if #exp == 0 then
             pushError {
                 type   = 'MISS_EXPONENT',
@@ -1710,7 +1710,7 @@ local function parseNumber16(start, prefixStart)
     if ssub(Lua, offset, offset) == '.' then
         local floatPart = smatch(Lua, '^' .. hexPattern .. '*', offset + 1)
         integer = false
-        offset = offset + #floatPart + 1
+        offset = (offset + #floatPart + 1) --[[@as integer]]
         if #integerPart == 0 and #floatPart == 0 then
             pushError {
                 type   = 'MUST_X16',
@@ -1732,13 +1732,13 @@ local function parseNumber16(start, prefixStart)
     local echar = ssub(Lua, offset, offset)
     if CharMapE16[echar] then
         integer = false
-        offset = offset + 1
+        offset = (offset + 1) --[[@as integer]]
         local nextChar = ssub(Lua, offset, offset)
         if CharMapSign[nextChar] then
-            offset = offset + 1
+            offset = (offset + 1) --[[@as integer]]
         end
         local exp = smatch(Lua, '^' .. hexPattern .. '*', offset)
-        offset = offset + #exp
+        offset = (offset + #exp) --[[@as integer]]
     end
     local numStr = ssub(Lua, prefixStart, offset - 1)
     if isLuaJITExt('number_underscore') then
@@ -1824,7 +1824,7 @@ local function dropNumberTail(offset, integer)
                 }
             }
         end
-        offset = offset + 1
+        offset = (offset + 1) --[[@as integer]]
         word   = ssub(word, offset)
     end
     if #word > 0 then

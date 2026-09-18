@@ -45,8 +45,12 @@ defs["trace"] = function()
     return true
 end
 
+---@type table<any, boolean>
 local typedefs = {}
 
+---@param xs any[]
+---@param e any
+---@return boolean
 local function elem(xs, e)
     for _, x in ipairs(xs) do
         if e == x then
@@ -59,16 +63,17 @@ end
 defs["decl_func"] = typed("string, number, table -> boolean, Decl", function(_, _, decl)
     typed.set_type(decl, "Decl")
     return true, decl
-end)
+end) --[[@as fun(_1: any, _2: any, decl: any): boolean, ctypes.Decl]]
 
 defs["decl_ids"] = typed("string, number, table -> boolean, Decl?", function(_, _, decl)
+    ---@cast decl any
     -- store typedef
     if elem(decl.spec, "typedef") then
         if not (decl.ids and decl.ids[1] and decl.ids[1].decl) then
             return true
         end
-        for _, id in ipairs(decl.ids) do
-            local name = id.decl.name or id.decl.declarator.name
+        for _, id in ipairs(decl.ids --[[@as any[] ]]) do
+            local name = (id.decl.name or id.decl.declarator.name) --[[@as any]]
             if name then
                 typedefs[name] = true
             end
@@ -76,7 +81,7 @@ defs["decl_ids"] = typed("string, number, table -> boolean, Decl?", function(_, 
     end
     typed.set_type(decl, "Decl")
     return true, decl
-end)
+end) --[[@as fun(_1: any, _2: any, decl: any): boolean, ctypes.Decl?]]
 
 defs["is_typedef"] = function(_, _, id)
     --print("is " .. id .. " a typedef? " .. tostring(not not typedefs[id]))
@@ -94,26 +99,26 @@ defs["nest_exp"] = typed("string, number, {Exp} -> boolean, Exp", function(_, _,
         return true, exp[1]
     end
     return true, exp
-end)
+end) --[[@as fun(_1: any, _2: any, exp: Exp): boolean, Exp]]
 
 -- Primary expression tables
 defs["prim_exp"] = typed("string, number, {string} -> boolean, Exp", function(_, _, exp)
     typed.set_type(exp, "Exp")
     return true, exp
-end)
+end) --[[@as fun(_1: any, _2: any, exp: any): boolean, Exp]]
 
 -- Type tables
 defs["type_exp"] = typed("string, number, table -> boolean, Exp", function(_, _, exp)
     typed.check(exp[1], "Type")
     typed.set_type(exp, "Exp")
     return true, exp
-end)
+end) --[[@as fun(_1: any, _2: any, exp: any): boolean, Exp]]
 
 -- Types
 defs["type"] = typed("string, number, table -> boolean, Type", function(_, _, typ)
     typed.set_type(typ, "Type")
     return true, typ
-end)
+end) --[[@as fun(_1: any, _2: any, typ: any): boolean, any]]
 
 defs["join"] = typed("string, number, {array} -> boolean, array", function(_, _, xss)
     -- xss[1] .. xss[2]
@@ -121,19 +126,19 @@ defs["join"] = typed("string, number, {array} -> boolean, array", function(_, _,
         table.move(xss[2], 1, #xss[2], #xss[1] + 1, xss[1])
     end
     return true, xss[1] or {}
-end)
+end) --[[@as fun(_1: any, _2: any, xss: any[]): boolean, any[] ]]
 
 defs["postfix"] = typed("string, number, table -> boolean, table", function(_, _, pf)
     typed.check(pf[1], "Exp")
     if pf.postfix ~= "" then
-        pf[1].postfix = pf.postfix
+        (pf[1] --[[@as table<any, any>]]).postfix = pf.postfix
     end
     return true, pf[1]
-end)
+end) --[[@as fun(_1: any, _2: any, pf: any): boolean, any]]
 
 defs["litstruct"] = typed("string, number, number -> boolean, string", function(_, _, _)
     return true, "litstruct"
-end)
+end) --[[@as fun(_1: any, _2: any, _3: any): boolean, string]]
 
 --==============================================================================
 -- Lexical Rules (used in both preprocessing and language processing)
@@ -681,30 +686,36 @@ S <- %s+
 
 ]]
 
+---@class c99.Grammar
+---@field match fun(self: c99.Grammar, subject: string): any, any, integer
+
 local preprocessing_grammar = re.compile(
     preprocessing_rules ..
-    lexical_rules, defs)
+    lexical_rules, defs) --[[@as c99.Grammar]]
 
 local preprocessing_expression_grammar = re.compile(
     preprocessing_expression_rules ..
     lexical_rules ..
-    common_expression_rules, defs)
+    common_expression_rules, defs) --[[@as c99.Grammar]]
 
 local language_expression_grammar = re.compile(
     language_expression_rules ..
     simplified_language_expression_rules ..
     lexical_rules ..
-    common_expression_rules, defs)
+    common_expression_rules, defs) --[[@as c99.Grammar]]
 
 local language_grammar = re.compile(
     language_rules ..
     language_expression_rules ..
     lexical_rules ..
-    common_expression_rules, defs)
+    common_expression_rules, defs) --[[@as c99.Grammar]]
 
+---@param grammar c99.Grammar
+---@param subject string
 local function match(grammar, subject)
     local res, err, pos = grammar:match(subject)
     if res == nil then
+        ---@type integer, integer
         local l, c = re.calcline(subject, pos)
         local fragment = subject:sub(pos, pos+20)
         return res, err, l, c, fragment

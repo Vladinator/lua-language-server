@@ -341,7 +341,7 @@ end
 ---@return parser.object?
 function m.getParentFunction(obj)
     for _ = 1, 10000 do
-        obj = obj.parent
+        obj = (obj --[[@as parser.object]]).parent --[[@as parser.object?]]
         if not obj then
             break
         end
@@ -391,7 +391,7 @@ end
 ---@return parser.object?
 function m.getParentBlock(obj)
     for _ = 1, 10000 do
-        obj = obj.parent
+        obj = (obj --[[@as parser.object]]).parent --[[@as parser.object?]]
         if not obj then
             return nil
         end
@@ -410,7 +410,7 @@ end
 ---@return parser.object?
 function m.getBreakBlock(obj)
     for _ = 1, 10000 do
-        obj = obj.parent
+        obj = (obj --[[@as parser.object]]).parent --[[@as parser.object?]]
         if not obj then
             return nil
         end
@@ -432,14 +432,14 @@ end
 ---@return parser.object
 function m.getDocState(obj)
     for _ = 1, 10000 do
-        local parent = obj.parent
+        local parent = obj.parent --[[@as parser.object?]]
         if not parent then
             return obj
         end
         if parent.type == 'doc' then
             return obj
         end
-        obj = parent
+        obj = parent --[[@as parser.object]]
     end
     error('guide.getDocState overstack')
 end
@@ -449,7 +449,7 @@ end
 ---@return parser.object?
 function m.getParentType(obj, want)
     for _ = 1, 10000 do
-        obj = obj.parent
+        obj = (obj --[[@as parser.object]]).parent --[[@as parser.object?]]
         if not obj then
             return nil
         end
@@ -465,7 +465,7 @@ end
 ---@return parser.object?
 function m.getParentTypes(obj, wants)
     for _ = 1, 10000 do
-        obj = obj.parent
+        obj = (obj --[[@as parser.object]]).parent --[[@as parser.object?]]
         if not obj then
             return nil
         end

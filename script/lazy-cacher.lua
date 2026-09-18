@@ -12,6 +12,7 @@ _ENV = nil
 ---@field _opening linked-table
 ---@field _openingMap table<string, file*>
 ---@field _dir string
+---@field errorHandler fun(err: string?)
 local mt = {}
 mt.__index = mt
 mt.type = 'lazy-cacher'
@@ -57,9 +58,11 @@ end
 ---@return fun(id: integer): string?
 function mt:writterAndReader(fileID)
     local maxFileSize = self.maxFileSize
+    ---@type table<integer, integer>
     local map = {}
     ---@param file file*
     local function resize(file)
+        ---@type table<integer, string>
         local codes = {}
         for id, data in pairs(map) do
             local offset = data // 1000000
@@ -85,7 +88,7 @@ function mt:writterAndReader(fileID)
         for id, code in pairs(codes) do
             file:write(code)
             map[id] = offset * 1000000 + #code
-            offset = offset + #code
+            offset = (offset + #code) --[[@as integer]]
         end
         file:close()
     end

@@ -10,6 +10,7 @@ local fw          = require 'filewatch'
 local util        = require 'utility'
 local config      = require 'config'
 
+---@type table<string, true|fs.path>
 local loadedUris = {}
 
 local updateType = {
@@ -23,6 +24,7 @@ fw.event(function(_ev, path)
         for uri, fsPath in pairs(loadedUris) do
             loadedUris[uri] = nil
             if fsPath ~= true then
+                ---@type boolean, string?
                 local status, err = codeFormat.update_config(updateType.Deleted, uri, fsPath:string())
                 if not status and err then
                     log.error(err)
@@ -45,9 +47,10 @@ function m.updateConfig(uri)
         m.updateNonStandardSymbols(config.get(nil, 'Lua.runtime.nonstandardSymbol'))
     end
 
+    ---@type uri?
     local currentUri = uri
     while true do
-        currentUri = currentUri:match('^(.+)/[^/]*$')
+        currentUri = (currentUri --[[@as uri]]):match('^(.+)/[^/]*$') --[[@as uri?]]
         if not currentUri or loadedUris[currentUri] then
             return
         end
@@ -57,6 +60,7 @@ function m.updateConfig(uri)
         local editorConfigFSPath = fs.path(currentPath) / '.editorconfig'
         if fs.exists(editorConfigFSPath) then
             loadedUris[currentUri] = editorConfigFSPath
+            ---@type boolean, string?
             local status, err = codeFormat.update_config(updateType.Created, currentUri, editorConfigFSPath:string())
             if not status and err then
                 log.error(err)

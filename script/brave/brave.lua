@@ -8,9 +8,6 @@ local channel = require 'bee.channel'
 ---@type { EPOLLIN: integer, create: fun(max_events: integer): brave.epollFd? }
 local epoll = require 'bee.epoll'
 
----@type any
-local log = log
-
 local reqPad ---@type bee.channel.object?
 local resPad ---@type bee.channel.object?
 
@@ -87,10 +84,10 @@ function m.start()
                     local ability = m.ability[name]
                     if not ability then
                         resPad:push(id)
-                        log.error('Brave can not handle this work: ' .. name)
+                        ;(log --[[@as any]]).error('Brave can not handle this work: ' .. name)
                         goto CONTINUE
                     end
-                    local suc, res = xpcall(ability, log.error, params)
+                    local suc, res = xpcall(ability, (log --[[@as any]]).error, params)
                     if suc then
                         resPad:push(id, res)
                     else

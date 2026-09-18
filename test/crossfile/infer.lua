@@ -7,11 +7,18 @@ local compare = require 'compare'
 
 rawset(_G, 'TEST', true)
 
+---@param uri uri?
+---@param pos integer?
+---@return parser.object?
 local function getSource(uri, pos)
+    if not uri or not pos then
+        return
+    end
     local state = files.getState(uri)
     if not state then
         return
     end
+    ---@type parser.object?
     local result
     guide.eachSourceContain(state.ast, pos, function (source)
         if source.type == 'local'
@@ -31,28 +38,32 @@ local function getSource(uri, pos)
 end
 
 ---@diagnostic disable: await-in-sync
+---@param expect any
 local function TEST(expect)
-    local sourcePos, sourceUri
-    for _, file in ipairs(expect) do
+    ---@type integer?
+    local sourcePos
+    ---@type uri?
+    local sourceUri
+    for _, file in ipairs(expect --[[@as any[] ]]) do
         local script, list = catch(file.content, '?')
         local uri          = furi.encode(TESTROOT .. file.path)
         files.setText(uri, script)
         files.compileState(uri)
         if #list['?'] > 0 then
             sourceUri = uri
-            sourcePos = (list['?'][1][1] + list['?'][1][2]) // 2
+            sourcePos = ((list['?'][1][1] --[[@as integer]]) + (list['?'][1][2] --[[@as integer]])) // 2
         end
     end
 
     local _ <close> = function ()
-        for _, info in ipairs(expect) do
+        for _, info in ipairs(expect --[[@as any[] ]]) do
             files.remove(furi.encode(info.path))
         end
     end
 
     local source = getSource(sourceUri, sourcePos)
     assert(source)
-    local view = vm.getInfer(source):view(sourceUri)
+    local view = vm.getInfer(source):view(sourceUri --[[@as uri]])
     assert(compare.eq(view, expect.infer))
 end
 

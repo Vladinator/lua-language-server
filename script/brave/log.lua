@@ -1,4 +1,5 @@
 local brave          = require 'brave'
+---@type { monotonic: fun(): integer }
 local time           = require 'bee.time'
 
 local tablePack      = table.pack
@@ -10,14 +11,20 @@ local monotonic      = time.monotonic
 
 _ENV = nil
 
+---@param level string
 local function pushLog(level, ...)
+    ---@type { n: integer, [integer]: any }
     local t = tablePack(...)
     for i = 1, t.n do
         t[i] = tostring(t[i])
     end
-    local str = tableConcat(t, '\t', 1, t.n)
+    local joined = tableConcat(t, '\t', 1, t.n)
+    ---@type string
+    local str
     if level == 'error' then
-        str = str .. '\n' .. debugTraceBack(nil, 3)
+        str = joined .. '\n' .. debugTraceBack(nil, 3)
+    else
+        str = joined
     end
     local info = debugGetInfo(3, 'Sl')
     brave.push('log', {

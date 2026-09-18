@@ -6,7 +6,7 @@ local catch  = require 'catch'
 local diagd  = require 'proto.diagnostic'
 local fs     = require 'bee.filesystem'
 
-local status = config.get(nil, 'Lua.diagnostics.neededFileStatus')
+local status = config.get(nil, 'Lua.diagnostics.neededFileStatus') --[[@as table<string, any>]]
 
 for key in pairs(status) do
     status[key] = 'Any!'
@@ -31,6 +31,9 @@ config.set('nil', 'Lua.type.weakNilCheck', false)
 
 rawset(_G, 'TEST', true)
 
+---@param targets [integer, integer][]
+---@param results [integer, integer][]
+---@return boolean
 local function founded(targets, results)
     if #targets ~= #results then
         return false

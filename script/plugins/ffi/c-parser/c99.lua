@@ -712,6 +712,7 @@ local language_grammar = re.compile(
 
 ---@param grammar c99.Grammar
 ---@param subject string
+---@return any ...
 local function match(grammar, subject)
     local res, err, pos = grammar:match(subject)
     if res == nil then
@@ -723,19 +724,27 @@ local function match(grammar, subject)
     return res
 end
 
+---@param subject string
+---@return any ...
 function c99.match_language_grammar(subject)
     typedefs = {}
     return match(language_grammar, subject)
 end
 
+---@param subject string
+---@return any ...
 function c99.match_language_expression_grammar(subject)
     return match(language_expression_grammar, subject)
 end
 
+---@param subject string
+---@return any ...
 function c99.match_preprocessing_grammar(subject)
     return match(preprocessing_grammar, subject)
 end
 
+---@param subject string
+---@return any ...
 function c99.match_preprocessing_expression_grammar(subject)
     return match(preprocessing_expression_grammar, subject)
 end

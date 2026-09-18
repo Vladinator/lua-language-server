@@ -5,6 +5,9 @@ local c99 = require("plugins.ffi.c-parser.c99")
 local cpp = require("plugins.ffi.c-parser.cpp")
 local typed = require("plugins.ffi.c-parser.typed")
 
+---@param lst ctypes.TypeList
+---@param name any
+---@param typ any
 local function add_type(lst, name, typ)
     lst[name] = typ
     table.insert(lst, { name = name, type = typ })
@@ -58,10 +61,14 @@ local bitop_set = {
 }
 
 -- Best-effort assessment of the type of a #define
+---@type fun(exp: Exp, lst: ctypes.TypeList): string[]?
 local get_type_of_exp
-get_type_of_exp = typed("Exp, TypeList -> {string}?", function(exp, lst)
+get_type_of_exp = typed("Exp, TypeList -> {string}?",
+    ---@param exp Exp
+    ---@param lst ctypes.TypeList
+    function(exp, lst)
     if type(exp[1]) == "string" and exp[2] == nil then
-        local val = exp[1]
+        local val = exp[1] --[[@as string]]
         if val:sub(1,1) == '"' or val:sub(1,2) == 'L"' then
             return base_c_types.CONST_CHAR_PTR
         elseif val:sub(1,1) == "'" or val:sub(1,2) == "L'" then
@@ -78,11 +85,11 @@ get_type_of_exp = typed("Exp, TypeList -> {string}?", function(exp, lst)
     end
 
     if type(exp[1]) == "string" and exp[2] and exp[2].args then
-        local fn = lst[exp[1]]
+        local fn = lst[exp[1]] --[[@as any]]
         if not fn or not fn.ret then
             return nil -- unknown function, or not a function
         end
-        local r = fn.ret.type
+        local r = fn.ret.type --[[@as any]]
         return table.move(r, 1, #r, 1, {}) -- shallow_copy(r)
     end
 
@@ -123,8 +130,11 @@ get_type_of_exp = typed("Exp, TypeList -> {string}?", function(exp, lst)
         print("FIXME unsupported op", exp.op)
     end
     return nil
-end)
+end) --[[@as fun(exp: Exp, lst: ctypes.TypeList): string[]? ]]
 
+---@param lst ctypes.TypeList
+---@param name string
+---@param text string
 function cdefines.register_define(lst, name, text)
     local exp = c99.match_language_expression_grammar(text .. " ")
     if not exp then
@@ -132,14 +142,17 @@ function cdefines.register_define(lst, name, text)
         -- print(("failed parsing: %d:%d: %s\n"):format(line, col, text))
         return
     end
-    local typ = get_type_of_exp(exp, lst)
+    local typ = get_type_of_exp(exp --[[@as Exp]], lst)
     if typ then
         add_type(lst, name, { type = typ })
     end
 end
 
+---@param lst ctypes.TypeList
+---@param define_set table<string, Token?>
 function cdefines.register_defines(lst, define_set)
-    for name, def in pairs(define_set) do
+    for name, def0 in pairs(define_set) do
+        local def = def0 --[[@as Token]]
         if #def == 0 then
             goto continue
         end

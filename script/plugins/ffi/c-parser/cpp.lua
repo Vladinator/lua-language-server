@@ -28,6 +28,7 @@ local c99 = require("plugins.ffi.c-parser.c99")
 
 ---@class Exp
 ---@field op? string
+---@field unop? string
 ---@field mode? string
 ---@field [integer] any
 

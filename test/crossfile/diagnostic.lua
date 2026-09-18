@@ -2,17 +2,22 @@ local files    = require 'files'
 local furi     = require 'file-uri'
 local core     = require 'core.diagnostics'
 local config   = require 'config'
+---@type { os: string }
 local platform = require 'bee.platform'
 local catch    = require 'catch'
 
 
-config.get(nil, 'Lua.diagnostics.neededFileStatus')['deprecated'] = 'Any'
-config.get(nil, 'Lua.diagnostics.neededFileStatus')['type-check'] = 'Any'
-config.get(nil, 'Lua.diagnostics.neededFileStatus')['duplicate-set-field'] = 'Any'
-config.get(nil, 'Lua.diagnostics.neededFileStatus')['codestyle-check'] = 'None'
+local neededFileStatus = config.get(nil, 'Lua.diagnostics.neededFileStatus') --[[@as table<string, string>]]
+neededFileStatus['deprecated'] = 'Any'
+neededFileStatus['type-check'] = 'Any'
+neededFileStatus['duplicate-set-field'] = 'Any'
+neededFileStatus['codestyle-check'] = 'None'
 
 rawset(_G, 'TEST', true)
 
+---@param targets [integer, integer, uri][]
+---@param results [integer, integer, uri][]
+---@return boolean
 local function founded(targets, results)
     if #targets ~= #results then
         return false
@@ -33,9 +38,11 @@ local function founded(targets, results)
 end
 
 ---@diagnostic disable: await-in-sync
+---@param datas any
 function TEST(datas)
+    ---@type [integer, integer, uri][]
     local targetList = {}
-    for _, data in ipairs(datas) do
+    for _, data in ipairs(datas --[[@as any[] ]]) do
         local uri = furi.encode(data.path)
         local newScript, catched = catch(data.content, '!')
         for _, position in ipairs(catched['!'] or {}) do
@@ -51,15 +58,17 @@ function TEST(datas)
     end
 
     local _ <close> = function ()
-        for _, info in ipairs(datas) do
+        for _, info in ipairs(datas --[[@as any[] ]]) do
             files.remove(furi.encode(info.path))
         end
     end
 
 
+    ---@type [integer, integer, uri][]
     local results = {}
+    ---@type any[]
     local origins = {}
-    for _, data in ipairs(datas) do
+    for _, data in ipairs(datas --[[@as any[] ]]) do
         local uri = furi.encode(data.path)
         core(uri, false, function (result)
             if result.code == datas.code then

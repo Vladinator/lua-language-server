@@ -167,6 +167,7 @@ end
 ---@param callback fun(resume: fun(...: any), ...: any)
 ---@param ... any
 ---@async
+---@return any ...
 function m.wait(callback, ...)
     local co = coroutine.running()
     ---@type boolean?

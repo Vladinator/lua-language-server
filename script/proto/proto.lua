@@ -5,6 +5,7 @@ local jsonrpc    = require 'jsonrpc'
 local define     = require 'proto.define'
 local json       = require 'json'
 local inspect    = require 'inspect'
+---@type { os: string }
 local platform   = require 'bee.platform'
 local fs         = require 'bee.filesystem'
 local net        = require 'service.net'
@@ -19,6 +20,7 @@ local function logSend(buf)
     log.info('rpc send:', buf)
 end
 
+---@param proto any
 local function logRecieve(proto)
     if not RPCLOG then
         return
@@ -34,8 +36,10 @@ end
 ---@field package _closeMessage? string
 
 ---@class proto
+---@field client any
 local m = {}
 
+---@type table<string, async fun()>
 m.ability = {}
 ---@type table<any, any>
 m.waiting = {}
@@ -45,6 +49,8 @@ m.mode    = 'stdio'
 m.client  = nil
 
 ---@param proto proto.message
+---@return string method
+---@return boolean isOptional
 function m.getMethodName(proto)
     if proto.method:sub(1, 2) == '$/' then
         return proto.method, true
@@ -53,11 +59,13 @@ function m.getMethodName(proto)
     end
 end
 
+---@param method string
 ---@param callback async fun()
 function m.on(method, callback)
     m.ability[method] = callback
 end
 
+---@param data any
 function m.send(data)
     local buf = jsonrpc.encode(data)
     logSend(buf)
@@ -68,6 +76,8 @@ function m.send(data)
     end
 end
 
+---@param id integer|string?
+---@param res any
 function m.response(id, res)
     if id == nil then
         log.error('Response id is nil!', inspect(res))
@@ -84,6 +94,9 @@ function m.response(id, res)
     m.send(data)
 end
 
+---@param id integer|string?
+---@param code integer
+---@param message any
 function m.responseErr(id, code, message)
     if id == nil then
         log.error('Response id is nil!', inspect(message))
@@ -103,6 +116,8 @@ function m.responseErr(id, code, message)
     }
 end
 
+---@param name string
+---@param params any
 function m.notify(name, params)
     m.send {
         method = name,
@@ -135,6 +150,9 @@ function m.awaitRequest(name, params)
     return result
 end
 
+---@param name string
+---@param params any
+---@param callback? fun(result: any)
 function m.request(name, params, callback)
     local id  = reqCounter()
     m.send {
@@ -222,6 +240,7 @@ end
 function m.applyMethodQueue()
     local queue = m.methodQueue
     m.methodQueue = {}
+    ---@type table<any, boolean>
     local canceled = {}
     for _, proto in ipairs(queue) do
         if proto.method == '$/cancelRequest' then
@@ -257,6 +276,12 @@ function m.close(id, reason, message)
     await.close('proto:' .. id)
 end
 
+---@class proto.response
+---@field id     integer|string
+---@field error? { code: integer, message: string }
+---@field result? any
+
+---@param proto proto.response
 function m.doResponse(proto)
     logRecieve(proto)
     local id = proto.id
@@ -273,11 +298,14 @@ function m.doResponse(proto)
     waiting.resume(proto.result)
 end
 
+---@param mode 'stdio'|'socket'
+---@param socketPort? integer
 function m.listen(mode, socketPort)
     m.mode = mode
     if mode == 'stdio' then
         log.info('Listen Mode: stdio')
         if platform.os == 'windows' then
+            ---@type { filemode: fun(f: file*, mode: string) }
             local windows = require 'bee.windows'
             windows.filemode(io.stdin,  'b')
             windows.filemode(io.stdout, 'b')
@@ -298,8 +326,12 @@ function m.listen(mode, socketPort)
 
         assert(server)
 
+        ---@class proto.dummyClient
+        ---@field buf string
         local dummyClient = {
             buf = '',
+            ---@param self proto.dummyClient
+            ---@param data string
             write = function (self, data)
                 self.buf = self.buf.. data
             end,
@@ -307,13 +339,15 @@ function m.listen(mode, socketPort)
         }
         m.client = dummyClient
 
-        function server:on_accepted(client)
+        local anyServer = server --[[@as any]]
+
+        function anyServer:on_accepted(client)
             m.client = client
             client:write(dummyClient.buf)
             return true
         end
 
-        function server:on_error(...)
+        function anyServer:on_error(...)
             log.error(...)
         end
 

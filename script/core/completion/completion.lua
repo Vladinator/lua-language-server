@@ -2794,6 +2794,11 @@ local function resolve(id)
     return item
 end
 
+---@class core.completion
+---@field completion async fun(uri: uri, position: integer, triggerCharacter: string?): completion.results?
+---@field resolve async fun(id: integer): vm.completion.resolved?
+
+---@type core.completion
 return {
     completion   = completion,
     resolve      = resolve,

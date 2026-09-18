@@ -6,6 +6,8 @@ local compare  = require 'compare'
 
 EXISTS = compare.EXISTS
 
+---@param a any
+---@param b any
 local function include(a, b)
     if a == EXISTS and b ~= nil then
         return true
@@ -18,9 +20,9 @@ local function include(a, b)
         -- a / b are array of completion results
         -- when checking `include`, the array index order is not important
         -- thus need to check every results in b
-        for _, v1 in ipairs(a) do
+        for _, v1 in ipairs(a --[[@as any[] ]]) do
             local ok = false
-            for _, v2 in ipairs(b) do
+            for _, v2 in ipairs(b --[[@as any[] ]]) do
                 if compare.eq(v1, v2) then
                     ok = true
                     break
@@ -51,24 +53,27 @@ ContinueTyping = false
 function TEST(script)
     return function (expect)
         ---@diagnostic disable: await-in-sync
+        local expect = expect --[[@as any]]
         local newScript, catched = catch(script, '?')
 
         files.setText(TESTURI, newScript)
         local state = files.getState(TESTURI)
         assert(state)
-        local inputPos = catched['?'][1][2]
+        local inputPos = catched['?'][1][2] --[[@as integer]]
         if ContinueTyping then
+            ---@type string?
             local triggerCharacter = script:sub(inputPos - 1, inputPos - 1)
             if triggerCharacter == '\n'
-            or triggerCharacter:find '%w_' then
+            or (triggerCharacter --[[@as string]]):find '%w_' then
                 triggerCharacter = nil
             end
             core.completion(TESTURI, inputPos, triggerCharacter)
         end
         local offset = guide.positionToOffset(state, inputPos)
+        ---@type string?
         local triggerCharacter = script:sub(offset, offset)
         if triggerCharacter == '\n'
-        or triggerCharacter:find '%w_' then
+        or (triggerCharacter --[[@as string]]):find '%w_' then
             triggerCharacter = nil
         end
         local result = core.completion(TESTURI, inputPos, triggerCharacter)
@@ -81,14 +86,14 @@ function TEST(script)
         result.enableCommon = nil
         for _, item in ipairs(result) do
             if item.id then
-                local r = core.resolve(item.id)
-                for k, v in pairs(r or {}) do
-                    item[k] = v
+                local r = core.resolve(item.id --[[@as integer]])
+                for k, v in pairs((r or {}) --[[@as table<any, any>]]) do
+                    (item --[[@as table<any, any>]])[k] = v
                 end
             end
-            for k in pairs(item) do
+            for k in pairs(item --[[@as table<any, any>]]) do
                 if not Cared[k] then
-                    item[k] = nil
+                    (item --[[@as table<any, any>]])[k] = nil
                 end
             end
             if item.description then
@@ -106,13 +111,14 @@ function TEST(script)
             end
         end
         assert(result)
-        ---@diagnostic disable-next-line: inject-field -- test-only: clears a legacy field that no longer exists on the type
+        ---@diagnostic disable-next-line: inject-field, no-unknown -- test-only: clears a legacy field that no longer exists on the type
         result.complete = nil
         if type(expect) == 'function' then
             expect(result)
         else
-            if expect.include then
-                expect.include = nil
+            local expectT = expect --[[@as table<any, any>]]
+            if expectT.include then
+                expectT.include = nil
                 assert(include(expect, result))
             else
                 assert(compare.eq(expect, result))

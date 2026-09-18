@@ -3,6 +3,7 @@ if not DEVELOP then
 end
 
 local fs = require 'bee.filesystem'
+---@type string[]
 local luaDebugs = {}
 
 local home = os.getenv 'USERPROFILE' or os.getenv 'HOME'
@@ -31,19 +32,22 @@ if #luaDebugs == 0 then
     return
 end
 
+---@param filename string
+---@return integer
 local function getVer(filename)
+    ---@type string?, string?, string?
     local a, b, c = filename:match('actboy168%.lua%-debug%-(%d+)%.(%d+)%.(%d+)')
     if not a then
         return 0
     end
-    return a * 1000000 + b * 1000 + c
+    return (a --[[@as integer]]) * 1000000 + (b --[[@as integer]]) * 1000 + (c --[[@as integer]])
 end
 
 table.sort(luaDebugs, function (a, b)
     return getVer(a) > getVer(b)
 end)
 
-local debugPath = luaDebugs[1]
+local debugPath = assert(luaDebugs[1])
 local cpath     = "/runtime/win64/lua54/?.dll;/runtime/win64/lua54/?.so"
 local path      = "/script/?.lua"
 
@@ -51,7 +55,8 @@ local function tryDebugger()
     local entry = assert(package.searchpath('debugger', debugPath .. path))
     local root = debugPath
     local addr = ("127.0.0.1:%d"):format(DBGPORT)
-    local dbg = loadfile(entry)(entry)
+    local chunk = assert(loadfile(entry)) --[[@as fun(entry: string): any]]
+    local dbg = chunk(entry)
     dbg:start {
         address = addr,
     }

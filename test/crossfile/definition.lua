@@ -2,11 +2,15 @@ local files    = require 'files'
 local furi     = require 'file-uri'
 local core     = require 'core.definition'
 local config   = require 'config'
+---@type { os: string }
 local platform = require 'bee.platform'
 local catch    = require 'catch'
 
 rawset(_G, 'TEST', true)
 
+---@param targets [integer, integer, uri][]
+---@param results [integer, integer, uri][]
+---@return boolean
 local function founded(targets, results)
     if #targets ~= #results then
         return false
@@ -27,11 +31,15 @@ local function founded(targets, results)
 end
 
 ---@async
+---@param datas any
 function TEST(datas)
+    ---@type [integer, integer, uri][]
     local targetList = {}
+    ---@type catched?
     local sourceList
+    ---@type uri?
     local sourceUri
-    for i, data in ipairs(datas) do
+    for i, data in ipairs(datas --[[@as any[] ]]) do
         local uri = furi.encode(data.path)
         local newScript, catched = catch(data.content, '!?~')
         for _, position in ipairs(catched['!'] or {}) do
@@ -57,19 +65,22 @@ function TEST(datas)
     end
 
     local _ <close> = function ()
-        for _, info in ipairs(datas) do
+        for _, info in ipairs(datas --[[@as any[] ]]) do
             files.remove(furi.encode(info.path))
         end
     end
 
-    local sourcePos = (sourceList[1][1] + sourceList[1][2]) // 2
-    local positions = core(sourceUri, sourcePos)
+    local sourceList2 = assert(sourceList)
+    local sourcePos = ((sourceList2[1][1] --[[@as integer]]) + (sourceList2[1][2] --[[@as integer]])) // 2
+    local positions = core(assert(sourceUri), sourcePos)
     if positions then
+        ---@type [integer, integer, uri][]
         local result = {}
         for i, position in ipairs(positions) do
+            local target = position.target --[[@as {uri: uri, start: integer, finish: integer}]]
             result[i] = {
-                position.target.start,
-                position.target.finish,
+                target.start,
+                target.finish,
                 position.uri,
             }
         end

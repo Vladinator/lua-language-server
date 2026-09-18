@@ -7,9 +7,14 @@ local scope  = require 'workspace.scope'
 local ws     = require 'workspace'
 local fs = require 'bee.filesystem'
 
+---@alias plugin.interface table<string, function>
+
 ---@class plugin
+---@field _hasShowedError? boolean
 local m = {}
 
+---@param scp scope
+---@param err any
 function m.showError(scp, err)
     if m._hasShowedError then
         return
@@ -26,17 +31,22 @@ end
 --- know its real shape and should narrow it themselves (see
 --- files.lua's pluginOnTransformAst for an example).
 ---@param event plugin.event
+---@param uri uri
+---@param ... any
 ---@return boolean success
 ---@return any     res1
 ---@return any     res2
 function m.dispatch(event, uri, ...)
     local scp = scope.getScope(uri)
-    local interfaces = scp:get('pluginInterfaces')
+    local interfaces = scp:get('pluginInterfaces') --[[@as plugin.interface[]? ]]
     if not interfaces then
         return false
     end
     local failed = 0
-    local res1, res2
+    ---@type any
+    local res1
+    ---@type any
+    local res2
     for _, interface in ipairs(interfaces) do
         local method = interface[event]
         if type(method) ~= 'function' then
@@ -44,6 +54,7 @@ function m.dispatch(event, uri, ...)
         end
         local clock = os.clock()
         tracy.ZoneBeginN('plugin dispatch:' .. event)
+        ---@type boolean
         local suc
         suc, res1, res2 = xpcall(method, log.error, uri, ...)
         tracy.ZoneEnd()
@@ -59,9 +70,11 @@ function m.dispatch(event, uri, ...)
     return failed == 0, res1, res2
 end
 
+---@param uri uri
+---@return plugin.interface[]?
 function m.getPluginInterfaces(uri)
     local scp = scope.getScope(uri)
-    local interfaces = scp:get('pluginInterfaces')
+    local interfaces = scp:get('pluginInterfaces') --[[@as plugin.interface[]? ]]
     if not interfaces then
         return
     end
@@ -77,6 +90,7 @@ local function checkTrustLoad(scp)
     local pluginPath = scp:get('pluginPath')
     local filePath = LOGPATH .. '/trusted'
     local trusted = util.loadFile(filePath)
+    ---@type string[]
     local lines = {}
     if trusted then
         for line in util.eachLine(trusted) do
@@ -102,6 +116,7 @@ end
 local function initPlugin(uri)
     await.call(function () ---@async
         local scp = scope.getScope(uri)
+        ---@type plugin.interface[]
         local interfaces = {}
         scp:set('pluginInterfaces', interfaces)
 
@@ -121,7 +136,7 @@ local function initPlugin(uri)
         for _, pluginConfigPath in ipairs(pluginConfigPaths) do
             local myArgs = args
             if args and not args[1] then
-                for k, v in pairs(args) do
+                for k, v in pairs(args --[[@as table<any, any>]]) do
                     if pluginConfigPath:find(k, 1, true) then
                         myArgs = v
                         break
@@ -152,6 +167,7 @@ local function initPlugin(uri)
 
             scp:set('pluginPath', pluginPath)
 
+            ---@type plugin.interface
             local interface = setmetatable({}, { __index = _ENV })
             local f, err = load(pluginLua, '@' .. pluginPath, "t", interface)
             if not f then

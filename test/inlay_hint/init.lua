@@ -7,6 +7,9 @@ local define = require 'proto.define'
 rawset(_G, 'TEST', true)
 
 ---@diagnostic disable: await-in-sync
+---@param script string
+---@param expect any
+---@param opts? table
 local function TEST(script, expect, opts)
     opts = opts or {}
     local newScript, catched = catch(script, '!')
@@ -14,7 +17,7 @@ local function TEST(script, expect, opts)
     files.setText(TESTURI, newScript)
     files.compileState(TESTURI)
 
-    local results = core(TESTURI, 0, math.huge)
+    local results = core(TESTURI, 0, math.huge --[[@as integer]])
     table.sort(results, function (a, b)
         if a.offset ~= b.offset then
             return a.offset < b.offset
@@ -37,10 +40,10 @@ local function TEST(script, expect, opts)
 
     assert(#expect == #results)
     for i, res in ipairs(results) do
-        local info = expect[i]
-        local pos = catched['!'][info.pos]
+        local info = expect[i] --[[@as any]]
+        local pos = catched['!'][info.pos] --[[@as any]]
         assert(pos)
-        local offset = info.useFinish and pos[2] or pos[1]
+        local offset = (info.useFinish and pos[2] or pos[1]) --[[@as integer]]
         assert(res.text == info.text)
         assert(res.kind == info.kind)
         assert(res.where == info.where)

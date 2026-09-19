@@ -458,7 +458,7 @@ local lookIntoChild = util.switch()
         if tracer.getMap[action] then
             tracer.nodes[action] = topNode
             if outNode then
-                topNode = topNode:copy():setTruthy()
+                topNode = topNode:copy():setTruthy() --[[@as vm.node]]
                 outNode = outNode:copy():setFalsy() --[[@as vm.node]]
             end
         end
@@ -612,7 +612,7 @@ local lookIntoChild = util.switch()
         if tracer.getMap[action] then
             tracer.nodes[action] = topNode
             if outNode then
-                topNode = topNode:copy():setTruthy()
+                topNode = topNode:copy():setTruthy() --[[@as vm.node]]
                 outNode = outNode:copy():setFalsy() --[[@as vm.node]]
             end
         end
@@ -629,7 +629,7 @@ local lookIntoChild = util.switch()
         if tracer.getMap[action] then
             tracer.nodes[action] = topNode
             if outNode then
-                topNode = topNode:copy():setTruthy()
+                topNode = topNode:copy():setTruthy() --[[@as vm.node]]
                 outNode = outNode:copy():setFalsy() --[[@as vm.node]]
             end
         end
@@ -646,7 +646,7 @@ local lookIntoChild = util.switch()
         if tracer.getMap[action] then
             tracer.nodes[action] = topNode
             if outNode then
-                topNode = topNode:copy():setTruthy()
+                topNode = topNode:copy():setTruthy() --[[@as vm.node]]
                 outNode = outNode:copy():setFalsy() --[[@as vm.node]]
             end
         end
@@ -898,32 +898,42 @@ function mt:lookIntoBlock(block, start, node)
     end
 end
 
---- Whether an assigned value can never be nil. `alwaysTruthy` is stricter
---- than needed here (it also rejects nodes without a "known type", e.g. an
---- array or table constructor). `a or b` is checked syntactically first:
---- inside a loop the read of `a` in `t.x = t.x or {}` is circular with the
---- tracer that is asking, so the value's own node comes back empty.
+--- Constructors that can never evaluate to nil, and don't need compiling to
+--- know it. Anything else (a local, a call, ...) is left alone: compiling an
+--- arbitrary value from inside the tracer can start tracing that value's own
+--- variable while it is already being compiled, which turned unrelated reads
+--- into `unknown` in the self-check (parser/guide.lua's `myCache`).
+local neverNilTypes = {
+    ['table']    = true,
+    ['string']   = true,
+    ['integer']  = true,
+    ['number']   = true,
+    ['function'] = true,
+}
+
+--- Whether an assigned value is syntactically known to be non-nil: a
+--- constructor above, `true`, or `a or b` (either side, through parens). `a or
+--- b` is decided syntactically rather than from the value's node because inside
+--- a loop the read of `a` in `t.x = t.x or {}` is circular with the tracer that
+--- is asking, so the node comes back empty.
 ---@param value parser.object
 ---@return boolean
 local function neverNil(value)
-    if value.type == 'paren' and value.exp then
+    local tp = value.type
+    if neverNilTypes[tp] then
+        return true
+    end
+    if tp == 'boolean' then
+        return value[1] == true
+    end
+    if tp == 'paren' and value.exp then
         return neverNil(value.exp)
     end
-    if value.type == 'binary' and value.op.type == 'or' then
+    if tp == 'binary' and value.op.type == 'or' then
         return (value[2] ~= nil and neverNil(value[2]))
             or (value[1] ~= nil and neverNil(value[1]))
     end
-    local node = vm.compileNode(value)
-    if #node == 0 or node:hasFalsy() then
-        return false
-    end
-    for _, c in ipairs(node) do
-        if c.type == 'global' and c.cate == 'type'
-        and (c.name == 'any' or c.name == 'unknown') then
-            return false
-        end
-    end
-    return true
+    return false
 end
 
 --- The node of an assignment. A field assignment's own compiled node is the
@@ -936,7 +946,8 @@ end
 ---@return vm.node
 local function getAssignNode(source)
     local node = vm.compileNode(source)
-    if  source.value
+    if  node:hasFalsy()
+    and source.value
     and (source.type == 'setfield'
     or   source.type == 'setindex'
     or   source.type == 'setmethod')

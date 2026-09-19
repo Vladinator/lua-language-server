@@ -4,6 +4,7 @@ local util = require 'utility'
 ---@field diagnosticDatas  table<string, {severity: DiagnosticSeverity, status: DiagnosticNeededFileStatus}>
 ---@field diagnosticGroups table<string, table<string, boolean>>
 ---@field _errNames? table<string, true>
+---@field isEnabled fun(uri: uri, name: string, ignoreFileOpenState?: boolean): boolean set by core.diagnostics; whether a diagnostic runs for a file under the current config
 local m = {}
 
 ---@alias DiagnosticSeverity

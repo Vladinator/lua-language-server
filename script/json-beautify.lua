@@ -46,9 +46,9 @@ end
 
 ---@type table<string, fun(v: any): string>
 local encode_map = {}
----@diagnostic disable-next-line: invisible
+---@diagnostic expect-next-line: invisible
 local encode_string = json._encode_string
----@diagnostic disable-next-line: invisible
+---@diagnostic expect-next-line: invisible
 for k ,v in next, json._encode_map do
     encode_map[k] = v
 end

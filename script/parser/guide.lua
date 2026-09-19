@@ -73,7 +73,8 @@ local type         = type
 ---@field keyword               integer[]
 ---@field casts                 parser.object[]
 ---@field locPos?              integer
----@field mode?                 '+' | '-' | 'disable-next-line' | 'disable-line' | 'disable' | 'enable' -- '+'/'-' on some doc-type nodes, the rest on 'doc.diagnostic' nodes
+---@field mode?                 '+' | '-' | 'disable-next-line' | 'disable-line' | 'disable' | 'enable' | 'expect-next-line' | 'expect-line' -- '+'/'-' on some doc-type nodes, the rest on 'doc.diagnostic' nodes
+---@field public _hits?          table<string, boolean> -- on an 'expect-*' doc.diagnostic: diagnostic names it suppressed (see vm/doc.lua)
 ---@field hasGoTo?              true
 ---@field hasReturn?            true
 ---@field hasBreak?             true
@@ -1121,7 +1122,7 @@ function m.getKeyName(obj)
     or     tp == 'setindex'
     or     tp == 'tableindex' then
         -- may transitively return the raw tableexp integer described below
-        ---@diagnostic disable-next-line: return-type-mismatch
+        ---@diagnostic expect-next-line: return-type-mismatch
         return m.getKeyNameOfLiteral(obj.index)
     elseif tp == 'tableexp' then
         -- Genuinely returns the raw integer here (not a string) -- callers
@@ -1129,7 +1130,7 @@ function m.getKeyName(obj)
         -- lookups) rely on getting the same integer back that indexed the
         -- table literal in the first place; stringifying it here broke
         -- those lookups (`t["1"]` is not `t[1]`) when tried.
-        ---@diagnostic disable-next-line: return-type-mismatch
+        ---@diagnostic expect-next-line: return-type-mismatch
         return obj.tindex
     elseif tp == 'field'
     or     tp == 'method' then
@@ -1153,7 +1154,7 @@ function m.getKeyName(obj)
         return m.getKeyName(obj.name)
     end
     -- may return the raw tableexp integer described above
-    ---@diagnostic disable-next-line: return-type-mismatch
+    ---@diagnostic expect-next-line: return-type-mismatch
     return m.getKeyNameOfLiteral(obj)
 end
 

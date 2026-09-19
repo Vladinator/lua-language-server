@@ -90,7 +90,7 @@ local function makeOneSignature(source, oop, index)
 
     -- string.gmatch's stub doesn't distinguish position captures `()` from
     -- string captures, so start/finish infer as string; cast at each use below
-    ---@diagnostic disable-next-line: no-unknown
+    ---@diagnostic expect-next-line: no-unknown
     for start, finish in converted:gmatch '%s*()[^,]+()' do
         i = i + 1
         params[i] = {

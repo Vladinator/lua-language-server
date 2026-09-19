@@ -29,6 +29,8 @@ local diagnosticModes = {
     'disable-line',
     'disable',
     'enable',
+    'expect-next-line',
+    'expect-line',
 }
 
 ---@class vm.completion.edit

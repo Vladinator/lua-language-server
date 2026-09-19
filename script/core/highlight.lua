@@ -215,10 +215,10 @@ local function checkRegion(ast, text, offset, callback)
                 if     isRegion(ltext) then
                     -- count is always set alongside `selected` above (guarded by
                     -- `if not selected then return end` before this loop)
-                    ---@diagnostic disable-next-line: need-check-nil
+                    ---@diagnostic expect-next-line: need-check-nil
                     count = count + 1
                 elseif isEndRegion(ltext) then
-                    ---@diagnostic disable-next-line: need-check-nil
+                    ---@diagnostic expect-next-line: need-check-nil
                     count = count - 1
                     if count == 0 then
                         callback(start, comment.finish)
@@ -236,10 +236,10 @@ local function checkRegion(ast, text, offset, callback)
                 local ltext = comment.text:lower()
                 ltext = util.trim(ltext, 'left')
                 if     isEndRegion(ltext) then
-                    ---@diagnostic disable-next-line: need-check-nil
+                    ---@diagnostic expect-next-line: need-check-nil
                     count = count + 1
                 elseif isRegion(ltext) then
-                    ---@diagnostic disable-next-line: need-check-nil
+                    ---@diagnostic expect-next-line: need-check-nil
                     count = count - 1
                     if count == 0 then
                         callback(comment.start - 2, finish)

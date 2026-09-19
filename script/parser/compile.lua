@@ -2073,7 +2073,7 @@ local function parseExpList(mini)
             end
             if wantSep then
                 -- wantSep is only ever set true after list has been populated below
-                ---@diagnostic disable-next-line: need-check-nil
+                ---@diagnostic expect-next-line: need-check-nil
                 missSymbol(',', list[#list].finish, exp.start)
             end
             wantSep = true
@@ -2110,7 +2110,6 @@ local function parseIndex()
         start  = start,
         finish = exp and exp.finish or (start + 1),
         -- .index is momentarily nil here on a syntax error (missExp() below reports it)
-        ---@diagnostic disable-next-line: assign-type-mismatch
         index  = exp
     }
     if exp then
@@ -2183,7 +2182,7 @@ local function parseTable()
                         finish = name.finish,
                         -- .range/.value are momentarily nil here on a syntax
                         -- error (missExp() below reports it)
-                        ---@diagnostic disable-next-line: assign-type-mismatch
+                        ---@diagnostic expect-next-line: assign-type-mismatch
                         range  = fvalue and fvalue.finish,
                         node   = tbl,
                         parent = tbl,
@@ -2275,7 +2274,7 @@ local function parseTable()
         break
         -- unreachable by fallthrough, but still a valid `goto CONTINUE`
         -- target from earlier in the loop body above
-        ---@diagnostic disable-next-line: code-after-break
+        ---@diagnostic expect-next-line: code-after-break
         ::CONTINUE::
     end
     tbl.finish = lastRightPosition()
@@ -2437,7 +2436,6 @@ local function parseSimple(node, funcName, noMethod)
                 node   = node,
                 dot    = safeDot,
                 -- .field is momentarily nil here on a syntax error (MISS_FIELD below reports it)
-                ---@diagnostic disable-next-line: assign-type-mismatch
                 field  = field,
                 safe   = true, -- LuaJIT 安全导航
             }
@@ -2482,7 +2480,6 @@ local function parseSimple(node, funcName, noMethod)
                 node   = node,
                 dot    = dot,
                 -- .field is momentarily nil here on a syntax error (MISS_FIELD below reports it)
-                ---@diagnostic disable-next-line: assign-type-mismatch
                 field  = field,
             }
             if safe then
@@ -2533,7 +2530,6 @@ local function parseSimple(node, funcName, noMethod)
                 node   = node,
                 colon  = colon,
                 -- .method is momentarily nil here on a syntax error (MISS_METHOD below reports it)
-                ---@diagnostic disable-next-line: assign-type-mismatch
                 method = method,
             }
             if safe then
@@ -3901,7 +3897,7 @@ local function bindValue(n, v, index, lastValue, isLocal, isSet)
             if v.parent then
                 -- .extParent is always initialized (see the `not v.extParent`
                 -- guard above) before v.parent can already be set here
-                ---@diagnostic disable-next-line: need-check-nil
+                ---@diagnostic expect-next-line: need-check-nil
                 v.extParent[#v.extParent+1] = select
             else
                 v.parent = select
@@ -4817,7 +4813,7 @@ local function parseFor()
                         type = 'localattr',
                         start = name.start,
                         finish = name.finish,
-                        ---@diagnostic disable-next-line: assign-type-mismatch
+                        ---@diagnostic expect-next-line: assign-type-mismatch
                         parent = nil, -- will be set by createLocal
                         [1] = 'const',
                     }
@@ -4941,7 +4937,7 @@ local function parseFor()
                             type = 'localattr',
                             start = obj.start,
                             finish = obj.finish,
-                            ---@diagnostic disable-next-line: assign-type-mismatch
+                            ---@diagnostic expect-next-line: assign-type-mismatch
                             parent = nil, -- will be set by createLocal
                             [1] = 'const',
                         }

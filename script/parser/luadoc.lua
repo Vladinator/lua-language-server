@@ -270,7 +270,7 @@ local function parseName(tp, parent)
         type   = tp,
         start  = getStart(),
         finish = getFinish(),
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         parent = parent,
         [1]    = nameText,
     }
@@ -304,7 +304,7 @@ local function parseDocAttr(parent)
     ---@type parser.object
     local attrs = {
         type   = 'doc.attr',
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         parent = parent,
         start  = getStart(),
         finish = getStart(),
@@ -405,7 +405,7 @@ local function parseTable(parent)
                 nextToken()
                 needCloseParen = true
             end
-            ---@diagnostic disable-next-line: assign-type-mismatch
+            ---@diagnostic expect-next-line: assign-type-mismatch
             field.name = parseName('doc.field.name', field)
                     or   parseIndexField(field)
             if not field.name then
@@ -427,7 +427,7 @@ local function parseTable(parent)
             if not nextSymbolOrError(':') then
                 break
             end
-            ---@diagnostic disable-next-line: assign-type-mismatch
+            ---@diagnostic expect-next-line: assign-type-mismatch
             field.extends = parseType(field)
             if not field.extends then
                 break
@@ -504,7 +504,7 @@ local function parseTuple(parent)
                 }
             }
             index          = index + 1
-            ---@diagnostic disable-next-line: assign-type-mismatch
+            ---@diagnostic expect-next-line: assign-type-mismatch
             field.extends  = parseType(field)
             if not field.extends then
                 break
@@ -595,7 +595,7 @@ local function  parseTypeUnitFunction(parent)
         returns = {},
     }
     -- Parse optional generic params: fun<T, V>(...)
-    ---@diagnostic disable-next-line: assign-type-mismatch
+    ---@diagnostic expect-next-line: assign-type-mismatch
     typeUnit.signs = parseSigns(typeUnit)
     if not nextSymbolOrError('(') then
         return nil
@@ -611,7 +611,7 @@ local function  parseTypeUnitFunction(parent)
             type   = 'doc.type.arg',
             parent = typeUnit,
         }
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         arg.name = parseName('doc.type.arg.name', arg)
                 or parseDots('doc.type.arg.name', arg)
         if not arg.name then
@@ -632,7 +632,7 @@ local function  parseTypeUnitFunction(parent)
         arg.finish = getFinish()
         if checkToken('symbol', ':', 1) then
             nextToken()
-            ---@diagnostic disable-next-line: assign-type-mismatch
+            ---@diagnostic expect-next-line: assign-type-mismatch
             arg.extends = parseType(arg)
         end
         arg.finish = getFinish()
@@ -679,13 +679,13 @@ local function  parseTypeUnitFunction(parent)
             if not rtn then
                 break
             end
-            ---@diagnostic disable-next-line: assign-type-mismatch
+            ---@diagnostic expect-next-line: assign-type-mismatch
             rtn.name = name
             if checkToken('symbol', '?', 1) then
                 nextToken()
                 rtn.optional = true
             end
-            ---@diagnostic disable-next-line: need-check-nil
+            ---@diagnostic expect-next-line: need-check-nil
             typeUnit.returns[#typeUnit.returns+1] = rtn
             if checkToken('symbol', ',', 1) then
                 nextToken()
@@ -918,7 +918,7 @@ local function parseCodePattern(parent)
     local finishOffset = i-1
     if finishOffset == 1 then
         -- code only, no pattern
-        ---@diagnostic disable-next-line: cast-local-type -- pattern's later use (as code.pattern) is optional
+        ---@diagnostic expect-next-line: cast-local-type -- pattern's later use (as code.pattern) is optional
         pattern = nil
     else
         for _ = 2, finishOffset do
@@ -1163,7 +1163,7 @@ local docSwitch = util.switch()
             calls     = {},
         }
         result.docAttr = parseDocAttr(result)
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.class = parseName('doc.class.name', result)
         if not result.class then
             pushWarning {
@@ -1175,7 +1175,7 @@ local docSwitch = util.switch()
         end
         result.start  = getStart()
         result.finish = getFinish()
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.signs  = parseSigns(result)
         if not checkToken('symbol', ':', 1) then
             return result
@@ -1236,7 +1236,7 @@ local docSwitch = util.switch()
             type   = 'doc.alias',
         }
         result.docAttr = parseDocAttr(result)
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.alias = parseName('doc.alias.name', result)
         if not result.alias then
             pushWarning {
@@ -1247,9 +1247,9 @@ local docSwitch = util.switch()
             return nil
         end
         result.start  = getStart()
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.signs  = parseSigns(result)
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.extends = parseType(result)
         if not result.extends then
             pushWarning {
@@ -1268,7 +1268,7 @@ local docSwitch = util.switch()
         local result = {
             type   = 'doc.param',
         }
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.param = parseName('doc.param.name', result)
                     or parseDots('doc.param.name', result)
         if not result.param then
@@ -1285,7 +1285,7 @@ local docSwitch = util.switch()
         end
         result.start  = result.param.start
         result.finish = getFinish()
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.extends = parseType(result)
         if not result.extends then
             pushWarning {
@@ -1326,18 +1326,18 @@ local docSwitch = util.switch()
                 docType.name = dots
                 dots.parent  = docType
             else
-                ---@diagnostic disable-next-line: assign-type-mismatch
+                ---@diagnostic expect-next-line: assign-type-mismatch
                 docType.name = parseName('doc.return.name', docType)
                             or parseDots('doc.return.name', docType)
             end
-            ---@diagnostic disable-next-line: need-check-nil
+            ---@diagnostic expect-next-line: need-check-nil
             result.returns[#result.returns+1] = docType
             if not checkToken('symbol', ',', 1) then
                 break
             end
             nextToken()
         end
-        ---@diagnostic disable-next-line: need-check-nil
+        ---@diagnostic expect-next-line: need-check-nil
         if #result.returns == 0 then
             return nil
         end
@@ -1385,7 +1385,6 @@ local docSwitch = util.switch()
             end
             return false
         end)
-        ---@diagnostic disable-next-line: assign-type-mismatch
         result.field = parseName('doc.field.name', result)
                     or parseIndexField(result)
         if not result.field then
@@ -1403,7 +1402,7 @@ local docSwitch = util.switch()
             nextToken()
             result.optional = true
         end
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.extends = parseType(result)
         if not result.extends then
             pushWarning {
@@ -1444,11 +1443,11 @@ local docSwitch = util.switch()
             end
             if checkToken('symbol', ':', 1) then
                 nextToken()
-                ---@diagnostic disable-next-line: assign-type-mismatch
+                ---@diagnostic expect-next-line: assign-type-mismatch
                 object.extends = parseType(object)
             end
             object.finish = getFinish()
-            ---@diagnostic disable-next-line: need-check-nil
+            ---@diagnostic expect-next-line: need-check-nil
             result.generics[#result.generics+1] = object
             if not checkToken('symbol', ',', 1) then
                 break
@@ -1464,7 +1463,7 @@ local docSwitch = util.switch()
         local result = {
             type = 'doc.vararg',
         }
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.vararg = parseType(result)
         if not result.vararg then
             pushWarning {
@@ -1494,7 +1493,7 @@ local docSwitch = util.switch()
         local result = {
             type = 'doc.overload',
         }
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.overload = parseFunction(result)
         if not result.overload then
             return nil
@@ -1512,7 +1511,7 @@ local docSwitch = util.switch()
             start  = getFinish(),
             finish = getFinish(),
         }
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         meta.name = parseName('doc.meta.name', meta)
         return meta
     end)
@@ -1560,14 +1559,14 @@ local docSwitch = util.switch()
             end
             version.version = tonumber(text) or text
             version.finish = getFinish()
-            ---@diagnostic disable-next-line: need-check-nil
+            ---@diagnostic expect-next-line: need-check-nil
             result.versions[#result.versions+1] = version
             if not checkToken('symbol', ',', 1) then
                 break
             end
             nextToken()
         end
-        ---@diagnostic disable-next-line: need-check-nil
+        ---@diagnostic expect-next-line: need-check-nil
         if #result.versions == 0 then
             return nil
         end
@@ -1580,7 +1579,7 @@ local docSwitch = util.switch()
         local result = {
             type     = 'doc.see',
         }
-        ---@diagnostic disable-next-line: assign-type-mismatch
+        ---@diagnostic expect-next-line: assign-type-mismatch
         result.name = parseName('doc.see.name', result)
         if not result.name then
             pushWarning {
@@ -1609,13 +1608,15 @@ local docSwitch = util.switch()
             }
             return nil
         end
-        result.mode   = mode --[[@as '+'|'-'|'disable-next-line'|'disable-line'|'disable'|'enable']]
+        result.mode   = mode --[[@as '+'|'-'|'disable-next-line'|'disable-line'|'disable'|'enable'|'expect-next-line'|'expect-line']]
         result.start  = getStart()
         result.finish = getFinish()
         if  mode ~= 'disable-next-line'
         and mode ~= 'disable-line'
         and mode ~= 'disable'
-        and mode ~= 'enable' then
+        and mode ~= 'enable'
+        and mode ~= 'expect-next-line'
+        and mode ~= 'expect-line' then
             pushWarning {
                 type   = 'LUADOC_ERROR_DIAG_MODE',
                 start  = result.start,
@@ -1748,7 +1749,7 @@ local docSwitch = util.switch()
                 nextToken()
                 block.finish = getFinish()
             else
-                ---@diagnostic disable-next-line: assign-type-mismatch
+                ---@diagnostic expect-next-line: assign-type-mismatch
                 block.extends = parseType(block)
                 if block.extends then
                     block.start  = block.start or block.extends.start
@@ -1967,7 +1968,7 @@ local function buildLuaDoc(comment)
     -- absolute position of `@` symbol
     local startOffset = comment.start + (headPos --[[@as integer]])
     if comment.type == 'comment.long' then
-        ---@diagnostic disable-next-line: need-check-nil -- .mark is always set for 'comment.long'
+        ---@diagnostic expect-next-line: need-check-nil -- .mark is always set for 'comment.long'
         startOffset = comment.start + (headPos --[[@as integer]]) + #comment.mark - 2
     end
 
@@ -2085,7 +2086,7 @@ local function bindGeneric(binded)
     for _, doc in ipairs(binded) do
         if doc.type == 'doc.generic' then
             for _, obj in ipairs(doc.generics) do
-                ---@diagnostic disable-next-line: need-check-nil -- .generic is always set on a 'doc.generic' element
+                ---@diagnostic expect-next-line: need-check-nil -- .generic is always set on a 'doc.generic' element
                 local name = obj.generic[1] --[[@as string|integer]]
                 generics[name] = obj
             end
@@ -2385,7 +2386,7 @@ local function bindCommentsAndFields(binded)
             comments = {}
         elseif doc.type == 'doc.operator' then
             if class then
-                ---@diagnostic disable-next-line: need-check-nil -- .operators is always set on a constructed 'doc.class' node
+                ---@diagnostic expect-next-line: need-check-nil -- .operators is always set on a constructed 'doc.class' node
                 class.operators[#class.operators+1] = doc
                 doc.class = class
             end
@@ -2393,7 +2394,7 @@ local function bindCommentsAndFields(binded)
             comments = {}
         elseif doc.type == 'doc.overload' then
             if class then
-                ---@diagnostic disable-next-line: need-check-nil -- .calls is always set on a constructed 'doc.class' node
+                ---@diagnostic expect-next-line: need-check-nil -- .calls is always set on a constructed 'doc.class' node
                 class.calls[#class.calls+1] = doc
                 doc.class = class
             end
@@ -2516,7 +2517,7 @@ local function bindDocs(state)
     for i, doc in ipairs(state.ast.docs) do
         if not binded then
             binded = {}
-            ---@diagnostic disable-next-line: need-check-nil -- .groups is always set by luadoc() before bindDocs runs
+            ---@diagnostic expect-next-line: need-check-nil -- .groups is always set by luadoc() before bindDocs runs
             state.ast.docs.groups[#state.ast.docs.groups+1] = binded
         end
         binded[#binded+1] = doc

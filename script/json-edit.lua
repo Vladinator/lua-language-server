@@ -691,7 +691,7 @@ local function apply_object_insert(str, option, value, t, k)
         bd[#bd+1] = ","
         bd[#bd+1] = encode_newline(option)
         bd[#bd+1] = '"'
-        ---@diagnostic disable-next-line: invisible
+        ---@diagnostic expect-next-line: invisible
         bd[#bd+1] = json._encode_string(k --[[@as string]])
         bd[#bd+1] = '": '
         beautify_builder(bd, value, option)
@@ -706,7 +706,7 @@ local function apply_object_insert(str, option, value, t, k)
         bd[#bd+1] = start_text
         bd[#bd+1] = encode_newline(option)
         bd[#bd+1] = '"'
-        ---@diagnostic disable-next-line: invisible
+        ---@diagnostic expect-next-line: invisible
         bd[#bd+1] = json._encode_string(k --[[@as string]])
         bd[#bd+1] = '": '
         beautify_builder(bd, value, option)

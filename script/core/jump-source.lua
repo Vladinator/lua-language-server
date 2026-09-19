@@ -52,8 +52,10 @@ return function (results)
             or target.type == 'field' then
                 target = target.parent --[[@as parser.object]]
             end
-            if target.bindDocs then
-                for _, doc in ipairs(target.bindDocs) do
+            ---@type parser.object[]?
+            local bindDocs = target.bindDocs
+            if bindDocs then
+                for _, doc in ipairs(bindDocs) do
                     if  doc.type == 'doc.source'
                     and doc.bindSource == target then
                         local uri = parseUri(doc)

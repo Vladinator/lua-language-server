@@ -60,6 +60,7 @@ require 'core.diagnostics.duplicate-doc-alias'
 require 'core.diagnostics.different-requires'
 require 'core.diagnostics.cast-local-type'
 require 'core.diagnostics.trailing-space'
+require 'core.diagnostics.unfulfilled-expect'
 require 'core.diagnostics.missing-return-value'
 require 'core.diagnostics.missing-local-export-doc'
 require 'core.diagnostics.missing-global-doc'
@@ -187,6 +188,27 @@ local function getStatus(uri, name)
     return status
 end
 
+--- Whether `name` runs for this file under the current configuration.
+---@param uri uri
+---@param name string
+---@param ignoreFileOpenState? boolean
+---@return boolean
+local function isEnabled(uri, name, ignoreFileOpenState)
+    local disables = config.get(uri, 'Lua.diagnostics.disable')
+    if util.arrayHas(disables, name) then
+        return false
+    end
+    local status = getStatus(uri, name)
+    if status == 'None' then
+        return false
+    end
+    if not ignoreFileOpenState and status == 'Opened' and not files.isOpen(uri) then
+        return false
+    end
+    return true
+end
+diagd.isEnabled = isEnabled
+
 ---@async
 ---@param uri uri
 ---@param name string
@@ -195,20 +217,10 @@ end
 ---@param ignoreFileOpenState? boolean
 ---@return boolean
 local function check(uri, name, isScopeDiag, response, ignoreFileOpenState)
-    local disables = config.get(uri, 'Lua.diagnostics.disable')
-    if util.arrayHas(disables, name) then
+    if not isEnabled(uri, name, ignoreFileOpenState) then
         return false
     end
     local severity = getSeverity(uri, name)
-    local status   = getStatus(uri, name)
-
-    if status == 'None' then
-        return false
-    end
-
-    if not ignoreFileOpenState and status == 'Opened' and not files.isOpen(uri) then
-        return false
-    end
 
     local level = define.DiagnosticSeverity[severity]
     local clock = os.clock()
@@ -275,11 +287,18 @@ local function buildDiagList()
             end
         end
     end
+    -- `unfulfilled-expect` reads what every other diagnostic suppressed, so it
+    -- always runs last (see the tail of the exported function)
     table.sort(diagList, function (a, b)
         local time1 = (diagCosts[a] or 0) / (diagCount[a] or 1)
         local time2 = (diagCosts[b] or 0) / (diagCount[b] or 1)
         return time1 < time2
     end)
+    for i = #diagList, 1, -1 do
+        if diagList[i] == 'unfulfilled-expect' then
+            table.remove(diagList, i)
+        end
+    end
     return diagList
 end
 
@@ -307,5 +326,11 @@ return function (uri, isScopeDiag, response, checked, ignoreFileOpenState)
         if checked then
             checked(name)
         end
+    end
+    -- ran the whole list for this file: now report `expect-*` comments that
+    -- suppressed nothing
+    await.delay()
+    if check(uri, 'unfulfilled-expect', isScopeDiag, response, ignoreFileOpenState) and checked then
+        checked('unfulfilled-expect')
     end
 end

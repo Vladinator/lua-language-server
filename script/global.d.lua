@@ -88,7 +88,7 @@ CACHEALIVE = false
 COMPILECORES = 0
 
 -- TODO: delete this after new config
----@diagnostic disable-next-line: lowercase-global
+---@diagnostic expect-next-line: lowercase-global
 jit = false
 
 -- connect to client by socket

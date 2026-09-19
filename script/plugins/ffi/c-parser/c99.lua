@@ -36,7 +36,7 @@ local defs = {}
 c99.tracing = false
 
 defs["trace"] = function()
-    ---@diagnostic disable-next-line: empty-block -- debug scaffold, kept commented out on purpose
+    ---@diagnostic expect-next-line: empty-block -- debug scaffold, kept commented out on purpose
     if c99.tracing then
         --local location = require("titan-compiler.location")
         --local line, col = location.get_line_number(s, i)

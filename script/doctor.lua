@@ -12,7 +12,7 @@ local sformat        = string.format
 local getregistry    = debug.getregistry
 local getmetatable   = debug.getmetatable
 local getupvalue     = debug.getupvalue
----@diagnostic disable-next-line: deprecated
+---@diagnostic expect-next-line: deprecated
 local getuservalue   = debug.getuservalue or debug.getfenv
 local getlocal       = debug.getlocal
 local getinfo        = debug.getinfo

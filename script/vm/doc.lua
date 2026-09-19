@@ -388,6 +388,7 @@ end
 ---@field names  table<any, boolean>?
 ---@field row    integer
 ---@field source parser.object
+---@field expect? boolean  from `expect-next-line` / `expect-line`: suppresses like disable, but must be hit
 
 ---@param doc parser.object
 ---@param results vm.diagRange[]
@@ -402,7 +403,25 @@ local function makeDiagRange(doc, results)
         end
     end
     local row = guide.rowColOf(doc.start)
-    if doc.mode == 'disable-next-line' then
+    if doc.mode == 'expect-next-line' or doc.mode == 'expect-line' then
+        -- like disable-next-line / disable-line, but remembered so that
+        -- `unfulfilled-expect` can tell when nothing was actually suppressed
+        local first = doc.mode == 'expect-next-line' and row + 1 or row
+        results[#results+1] = {
+            mode   = 'disable',
+            names  = names,
+            row    = first,
+            source = doc,
+            expect = true,
+        }
+        results[#results+1] = {
+            mode   = 'enable',
+            names  = names,
+            row    = first + 1,
+            source = doc,
+            expect = true,
+        }
+    elseif doc.mode == 'disable-next-line' then
         results[#results+1] = {
             mode   = 'disable',
             names  = names,
@@ -479,18 +498,39 @@ function vm.isDiagDisabledAt(uri, position, name, err)
     end
     local myRow = guide.rowColOf(position)
     local count = 0
+    ---@type parser.object[]?
+    local expected
     for _, range in ipairs(ranges) do
         if range.row <= myRow then
             if (range.names and range.names[name])
             or (not range.names and not err) then
                 if range.mode == 'disable' then
                     count = count + 1
+                    if range.expect then
+                        expected = expected or {}
+                        expected[#expected+1] = range.source
+                    end
                 elseif range.mode == 'enable' then
                     count = count - 1
+                    if range.expect and expected then
+                        for i = #expected, 1, -1 do
+                            if expected[i] == range.source then
+                                table.remove(expected, i)
+                                break
+                            end
+                        end
+                    end
                 end
             end
         else
             break
+        end
+    end
+    if count > 0 and expected then
+        -- this diagnostic was swallowed by an `expect-*` comment: it did its job
+        for _, doc in ipairs(expected) do
+            doc._hits = doc._hits or {}
+            doc._hits[name] = true
         end
     end
     return count > 0

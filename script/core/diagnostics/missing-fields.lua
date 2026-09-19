@@ -6,6 +6,11 @@ local protoDiagnostic = require 'proto.diagnostic'
 
 local MESSAGE = 'Missing required fields in type `%s`: %s'
 
+--- The definitions of one class that a table constructor is checked against.
+---@class missing-fields.defs
+---@field [integer] parser.object
+---@field isPartial? boolean
+
 protoDiagnostic.register {
     'missing-fields',
 } {
@@ -28,7 +33,7 @@ return function (uri, callback)
 
         vm.removeNode(src) -- the node is not updated correctly, reason still unknown
         local defs = vm.getDefs(src)
-        ---@type table<string, { [integer]: parser.object, isPartial?: boolean }>
+        ---@type table<string, missing-fields.defs>
         local sortedDefs = {}
         for _, def in ipairs(defs) do
             if def.type == 'doc.class' then
@@ -72,7 +77,7 @@ return function (uri, callback)
         for className, samedefs in pairs(sortedDefs) do
             ---@type string[]
             local missedKeys = {}
-            for _, def in ipairs(samedefs) do
+            for _, def in ipairs(samedefs --[[@as parser.object[] ]]) do
                 local fields = samedefs.isPartial and def.fields or vm.getFields(def)
                 if not fields or #fields == 0 then
                     goto continue

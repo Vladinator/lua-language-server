@@ -387,7 +387,7 @@ local function loadSingle3rdConfig(libraryDir)
         if not cfg then
             return
         end
-        ---@diagnostic disable-next-line: need-check-nil -- always set: this module specifically requires 'json-beautify'
+        ---@diagnostic expect-next-line: need-check-nil -- always set: this module specifically requires 'json-beautify'
         local jsonbuf = jsonb.beautify(cfg)
         client.requestMessage('Info', lang.script.WINDOW_CONFIG_LUA_DEPRECATED, {
             lang.script.WINDOW_CONVERT_CONFIG_LUA,

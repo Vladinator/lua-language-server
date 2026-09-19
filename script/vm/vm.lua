@@ -40,7 +40,7 @@ function m.getKeyName(source)
         or special == 'rawget' then
             -- may return the raw tableexp integer (see guide.lua's comment
             -- on its own getKeyNameOfLiteral/getKeyName tableexp handling)
-            ---@diagnostic disable-next-line: return-type-mismatch
+            ---@diagnostic expect-next-line: return-type-mismatch
             return guide.getKeyNameOfLiteral(source.args[2])
         end
     end

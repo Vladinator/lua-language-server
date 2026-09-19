@@ -13,12 +13,12 @@ local function enable()
             }
         end
     end
----@diagnostic disable-next-line: lowercase-global
+---@diagnostic expect-next-line: lowercase-global
     tracy = originTracy
 end
 
 local function disable()
----@diagnostic disable-next-line: lowercase-global
+---@diagnostic expect-next-line: lowercase-global
     tracy = {
         ZoneBeginN = function (_info) end,
         ZoneEnd    = function () end,

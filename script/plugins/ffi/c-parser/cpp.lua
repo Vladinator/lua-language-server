@@ -809,7 +809,7 @@ cpp.parse_file = typed("string, file*?, Ctx? -> Ctx?, string?",
             elseif tk.directive == "ifndef" then
                 table.insert(ifmode, (ctx.defines[tk.id --[[@as string]]] == nil))
             elseif tk.directive == "if" then
-                table.insert(ifmode, run_expression(ctx, tk.exp --[[@as any]]))
+                table.insert(ifmode, run_expression(ctx, tk.exp))
             elseif tk.directive == "elif" then
                 ifmode[#ifmode] = "skip"
             elseif tk.directive == "else" then
@@ -835,8 +835,8 @@ cpp.parse_file = typed("string, file*?, Ctx? -> Ctx?, string?",
                 end
                 cpp.parse_file(inc_filename, inc_fd, ctx)
             else
-                macro_expand(ctx, tk --[[@as any]], linelist, cur, false)
-                table.insert(ctx.output, table.concat(tk --[[@as any]], " "))
+                macro_expand(ctx, tk, linelist, cur, false)
+                table.insert(ctx.output, table.concat(tk, " "))
             end
         elseif ifmode[#ifmode] == false then
             if tk.directive == "ifdef"
@@ -846,7 +846,7 @@ cpp.parse_file = typed("string, file*?, Ctx? -> Ctx?, string?",
             elseif tk.directive == "else" then
                 ifmode[#ifmode] = not ifmode[#ifmode]
             elseif tk.directive == "elif" then
-                ifmode[#ifmode] = run_expression(ctx, tk.exp --[[@as any]])
+                ifmode[#ifmode] = run_expression(ctx, tk.exp)
             elseif tk.directive == "endif" then
                 table.remove(ifmode, #ifmode)
             end
@@ -939,7 +939,7 @@ cpp.parse_context = typed("string, file*?, Ctx? -> Ctx?, string?",
             elseif tk.directive == "ifndef" then
                 table.insert(ifmode, (ctx.defines[tk.id --[[@as string]]] == nil))
             elseif tk.directive == "if" then
-                table.insert(ifmode, run_expression(ctx, tk.exp --[[@as any]]))
+                table.insert(ifmode, run_expression(ctx, tk.exp))
             elseif tk.directive == "elif" then
                 ifmode[#ifmode] = "skip"
             elseif tk.directive == "else" then
@@ -965,8 +965,8 @@ cpp.parse_context = typed("string, file*?, Ctx? -> Ctx?, string?",
                 end
                 cpp.parse_file(inc_filename, inc_fd, ctx)
             else
-                macro_expand(ctx, tk --[[@as any]], linelist, cur, false)
-                table.insert(ctx.output, table.concat(tk --[[@as any]], " "))
+                macro_expand(ctx, tk, linelist, cur, false)
+                table.insert(ctx.output, table.concat(tk, " "))
             end
         elseif ifmode[#ifmode] == false then
             if tk.directive == "ifdef"
@@ -976,7 +976,7 @@ cpp.parse_context = typed("string, file*?, Ctx? -> Ctx?, string?",
             elseif tk.directive == "else" then
                 ifmode[#ifmode] = not ifmode[#ifmode]
             elseif tk.directive == "elif" then
-                ifmode[#ifmode] = run_expression(ctx, tk.exp --[[@as any]])
+                ifmode[#ifmode] = run_expression(ctx, tk.exp)
             elseif tk.directive == "endif" then
                 table.remove(ifmode, #ifmode)
             end

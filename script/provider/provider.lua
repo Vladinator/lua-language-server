@@ -127,7 +127,6 @@ end)
 m.register 'initialize' {
     ---@param params any
     function(params)
-        local params = params --[[@as any]]
         client.init(params)
 
         if params.rootUri then
@@ -159,7 +158,6 @@ m.register 'initialized'{
     ---@async
     ---@param params any
     function (params)
-        local params = params
         local _ <close> = progress.create(workspace.getFirstScope().uri, lang.script.WINDOW_INITIALIZING, 0.5)
         --- 传递`.luarc.doc.json`文件所在的文件夹路径
         m.updateConfig(params and params.luarcParentUri)
@@ -942,7 +940,7 @@ m.register 'textDocument/documentSymbol' {
                 state,
                 symbol.selectionRange[1],
                 symbol.selectionRange[2]
-            ) --[[@as any]]
+            )
             if symbol.name == '' then
                 symbol.name = ' '
             end
@@ -1740,7 +1738,6 @@ m.register '$/psi/view' {
     ---@async
     ---@param params any
     function (params)
-        local params = params
         local uri = files.getRealUri(params.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_TYPE_FORMATTING, 0.5)
@@ -1757,7 +1754,6 @@ m.register '$/psi/select' {
     ---@async
     ---@param params any
     function(params)
-        local params = params
         local uri = files.getRealUri(params.uri)
         workspace.awaitReady(uri)
         local _<close> = progress.create(uri, lang.script.WINDOW_PROCESSING_TYPE_FORMATTING, 0.5)

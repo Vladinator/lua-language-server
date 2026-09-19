@@ -391,7 +391,7 @@ function m.compileCodes(codes)
     ---@type string[]?
     local lines
     for _, code in ipairs(codes) do
-        local asts = cdriver.process_context(code) --[[@as any[]?]]
+        local asts = cdriver.process_context(code)
         if not asts then
             goto continue
         end

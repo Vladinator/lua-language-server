@@ -78,10 +78,10 @@ function m.start()
                     local ability = m.ability[name]
                     if not ability then
                         resPad:push(id)
-                        ;(log --[[@as any]]).error('Brave can not handle this work: ' .. name)
+                        log.error('Brave can not handle this work: ' .. name)
                         goto CONTINUE
                     end
-                    local suc, res = xpcall(ability, (log --[[@as any]]).error, params)
+                    local suc, res = xpcall(ability, log.error, params)
                     if suc then
                         resPad:push(id, res)
                     else

@@ -102,12 +102,21 @@ FORCE_ACCEPT_WORKSPACE = false
 -- This is potentially unsafe for normal use and meant for usage in CI environments only.
 TRUST_ALL_PLUGINS = false
 
+-- Number of check threads, use command line: --num_threads=4
+-- Unset unless passed, so readers fall back to 1.
+---@type integer?
 NUM_THREADS = 1
 
+-- Index of this check worker, use command line: --thread_id=2
+---@type integer?
 THREAD_ID = 1
 
+-- Root path a check worker processes; a bare `--check_worker` gives `true`, so readers must check the type.
+---@type string|boolean?
 CHECK_WORKER = ''
 
+---@type boolean?
 QUIET = false
 
+---@type boolean?
 HELP = false

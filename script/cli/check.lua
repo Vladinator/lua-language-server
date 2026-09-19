@@ -22,7 +22,7 @@ end
 ---@param numThreads number
 ---@param threadId integer
 ---@param format string
----@param quiet boolean
+---@param quiet boolean?
 ---@return string[]
 local function buildArgs(minIndex, numThreads, threadId, format, quiet)
     ---@type string[]

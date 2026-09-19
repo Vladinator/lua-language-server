@@ -50,7 +50,7 @@ function mt:checker(v)
         -- re-resolve the live set on every check instead.
         local enums = self.enums
         if type(enums) == 'function' then
-            enums = enums() --[[@as any[] ]]
+            enums = enums()
         end
         ---@cast enums any[]
         ---@type boolean?

@@ -128,7 +128,7 @@ local function get_name(name_src)
                 table.insert(indices, part.idx)
             end
         end
-        name = name_src.name --[[@as any]]
+        name = name_src.name
     end
     return true, name, ret_pointer, next(indices) and indices
 end

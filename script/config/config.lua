@@ -217,8 +217,8 @@ function m.update(scp, ...)
     ---@param left? string
     local function expand(t, left)
         for key, val in pairs(t) do
-            local value = val --[[@as any]]
-            local fullKey = key --[[@as any]]
+            local value = val
+            local fullKey = key
             if left then
                 fullKey = (left .. '.' .. key) --[[@as string]]
             end

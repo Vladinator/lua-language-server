@@ -149,7 +149,7 @@ function mt:start(callback)
     local jumpedTime = 0
 
     while true do
-        if finished and #self._outs == 0 then
+        if finished and #self._outs == 0 and not SIM_KEEPALIVE then
             break
         end
         timer.update()

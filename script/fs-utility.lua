@@ -167,7 +167,7 @@ function dfs:_open(index)
     for i = 1, index do
         local path = paths[i]
         if current[path] then
-            current = current[path] --[[@as any]]
+            current = current[path]
         else
             return nil
         end
@@ -237,7 +237,7 @@ function dfs:isDirectory()
 end
 
 function dfs:remove()
-    local dir = self:_open(-2) --[[@as any]]
+    local dir = self:_open(-2)
     local filename = self:_filename()
     if not filename then
         return
@@ -272,7 +272,7 @@ function dfs:createDirectories(path)
         else
             (current --[[@as table<any, any>]])[sub] = {}
         end
-        current = current[sub] --[[@as any]]
+        current = current[sub]
     end
     return true
 end
@@ -406,7 +406,7 @@ local function fsSave(path, text, option)
     end
     if path.type == 'dummy' then
         ---@cast path dummyfs
-        local dir = path:_open(-2) --[[@as any]]
+        local dir = path:_open(-2)
         if not dir then
             option.err[#option.err+1] = '无法打开:' .. path:string()
             return false

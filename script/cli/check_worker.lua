@@ -193,7 +193,7 @@ function export.runCLI()
     local quiet = QUIET or numThreads > 1
 
     if type(CHECK_WORKER) ~= 'string' then
-        print(lang.script('CLI_CHECK_ERROR_TYPE', type(CHECK_WORKER --[[@as any]])))
+        print(lang.script('CLI_CHECK_ERROR_TYPE', type(CHECK_WORKER)))
         return
     end
 

@@ -6,6 +6,10 @@
 -- (the compile of a node depends on which node was requested first). Env:
 --     SIM_ORDER = forward (default) | reverse | shuffle:<seed>    file launch order
 --     SIM_JOBS  = <n>                                             limit the number of files
+--     SIM_CODE  = <diagnostic code>                               list this code (default no-unknown)
+--     SIM_TOUCH = <path fragment>                                 re-set the text of the matching
+--                 files, then diagnose everything again (editor invalidation)
+--     SIM_TOUCH_MODE = recreate                                   remove + add back instead
 local target = TARGET_TEST_NAME --[[@as string?]]
 if not target or not ('editor_sim'):match(target) then
     return
@@ -17,6 +21,9 @@ local await       = require 'await'
 local furi        = require 'file-uri'
 local diagnostics = require 'core.diagnostics'
 
+local wantCode   = os.getenv('SIM_CODE') or 'no-unknown'
+-- keeps the client loop (script/lclient.lua) running after the last test returned
+SIM_KEEPALIVE = true
 local jobsWanted = tonumber(os.getenv('SIM_JOBS') or '') or 100000
 ---@type string[]
 local unknownLines = {}
@@ -50,7 +57,9 @@ elseif order:sub(1, 8) == 'shuffle:' then
 end
 
 ---@async
-await.call(function ()
+local function pass(label)
+    unknownLines = {}
+    jobs = 0
     for _, uri in ipairs(uris) do
         if jobs >= jobsWanted then
             break
@@ -60,7 +69,7 @@ await.call(function ()
         ---@async
         await.call(function ()
             diagnostics(uri, false, function (result)
-                if result.code == 'no-unknown' then
+                if result.code == wantCode then
                     local state = files.getState(uri)
                     local text = ''
                     if state and state.lua then
@@ -73,14 +82,41 @@ await.call(function ()
             pending = pending - 1
         end)
     end
-    print('editor_sim: launched', jobs, 'concurrent diagnostics')
+    print('editor_sim: launched', jobs, 'concurrent diagnostics' .. label)
     while pending > 0 do
         await.sleep(0.2)
     end
     table.sort(unknownLines)
-    print('editor_sim: no-unknown findings:', #unknownLines)
+    print('editor_sim: ' .. wantCode .. ' findings:', #unknownLines)
     for _, l in ipairs(unknownLines) do
         print('   ' .. l)
+    end
+end
+
+---@async
+await.call(function ()
+    pass('')
+    -- SIM_TOUCH = <path fragment>: re-set the text of the matching files (as an editor
+    -- does on every keystroke) and diagnose again, to catch invalidation bugs where a
+    -- dependent file loses what the edited file defines.
+    local touch = os.getenv('SIM_TOUCH')
+    if touch then
+        for _, uri in ipairs(uris) do
+            if furi.decode(uri):gsub('[\\]', '/'):find(touch, 1, true) then
+                local text = files.getText(uri) or ''
+                if os.getenv('SIM_TOUCH_MODE') == 'recreate' then
+                    -- what a file watcher does when an editor saves via rename: remove, then add back
+                    files.remove(uri)
+                    files.setText(uri, text .. '\n', false)
+                else
+                    files.open(uri)
+                    files.setText(uri, text .. '\n', false)
+                end
+                print('editor_sim: touched', uri)
+            end
+        end
+        await.sleep(1)
+        pass(' after touching ' .. touch)
     end
     os.exit(0)
 end)

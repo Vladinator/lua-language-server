@@ -6,6 +6,9 @@ local config = require 'config.config'
 
 rawset(_G, 'TEST', true)
 
+---@param targets [integer, integer][]
+---@param results [integer, integer][]
+---@return boolean
 local function founded(targets, results)
     if #targets ~= #results then
         return false
@@ -23,6 +26,8 @@ local function founded(targets, results)
 end
 
 ---@async
+---@param script string
+---@param version? string
 function TEST(script, version)
     local newScript, catched = catch(script, '!?')
 
@@ -33,13 +38,14 @@ function TEST(script, version)
 
     local results = core(TESTURI, catched['?'][1][1])
     if results then
+        ---@type [integer, integer][]
         local positions = {}
         for i, result in ipairs(results) do
             if not vm.isMetaFile(result.uri) then
-                positions[#positions+1] = { result.target.start, result.target.finish }
+                positions[#positions+1] = { result.target.start --[[@as integer]], result.target.finish --[[@as integer]] }
             end
         end
-        assert(founded(catched['!'], positions))
+        assert(founded(catched['!'] --[[@as [integer, integer][] ]], positions))
     else
         assert(#catched['!'] == 0)
     end

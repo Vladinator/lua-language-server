@@ -50,7 +50,7 @@ function m.updateConfig(uri)
     ---@type uri?
     local currentUri = uri
     while true do
-        currentUri = (currentUri --[[@as uri]]):match('^(.+)/[^/]*$') --[[@as uri?]]
+        currentUri = (currentUri):match('^(.+)/[^/]*$')
         if not currentUri or loadedUris[currentUri] then
             return
         end

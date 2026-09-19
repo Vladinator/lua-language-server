@@ -160,7 +160,7 @@ function mt:start(callback)
             goto CONTINUE
         end
         timer.timeJump(1.0)
-        jumpedTime = jumpedTime + 1.0 --[[@as number]]
+        jumpedTime = jumpedTime + 1.0
         if jumpedTime > 2 * 60 * 60 then
             error('two hours later ...\n' .. self:reportHangs())
         end

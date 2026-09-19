@@ -186,7 +186,7 @@ end
 ---@param path string
 function m.watchFiles(path)
     path = path:gsub('\\', '/')
-               :gsub('[%[%]%{%}%*%?]', '\\%1') --[[@as string]]
+               :gsub('[%[%]%{%}%*%?]', '\\%1')
     local registration = {
         id              = path,
         method          = 'workspace/didChangeWatchedFiles',
@@ -666,8 +666,8 @@ function m._callEvent(ev)
     for _, callback in ipairs(m._eventList) do
         ---@async
         await.call(function ()
-            local cb    = callback --[[@as async fun(ev: string)]]
-            local event = ev --[[@as string]]
+            local cb    = callback
+            local event = ev
             cb(event)
         end)
     end

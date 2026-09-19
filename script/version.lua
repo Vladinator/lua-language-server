@@ -11,7 +11,6 @@ local function loadVersion()
     if not version then
         return
     end
-    ---@cast pos integer -- always set together with version by the same match
 
     if not changelog:find('^[\r\n]+`', pos) then
         version = version .. '-dev'

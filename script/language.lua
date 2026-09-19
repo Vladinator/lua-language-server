@@ -65,7 +65,7 @@ local function formatAsArray(str, ...)
         end
         id = tonumber(id)
         if not id then
-            index = (index + 1) --[[@as integer]]
+            index = (index + 1)
             id = index
         end
         return ('%'..fmt):format(args[id])

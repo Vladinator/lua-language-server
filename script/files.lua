@@ -650,7 +650,6 @@ local function pluginOnTransformAst(uri, state)
     if not suc then
         return state
     end
-    ---@cast result parser.object?
     state.ast = result or state.ast
     return state
 end
@@ -1006,10 +1005,10 @@ function m.normalize(path)
     if platform.os == 'windows' then
         path = path:gsub('[/\\]+', '\\')
                    :gsub('[/\\]+$', '')
-                   :gsub('^(%a:)$', '%1\\') --[[@as string]]
+                   :gsub('^(%a:)$', '%1\\')
     else
         path = path:gsub('[/\\]+', '/')
-                   :gsub('[/\\]+$', '') --[[@as string]]
+                   :gsub('[/\\]+$', '')
     end
     return path
 end

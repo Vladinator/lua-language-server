@@ -458,8 +458,8 @@ local lookIntoChild = util.switch()
         if tracer.getMap[action] then
             tracer.nodes[action] = topNode
             if outNode then
-                topNode = topNode:copy():setTruthy() --[[@as vm.node]]
-                outNode = outNode:copy():setFalsy() --[[@as vm.node]]
+                topNode = topNode:copy():setTruthy()
+                outNode = outNode:copy():setFalsy()
             end
         end
         return topNode, outNode
@@ -612,8 +612,8 @@ local lookIntoChild = util.switch()
         if tracer.getMap[action] then
             tracer.nodes[action] = topNode
             if outNode then
-                topNode = topNode:copy():setTruthy() --[[@as vm.node]]
-                outNode = outNode:copy():setFalsy() --[[@as vm.node]]
+                topNode = topNode:copy():setTruthy()
+                outNode = outNode:copy():setFalsy()
             end
         end
         return topNode, outNode
@@ -629,8 +629,8 @@ local lookIntoChild = util.switch()
         if tracer.getMap[action] then
             tracer.nodes[action] = topNode
             if outNode then
-                topNode = topNode:copy():setTruthy() --[[@as vm.node]]
-                outNode = outNode:copy():setFalsy() --[[@as vm.node]]
+                topNode = topNode:copy():setTruthy()
+                outNode = outNode:copy():setFalsy()
             end
         end
         return topNode, outNode
@@ -646,8 +646,8 @@ local lookIntoChild = util.switch()
         if tracer.getMap[action] then
             tracer.nodes[action] = topNode
             if outNode then
-                topNode = topNode:copy():setTruthy() --[[@as vm.node]]
-                outNode = outNode:copy():setFalsy() --[[@as vm.node]]
+                topNode = topNode:copy():setTruthy()
+                outNode = outNode:copy():setFalsy()
             end
         end
         return topNode, outNode
@@ -952,7 +952,7 @@ local function getAssignNode(source)
     or   source.type == 'setindex'
     or   source.type == 'setmethod')
     and neverNil(source.value) then
-        node = node:copy():removeOptional() --[[@as vm.node]]
+        node = node:copy():removeOptional()
     end
     return node
 end

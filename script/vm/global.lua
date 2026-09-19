@@ -728,7 +728,6 @@ function vm.getGlobalBase(source)
     if not globalVar then
         return nil
     end
-    ---@cast source parser.object
     local root = guide.getRoot(source)
     if not root._globalBaseMap then
         root._globalBaseMap = {}

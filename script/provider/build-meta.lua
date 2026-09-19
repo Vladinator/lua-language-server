@@ -140,7 +140,7 @@ function m.build(path, api)
     ---@type table<string, string[]>
     local files = util.multiTable(2, function ()
         return { '---@meta' }
-    end) --[[@as table<string, string[]>]]
+    end)
 
     files[api.root][#files[api.root]+1] = buildRootText(api)
 

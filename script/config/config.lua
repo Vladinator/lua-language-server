@@ -264,7 +264,7 @@ function m.event(uri, key, value, oldValue)
     if not m.changes then
         m.changes = {}
         timer.wait(0, function ()
-            local delay = m.changes --[[@as config.changeEntry[] ]]
+            local delay = m.changes
             m.changes = nil
             for _, info in ipairs(delay) do
                 for _, callback in ipairs(m.watchList) do

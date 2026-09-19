@@ -71,11 +71,11 @@ local json = require "json-beautify"
 -- optionality that `---@class json` must declare them with generically,
 -- since plain `require "json"` (without json-beautify.lua) leaves them unset
 ---@type fun(v: any, option?: json-beautify.option): string
-local beautify = json.beautify --[[@as any]]
+local beautify = json.beautify
 ---@type fun(builder: string[], v: any, option?: json-beautify.option)
-local beautify_builder = json._beautify_builder --[[@as any]]
+local beautify_builder = json._beautify_builder
 ---@type fun(option?: json-beautify.option): json-beautify.option
-local beautify_option = json._beautify_option --[[@as any]]
+local beautify_option = json._beautify_option
 
 local encode_escape_map = {
     [ "\"" ] = "\\\"",
@@ -775,7 +775,7 @@ function OP.add(str, option, path, value)
         value = add_prefix(value, lastpath)
     end
     if isarray then
-        k = k --[[@as integer]]
+        k = k
         if t.v[k] then
             return apply_array_insert_before(str, option, value, t.v[k])
         elseif k == 1 then
@@ -813,7 +813,7 @@ function OP.remove(str, _, path)
         return str
     end
     if isarray then
-        k = k --[[@as integer]]
+        k = k
         if k > #t.v then
             --warning: path does not exist
             return str
@@ -858,7 +858,7 @@ function OP.replace(str, option, path, value)
         return apply_replace(str, option, value, t.v[k])
     else
         if isarray then
-            k = k --[[@as integer]]
+            k = k
             if k == 1 then
                 return apply_array_insert_empty(str, option, value, t)
             else

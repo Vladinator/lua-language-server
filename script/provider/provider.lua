@@ -159,7 +159,7 @@ m.register 'initialized'{
     ---@async
     ---@param params any
     function (params)
-        local params = params --[[@as any]]
+        local params = params
         local _ <close> = progress.create(workspace.getFirstScope().uri, lang.script.WINDOW_INITIALIZING, 0.5)
         --- 传递`.luarc.doc.json`文件所在的文件夹路径
         m.updateConfig(params and params.luarcParentUri)
@@ -400,7 +400,7 @@ m.register 'textDocument/hover' {
         if not state then
             return nil
         end
-        local pos = converter.unpackPosition(state, params.position --[[@as position]])
+        local pos = converter.unpackPosition(state, params.position)
         local hover, source, maxLevel = core.byUri(uri, pos, params.level or 1)
         if not hover or not source then
             return nil
@@ -474,7 +474,7 @@ m.register 'textDocument/definition' {
             return nil
         end
         local core   = require 'core.definition'
-        local pos = converter.unpackPosition(state, params.position --[[@as position]])
+        local pos = converter.unpackPosition(state, params.position)
         local result = core(uri, pos)
         if not result then
             return nil
@@ -502,7 +502,7 @@ m.register 'textDocument/typeDefinition' {
             return
         end
         local core   = require 'core.type-definition'
-        local pos = converter.unpackPosition(state, params.position --[[@as position]])
+        local pos = converter.unpackPosition(state, params.position)
         local result = core(uri, pos)
         if not result then
             return nil
@@ -530,7 +530,7 @@ m.register 'textDocument/implementation' {
             return
         end
         local core   = require 'core.implementation'
-        local pos = converter.unpackPosition(state, params.position --[[@as position]])
+        local pos = converter.unpackPosition(state, params.position)
         local result = core(uri, pos)
         if not result then
             return nil
@@ -558,8 +558,8 @@ m.register 'textDocument/references' {
             return nil
         end
         local core   = require 'core.reference'
-        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
-        local result = core(uri, pos, params.context.includeDeclaration --[[@as boolean]])
+        local pos    = converter.unpackPosition(state, params.position)
+        local result = core(uri, pos, params.context.includeDeclaration)
         if not result then
             return nil
         end
@@ -595,7 +595,7 @@ m.register 'textDocument/documentHighlight' {
         if not state then
             return nil
         end
-        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
+        local pos    = converter.unpackPosition(state, params.position)
         local result = core(uri, pos)
         if not result then
             return nil
@@ -632,7 +632,7 @@ m.register 'textDocument/rename' {
             return nil
         end
         local core = require 'core.rename'
-        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
+        local pos    = converter.unpackPosition(state, params.position)
         local result = core.rename(uri, pos, params.newName)
         if not result then
             return nil
@@ -669,7 +669,7 @@ m.register 'textDocument/prepareRename' {
         if not state then
             return nil
         end
-        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
+        local pos    = converter.unpackPosition(state, params.position)
         local result = core.prepareRename(uri, pos)
         if not result then
             return nil
@@ -714,7 +714,7 @@ m.register 'textDocument/completion' {
         end
         --await.setPriority(1000)
         local clock  = os.clock()
-        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
+        local pos    = converter.unpackPosition(state, params.position)
         local result = core.completion(uri, pos, triggerCharacter)
         local passed = os.clock() - clock
         if passed > 0.1 then
@@ -728,7 +728,7 @@ m.register 'textDocument/completion' {
         local easy = false
         ---@type table[]
         local items = {}
-        for i, res in ipairs(result --[[@as vm.completion.result[] ]]) do
+        for i, res in ipairs(result) do
             local item = {
                 label            = res.label,
                 kind             = res.kind,
@@ -751,7 +751,7 @@ m.register 'textDocument/completion' {
                 additionalTextEdits = res.additionalTextEdits and (function ()
                     ---@type table[]
                     local t = {}
-                    for j, edit in ipairs(res.additionalTextEdits --[[@as vm.completion.edit[] ]]) do
+                    for j, edit in ipairs(res.additionalTextEdits) do
                         t[j] = {
                             range   = converter.packRange(
                                 state,
@@ -863,7 +863,7 @@ m.register 'textDocument/signatureHelp' {
             return nil
         end
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_SIGNATURE, 0.5)
-        local pos = converter.unpackPosition(state, params.position --[[@as position]])
+        local pos = converter.unpackPosition(state, params.position)
         local core = require 'core.signature'
         local results = core(uri, pos)
         if not results then
@@ -929,7 +929,7 @@ m.register 'textDocument/documentSymbol' {
                 state,
                 symbol.range[1],
                 symbol.range[2]
-            ) --[[@as any]]
+            )
             symbol.selectionRange = converter.packRange(
                 state,
                 symbol.selectionRange[1],
@@ -1137,7 +1137,7 @@ m.register 'workspace/symbol' {
                 return nil
             end
             return {
-                name = symbol.name --[[@as string]],
+                name = symbol.name,
                 kind = symbol.skind,
                 location = converter.location(
                     uri,
@@ -1236,7 +1236,7 @@ m.register 'textDocument/semanticTokens/range' {
             return nil
         end
         local core = require 'core.semantic-tokens'
-        local start, finish = converter.unpackRange(state, params.range --[[@as range]])
+        local start, finish = converter.unpackRange(state, params.range)
         local results = core(uri, start, finish)
         return {
             data = results
@@ -1324,7 +1324,7 @@ m.register 'textDocument/documentColor' {
 m.register 'textDocument/colorPresentation' {
     ---@param params any
     function (params)
-        local color = (require 'core.color').colorToText(params.color --[[@as Color]])
+        local color = (require 'core.color').colorToText(params.color)
         return {{label = color}}
     end
 }
@@ -1477,7 +1477,7 @@ m.register 'textDocument/onTypeFormatting' {
             return nil
         end
         local core   = require 'core.type-formatting'
-        local pos    = converter.unpackPosition(state, params.position --[[@as position]])
+        local pos    = converter.unpackPosition(state, params.position)
         local edits  = core(uri, pos, ch, params.options)
         if not edits or #edits == 0 then
             return nil
@@ -1521,7 +1521,7 @@ m.register '$/requestHint' {
             return
         end
         local core = require 'core.hint'
-        local start, finish = converter.unpackRange(state, params.range --[[@as range]])
+        local start, finish = converter.unpackRange(state, params.range)
         local results = core(uri, start, finish)
         ---@type table[]
         local hintResults = {}
@@ -1732,7 +1732,7 @@ m.register '$/psi/view' {
     ---@async
     ---@param params any
     function (params)
-        local params = params --[[@as any]]
+        local params = params
         local uri = files.getRealUri(params.uri)
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_TYPE_FORMATTING, 0.5)
@@ -1749,7 +1749,7 @@ m.register '$/psi/select' {
     ---@async
     ---@param params any
     function(params)
-        local params = params --[[@as any]]
+        local params = params
         local uri = files.getRealUri(params.uri)
         workspace.awaitReady(uri)
         local _<close> = progress.create(uri, lang.script.WINDOW_PROCESSING_TYPE_FORMATTING, 0.5)

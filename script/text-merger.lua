@@ -7,7 +7,7 @@ local offsetEncoding
 ---@return encoder.encoding
 local function getOffsetEncoding()
     if not offsetEncoding then
-        offsetEncoding = (client.getOffsetEncoding():lower():gsub('%-', '')) --[[@as encoder.encoding]]
+        offsetEncoding = (client.getOffsetEncoding():lower():gsub('%-', ''))
     end
     return offsetEncoding
 end

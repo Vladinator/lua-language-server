@@ -332,7 +332,7 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
 
     ---@type table[]
     local diags = {}
-    local lastDiag = copyDiagsWithoutSyntax(m.cache[uri] --[[@as table[]? ]])
+    local lastDiag = copyDiagsWithoutSyntax(m.cache[uri])
     local function pushResult()
         tracy.ZoneBeginN 'mergeSyntaxAndDiags'
         local _ <close> = tracy.ZoneEnd
@@ -376,7 +376,7 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
         if not lastDiag then
             return
         end
-        local checkedDiags = lastDiag --[[@as table[] ]]
+        local checkedDiags = lastDiag
         for i, diag in ipairs(checkedDiags) do
             if diag.code == checkedName then
                 checkedDiags[i] = checkedDiags[#checkedDiags]
@@ -597,7 +597,7 @@ function m.awaitDiagnosticsScope(suri, callback)
         while loading.count() > 0 do
             await.sleep(1.0)
         end
-        i = (i + 1) --[[@as integer]]
+        i = (i + 1)
         bar:setMessage(('%d/%d'):format(i, #uris))
         bar:setPercentage(i / #uris * 100)
         callback(uri)

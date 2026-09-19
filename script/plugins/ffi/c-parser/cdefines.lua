@@ -130,7 +130,7 @@ get_type_of_exp = typed("Exp, TypeList -> {string}?",
         print("FIXME unsupported op", exp.op)
     end
     return nil
-end) --[[@as fun(exp: Exp, lst: ctypes.TypeList): string[]? ]]
+end)
 
 ---@param lst ctypes.TypeList
 ---@param name string
@@ -142,7 +142,7 @@ function cdefines.register_define(lst, name, text)
         -- print(("failed parsing: %d:%d: %s\n"):format(line, col, text))
         return
     end
-    local typ = get_type_of_exp(exp --[[@as Exp]], lst)
+    local typ = get_type_of_exp(exp, lst)
     if typ then
         add_type(lst, name, { type = typ })
     end
@@ -152,7 +152,7 @@ end
 ---@param define_set table<string, Token?>
 function cdefines.register_defines(lst, define_set)
     for name, def0 in pairs(define_set) do
-        local def = def0 --[[@as Token]]
+        local def = def0
         if #def == 0 then
             goto continue
         end

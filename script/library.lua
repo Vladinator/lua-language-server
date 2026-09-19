@@ -78,7 +78,7 @@ local function convertLink(uri, text)
     return text:gsub('%$([%.%w_%:]+)', function (name)
         local lastDot = ''
         if name:sub(-1) == '.' then
-            name = name:sub(1, -2) --[[@as string]]
+            name = name:sub(1, -2)
             lastDot = '.'
         end
         if fmt then
@@ -89,7 +89,7 @@ local function convertLink(uri, text)
     end):gsub('§([%.%w]+)', function (name)
         local lastDot = ''
         if name:sub(-1) == '.' then
-            name = name:sub(1, -2) --[[@as string]]
+            name = name:sub(1, -2)
             lastDot = '.'
         end
         if fmt then
@@ -167,7 +167,7 @@ local function compileSingleMetaDoc(uri, script, metaLang, status)
             compileBuf[#compileBuf+1] = '---\n'
             for line in util.eachLine(des) do
                 compileBuf[#compileBuf+1] = '---'
-                compileBuf[#compileBuf+1] = convertLink(uri, line --[[@as string]])
+                compileBuf[#compileBuf+1] = convertLink(uri, line)
                 compileBuf[#compileBuf+1] = '\n'
             end
             local viewDocument = createViewDocument(uri, name)
@@ -243,7 +243,7 @@ end
 ---@param result? table<string, string>
 ---@return table<string, string>
 local function loadMetaLocale(langID, result)
-    result = result or {} --[[@as table<string, string>]]
+    result = result or {}
     local path = (ROOT / 'locale' / langID / 'meta.lua'):string()
     local localeContent = util.loadFile(path)
     if localeContent then
@@ -375,7 +375,7 @@ local function loadSingle3rdConfigFromLua(libraryDir)
         cfg[k] = v
     end
 
-    return cfg --[[@as library.3rdConfig]]
+    return cfg
 end
 
 ---@param libraryDir fs.path
@@ -415,9 +415,9 @@ local function loadSingle3rdConfig(libraryDir)
         for i, fname in ipairs(cfg.files) do
             local filename = fname
             if plat.os == 'windows' then
-                filename = filename:gsub('/', '\\') --[[@as string]]
+                filename = filename:gsub('/', '\\')
             else
-                filename = filename:gsub('\\', '/') --[[@as string]]
+                filename = filename:gsub('\\', '/')
             end
             cfg.files[i] = '([%w_]?)' .. filename .. '([%w_]?)'
         end
@@ -679,7 +679,6 @@ local function check3rd(uri)
     elseif checkThirdParty == true then
         checkThirdParty = 'Ask'
     end
-    ---@cast checkThirdParty string
     local scp = scope.getScope(uri)
     if not scp:get 'canCheckThirdParty' then
         return

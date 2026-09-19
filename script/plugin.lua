@@ -74,7 +74,7 @@ end
 ---@return plugin.interface[]?
 function m.getPluginInterfaces(uri)
     local scp = scope.getScope(uri)
-    local interfaces = scp:get('pluginInterfaces') --[[@as plugin.interface[]? ]]
+    local interfaces = scp:get('pluginInterfaces')
     if not interfaces then
         return
     end

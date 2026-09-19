@@ -150,7 +150,7 @@ function encode_map.table(t)
             statusBuilder[#statusBuilder+1] = ","
             encode_newline()
             encode(t[count])
-            count = count + 1 --[[@as integer]]
+            count = count + 1
         end
         local k = next(t, count-1)
         if k ~= nil then
@@ -170,7 +170,7 @@ end
 ---@param option? json-beautify.option
 ---@return json-beautify.option
 local function beautify_option(option)
-    return setmetatable(option or {}, defaultOpt --[[@as metatable]])
+    return setmetatable(option or {}, defaultOpt)
 end
 
 ---@param builder string[]

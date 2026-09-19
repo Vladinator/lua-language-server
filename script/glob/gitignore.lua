@@ -61,7 +61,7 @@ function mt:addPattern(pat)
     end
     self.pattern[#self.pattern+1] = pat
     if self.options.ignoreCase then
-        pat = pat:lower() --[[@as string]]
+        pat = pat:lower()
     end
     ---@type any[]?, any
     local states, err = parser:match(pat)

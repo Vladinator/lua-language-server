@@ -5,7 +5,7 @@ local mathFloor    = math.floor
 local monotonic    = time.monotonic
 local xpcall       = xpcall
 ---@type any
-local logError     = (log --[[@as any]]).error
+local logError     = (log).error
 
 _ENV = nil
 
@@ -62,7 +62,7 @@ local function mWakeup(self)
     end
     if self._timerCount then
         if self._timerCount > 1 then
-            self._timerCount = (self._timerCount - 1) --[[@as integer]]
+            self._timerCount = (self._timerCount - 1)
             mTimeout(self, self._timeout)
         else
             self._removed = true
@@ -248,11 +248,11 @@ local lastClock = monotonic()
 function m.update()
     local currentClock = monotonic() + fwFrame
     local delta = currentClock - lastClock
-    lastClock = currentClock --[[@as integer]]
+    lastClock = currentClock
     if curIndex ~= 0 then
         curFrame = curFrame - 1
     end
-    maxFrame = (maxFrame + delta) --[[@as integer]]
+    maxFrame = (maxFrame + delta)
     tarFrame = mathFloor(maxFrame)
     while curFrame < maxFrame do
         curFrame = curFrame + 1

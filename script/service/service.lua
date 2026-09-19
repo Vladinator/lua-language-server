@@ -37,10 +37,10 @@ local function countMemory()
     local mems = {}
     local total  = 0
     mems[0] = collectgarbage 'count'
-    total = (total + collectgarbage 'count') --[[@as number]]
+    total = (total + collectgarbage 'count')
     for id, brave in ipairs(pub.allBraves) do
         mems[id] = brave.memory
-        total = (total + brave.memory) --[[@as number]]
+        total = (total + brave.memory)
     end
     return total, mems
 end
@@ -84,16 +84,16 @@ function m.reportTask()
     local dead      = 0
 
     for co in pairs(await.coMap) do
-        total = (total + 1) --[[@as integer]]
+        total = (total + 1)
         local status = coroutine.status(co)
         if status == 'running' then
-            running = (running + 1) --[[@as integer]]
+            running = (running + 1)
         elseif status == 'suspended' then
-            suspended = (suspended + 1) --[[@as integer]]
+            suspended = (suspended + 1)
         elseif status == 'normal' then
-            normal = (normal + 1) --[[@as integer]]
+            normal = (normal + 1)
         elseif status == 'dead' then
-            dead = (dead + 1) --[[@as integer]]
+            dead = (dead + 1)
         end
     end
 
@@ -113,9 +113,9 @@ function m.reportCache()
     local dead  = 0
 
     for cache in pairs(vm.cacheTracker) do
-        total = (total + 1) --[[@as integer]]
+        total = (total + 1)
         if cache.dead then
-            dead = (dead + 1) --[[@as integer]]
+            dead = (dead + 1)
         end
     end
 
@@ -132,10 +132,10 @@ function m.reportProto()
     local waiting = 0
 
     for _ in pairs(proto.holdon) do
-        holdon = (holdon + 1) --[[@as integer]]
+        holdon = (holdon + 1)
     end
     for _ in pairs(proto.waiting) do
-        waiting = (waiting + 1) --[[@as integer]]
+        waiting = (waiting + 1)
     end
 
     ---@type string[]

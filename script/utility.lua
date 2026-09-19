@@ -276,7 +276,7 @@ local function sortTable(tbl)
     ---@param value any
     function mt:__newindex(key, value)
         rawset(self, key, value)
-        n = (n + 1) --[[@as integer]]; keys[n] = key
+        n = (n + 1); keys[n] = key
         mark[key] = true
         if type(value) == 'table' then
             sortTable(value)
@@ -299,7 +299,7 @@ local function sortTable(tbl)
                 keys[i] = key
                 mark[key] = true
             end
-            n = (n + m) --[[@as integer]]
+            n = (n + m)
         end
         local i = 0
         return function ()
@@ -1326,12 +1326,12 @@ function m.enableFormatString()
             ---@type string?, string?
             local k, fmt = key:match('^{(.-):(.+)}$')
             if not k then
-                k = key:sub(2, -2) --[[@as string]]
+                k = key:sub(2, -2)
             end
             ---@type any
             local value
             if k == '' then
-                count = (count + 1) --[[@as integer]]
+                count = (count + 1)
                 value = args[count]
             else
                 value = args[k]

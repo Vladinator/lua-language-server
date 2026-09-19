@@ -8,7 +8,7 @@ local cdefines = require("plugins.ffi.c-parser.cdefines")
 function cdriver.process_file(filename)
     local ctx, err = cpp.parse_file(filename)
     if not ctx then
-        return nil, "failed preprocessing '"..filename.."': " .. (err --[[@as string]])
+        return nil, "failed preprocessing '"..filename.."': " .. (err)
     end
 
     local srccode = table.concat(ctx.output, "\n").." $EOF$"
@@ -33,7 +33,7 @@ end
 function cdriver.process_context(context)
     local ctx, err = cpp.parse_context(context)
     if not ctx then
-        return nil, "failed preprocessing '"..context.."': " .. (err --[[@as string]])
+        return nil, "failed preprocessing '"..context.."': " .. (err)
     end
 
     local srccode = table.concat(ctx.output, "\n").." $EOF$"

@@ -899,7 +899,7 @@ local function createLocal(obj, attrs)
             chunk.locals = locals
         end
         locals[#locals+1] = obj
-        LocalCount = LocalCount + 1 --[[@as integer]]
+        LocalCount = LocalCount + 1
         if not LocalLimited and LocalCount > LocalLimit then
             LocalLimited = true
             pushError {
@@ -1345,12 +1345,12 @@ local function parseStringUnicode()
         return nil, offset
     end
     local leftPos  = getPosition(offset, 'left')
-    local x16      = (smatch(Lua, '^%w*', offset + 1) --[[@as string]])
+    local x16      = (smatch(Lua, '^%w*', offset + 1))
     local rightPos = getPosition(offset + #x16, 'right')
     offset = offset + #x16 + 1
     if ssub(Lua, offset, offset) == '}' then
         offset   = offset + 1
-        rightPos = rightPos + 1 --[[@as integer]]
+        rightPos = rightPos + 1
     else
         missSymbol('}', rightPos)
     end
@@ -1670,19 +1670,19 @@ local function parseNumber10(start)
     if ssub(Lua, offset, offset) == '.' then
         local floatPart = smatch(Lua, '^' .. digitPattern .. '*', offset + 1)
         integer = false
-        offset = (offset + #floatPart + 1) --[[@as integer]]
+        offset = (offset + #floatPart + 1)
     end
     -- exp part
     local echar = ssub(Lua, offset, offset)
     if CharMapE10[echar] then
         integer = false
-        offset = (offset + 1) --[[@as integer]]
+        offset = (offset + 1)
         local nextChar = ssub(Lua, offset, offset)
         if CharMapSign[nextChar] then
-            offset = (offset + 1) --[[@as integer]]
+            offset = (offset + 1)
         end
         local exp = smatch(Lua, '^' .. digitPattern .. '*', offset)
-        offset = (offset + #exp) --[[@as integer]]
+        offset = (offset + #exp)
         if #exp == 0 then
             pushError {
                 type   = 'MISS_EXPONENT',
@@ -1713,7 +1713,7 @@ local function parseNumber16(start, prefixStart)
     if ssub(Lua, offset, offset) == '.' then
         local floatPart = smatch(Lua, '^' .. hexPattern .. '*', offset + 1)
         integer = false
-        offset = (offset + #floatPart + 1) --[[@as integer]]
+        offset = (offset + #floatPart + 1)
         if #integerPart == 0 and #floatPart == 0 then
             pushError {
                 type   = 'MUST_X16',
@@ -1735,13 +1735,13 @@ local function parseNumber16(start, prefixStart)
     local echar = ssub(Lua, offset, offset)
     if CharMapE16[echar] then
         integer = false
-        offset = (offset + 1) --[[@as integer]]
+        offset = (offset + 1)
         local nextChar = ssub(Lua, offset, offset)
         if CharMapSign[nextChar] then
-            offset = (offset + 1) --[[@as integer]]
+            offset = (offset + 1)
         end
         local exp = smatch(Lua, '^' .. hexPattern .. '*', offset)
-        offset = (offset + #exp) --[[@as integer]]
+        offset = (offset + #exp)
     end
     local numStr = ssub(Lua, prefixStart, offset - 1)
     if isLuaJITExt('number_underscore') then
@@ -1827,7 +1827,7 @@ local function dropNumberTail(offset, integer)
                 }
             }
         end
-        offset = (offset + 1) --[[@as integer]]
+        offset = (offset + 1)
         word   = ssub(word, offset)
     end
     if #word > 0 then
@@ -1851,7 +1851,7 @@ local function parseNumber()
     local neg
     if ssub(Lua, offset, offset) == '-' then
         neg = true
-        offset = offset + 1 --[[@as integer]]
+        offset = offset + 1
     end
     ---@type number?, boolean?
     local number, integer
@@ -1864,9 +1864,9 @@ local function parseNumber()
         -- LuaJIT 扩展：允许 0 与进制前缀之间存在下划线（如 0__x__1）
         local prefixOffset = offset + 1
         if isLuaJITExt('number_underscore') then
-            local underscores = (smatch(Lua, '^_*', prefixOffset) --[[@as string]])
+            local underscores = (smatch(Lua, '^_*', prefixOffset))
             if #underscores > 0 then
-                prefixOffset = prefixOffset + #underscores --[[@as integer]]
+                prefixOffset = prefixOffset + #underscores
                 nextChar = ssub(Lua, prefixOffset, prefixOffset)
             end
         end
@@ -3649,7 +3649,7 @@ function parseExp(asAction, level, noMethod, noTernary)
         and child
         and (child.type == 'number' or child.type == 'integer') then
             child.start = uop.start
-            child[1]    = - (child[1] --[[@as number]])
+            child[1]    = - (child[1])
             exp = child
         else
             ---@type parser.object
@@ -3998,7 +3998,7 @@ local function parseMultiVars(n1, parser, isLocal)
             local v = vrest and vrest[i]
             max = i + 2
             if not v then
-                index = index + 1 --[[@as integer]]
+                index = index + 1
             end
             bindValue(n, v, index, lastValue, isLocal, isSet)
             lastValue = v or lastValue
@@ -4852,14 +4852,13 @@ local function parseFor()
             if nameOrList.type == 'name' then
                 name = nameOrList
             else
-                name = nameOrList[1] --[[@as parser.object]]
+                name = nameOrList[1]
             end
         end
         -- for x in ... uses 4 variables
         forStateVars = 3
         LocalCount = LocalCount + forStateVars
         if name then
-            ---@cast name parser.object
             -- In Lua 5.5, for loop variables are treated as constants
             ---@type parser.object?
             local attrs
@@ -4987,7 +4986,6 @@ local function parseFor()
             action.keys = list
             for i = 1, #list do
                 local obj = list[i]
-                ---@cast obj parser.object
                 -- In Lua 5.5, for first loop variable is treated as constant
                 ---@type parser.object?
                 local attrs

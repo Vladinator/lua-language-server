@@ -892,7 +892,7 @@ local function checkCommon(state, word, position, results)
     ---@type table<string, boolean>
     local used = {}
     for _, result in ipairs(results) do
-        used[result.label:match '^[^(]*' --[[@as string]]] = true
+        used[result.label:match '^[^(]*'] = true
     end
     for _, data in ipairs(keyWordMap) do
         used[data[1]] = true
@@ -1637,7 +1637,7 @@ local function checkEqualEnumLeft(state, position, source, results, isInArray)
         if src.type == 'string' then
             return src
         end
-    end) --[[@as parser.object?]]
+    end)
     local defs = vm.getDefs(source)
     checkTypingEnum(state, position, defs, str, results, isInArray)
 end

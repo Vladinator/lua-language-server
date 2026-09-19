@@ -107,7 +107,6 @@ function mt:resolve(uri, args)
                 -- 'number' -> `T`
                 for n in node:eachObject() do
                     if n.type == 'string' then
-                        ---@cast n parser.object
                         local type = vm.declareGlobal('type', object.pattern and object.pattern:format(n[1]) or n[1], guide.getUri(n))
                         resolved[key] = vm.createNode(type, resolved[key])
                     end

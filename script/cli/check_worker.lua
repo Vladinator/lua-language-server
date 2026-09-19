@@ -275,7 +275,7 @@ function export.runCLI()
 
     local count = 0
     for uri, result in pairs(results) do
-        count = (count + #result) --[[@as integer]]
+        count = (count + #result)
         if #result == 0 then
             results[uri] = nil
         end

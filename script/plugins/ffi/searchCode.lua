@@ -20,11 +20,11 @@ end
 ---@param CdefReference core.reference.result
 ---@return string[]?
 local function getCode(CdefReference)
-    local target = CdefReference.target --[[@as parser.object]]
+    local target = CdefReference.target
     if not (target.type == 'field' and target.parent.type == 'getfield') then
         return
     end
-    target = target.parent.parent --[[@as parser.object]]
+    target = target.parent.parent
     if target.type == 'call' then
         return getLiterals(target.args and target.args[1])
     elseif target.type == 'local' then

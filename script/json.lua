@@ -260,7 +260,7 @@ function encode_map.table(t)
         while t[count] ~= nil do
             statusBuilder[#statusBuilder+1] = ","
             encode(t[count])
-            count = count + 1 --[[@as integer]]
+            count = count + 1
         end
         local k = next(t, count-1)
         if k ~= nil then

@@ -14,7 +14,7 @@ end
 ---@return string
 local function normalize(str)
     local result = str:gsub('%%(%x%x)', function (n)
-        return string.char(tonumber(n, 16) --[[@as integer]])
+        return string.char(tonumber(n, 16))
     end)
     return result
 end

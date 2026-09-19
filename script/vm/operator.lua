@@ -149,7 +149,6 @@ function vm.runOperator(op, exp, value)
             c = vm.declareGlobal('type', 'string')
         end
         if c.type == 'global' and c.cate == 'type' then
-            ---@cast c vm.global
             for _, set in ipairs(c:getSets(uri)) do
                 if set.operators and #set.operators > 0 then
                     result = checkOperators(set.operators, op, value, result)

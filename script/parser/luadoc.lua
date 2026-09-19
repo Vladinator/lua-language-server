@@ -90,7 +90,7 @@ Symbol              <-  ({} {
     er = '\r',
     et = '\t',
     ev = '\v',
-    name = ((m.R('az', 'AZ', '09', '\x80\xff') + m.S('_')) * (m.R('az', 'AZ', '09', '\x80\xff') + m.S('_.*-'))^0) --[[@as any]],
+    name = ((m.R('az', 'AZ', '09', '\x80\xff') + m.S('_')) * (m.R('az', 'AZ', '09', '\x80\xff') + m.S('_.*-'))^0),
     Char10 = function (char)
         ---@type integer?
         char = tonumber(char)
@@ -511,7 +511,7 @@ local function parseTuple(parent)
                     [1]    = index,
                 }
             }
-            index          = index + 1 --[[@as integer]]
+            index          = index + 1
             ---@diagnostic disable-next-line: assign-type-mismatch
             field.extends  = parseType(field)
             if not field.extends then
@@ -895,14 +895,14 @@ local function parseCodePattern(parent)
         pattern = '%s'
     end
     while true do
-        i = i+1 --[[@as integer]]
+        i = i+1
         local nextTp, nextContent = peekToken(i)
         if not nextTp or TokenFinishs[Ci+i-1] + 1 ~= TokenStarts[Ci+i] then
             ---不连续的name，无效的
             break
         end
         if nextTp == 'name' then
-            pattern = pattern .. nextContent --[[@as string]]
+            pattern = pattern .. nextContent
         elseif nextTp == 'code' then
             if codeOffset then
                 -- 暂时不支持多generic
@@ -1135,7 +1135,7 @@ function parseType(parent)
                         if comments then
                             resume.comment = table.concat(comments, '\n')
                         else
-                            resume.comment = nextComm.text:match('%s*#?%s*(.+)', resume.finish - nextComm.start) --[[@as string]]
+                            resume.comment = nextComm.text:match('%s*#?%s*(.+)', resume.finish - nextComm.start)
                         end
                         result.types[#result.types+1] = resume
                         result.finish = resume.finish
@@ -1244,7 +1244,7 @@ local docSwitch = util.switch()
             if not rests then
                 rests = {}
             end
-            rests[#rests+1] = rest --[[@as parser.object]]
+            rests[#rests+1] = rest
         end
         return first, rests
     end)
@@ -2363,7 +2363,7 @@ local function bindReturnIndex(binded)
     for _, doc in ipairs(binded) do
         if doc.type == 'doc.return' then
             for _, rtn in ipairs(doc.returns) do
-                returnIndex = returnIndex + 1 --[[@as integer]]
+                returnIndex = returnIndex + 1
                 rtn.returnIndex = returnIndex
             end
         end

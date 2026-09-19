@@ -88,7 +88,7 @@ function mt:writterAndReader(fileID)
         for id, code in pairs(codes) do
             file:write(code)
             map[id] = offset * 1000000 + #code
-            offset = (offset + #code) --[[@as integer]]
+            offset = (offset + #code)
         end
         file:close()
     end

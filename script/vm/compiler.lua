@@ -555,7 +555,6 @@ local searchFieldSwitch = util.switch()
     ---@param key string|number|integer|boolean|vm.global|vm.ANY|vm.ANYDOC
     ---@param pushResult fun(field: vm.object, isMark?: boolean)
     : default(function (suri, source, key, pushResult)
-        ---@cast key string|vm.global|vm.ANY|vm.ANYDOC
         searchFieldByLocalID(source, key, pushResult)
         searchFieldByGlobalID(suri, source, key, pushResult)
     end)
@@ -1524,7 +1523,6 @@ local function compileFunctionParam(func, source)
                     break
                 end
             end
-            ---@cast cbIndex integer
 
             -- simulate a completion at `cbIndex` to infer this callback function type
             ---@diagnostic disable-next-line: missing-fields
@@ -1794,7 +1792,6 @@ local function bindReturnOfFunction(source, mfunc, index, args)
 
     for rnode in returnNode:eachObject() do
         if rnode.type == 'generic' then
-            ---@cast rnode vm.generic
             if selfGenericResolved and rnode.sign then
                 ---@type table<string, vm.node>
                 local resolved = rnode.sign:resolve(guide.getUri(source), resolveArgs) or {}
@@ -2082,12 +2079,13 @@ local compilerSwitch = util.switch()
             return
         end
         local valueNode = vm.compileNode(source.value)
-        if  valueNode:isEmpty()
-        and not locNode:isEmpty()
+        if  not valueNode:isTyped()
+        and locNode:isTyped()
         and referencesLocal(source.value, source.node) then
             -- a self-referential assignment (`i = i + 1`, `s = s .. x`) is
-            -- circular for the tracer, so the value comes back empty; keep the
-            -- variable's own type instead of degrading it to unknown
+            -- circular for the tracer, so the value comes back empty or
+            -- untyped; keep the variable's own type instead of degrading it
+            -- to unknown
             valueNode = locNode
         end
         vm.setNode(source, valueNode)

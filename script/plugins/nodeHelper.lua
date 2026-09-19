@@ -71,7 +71,7 @@ function _M.createFieldPattern(pattern)
             or { field = { type = 'field', matched }, type = 'getfield', next = nil }
         next.next = field
         next = field
-        pattern = pattern:sub(endpos) --[[@as string]]
+        pattern = pattern:sub(endpos)
     end
     return ret
 end

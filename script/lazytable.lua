@@ -273,7 +273,7 @@ function mt:entry()
                     objs[k] = id
                 end
             end
-            info = { fields, len, objs } --[[@as lazytable.info]]
+            info = { fields, len, objs }
             local id = idMap[t]
             local code = dump(info)
             infoMap[t] = nil

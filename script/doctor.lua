@@ -316,7 +316,7 @@ m.snapshot = private(function ()
     ---@param result? doctor.info
     ---@return doctor.info
     local function findFunction(f, result)
-        result = result or {} --[[@as doctor.info]]
+        result = result or {}
         for i = 1, maxinterger do
             local n, v = getupvalue(f, i)
             if not n then
@@ -338,7 +338,7 @@ m.snapshot = private(function ()
     ---@param result? doctor.info
     ---@return doctor.info?
     local function findUserData(u, result)
-        result = result or {} --[[@as doctor.info]]
+        result = result or {}
         local maxUserValue = multiUserValue and maxinterger or 1
         for i = 1, maxUserValue do
             local v, b = getuservalue(u, i)
@@ -376,7 +376,7 @@ m.snapshot = private(function ()
         if m._ignoreMainThread and trd == registry[1] then
             return nil
         end
-        result = result or private0 {} --[[@as doctor.info]]
+        result = result or private0 {}
 
         for i = 1, maxinterger do
             local info = getinfo(trd, i, 'Sf')
@@ -625,7 +625,7 @@ m.report = private(function ()
         end
         if not mark[t.info] then
             mark[t.info] = true
-            for _, child in ipairs(t.info --[[@as doctor.node[] ]]) do
+            for _, child in ipairs(t.info) do
                 scan(child)
             end
         end

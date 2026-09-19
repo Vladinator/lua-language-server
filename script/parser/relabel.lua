@@ -151,8 +151,8 @@ end
 local function mult (p, n)
   local np = mm.P(true)
   while n >= 1 do
-    if n%2 >= 1 then np = (np * p) --[[@as lpeglabel.pattern]] end
-    p = (p * p) --[[@as lpeglabel.pattern]]
+    if n%2 >= 1 then np = (np * p) end
+    p = (p * p)
     n = n/2
   end
   return np
@@ -339,7 +339,7 @@ local function compile (p, defs)
   local ok, cp, label, poserr = pcall(function() return pattern:match(p, 1, defs) end)
   if not ok and cp then
     if type(cp) == "string" then
-      cp = (cp --[[@as string]]):gsub("^[^:]+:[^:]+: ", "")
+      cp = (cp):gsub("^[^:]+:[^:]+: ", "")
     end
     error(cp, 3)
   end

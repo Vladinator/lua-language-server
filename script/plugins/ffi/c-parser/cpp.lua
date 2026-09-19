@@ -335,7 +335,7 @@ end)
 cpp.tokenize = typed("string -> table",
     ---@param line string
     function(line)
-        return c99.match_preprocessing_grammar(line) --[[@as any]]
+        return c99.match_preprocessing_grammar(line)
     end)
 
 ---@param ctx Ctx
@@ -402,13 +402,13 @@ eval_exp = typed("Ctx, Exp -> number",
         local defined = ctx.defines[val]
         if defined then
             assert(type(defined) == "table")
-            local subexp = parse_expression(defined --[[@as string[] ]])
+            local subexp = parse_expression(defined)
             if not subexp then
                 return 0 -- FIXME
             end
             return eval_exp(ctx, subexp)
         end
-        val = val:gsub("U*L*$", "") --[[@as any]]
+        val = val:gsub("U*L*$", "")
         if val:match("^0[xX]") then
             return tonumber(val) or 0
         elseif val:sub(1,1) == "0" then
@@ -495,7 +495,7 @@ local consume_parentheses = typed("{string}, number, LineList, number -> {{strin
             until token
         end
         if token == "(" then
-            stack = (stack + 1) --[[@as integer]]
+            stack = (stack + 1)
             table.insert(arg, token)
         elseif token == ")" then
             if stack == 0 then
@@ -504,7 +504,7 @@ local consume_parentheses = typed("{string}, number, LineList, number -> {{strin
                 end
                 break
             end
-            stack = (stack - 1) --[[@as integer]]
+            stack = (stack - 1)
             table.insert(arg, token)
         elseif token == "," then
             if stack == 0 then
@@ -516,7 +516,7 @@ local consume_parentheses = typed("{string}, number, LineList, number -> {{strin
         else
             table.insert(arg, token)
         end
-        i = (i + 1) --[[@as integer]]
+        i = (i + 1)
     end
     return args, i
 end)
@@ -527,7 +527,7 @@ local function array_copy(t)
     ---@type any[]
     local t2 = {}
     for i,v in ipairs(t) do
-        t2[i] = v --[[@as any]]
+        t2[i] = v
     end
     return t2
 end
@@ -619,7 +619,7 @@ local replace_args = typed("Ctx, {string}, table, LineList, number -> ()",
                 tokens[i] = stringify(args[token])
                 hash_next = false
             elseif join_next then
-                tokens[i - 1] = (tokens[i - 1] .. table.concat(args[token], " ")) --[[@as string]]
+                tokens[i - 1] = (tokens[i - 1] .. table.concat(args[token], " "))
                 table.remove(tokens, i)
                 join_next = false
             else
@@ -628,7 +628,7 @@ local replace_args = typed("Ctx, {string}, table, LineList, number -> ()",
                 i = i + #args[token]
             end
         elseif join_next then
-            tokens[i - 1] = (tokens[i - 1] .. tokens[i]) --[[@as string]]
+            tokens[i - 1] = (tokens[i - 1] .. tokens[i])
             table.remove(tokens, i)
             join_next = false
         else
@@ -1007,11 +1007,11 @@ cpp.expand_macro = typed("string, table -> string",
         ---@type Ctx
         local ctx = typed.table("Ctx", setmetatable({
             defines = define_set,
-        }, { __index = error, __newindex = error })) --[[@as any]]
+        }, { __index = error, __newindex = error }))
         ---@type string[]
         local tokens = { macro }
         ---@type LineList
-        local linelist = typed.table("LineList", { { nr = 1, line = macro } }) --[[@as any]]
+        local linelist = typed.table("LineList", { { nr = 1, line = macro } })
         macro_expand(ctx, tokens, linelist, 1, false)
         return table.concat(tokens, " ")
     end)

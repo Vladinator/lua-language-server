@@ -21,7 +21,6 @@ local function cloneObject(source, resolved)
     if not resolved or not source then
         return source
     end
-    ---@cast source parser.object
     if source.type == 'doc.generic.name' then
         local key = source[1]
         ---@type parser.object
@@ -205,10 +204,8 @@ function mt:resolve(uri, args)
     local result = vm.createNode()
     for nd in protoNode:eachObject() do
         if nd.type == 'global' or nd.type == 'variable' then
-            ---@cast nd vm.global | vm.variable
             result:merge(nd)
         else
-            ---@cast nd -vm.global, -vm.variable
             local clonedObject = cloneObject(nd, resolved)
             if clonedObject then
                 -- When a generic resolves to another generic (e.g. V -> T

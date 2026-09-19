@@ -318,7 +318,7 @@ export.makeDocObject['type'] = function(source, obj, has_seen)
     if export.makeDocObject['variable'](source, obj, has_seen) == false then
         return false
     end
-    obj.fields = {} --[[@as docUnion[] ]]
+    obj.fields = {}
     ---@async
     vm.getClassFields(ws.rootUri, source, vm.ANY, function (next_source, mark)
         if next_source.type == 'doc.field'
@@ -326,7 +326,7 @@ export.makeDocObject['type'] = function(source, obj, has_seen)
         or next_source.type == 'setmethod'
         or next_source.type == 'tableindex'
         then
-            table.insert(obj.fields --[[@as docUnion[] ]], export.documentObject(next_source, has_seen) --[[@as docUnion]])
+            table.insert(obj.fields, export.documentObject(next_source, has_seen))
         end
     end)
     table.sort(obj.fields, export.sortDoc)
@@ -337,7 +337,7 @@ end
 ---@param obj docUnion
 ---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['variable'] = function(source, obj, has_seen)
-    obj.defines = {} --[[@as docUnion[] ]]
+    obj.defines = {}
     for _, set in ipairs(source:getSets(ws.rootUri)) do
         if set.type == 'setglobal'
         or set.type == 'setfield'
@@ -347,10 +347,10 @@ export.makeDocObject['variable'] = function(source, obj, has_seen)
         or set.type == 'doc.enum'
         or set.type == 'doc.class'
         then
-            table.insert(obj.defines --[[@as docUnion[] ]], export.documentObject(set, has_seen) --[[@as docUnion]])
+            table.insert(obj.defines, export.documentObject(set, has_seen))
         end
     end
-    if #(obj.defines --[[@as docUnion[] ]]) == 0 then return false end
+    if #(obj.defines) == 0 then return false end
     table.sort(obj.defines, export.sortDoc)
 end
 
@@ -370,7 +370,7 @@ function export.makeDocs(globals, callback)
     ---@type docUnion[]
     local docs = {}
     for i, globalVar in ipairs(globals) do
-        table.insert(docs, export.documentObject(globalVar) --[[@as docUnion]])
+        table.insert(docs, export.documentObject(globalVar))
         callback(i, #globals)
     end
     docs[#docs+1] = export.getLualsConfig()

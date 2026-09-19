@@ -81,7 +81,6 @@ local function checkParentEnum(parentName, child, uri, mark, errs)
         return nil
     end
     if child.type == 'global' then
-        ---@cast child vm.global
         for _, enum in ipairs(enums) do
             if vm.isSubType(uri, child, vm.compileNode(enum), mark) then
                 return true
@@ -94,14 +93,12 @@ local function checkParentEnum(parentName, child, uri, mark, errs)
         end
         return false
     elseif child.type == 'generic' then
-        ---@cast child vm.generic
         if errs then
             errs[#errs+1] = 'TYPE_ERROR_ENUM_GENERIC_UNSUPPORTED'
             errs[#errs+1] = child
         end
         return false
     else
-        ---@cast child parser.object
         local childName = vm.getNodeName(child)
         if childName == 'number'
         or childName == 'integer'
@@ -239,8 +236,6 @@ local function checkValue(parent, child, mark, errs)
             if child == parent then
                 return true
             end
-            ---@cast parent parser.object
-            ---@cast child parser.object
             local uri = guide.getUri(parent)
             local tnode = vm.compileNode(child)
             for _, pfield in ipairs(parent.fields) do
@@ -390,7 +385,7 @@ function vm.isSubType(uri, child, parent, mark, errs)
             local maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0
             local i = 0
             for n in child:eachObject() do
-                i = i + 1 --[[@as integer]]
+                i = i + 1
                 if maxUnionVariants > 0 and i > maxUnionVariants then
                     break
                 end
@@ -422,12 +417,11 @@ function vm.isSubType(uri, child, parent, mark, errs)
             local maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0
             local i = 0
             for n in child:eachObject() do
-                i = i + 1 --[[@as integer]]
+                i = i + 1
                 if maxUnionVariants > 0 and i > maxUnionVariants then
                     break
                 end
                 if skipTable == nil and n.type == "table" and parent.type == "vm.node" then -- skip table type check if child has class
-                    ---@cast parent vm.node
                     for _, c in ipairs(child) do
                         if c.type == 'global' and c.cate == 'type' then
                             for _, set in ipairs(c:getSets(uri)) do
@@ -914,7 +908,7 @@ function vm.viewTypeErrorMessage(uri, errs)
                                       or vm.getInfer(value):view(uri)
                 end
             end
-            index = index + 1 --[[@as integer]]
+            index = index + 1
         end
         local line = lang.script(name, lparams)
         if not mark[line] then

@@ -309,7 +309,7 @@ end
 ---@return vm.node
 function mt:remove(name)
     if name == 'nil' and self.optional == true then
-        local node = self --[[@as vm.node]]
+        local node = self
         node.optional = nil
     end
     for index = #self, 1, -1 do

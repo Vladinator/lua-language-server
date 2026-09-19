@@ -83,7 +83,7 @@ end
 ---@return fs-utility.option
 local function buildOption(option)
     ---@diagnostic disable-next-line: missing-fields
-    option     = option     or {} --[[@as fs-utility.option]]
+    option     = option     or {}
     option.add = option.add or {}
     option.del = option.del or {}
     option.mod = option.mod or {}
@@ -107,7 +107,7 @@ local function split(str, sep)
         if s > 1 then
             t[#t+1] = str:sub(current, s - 1)
         end
-        current = (e --[[@as integer]]) + 1
+        current = (e) + 1
     end
     return t
 end
@@ -142,7 +142,7 @@ end
 ---@return dummyfs
 function dfs:__div(filename)
     if type(filename) ~= 'string' then
-        filename = filename:string() --[[@as string]]
+        filename = filename:string()
     end
     local new = m.dummyFS(self.files)
     if self.path:sub(-1):match '[^/\\]' then
@@ -287,11 +287,11 @@ function dfs:saveFile(path, text)
         return false, 'no path'
     end
     if type(path) ~= 'string' then
-        path = path:string() --[[@as string]]
+        path = path:string()
     end
     local temp = m.dummyFS(self.files)
     temp.path = path
-    local dir = temp:_open(-2) --[[@as any]]
+    local dir = temp:_open(-2)
     if not dir then
         return false, '无法打开:' .. path
     end
@@ -351,7 +351,6 @@ local function fsPairs(path, option)
         return function () end
     end
     if path.type == 'dummy' then
-        ---@cast path dummyfs
         return path:listDirectory()
     end
     local suc, res = pcall(fs.pairs, path)
@@ -370,7 +369,6 @@ local function fsRemove(path, option)
         return false
     end
     if path.type == 'dummy' then
-        ---@cast path dummyfs
         return path:remove()
     end
     local suc, res = pcall(fs.remove, path)
@@ -489,7 +487,6 @@ local function fsCopy(source, target, option)
             end
             return fsSave(target, sourceText, option)
         else
-            ---@cast target -dummyfs
             local suc, res = pcall(fs.copy_file, source, target, fs.copy_options.overwrite_existing)
             if not suc then
                 option.err[#option.err+1] = res
@@ -508,7 +505,6 @@ local function fsCreateDirectories(path, option)
         return
     end
     if path.type == 'dummy' then
-        ---@cast path dummyfs
         return path:createDirectories()
     end
     local suc, res = pcall(fs.create_directories, path)
@@ -683,7 +679,7 @@ function m.fileList(option)
                 return path, fileList[key]
             end
         end,
-    }) --[[@as table<fs.path|dummyfs, boolean>]]
+    })
 end
 
 --- 删除文件（夹）

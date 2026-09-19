@@ -340,11 +340,10 @@ end
 ---@return parser.object?
 function m.getParentFunction(obj)
     for _ = 1, 10000 do
-        obj = (obj --[[@as parser.object]]).parent --[[@as parser.object?]]
+        obj = (obj).parent
         if not obj then
             break
         end
-        ---@cast obj -?
         ---@type string
         local tp = obj.type
         if tp == 'function' or tp == 'main' then
@@ -372,7 +371,6 @@ function m.getBlock(obj)
         obj = obj.parent
     end
     -- make stack
-    ---@cast obj -?
     ---@type string[]
     local stack = {}
     for _ = 1, 10 do
@@ -390,7 +388,7 @@ end
 ---@return parser.object?
 function m.getParentBlock(obj)
     for _ = 1, 10000 do
-        obj = (obj --[[@as parser.object]]).parent --[[@as parser.object?]]
+        obj = (obj).parent
         if not obj then
             return nil
         end
@@ -448,7 +446,7 @@ end
 ---@return parser.object?
 function m.getParentType(obj, want)
     for _ = 1, 10000 do
-        obj = (obj --[[@as parser.object]]).parent --[[@as parser.object?]]
+        obj = (obj).parent
         if not obj then
             return nil
         end
@@ -464,7 +462,7 @@ end
 ---@return parser.object?
 function m.getParentTypes(obj, wants)
     for _ = 1, 10000 do
-        obj = (obj --[[@as parser.object]]).parent --[[@as parser.object?]]
+        obj = (obj).parent
         if not obj then
             return nil
         end
@@ -854,7 +852,7 @@ function m.eachSource(ast, callback)
             if not obj then
                 break
             end
-            index = index + 1 --[[@as integer]]
+            index = index + 1
             if not mark[obj] then
                 mark[obj] = true
                 addChilds(cache, obj)

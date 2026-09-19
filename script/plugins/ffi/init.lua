@@ -139,14 +139,14 @@ function builder:getType(name)
             if not isStruct then
                 isStruct = self:needDeref(self:getTypeAst(n))
             end
-            t = t .. (n --[[@as string]])
+            t = t .. (n)
             ::continue::
         end
         -- deref 一级指针
         if isStruct and t:sub(#t) == '*' then
-            t = t:sub(1, #t - 1) --[[@as string]]
+            t = t:sub(1, #t - 1)
         end
-        name = t --[[@as any]]
+        name = t
     end
     if knownTypes[name] then
         return knownTypes[name]

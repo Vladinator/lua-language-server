@@ -38,7 +38,6 @@ function m.loadRCConfig(uri, filename)
         errorMessage(lang.script('CONFIG_LOAD_ERROR', res))
         return scp:get('lastRCConfig')
     end
-    ---@cast res table
     scp:set('lastRCConfig', res)
     return res
 end
@@ -71,7 +70,6 @@ function m.loadLocalConfig(uri, filename)
             errorMessage(lang.script('CONFIG_LOAD_ERROR', res))
             return scp:get('lastLocalConfig')
         end
-        ---@cast res table
         scp:set('lastLocalConfig', res)
         scp:set('lastLocalType', 'json')
         return res

@@ -284,3 +284,28 @@ if t.n then
     print(t.n + 5)
 end
 ]]
+
+-- 字段赋值之后合流：`if not t.x then t.x = {} end` 之后 t.x 不再可能为 nil
+TEST [[
+---@class A
+---@field list? table[]
+local t = {}
+
+if not t.list then
+    t.list = {}
+end
+print(#t.list)
+]]
+
+TEST [[
+---@class A
+---@field list? table[]
+---@param t A
+---@param maybe table[]?
+local function f(t, maybe)
+    if not t.list then
+        t.list = maybe
+    end
+    print(#<!t.list!>)
+end
+]]

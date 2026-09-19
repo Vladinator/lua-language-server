@@ -115,7 +115,6 @@ local care = {
             if not status.regions then
                 status.regions = {}
             end
-            ---@diagnostic disable-next-line: need-check-nil
             status.regions[#status.regions+1] = source
         elseif ltext:sub(1, #'endregion') == 'endregion'
         or     ltext:sub(1, #'#endregion') == '#endregion' then

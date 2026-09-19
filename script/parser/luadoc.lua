@@ -1669,7 +1669,6 @@ local docSwitch = util.switch()
                     }
                     return result
                 end
-                ---@diagnostic disable-next-line: need-check-nil
                 result.names[#result.names+1] = name
                 if not checkToken('symbol', ',', 1) then
                     break

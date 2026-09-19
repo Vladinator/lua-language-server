@@ -914,6 +914,20 @@ function mt:calcNode(source)
     end
     if self.assignMap[source] then
         local node = vm.compileNode(source)
+        -- A field assignment's own node is the union of every type the field
+        -- is declared with (`---@field x? T` contributes the `?`), not just
+        -- what was assigned. When the assigned value can't be nil, the field
+        -- can't be nil right after the write either -- otherwise
+        -- `if not t.x then t.x = {} end` never narrows `t.x` past the join.
+        if  source.value
+        and (source.type == 'setfield'
+        or   source.type == 'setindex'
+        or   source.type == 'setmethod') then
+            local valueNode = vm.compileNode(source.value)
+            if valueNode:alwaysTruthy() then
+                node = node:copy():removeOptional() --[[@as vm.node]]
+            end
+        end
         self.nodes[source] = node
         local parentBlock = guide.getParentBlock(source)
         if parentBlock then

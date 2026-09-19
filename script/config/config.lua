@@ -273,7 +273,6 @@ function m.event(uri, key, value, oldValue)
             end
         end)
     end
-    ---@diagnostic disable-next-line: need-check-nil
     m.changes[#m.changes+1] = {
         uri      = uri,
         key      = key,

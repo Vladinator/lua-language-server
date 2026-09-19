@@ -165,6 +165,10 @@ local connect_mt = {}
 ---@class net.connect: net.socket
 ---@field public _writebuf string
 ---@field public shutdown_w boolean
+---@field public on_connected? fun(self: net.connect)
+---@field public on_data? fun(self: net.connect, data: string)
+---@field public on_error? fun(self: net.connect, err: string)
+---@field public on_close? fun(self: net.connect)
 local connect = {}
 connect_mt.__index = connect
 ---@param self net.connect

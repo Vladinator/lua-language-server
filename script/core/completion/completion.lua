@@ -1342,7 +1342,7 @@ local function checkLenPlusOne(state, position, results)
                 local eq = text:find('^%s*%]?%s*%=', sourceFinish)
                 local newText = label .. ']'
                 if not eq then
-                    newText = newText .. ' = '
+                    newText = (newText .. ' = ') --[[@as string]]
                 end
                 results[#results+1] = {
                     label    = label,

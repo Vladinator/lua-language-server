@@ -289,6 +289,18 @@ end
     return f
 end})
 
+--- Tell the tree walkers (`eachChild`, `getChildren`, so `eachSource`, hover, completion,
+--- ...) where a node type keeps its children, for a node type a plugin adds
+--- (see `parser.docTags`). `defs` uses the same syntax as the built-in map: `'#names'` walks
+--- the array `obj.names`, `'name'` the single child `obj.name`.
+---@param nodeType string
+---@param defs     string[]
+function m.registerChildren(nodeType, defs)
+    childMap[nodeType]         = defs
+    compiledChildMap[nodeType] = nil
+    eachChildMap[nodeType]     = nil
+end
+
 m.actionMap = {
     ['main']        = {'#'},
     ['repeat']      = {'#'},

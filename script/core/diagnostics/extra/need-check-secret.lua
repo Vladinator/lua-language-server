@@ -46,10 +46,16 @@ protoDiagnostic.register {
 -- `local a, b, c`): only those locals are affected. No list means every
 -- local of the statement, as before.
 
-docTags.registerNameListTag('secret',        'doc.secret')
-docTags.registerNameListTag('secret-unwrap', 'doc.secret-unwrap')
-docTags.registerMarkerTag('secret-check',        'doc.secret-check')
-docTags.registerMarkerTag('secret-access-check', 'doc.secret-access-check')
+docTags.registerNameListTag('secret', 'doc.secret',
+    'Marks a value as secret: reading it before it is checked raises `need-check-secret`.\n\n'
+    .. '`---@secret` marks everything it is bound to; `---@secret a, b` only the named locals.')
+docTags.registerNameListTag('secret-unwrap', 'doc.secret-unwrap',
+    'Clears the secret flag a local would inherit from its value, e.g. from a call returning a secret.\n\n'
+    ..'`---@secret-unwrap a, b` limits it to the named locals.')
+docTags.registerMarkerTag('secret-check', 'doc.secret-check',
+    'Marks a function that tells whether a value is secret: on the branch where it reports not secret, the value may be used.')
+docTags.registerMarkerTag('secret-access-check', 'doc.secret-access-check',
+    'Like `---@secret-check`, but the function returns true when the value is safe to access.')
 
 docTags.registerContinuesAfterClassGroup('doc.secret')
 docTags.registerClassGroupDoc('doc.secret')
@@ -70,12 +76,14 @@ end)
 -- `---@field name secret string` -- an additional bare keyword alongside
 -- the built-in public/protected/private/package, consumed by the
 -- 'doc.field' genesis rule below.
-docTags.registerFieldKeyword('secret', 'secret')
+docTags.registerFieldKeyword('secret', 'secret',
+    'The field holds a secret value: `---@field secret token string`.')
 
 -- `secret` in front of a type item: `---@type number, secret string`,
 -- `---@param token secret string`, `---@return secret string`. Marks exactly that
 -- item, so the type and the secrecy live in one annotation.
-docTags.registerTypeKeyword('secret', 'secret')
+docTags.registerTypeKeyword('secret', 'secret',
+    'Marks this type item as secret: `---@param token secret string`.')
 
 -- Recognize `next` as an iteration entry point, alongside the parser's
 -- own built-in pairs/ipairs, so `next(secretTable)` can be banned below.

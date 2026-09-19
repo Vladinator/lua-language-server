@@ -23,6 +23,7 @@ local wssymbol     = require 'core.workspace-symbol'
 local findSource   = require 'core.find-source'
 local diagnostic   = require 'provider.diagnostic'
 local autoRequire  = require 'core.completion.auto-require'
+local docTags      = require 'parser.docTags'
 
 local diagnosticModes = {
     'disable-next-line',
@@ -2125,6 +2126,16 @@ local function tryluaDocCate(word, results)
             }
         end
     end
+    -- tags taught by plugins (parser.docTags)
+    for name, description in docTags.eachTag() do
+        if matchKey(word, name) then
+            results[#results+1] = {
+                label       = name,
+                kind        = define.CompletionItemKind.Event,
+                description = description,
+            }
+        end
+    end
 end
 
 ---@param state    parser.state
@@ -2216,6 +2227,16 @@ local function tryluaDocBySource(state, position, source, results)
     elseif source.type == 'doc.type.name' then
         ---@type table<string, boolean>
         local used = {}
+        for name, description in docTags.eachTypeKeyword() do
+            if matchKey(source[1] --[[@as string]], name) then
+                used[name] = true
+                results[#results+1] = {
+                    label       = name,
+                    kind        = define.CompletionItemKind.Keyword,
+                    description = description,
+                }
+            end
+        end
         for _, doc in ipairs(vm.getDocSets(state.uri)) do
             local name = ((doc.type == 'doc.class' and doc.class[1])
                     or   (doc.type == 'doc.alias' and doc.alias[1])
@@ -2289,6 +2310,44 @@ local function tryluaDocBySource(state, position, source, results)
                         finish  = source.start + #sourceName,
                         newText = name,
                     },
+                }
+            end
+        end
+        return true
+    elseif source.type == 'doc.field.name' then
+        -- the field name position also takes the keywords plugins put in front of it
+        for name, description in docTags.eachFieldKeyword() do
+            if matchKey(source[1] --[[@as string]], name) then
+                results[#results+1] = {
+                    label       = name,
+                    kind        = define.CompletionItemKind.Keyword,
+                    description = description,
+                }
+            end
+        end
+    elseif source.parent and docTags.isNameListTag(source.parent.type) then
+        -- `---@secret a, b`: the names are the locals of the statement the tag is bound to
+        local tag = source.parent
+        ---@type table<string, parser.object>
+        local locals = {}
+        guide.eachSourceType(state.ast, 'local', function (loc)
+            for _, bound in ipairs(loc.bindDocs or {}) do
+                if bound == tag then
+                    locals[loc[1] --[[@as string]]] = loc
+                end
+            end
+        end)
+        for name, loc in util.sortPairs(locals) do
+            if matchKey(source[1], name) then
+                results[#results+1] = {
+                    label = name,
+                    kind  = define.CompletionItemKind.Variable,
+                    id    = stack(loc, function (newLoc) ---@async
+                        return {
+                            detail      = buildDetail(newLoc),
+                            description = buildDesc(newLoc),
+                        }
+                    end),
                 }
             end
         end
@@ -2678,7 +2737,7 @@ local function tryLuaDoc(state, position, results)
             return
         end
         -- 尝试 ---@$
-        local cate = line:match('^-+%s*@(%a*)$')
+        local cate = line:match('^-+%s*@([%a%-]*)$')
         if cate then
             tryluaDocCate(cate, results)
             return

@@ -4614,3 +4614,86 @@ print(a:<??>)
         kind  = define.CompletionItemKind.Method,
     },
 }
+
+-- tags, field / type keywords and name lists taught by plugins (parser.docTags)
+TEST [[
+---@sec<??>
+local x
+]]
+{
+    include = true,
+    {
+        label = 'secret',
+        kind  = define.CompletionItemKind.Event,
+    },
+    {
+        label = 'secret-unwrap',
+        kind  = define.CompletionItemKind.Event,
+    },
+    {
+        label = 'secret-check',
+        kind  = define.CompletionItemKind.Event,
+    },
+    {
+        label = 'secret-access-check',
+        kind  = define.CompletionItemKind.Event,
+    },
+}
+
+TEST [[
+---@class A
+---@field sec<??> string
+]]
+{
+    include = true,
+    {
+        label = 'secret',
+        kind  = define.CompletionItemKind.Keyword,
+    },
+}
+
+TEST [[
+---@param token sec<??>
+local function f(token) end
+]]
+{
+    include = true,
+    {
+        label = 'secret',
+        kind  = define.CompletionItemKind.Keyword,
+    },
+}
+
+TEST [[
+---@secret a<??>
+local abc, xyz = 1, 2
+]]
+{
+    {
+        label = 'abc',
+        kind  = define.CompletionItemKind.Variable,
+    },
+}
+
+TEST [[
+---@diagnostic expect-n<??>
+]]
+{
+    include = true,
+    {
+        label = 'expect-next-line',
+        kind  = define.CompletionItemKind.Enum,
+        textEdit = { start = 15, finish = 23, newText = 'expect-next-line' },
+    },
+}
+
+TEST [[
+---@secret-u<??>
+local x
+]]
+{
+    {
+        label = 'secret-unwrap',
+        kind  = define.CompletionItemKind.Event,
+    },
+}

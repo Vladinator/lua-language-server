@@ -3,19 +3,70 @@
 -- tables. Kept as a standalone parser-layer module -- not on the `vm`
 -- table -- since luadoc.lua itself must not depend on vm (vm depends on
 -- the parser, not the other way around).
+local guide = require 'parser.guide'
+
 local m = {}
 
 ---@type table<string, string>
 local markerTags = {}
 
+--- Text shown next to a tag / keyword in completion, keyed by its name.
+---@type table<string, string>
+local tagDescriptions = {}
+
+---@type table<string, string>
+local keywordDescriptions = {}
+
+---@param keywords table<string, string>
+---@param prefix   string
+---@return fun(): string?, string?
+local function eachKeyword(keywords, prefix)
+    ---@type string[]
+    local names = {}
+    for name in pairs(keywords) do
+        names[#names+1] = name
+    end
+    table.sort(names)
+    local i = 0
+    return function ()
+        i = i + 1
+        local name = names[i]
+        if name then
+            return name, keywordDescriptions[prefix .. name]
+        end
+    end
+end
+
 --- Register a "marker" LuaDoc tag that takes no arguments -- e.g.
 --- `---@mytag` -- and just produces a bare
 --- `{type = docType, start = ..., finish = ...}` node, the same shape as
 --- `---@deprecated`.
----@param name    string tag name after the `@`, e.g. 'secret'
----@param docType string produced node's `.type`, e.g. 'doc.secret'
-function m.registerMarkerTag(name, docType)
-    markerTags[name] = docType
+---@param name        string tag name after the `@`, e.g. 'secret'
+---@param docType     string produced node's `.type`, e.g. 'doc.secret'
+---@param description? string shown by completion (markdown)
+function m.registerMarkerTag(name, docType, description)
+    markerTags[name]       = docType
+    tagDescriptions[name]  = description
+end
+
+--- The registered tag names (marker and name-list tags) with their descriptions, sorted by
+--- name, for completion.
+---@return fun(): string?, string?
+function m.eachTag()
+    ---@type string[]
+    local names = {}
+    for name in pairs(markerTags) do
+        names[#names+1] = name
+    end
+    table.sort(names)
+    local i = 0
+    return function ()
+        i = i + 1
+        local name = names[i]
+        if name then
+            return name, tagDescriptions[name]
+        end
+    end
 end
 
 ---@param name string
@@ -33,11 +84,14 @@ local nameListTags = {}
 --- rest of the line is *exactly* such a list; anything else (a description, a
 --- dangling comma) leaves the tag bare and the text is an ordinary comment, so
 --- `---@mytag some words` keeps working as before.
----@param name    string tag name after the `@`, e.g. 'secret'
----@param docType string produced node's `.type`, e.g. 'doc.secret'
-function m.registerNameListTag(name, docType)
-    markerTags[name]     = docType
+---@param name        string tag name after the `@`, e.g. 'secret'
+---@param docType     string produced node's `.type`, e.g. 'doc.secret'
+---@param description? string shown by completion (markdown)
+function m.registerNameListTag(name, docType, description)
+    m.registerMarkerTag(name, docType, description)
     nameListTags[docType] = true
+    -- so the tree walkers (hover, completion, references...) reach the names
+    guide.registerChildren(docType, {'#names'})
 end
 
 ---@param docType string
@@ -91,10 +145,18 @@ local fieldKeywords = {}
 --- alongside the built-in visibility keywords (public/protected/private/
 --- package) -- e.g. `---@field name mykeyword string` sets
 --- `result[resultField] = true` on the produced doc.field node.
----@param keyword     string
----@param resultField string
-function m.registerFieldKeyword(keyword, resultField)
+---@param keyword      string
+---@param resultField  string
+---@param description? string shown by completion (markdown)
+function m.registerFieldKeyword(keyword, resultField, description)
     fieldKeywords[keyword] = resultField
+    keywordDescriptions['field:' .. keyword] = description
+end
+
+--- The registered `---@field` keywords with their descriptions, sorted, for completion.
+---@return fun(): string?, string?
+function m.eachFieldKeyword()
+    return eachKeyword(fieldKeywords, 'field:')
 end
 
 ---@param keyword string
@@ -112,10 +174,18 @@ local typeKeywords = {}
 --- `result[resultField] = true` on the produced `doc.type` node. It only counts
 --- as a keyword when another type follows it, so a class that happens to be
 --- called like the keyword still parses as a type on its own.
----@param keyword     string
----@param resultField string
-function m.registerTypeKeyword(keyword, resultField)
+---@param keyword      string
+---@param resultField  string
+---@param description? string shown by completion (markdown)
+function m.registerTypeKeyword(keyword, resultField, description)
     typeKeywords[keyword] = resultField
+    keywordDescriptions['type:' .. keyword] = description
+end
+
+--- The registered type keywords with their descriptions, sorted, for completion.
+---@return fun(): string?, string?
+function m.eachTypeKeyword()
+    return eachKeyword(typeKeywords, 'type:')
 end
 
 ---@param keyword string

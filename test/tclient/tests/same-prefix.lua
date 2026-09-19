@@ -1,10 +1,8 @@
 local lclient = require 'lclient'
 local fs      = require 'bee.filesystem'
-local util    = require 'utility'
 local furi    = require 'file-uri'
 local ws      = require 'workspace'
 local files   = require 'files'
-local scope   = require 'workspace.scope'
 
 local rootPath = LOGPATH .. '/same-prefix'
 local rootUri  = furi.encode(rootPath)

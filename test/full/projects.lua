@@ -3,7 +3,6 @@ local fsu    = require 'fs-utility'
 local furi   = require 'file-uri'
 local diag   = require 'provider.diagnostic'
 local config = require 'config'
-local ws     = require 'workspace'
 local fs     = require 'bee.filesystem'
 
 config.set(nil, 'Lua.workspace.preloadFileSize',    1000000)

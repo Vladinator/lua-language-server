@@ -7,7 +7,7 @@ rawset(_G, 'TEST', true)
 local function removeEmpty(lines)
     ---@type string[]
     local removeLines = {}
-    for i, v in ipairs(lines) do
+    for _, v in ipairs(lines) do
         if v ~= '\n' then
             removeLines[#removeLines+1] = (v:gsub('^%s+', ''))
         end

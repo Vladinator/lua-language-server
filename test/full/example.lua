@@ -1,5 +1,4 @@
 local util   = require 'utility'
-local parser = require 'parser'
 local files  = require 'files'
 local diag   = require 'core.diagnostics'
 local config = require 'config'

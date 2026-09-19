@@ -40,7 +40,7 @@ function TEST(script, version)
     if results then
         ---@type [integer, integer][]
         local positions = {}
-        for i, result in ipairs(results) do
+        for _, result in ipairs(results) do
             if not vm.isMetaFile(result.uri) then
                 positions[#positions+1] = { result.target.start, result.target.finish }
             end

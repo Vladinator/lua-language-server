@@ -1,9 +1,6 @@
 ---@type table<string, boolean>
-local lowers = {}
----@type table<string, boolean>
 local uppers = {}
 for c in ('abcdefghijklmnopqrstuvwxyz'):gmatch '.' do
-    lowers[c] = true
     uppers[c:upper()] = true
 end
 

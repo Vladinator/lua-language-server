@@ -1,4 +1,3 @@
-local config = require "config"
 TEST [[
 local <~a~> = 1
 <!a!> = <!a!>

@@ -1,6 +1,5 @@
 local files  = require 'files'
 local guide  = require 'parser.guide'
-local config = require 'config'
 local catch  = require 'catch'
 local vm     = require 'vm'
 

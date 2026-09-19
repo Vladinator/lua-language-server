@@ -1,4 +1,3 @@
-local config = require "config"
 
 TEST [[
 local <!x!>

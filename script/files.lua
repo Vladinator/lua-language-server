@@ -68,8 +68,6 @@ m.reset()
 
 local fileID = util.counter()
 
-local uriMap = {}
-
 -- 获取文件的真实uri，但不穿透软链接
 ---@param uri uri
 ---@return uri

@@ -1,10 +1,6 @@
 local lclient = require 'lclient'
-local util    = require 'utility'
 local ws      = require 'workspace'
-local files   = require 'files'
 local furi    = require 'file-uri'
-local fs      = require 'bee.filesystem'
-local await   = require 'await'
 
 ---@async
 lclient():start(function (client)

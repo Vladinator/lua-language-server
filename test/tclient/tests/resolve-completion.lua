@@ -1,6 +1,5 @@
 local lclient   = require 'lclient'
 local ws        = require 'workspace'
-local util      = require 'utility'
 
 ---@async
 lclient():start(function (client)

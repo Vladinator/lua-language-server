@@ -29,7 +29,7 @@ local ignoreList = {
 }
 ---@type table<string, boolean>
 local ignoreMap = {}
-for i, v in ipairs(ignoreList) do
+for _, v in ipairs(ignoreList) do
     ignoreMap[v] = true
 end
 

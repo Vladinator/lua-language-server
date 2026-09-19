@@ -38,7 +38,7 @@ function TEST(datas)
     local sourceList
     ---@type uri?
     local sourceUri
-    for i, data in ipairs(datas --[[@as any[] ]]) do
+    for _, data in ipairs(datas --[[@as any[] ]]) do
         local uri = furi.encode(data.path)
         local newScript, catched = catch(data.content, '!?~')
         for _, position in ipairs(catched['!'] or {}) do

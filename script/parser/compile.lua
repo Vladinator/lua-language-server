@@ -51,9 +51,6 @@ local CharMapN2      = stringToCharMap 'bB'
 local CharMapE10     = stringToCharMap 'eE'
 local CharMapE16     = stringToCharMap 'pP'
 local CharMapSign    = stringToCharMap '+-'
-local CharMapSB      = stringToCharMap 'ao|~&=<>.*/%^+-'
-local CharMapSU      = stringToCharMap 'n#~!-'
-local CharMapSimple  = stringToCharMap '.:([\'"{'
 local CharMapStrSH   = stringToCharMap '\'"`'
 local CharMapStrLH   = stringToCharMap '['
 local CharMapTSep    = stringToCharMap ',;'
@@ -4152,7 +4149,7 @@ local function parseConst()
     local locPos = getPosition(TokenPos[Index], 'left')
     Index = Index + 2
     skipSpace()
-    local word, wstart, wfinish = peekWord()
+    local word = peekWord()
     if not word then
         missName()
         return nil
@@ -4198,7 +4195,6 @@ local function parseConst()
 end
 
 local function parseGlobal()
-    local globalPos = getPosition(TokenPos[Index], 'left')
     Index = Index + 2
     skipSpace()
     local word = peekWord()

@@ -36,7 +36,7 @@ local function TEST(datas)
     local sourceList
     ---@type uri?
     local sourceUri
-    for i, data in ipairs(datas --[[@as any[] ]]) do
+    for _, data in ipairs(datas --[[@as any[] ]]) do
         local uri = furi.encode(TESTROOT .. data.path)
         local newScript, catched = catch(data.content, '!?~')
         if catched['!'] or catched['~'] then

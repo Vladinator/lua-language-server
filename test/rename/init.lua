@@ -1,9 +1,7 @@
 ---@diagnostic disable: await-in-sync
 local core   = require 'core.rename'
 local files  = require 'files'
-local catch  = require 'catch'
 local guide  = require 'parser.guide'
-local config = require 'config'
 
 ---@param text string
 ---@param positions core.rename.result[]

@@ -53,6 +53,18 @@ local furi     = require 'file-uri'
 ---@field view? string full method name, class, basal type, or unknown. in name table same as [1]
 ---@field visible? 'package'|'private'|'protected'|'public' visibilty tag
 
+--- `getDesc` returns a markdown object (not a string) for string literals
+--- (the require-path listing / `viewString` preview), but `docUnion.desc` and
+--- `.rawdesc` are serialized to JSON as strings.
+---@param desc string|markdown|nil
+---@return string?
+local function descString(desc)
+    if type(desc) == 'table' then
+        return desc:string()
+    end
+    return desc --[[@as string?]]
+end
+
 local export = {}
 
 function export.getLocalPath(uri)
@@ -140,7 +152,9 @@ end})
 ---@return docUnion
 export.makeDocObject['INIT'] = function(source, has_seen)
     ---@as docUnion
+    ---@type boolean, (string|markdown)?
     local ok, desc = pcall(getDesc, source)
+    ---@type boolean, (string|markdown)?
     local rawok, rawdesc = pcall(getDesc, source, true)
     return {
         type = source.cate or source.type,
@@ -149,8 +163,8 @@ export.makeDocObject['INIT'] = function(source, has_seen)
         finish = source.finish and {guide.rowColOf(source.finish)},
         types = export.documentObject(source.types, has_seen) --[[@as docUnion[] ]],
         view = vm.getInfer(source):view(ws.rootUri),
-        desc = ok and desc or nil,
-        rawdesc = rawok and rawdesc or nil,
+        desc = ok and descString(desc) or nil,
+        rawdesc = rawok and descString(rawdesc) or nil,
     }
 end
 
@@ -267,8 +281,8 @@ export.makeDocObject['function.return'] = function(source, obj, has_seen)
     --`comment` is only a plain string on 'doc.resume' enum-default/additional nodes, which
     --'function.return' never produces; otherwise it's a comment-carrying object node.
     if type(comment) == 'table' then
-        obj.desc = getDesc(comment --[[@as parser.object]]) --[[@as string?]]
-        obj.rawdesc = getDesc(comment --[[@as parser.object]], true) --[[@as string?]]
+        obj.desc = descString(getDesc(comment --[[@as parser.object]]))
+        obj.rawdesc = descString(getDesc(comment --[[@as parser.object]], true))
     end
 end
 

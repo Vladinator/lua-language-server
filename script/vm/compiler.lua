@@ -2924,6 +2924,127 @@ local function compileByParentNode(source)
     end)
 end
 
+-- Cycle handling. A node that is requested while it is still being compiled
+-- (`i = i + 1` reads `i`, whose type is built from this very assignment) returns
+-- its half-built content, and every node computed from that gets a result
+-- that depends on which node happened to be compiled first. That order differs
+-- between the CLI check (file by file), the editor (interleaved) and the test
+-- suite, which is where the flaky `no-unknown` findings came from. So: track the
+-- compile stack, note which completed nodes consumed the half-built content of a
+-- still-open ancestor, and once that ancestor is done drop those results and
+-- compile the ancestor once more (its second pass sees its own first result).
+---@class vm.compileFrame
+---@field index      integer
+---@field source     any
+---@field pass       integer
+---@field open       boolean
+---@field outer?     vm.compileFrame  an earlier open frame for the same source
+---@field dependsOn? integer          smallest stack index of an open ancestor this frame consumed
+---@field tainted    any[]            completed nodes whose result consumed this frame's half-built node
+
+---@type vm.compileFrame[]
+local frames    = {}
+local depth     = 0
+---@type table<any, vm.compileFrame>
+local compiling = {}
+---@type table<any, vm.compileFrame>
+local taintedBy = {}
+
+---@param frame vm.compileFrame
+local function consume(frame)
+    local top = frames[depth]
+    if top and frame.index < top.index
+    and (not top.dependsOn or frame.index < top.dependsOn) then
+        top.dependsOn = frame.index
+    end
+end
+
+---@param frame vm.compileFrame
+local function popFrame(frame)
+    frame.open              = false
+    compiling[frame.source] = frame.outer
+    frames[frame.index]     = nil
+    depth                   = frame.index - 1
+end
+
+-- Popped through `<close>` so that a compile that raises still unwinds its frames.
+local frameMT = {
+    __close = function (frame)
+        if frame.open then
+            popFrame(frame)
+        end
+    end,
+}
+
+---@param source parser.object
+---@return vm.node
+local function compileBody(source)
+    vm.setNode(source, vm.createNode(), true)
+    vm.compileByGlobal(source)
+    vm.compileByVariable(source)
+    compileByNode(source)
+    compileByParentNode(source)
+    matchCall(source)
+
+    local node = vm.getNode(source)
+    ---@cast node -?
+    vm.runGenesisRules(source, node)
+    return node
+end
+
+---@param source vm.node.object | vm.variable
+---@param pass   integer
+---@return vm.node
+local function compileFresh(source, pass)
+    depth = depth + 1
+    -- matchCall drops and recompiles the cached node of call arguments, and an
+    -- argument can be a function literal that is itself still open on the stack,
+    -- so the same source may be compiled again while an outer compile of it runs
+    ---@type vm.compileFrame
+    local frame <close> = setmetatable({
+        index   = depth,
+        source  = source,
+        pass    = pass,
+        open    = true,
+        outer   = compiling[source],
+        tainted = {},
+    }, frameMT)
+    frames[depth]     = frame
+    compiling[source] = frame
+
+    ---@cast source parser.object
+    local node = compileBody(source)
+    popFrame(frame)
+
+    local dep = frame.dependsOn
+    if dep and dep < frame.index then
+        -- consumed a half-built ancestor: keep the result for now (callers in the
+        -- same cycle need something), but remember to drop it once it is closed
+        local ancestor = frames[dep]
+        if ancestor then
+            taintedBy[source] = ancestor
+            ancestor.tainted[#ancestor.tainted+1] = source
+        end
+        local parent = frames[depth]
+        if parent and dep < parent.index
+        and (not parent.dependsOn or dep < parent.dependsOn) then
+            parent.dependsOn = dep
+        end
+    elseif #frame.tainted > 0 and pass == 1 then
+        for _, t in ipairs(frame.tainted) do
+            -- skip anything that has been recompiled or is open again since
+            if taintedBy[t] == frame and not compiling[t] then
+                taintedBy[t] = nil
+                vm.removeNode(t)
+            end
+        end
+        -- second pass: everything that fed back into this node is recomputed lazily
+        vm.removeNode(source)
+        return compileFresh(source, 2)
+    end
+    return node
+end
+
 ---@param source vm.node.object | vm.variable
 ---@return vm.node
 function vm.compileNode(source)
@@ -2937,19 +3058,17 @@ function vm.compileNode(source)
 
     local cache = vm.getNode(source)
     if cache ~= nil then
+        local open = compiling[source]
+        if open then
+            consume(open)
+        else
+            local ancestor = taintedBy[source]
+            if ancestor then
+                consume(ancestor)
+            end
+        end
         return cache
     end
 
-    ---@cast source parser.object
-    vm.setNode(source, vm.createNode(), true)
-    vm.compileByGlobal(source)
-    vm.compileByVariable(source)
-    compileByNode(source)
-    compileByParentNode(source)
-    matchCall(source)
-
-    local node = vm.getNode(source)
-    ---@cast node -?
-    vm.runGenesisRules(source, node)
-    return node
+    return compileFresh(source, 1)
 end

@@ -26,6 +26,9 @@ local semantic = require 'core.semantic-tokens'
 local symbols  = require 'core.document-symbol'
 local folding  = require 'core.folding'
 local hint     = require 'core.hint'
+local codeAction = require 'core.code-action'
+local wsSymbol = require 'core.workspace-symbol'
+local formatting = require 'core.formatting'
 
 local samples = {
     '---@class Foo: Bar<T>, Baz',
@@ -162,6 +165,92 @@ for _, sample in ipairs(luaSamples) do
     end
 end
 
+-- Deterministic mutations of realistic snippets: delete / insert / swap / truncate.
+local snippets = {
+    [=[
+---@class Animal
+---@field name string
+---@field age? integer
+local Animal = {}
+Animal.__index = Animal
+
+---@param name string
+---@return Animal
+function Animal.new(name)
+    return setmetatable({ name = name }, Animal)
+end
+
+---@generic T: Animal
+---@param self T
+---@return T
+function Animal:clone() return Animal.new(self.name) end
+]=],
+    [=[
+---@alias Handler fun(ev: string, ...: any): boolean?
+---@type table<string, Handler[]>
+local handlers = {}
+
+---@param name string
+---@param h Handler
+local function on(name, h)
+    handlers[name] = handlers[name] or {}
+    table.insert(handlers[name], h)
+end
+
+for k, list in pairs(handlers) do
+    for i = #list, 1, -1 do
+        if not list[i]('x') then goto continue end
+        ::continue::
+    end
+end
+]=],
+    [=[
+local M = {}
+---@enum Color
+local Color = { red = 1, green = 2 }
+---@overload fun(a: integer): string
+---@param a integer|string
+---@param b? Color
+---@return string?, integer
+function M.f(a, b)
+    local t <const> = { [1] = a, x = b, f = function (self, ...) return ... end }
+    while a do repeat a = a - 1 until a < 0 end
+    return t.x and tostring(t.x) or nil, #t
+end
+return M
+]=],
+}
+
+local rngState = 12345
+---@param n integer
+---@return integer
+local function rand(n)
+    rngState = (rngState * 1103515245 + 12345) % 2147483648
+    return rngState % n + 1
+end
+
+local punct = { '[', ']', '(', ')', '{', '}', ',', '.', ':', '=', '<', '>', '|', '?', '"', "'", '-', '@', '#', ' ', '\n' }
+for _, snippet in ipairs(snippets) do
+    for _ = 1, 120 do
+        local text = snippet
+        for _ = 1, rand(3) do
+            local at = rand(#text)
+            local kind = rand(4)
+            if kind == 1 then
+                text = text:sub(1, at - 1) .. text:sub(at + 1)
+            elseif kind == 2 then
+                text = text:sub(1, at) .. punct[rand(#punct)] .. text:sub(at + 1)
+            elseif kind == 3 then
+                local other = rand(#text)
+                text = text:sub(1, at - 1) .. text:sub(other, other) .. text:sub(at + 1)
+            else
+                text = text:sub(1, at)
+            end
+        end
+        cases[#cases+1] = text
+    end
+end
+
 for _, text in ipairs(cases) do
     do
         files.setText(TESTURI, text)
@@ -170,6 +259,11 @@ for _, text in ipairs(cases) do
         try('document-symbol', text, symbols, TESTURI)
         try('folding', text, folding, TESTURI)
         try('inlay-hint', text, hint, TESTURI, 0, #text)
+        try('workspace-symbol', text, wsSymbol, '', TESTURI)
+        try('formatting', text, formatting, TESTURI, {})
+        for off = 1, #text + 1, 7 do
+            try('code-action', text, codeAction, TESTURI, off, off + 3, {})
+        end
         for off = 1, #text + 1, 2 do
             local pos = state and guide.offsetToPosition(state, off) or off
             for name, fn in pairs(features) do

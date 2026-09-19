@@ -447,6 +447,25 @@ vm.registerEqualityNarrowing {
     end,
 }
 
+--- Record what a read is narrowed to. When the compile of that very read is what started
+--- this walk (`path = path:string()`: compiling the `path` on the right runs the walk, and
+--- the walk needs the assignment, whose value is that same call), its cached node is still
+--- empty, so the assignment could not be resolved and everything the walk derived after
+--- it (`path` after the `if`) was computed from nothing and kept. Hand the narrowed type to
+--- the waiting compile right away so that the cycle sees the real thing.
+---@param tracer vm.tracer
+---@param action parser.object
+---@param node   vm.node
+local function setReadNode(tracer, action, node)
+    tracer.nodes[action] = node
+    if vm.isCompiling(action) then
+        local waiting = vm.getNode(action)
+        if waiting then
+            waiting:merge(node)
+        end
+    end
+end
+
 local lookIntoChild = util.switch()
     : case 'getlocal'
     : case 'getglobal'
@@ -456,7 +475,7 @@ local lookIntoChild = util.switch()
     ---@param outNode? vm.node
     : call(function (tracer, action, topNode, outNode)
         if tracer.getMap[action] then
-            tracer.nodes[action] = topNode
+            setReadNode(tracer, action, topNode)
             if outNode then
                 topNode = topNode:copy():setTruthy()
                 outNode = outNode:copy():setFalsy()
@@ -610,7 +629,7 @@ local lookIntoChild = util.switch()
         tracer:lookIntoChild(action.node, topNode)
         tracer:lookIntoChild(action.field, topNode)
         if tracer.getMap[action] then
-            tracer.nodes[action] = topNode
+            setReadNode(tracer, action, topNode)
             if outNode then
                 topNode = topNode:copy():setTruthy()
                 outNode = outNode:copy():setFalsy()
@@ -627,7 +646,7 @@ local lookIntoChild = util.switch()
         tracer:lookIntoChild(action.node, topNode)
         tracer:lookIntoChild(action.method, topNode)
         if tracer.getMap[action] then
-            tracer.nodes[action] = topNode
+            setReadNode(tracer, action, topNode)
             if outNode then
                 topNode = topNode:copy():setTruthy()
                 outNode = outNode:copy():setFalsy()
@@ -644,7 +663,7 @@ local lookIntoChild = util.switch()
         tracer:lookIntoChild(action.node, topNode)
         tracer:lookIntoChild(action.index, topNode)
         if tracer.getMap[action] then
-            tracer.nodes[action] = topNode
+            setReadNode(tracer, action, topNode)
             if outNode then
                 topNode = topNode:copy():setTruthy()
                 outNode = outNode:copy():setFalsy()
@@ -1113,14 +1132,39 @@ function vm.traceNode(source)
         name = base:getCodeName()
         mode = 'local'
     end
-    local tracer = createTracer(mode, base, name)
-    if not tracer then
-        return nil
-    end
-    local node = tracer:getNode(source)
-    if not node and mode == 'local' then
-        ---@cast base vm.variable
-        node = tracer:getFallbackFieldNode(source, base)
+    -- The tracer keeps its own results, which the compile bookkeeping in vm/compiler.lua
+    -- cannot drop. If the walk consumed the half-built node of a compile that is still
+    -- open further down the stack (compiling the assignment `path = path:string()` asks
+    -- for `path`, whose walk asks for the assignment again), what the tracer cached from
+    -- that is wrong, so the tracer is dropped and the next request rebuilds it. A
+    -- request that was already using a tracer that a nested request dropped like that
+    -- asks again with a fresh one, once that compile has finished.
+    ---@type vm.node?
+    local node
+    for _ = 1, 2 do
+        local tracer = createTracer(mode, base, name)
+        if not tracer then
+            return nil
+        end
+        local watch <close> = vm.watchCompileCycles()
+        node = tracer:getNode(source)
+        if not node and mode == 'local' then
+            ---@cast base vm.variable
+            node = tracer:getFallbackFieldNode(source, base)
+        end
+        local owner = vm.getNode(base)
+        if not owner then
+            break
+        end
+        if watch.hit then
+            if owner._tracer == tracer then
+                owner._tracer = nil
+            end
+            break
+        end
+        if owner._tracer == tracer then
+            break
+        end
     end
     return node
 end

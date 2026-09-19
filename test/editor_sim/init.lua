@@ -6,6 +6,7 @@
 -- (the compile of a node depends on which node was requested first). Env:
 --     SIM_ORDER = forward (default) | reverse | shuffle:<seed>    file launch order
 --     SIM_JOBS  = <n>                                             limit the number of files
+--     SIM_ONLY  = <path fragment>                                 only those files, opened like editor tabs
 --     SIM_CODE  = <diagnostic code>                               list this code (default no-unknown)
 --     SIM_TOUCH = <path fragment>                                 re-set the text of the matching
 --                 files, then diagnose everything again (editor invalidation)
@@ -40,6 +41,19 @@ for uri in files.eachFile() do
     end
 end
 table.sort(uris)
+-- SIM_ONLY = <path fragment>: only these files, opened like editor tabs (diagnosed first)
+local only = os.getenv('SIM_ONLY')
+if only then
+    ---@type uri[]
+    local picked = {}
+    for _, uri in ipairs(uris) do
+        if furi.decode(uri):gsub('[\\]', '/'):find(only, 1, true) then
+            files.open(uri)
+            picked[#picked+1] = uri
+        end
+    end
+    uris = picked
+end
 -- SIM_ORDER: forward (default) | reverse | shuffle:<seed>. The checker's result depends on
 -- which node is compiled first, so different orders expose order-dependent unknowns.
 local order = os.getenv('SIM_ORDER') or 'forward'
@@ -69,14 +83,14 @@ local function pass(label)
         ---@async
         await.call(function ()
             diagnostics(uri, false, function (result)
-                if result.code == wantCode then
+                if wantCode == '*' or result.code == wantCode then
                     local state = files.getState(uri)
                     local text = ''
                     if state and state.lua then
                         local off = guide.positionToOffset(state, result.start)
                         text = state.lua:sub(off, off + 70):match('^[^\n]*') or ''
                     end
-                    unknownLines[#unknownLines+1] = furi.decode(uri):gsub('[\\]', '/'):match('script/.*') .. ' :: ' .. text
+                    unknownLines[#unknownLines+1] = furi.decode(uri):gsub('[\\]', '/'):match('script/.*') .. ' [' .. tostring(result.code) .. '] :: ' .. text
                 end
             end)
             pending = pending - 1

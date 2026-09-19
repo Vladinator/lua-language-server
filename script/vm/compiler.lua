@@ -2966,8 +2966,54 @@ local compiling = {}
 ---@type table<any, vm.compileFrame>
 local taintedBy = {}
 
+--- Whether the compile of `source` is running right now (its cached node is still half built).
+---@param source vm.node.object | vm.variable
+---@return boolean
+function vm.isCompiling(source)
+    return compiling[source] ~= nil
+end
+
+-- Results that live outside the node cache (the tracer keeps its own per-variable
+-- nodes) cannot be dropped by the taint bookkeeping above. A caller that keeps such
+-- results opens a watch: it learns whether, while it ran, anything consumed the
+-- half-built node of a compile that was already open when the watch started (an
+-- ancestor of the caller), and then must not keep what it computed.
+---@class vm.compileWatch
+---@field depth integer  the compile depth when the watch was opened
+---@field index integer
+---@field hit   boolean  something consumed a frame below `depth`
+
+---@type vm.compileWatch[]
+local watches = {}
+
+local watchMT = {
+    __close = function (watch)
+        for i = #watches, watch.index, -1 do
+            watches[i] = nil
+        end
+    end,
+}
+
+--- Use as `local watch <close> = vm.watchCompileCycles()`, read `watch.hit` afterwards.
+---@return vm.compileWatch
+function vm.watchCompileCycles()
+    local watch = setmetatable({
+        depth = depth,
+        index = #watches + 1,
+        hit   = false,
+    }, watchMT)
+    watches[watch.index] = watch
+    return watch
+end
+
 ---@param frame vm.compileFrame
 local function consume(frame)
+    for i = 1, #watches do
+        local watch = watches[i]
+        if frame.index < watch.depth then
+            watch.hit = true
+        end
+    end
     local top = frames[depth]
     if top and frame.index < top.index
     and (not top.dependsOn or frame.index < top.dependsOn) then
@@ -3048,17 +3094,26 @@ local function compileFresh(source, pass)
         and (not parent.dependsOn or dep < parent.dependsOn) then
             parent.dependsOn = dep --[[@as integer]]
         end
-    elseif #frame.tainted > 0 and pass == 1 then
+    elseif #frame.tainted > 0 then
         for _, t in ipairs(frame.tainted) do
             -- skip anything that has been recompiled or is open again since
-            if taintedBy[t] == frame and not compiling[t] then
+            if taintedBy[t] == frame and not compiling[t]
+            and (pass == 1 or not tostring(t.type):find('^doc%.')) then
                 taintedBy[t] = nil
                 vm.removeNode(t)
             end
         end
-        -- second pass: everything that fed back into this node is recomputed lazily
-        vm.removeNode(source)
-        return compileFresh(source, 2)
+        if pass == 1 then
+            -- second pass: everything that fed back into this node is recomputed lazily
+            vm.removeNode(source)
+            return compileFresh(source, 2)
+        end
+        -- After the second pass this node is final, but the second pass itself asked the
+        -- half-built node again (`path = path:string()`: the walk of `path`, started while
+        -- `path:string` is compiled, compiles the assignment, whose value is that call), so
+        -- the assignment fell back to the declared type again. Drop it once more: compiled
+        -- again on demand it finds this node complete. (Only assignments: the results of
+        -- a recursive type alias need what the second pass left them.)
     end
     return node
 end

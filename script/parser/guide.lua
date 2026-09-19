@@ -560,7 +560,7 @@ function m.getLocal(source, name, pos)
     m.eachSourceContain(block, pos, function (src)
         if  blockTypes[src.type]
         and (src.finish - src.start) < (block.finish - src.start) then
-            block = src
+            block = src --[[@as parser.object]]
         end
     end)
 

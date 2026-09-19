@@ -592,9 +592,12 @@ function vm.isSubType(uri, child, parent, mark, errs)
         end
     end
 
+    -- the key of every `mark` write below; only used where `childName` is known to be set
+    -- (a setindex with an unresolved key is what came out `unknown` in the editor's order)
+    local markKey = childName --[[@as string]]
     -- check class parent
-    if childName and not mark[childName] then
-        mark[childName] = true
+    if childName and not mark[markKey] then
+        mark[markKey] = true
         local isBasicType = guide.isBasicType(childName)
         local childClass = vm.getGlobal('type', childName)
         if childClass then
@@ -617,14 +620,14 @@ function vm.isSubType(uri, child, parent, mark, errs)
                         if  extName
                         and (not isBasicType or guide.isBasicType(extName))
                         and vm.isSubType(uri, extName, parent, mark, errs) == true then
-                            mark[childName] = nil
+                            mark[markKey] = nil
                             return true
                         end
                     end
                 end
             end
         end
-        mark[childName] = nil
+        mark[markKey] = nil
     end
 
     --[[
@@ -634,13 +637,13 @@ function vm.isSubType(uri, child, parent, mark, errs)
     local x = '' --> `string` set to `A`
     ]]
     if  guide.isBasicType(childName)
-    and not mark[childName] then
-        mark[childName] = true
+    and not mark[markKey] then
+        mark[markKey] = true
         if vm.isSubType(uri, parentName, childName, mark) then
-            mark[childName] = nil
+            mark[markKey] = nil
             return true
         end
-        mark[childName] = nil
+        mark[markKey] = nil
     end
 
     if errs then

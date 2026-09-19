@@ -244,7 +244,9 @@ function mt:findUrisByRequireName(suri, name)
     local results = {}
     ---@type table<uri, string>
     local searcherMap = {}
-    for _, uri in ipairs(cache.results) do
+    ---@type uri[]
+    local cachedResults = cache.results
+    for _, uri in ipairs(cachedResults) do
         if uri ~= suri then
             results[#results+1] = uri
             searcherMap[uri] = cache.searcherMap and cache.searcherMap[uri]

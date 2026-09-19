@@ -27,11 +27,11 @@ return function (uri, callback)
             goto CONTINUE
         end
         local name = doc.param[1]
+        ---@type parser.object[]?
         local bindGroup = doc.bindGroup
         if not bindGroup then
             goto CONTINUE
         end
-        ---@cast bindGroup parser.object[]
         for _, other in ipairs(bindGroup) do
             if  other ~= doc
             and other.type == 'doc.param'

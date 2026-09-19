@@ -10,10 +10,12 @@ local util  = require 'utility'
 ---@param arg parser.object
 ---@return parser.object?
 local function getDocParam(arg)
-    if not arg.bindDocs then
+    ---@type parser.object[]?
+    local bindDocs = arg.bindDocs
+    if not bindDocs then
         return nil
     end
-    for _, doc in ipairs(arg.bindDocs) do
+    for _, doc in ipairs(bindDocs) do
         if doc.type == 'doc.param'
         and doc.param[1] == arg[1] then
             return doc
@@ -78,8 +80,10 @@ function vm.countParamsOfSource(source)
     local def = 0
     ---@type table<parser.object, boolean>
     local overloads = {}
-    if source.bindDocs then
-        for _, doc in ipairs(source.bindDocs) do
+    ---@type parser.object[]?
+    local bindDocs = source.bindDocs
+    if bindDocs then
+        for _, doc in ipairs(bindDocs) do
             if doc.type == 'doc.overload' then
                 overloads[doc.overload] = true
             end
@@ -226,8 +230,10 @@ function vm.countReturnsOfSource(source)
     local hasDocFunction
     ---@type integer?, number?, integer?
     local min, max, def
-    if source.bindDocs then
-        for _, doc in ipairs(source.bindDocs) do
+    ---@type parser.object[]?
+    local bindDocs = source.bindDocs
+    if bindDocs then
+        for _, doc in ipairs(bindDocs) do
             if doc.type == 'doc.overload' then
                 overloads[doc.overload] = true
                 local dmin, dmax, ddef = vm.countReturnsOfFunction(doc.overload)

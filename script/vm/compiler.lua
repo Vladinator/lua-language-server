@@ -1832,7 +1832,7 @@ local function bindReturnOfFunction(source, mfunc, index, args)
                 vm.applyFlagsTable(rnode.flags, result)
                 returnNode = result
             else
-                returnNode = rnode:resolve(guide.getUri(source), resolveArgs)
+                returnNode = (rnode --[[@as vm.generic]]):resolve(guide.getUri(source), resolveArgs)
             end
             break
         end
@@ -1912,7 +1912,7 @@ local function bindReturnOfFunction(source, mfunc, index, args)
                                                         returnNode = vm.compileNode(newRtn)
                                                         for rnode in returnNode:eachObject() do
                                                             if rnode.type == 'generic' then
-                                                                returnNode = rnode:resolve(guide.getUri(source), args)
+                                                                returnNode = (rnode --[[@as vm.generic]]):resolve(guide.getUri(source), args)
                                                                 break
                                                             end
                                                         end
@@ -3032,6 +3032,7 @@ local function compileFresh(source, pass)
     local node = compileBody(source)
     popFrame(frame)
 
+    ---@type integer?
     local dep = frame.dependsOn
     if dep and dep < frame.index then
         -- consumed a half-built ancestor: keep the result for now (callers in the
@@ -3041,10 +3042,11 @@ local function compileFresh(source, pass)
             taintedBy[source] = ancestor
             ancestor.tainted[#ancestor.tainted+1] = source
         end
+        ---@type vm.compileFrame?
         local parent = frames[depth]
         if parent and dep < parent.index
         and (not parent.dependsOn or dep < parent.dependsOn) then
-            parent.dependsOn = dep
+            parent.dependsOn = dep --[[@as integer]]
         end
     elseif #frame.tainted > 0 and pass == 1 then
         for _, t in ipairs(frame.tainted) do

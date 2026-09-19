@@ -2529,7 +2529,7 @@ local docsDedupe = function (sources)
                             removeByValue(source.bindDocs, old)
                         elseif not old.virtual and doc.virtual then
                             removeByValue(source.bindDocs, doc)
-                            doc = old
+                            doc = old --[[@as parser.object]]
                         end
                     end
                     docs[param1] = doc

@@ -798,9 +798,16 @@ m.register 'textDocument/completion' {
     end
 }
 
+--- The part of an LSP CompletionItem that `completionItem/resolve` reads and fills in.
+---@class provider.completionItem
+---@field data?                { id: integer, uri: uri }
+---@field detail?              string
+---@field documentation?       { value: string, kind: string }
+---@field additionalTextEdits? table[]
+
 m.register 'completionItem/resolve' {
     ---@async
-    ---@param item table
+    ---@param item provider.completionItem
     function (item)
         local core = require 'core.completion'
         if not item.data then
@@ -813,6 +820,7 @@ m.register 'completionItem/resolve' {
         if not state then
             return item
         end
+        ---@type vm.completion.resolved?
         local resolved = core.resolve(id)
         if not resolved then
             return item

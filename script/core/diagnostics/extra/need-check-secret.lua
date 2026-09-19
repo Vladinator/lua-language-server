@@ -71,6 +71,11 @@ end)
 -- 'doc.field' genesis rule below.
 docTags.registerFieldKeyword('secret', 'secret')
 
+-- `secret` in front of a type item: `---@type number, secret string`,
+-- `---@param token secret string`, `---@return secret string`. Marks exactly that
+-- item, so the type and the secrecy live in one annotation.
+docTags.registerTypeKeyword('secret', 'secret')
+
 -- Recognize `next` as an iteration entry point, alongside the parser's
 -- own built-in pairs/ipairs, so `next(secretTable)` can be banned below.
 
@@ -327,7 +332,7 @@ vm.registerGenesisRule('select', function (source, node)
 end)
 
 vm.registerGenesisRule('doc.type', function (source, node)
-    if hasSecretType(node, guide.getUri(source)) then
+    if source.secret or hasSecretType(node, guide.getUri(source)) then
         node:setFlag('secret')
     end
 end)

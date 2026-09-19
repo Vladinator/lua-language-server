@@ -1060,6 +1060,24 @@ function parseType(parent)
         parent  = parent,
         types   = {},
     }
+    -- a plugin type keyword (`secret string`): only when a type follows it
+    ---@type string?
+    local keywordField
+    local keywordTp, keyword = peekToken()
+    if keywordTp == 'name' and keyword then
+        ---@cast keyword string -- a 'name' token always carries its text
+        keywordField = docTags.getTypeKeyword(keyword)
+        if keywordField then
+            local nextTp, nextContent = peekToken(2)
+            if not (nextTp == 'name'
+                or  nextTp == 'string'
+                or (nextTp == 'symbol' and (nextContent == '(' or nextContent == '{' or nextContent == '['))) then
+                keywordField = nil
+            else
+                nextToken()
+            end
+        end
+    end
     while true do
         local typeUnit = parseTypeUnit(result)
         if not typeUnit then
@@ -1082,6 +1100,10 @@ function parseType(parent)
     if checkToken('symbol', '?', 1) then
         nextToken()
         result.optional = true
+    end
+    if keywordField then
+        -- plugin-supplied field name, not known statically
+        result[keywordField] = true
     end
     result.finish = getFinish()
     result.firstFinish = result.finish

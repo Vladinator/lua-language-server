@@ -356,3 +356,46 @@ local function open() return { a = 0 } end
 local s = open()
 print(s.a)
 ]]
+
+-- `secret` in front of a type item marks exactly that item of a type list
+TEST [[
+---@type number, secret string, boolean
+local a, b, c = 1, 'x', true
+print(a + 5)
+print(<!b!>:len())
+print(c and 1)
+]]
+
+-- ...on a parameter
+TEST [[
+---@param token secret string
+local function f(token)
+    print(<!token!>:len())
+end
+]]
+
+-- ...on a return value
+TEST [[
+---@return secret string
+local function f() return 'x' end
+
+local x = f()
+print(<!x!>:len())
+]]
+
+-- ...and combined with an optional/union type
+TEST [[
+---@type secret string?
+local s
+print(<!s!>:len())
+]]
+
+-- a class that is called `secret` still works as a plain type name
+TEST [[
+---@class secret
+---@field a number
+
+---@type secret
+local s = { a = 1 }
+print(s.a)
+]]

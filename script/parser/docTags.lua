@@ -103,6 +103,27 @@ function m.getFieldKeyword(keyword)
     return fieldKeywords[keyword]
 end
 
+---@type table<string, string>
+local typeKeywords = {}
+
+--- Register a bare keyword usable in front of a type expression --
+--- `---@type number, mykeyword string`, `---@param x mykeyword string`,
+--- `---@return mykeyword string` -- like the field keywords above but per type item:
+--- `result[resultField] = true` on the produced `doc.type` node. It only counts
+--- as a keyword when another type follows it, so a class that happens to be
+--- called like the keyword still parses as a type on its own.
+---@param keyword     string
+---@param resultField string
+function m.registerTypeKeyword(keyword, resultField)
+    typeKeywords[keyword] = resultField
+end
+
+---@param keyword string
+---@return string?
+function m.getTypeKeyword(keyword)
+    return typeKeywords[keyword]
+end
+
 ---@type table<string, true>
 local classGroupDocTypes = {}
 

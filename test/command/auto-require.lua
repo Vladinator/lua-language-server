@@ -10,6 +10,7 @@ assert(findInsertRow)
 assert(applyAutoRequire)
 
 local originEditText = client.editText
+---@type any
 local EditResult
 
 ---@diagnostic disable-next-line: duplicate-set-field
@@ -17,11 +18,13 @@ client.editText = function (uri, edits)
     EditResult = edits[1]
 end
 
+---@param text string
 function TEST(text)
     return function (name)
         return function (expect)
             files.setText(TESTURI, text)
             EditResult = nil
+            ---@type any, any
             local row, fmt = findInsertRow(TESTURI)
             applyAutoRequire(TESTURI, row, name, name, fmt, "")
             assert(util.equal(EditResult, expect))

@@ -353,7 +353,7 @@ end
 ---@return parser.object?
 function m.getParentFunction(obj)
     for _ = 1, 10000 do
-        obj = (obj).parent
+        obj = obj.parent
         if not obj then
             break
         end
@@ -401,7 +401,7 @@ end
 ---@return parser.object?
 function m.getParentBlock(obj)
     for _ = 1, 10000 do
-        obj = (obj).parent
+        obj = obj.parent
         if not obj then
             return nil
         end
@@ -419,7 +419,7 @@ end
 ---@return parser.object?
 function m.getBreakBlock(obj)
     for _ = 1, 10000 do
-        obj = (obj).parent
+        obj = obj.parent
         if not obj then
             return nil
         end
@@ -457,7 +457,7 @@ end
 ---@return parser.object?
 function m.getParentType(obj, want)
     for _ = 1, 10000 do
-        obj = (obj).parent
+        obj = obj.parent
         if not obj then
             return nil
         end
@@ -473,7 +473,7 @@ end
 ---@return parser.object?
 function m.getParentTypes(obj, wants)
     for _ = 1, 10000 do
-        obj = (obj).parent
+        obj = obj.parent
         if not obj then
             return nil
         end

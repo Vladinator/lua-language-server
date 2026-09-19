@@ -170,7 +170,7 @@ function doc.makeDoc(outputPath)
 
     local docs = dirty_export.makeDocs(globals, function (i, max)
         prog:setMessage(('%d/%d'):format(i, max))
-        prog:setPercentage((i) / max * 100)
+        prog:setPercentage(i / max * 100)
     end)
 
     local ok, outPaths, err = dirty_export.serializeAndExport(docs, outputPath)

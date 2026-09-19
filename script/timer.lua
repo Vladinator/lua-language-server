@@ -5,7 +5,7 @@ local mathFloor    = math.floor
 local monotonic    = time.monotonic
 local xpcall       = xpcall
 ---@type any
-local logError     = (log).error
+local logError     = log.error
 
 _ENV = nil
 

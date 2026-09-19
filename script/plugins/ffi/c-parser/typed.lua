@@ -112,7 +112,8 @@ local function split(s, sep)
    local out = {}
    while j do
       table.insert(out, s:sub(i, j - 1))
-      i = (k) + 1
+      ---@diagnostic expect-next-line: need-check-nil -- `k` is set whenever `j` is (the loop condition)
+      i = k + 1
       j, k = s:find(sep, i)
    end
    table.insert(out, s:sub(i, #s))

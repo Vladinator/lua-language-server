@@ -125,7 +125,7 @@ local flr = math.floor
 local function isSequenceKey(k, sequenceLength)
    return type(k) == "number" and
    flr(k) == k and
-   1 <= (k) and
+   1 <= k and
    k <= sequenceLength
 end
 
@@ -142,7 +142,7 @@ local function sortKeys(a, b)
 
 
    if ta == tb and (ta == 'string' or ta == 'number') then
-      return (a) < (b)
+      return a < b
    end
 
    local dta = defaultTypeOrders[ta] or 100

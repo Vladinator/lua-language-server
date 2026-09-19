@@ -105,7 +105,8 @@ local function split(str, sep)
         if s > 1 then
             t[#t+1] = str:sub(current, s - 1)
         end
-        current = (e) + 1
+        ---@diagnostic expect-next-line: need-check-nil -- `e` is set whenever `s` is
+        current = e + 1
     end
     return t
 end

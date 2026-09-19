@@ -339,7 +339,7 @@ local function compile (p, defs)
   local ok, cp, label, poserr = pcall(function() return pattern:match(p, 1, defs) end)
   if not ok and cp then
     if type(cp) == "string" then
-      cp = (cp):gsub("^[^:]+:[^:]+: ", "")
+      cp = cp:gsub("^[^:]+:[^:]+: ", "")
     end
     error(cp, 3)
   end

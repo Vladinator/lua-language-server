@@ -50,7 +50,8 @@ function m.updateConfig(uri)
     ---@type uri?
     local currentUri = uri
     while true do
-        currentUri = (currentUri):match('^(.+)/[^/]*$')
+        ---@diagnostic expect-next-line: need-check-nil -- `currentUri` starts as the (non-nil) file uri; the loop returns before it can be nil here
+        currentUri = currentUri:match('^(.+)/[^/]*$')
         if not currentUri or loadedUris[currentUri] then
             return
         end

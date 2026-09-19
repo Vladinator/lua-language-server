@@ -39,7 +39,7 @@ local function asFunction(source)
         ---@type string|integer|nil
         local name = doc and doc.name and doc.name[1]
         if name and name ~= '...' then
-            name = (name) .. ': '
+            name = name .. ': '
         end
         local text = rtn and ('%s%s'):format(
             name or '',

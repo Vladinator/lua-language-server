@@ -230,7 +230,7 @@ local function buildValue(source, sub, used, symbols)
             -- way past it without one is an early `return`)
             range[1]   = math.min(source.value.start, source.start)
         end
-        range      = { (range)[1], source.value.finish }
+        range      = { range[1], source.value.finish }
     end
     symbols[#symbols+1] = {
         name           = name,

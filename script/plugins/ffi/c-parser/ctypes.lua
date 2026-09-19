@@ -156,7 +156,6 @@ local convert_value = typed("TypeList, table -> CType?, string?",
             anySrc.ids = util.expandSingle(anySrc.ids)
             -- FIXME multiple ids, e.g.: int *x, y, *z;
             local ok
----@diagnostic disable-next-line: cast-local-type
             ok, name, ret_pointer, idxs = get_name(src.id or src.ids)
             if not ok then
                 return nil, name

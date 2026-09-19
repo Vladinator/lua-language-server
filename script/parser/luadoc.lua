@@ -1401,7 +1401,6 @@ local docSwitch = util.switch()
                     -- fieldResultKey is a plugin-supplied string (see
                     -- docTags.registerFieldKeyword), so its actual name
                     -- can't be known statically here
-                    ---@diagnostic disable-next-line: assign-type-mismatch
                     result[fieldResultKey] = true
                     result.start = getStart()
                     return true
@@ -1956,7 +1955,6 @@ local function convertTokens(doc)
     if not docSwitch:has(text) then
         local docType = docTags.getMarkerTagType(text)
         if docType then
-            ---@diagnostic disable-next-line: missing-fields
             return {
                 type   = docType,
                 start  = getFinish(),
@@ -1997,7 +1995,6 @@ local function buildLuaDoc(comment)
     local headPos = (comment.type == 'comment.short' and comment.text:match '^%-%s*@()')
                  or (comment.type == 'comment.long'  and comment.text:match '^%s*@()')
     if not headPos then
-        ---@diagnostic disable-next-line: missing-fields
         return {
             type    = 'doc.comment',
             start   = comment.start,
@@ -2051,7 +2048,6 @@ local function buildLuaDoc(comment)
         return result, rests
     end
 
-    ---@diagnostic disable-next-line: missing-fields
     return {
         type    = 'doc.comment',
         start   = comment.start,
@@ -2127,7 +2123,6 @@ local function bindGeneric(binded)
     local generics = {}
     for _, doc in ipairs(binded) do
         if doc.type == 'doc.generic' then
-            ---@diagnostic disable-next-line: need-check-nil -- .generics is always set for 'doc.generic'
             for _, obj in ipairs(doc.generics) do
                 ---@diagnostic disable-next-line: need-check-nil -- .generic is always set on a 'doc.generic' element
                 local name = obj.generic[1] --[[@as string|integer]]

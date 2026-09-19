@@ -373,7 +373,6 @@ local function editConfigJson(uri, path, changes)
     for _, change in ipairs(changes) do
         local patch = makeConfigPatch(uri, res, change)
         if patch then
-            ---@diagnostic disable-next-line: missing-fields
             ---@type json-beautify.option
             local editOption = { indent = '    ' }
             local editFn = jsone.edit --[[@as fun(str: string, patch: any, option?: json-beautify.option): string?]]

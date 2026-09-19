@@ -75,7 +75,6 @@ local beautify = json.beautify --[[@as any]]
 ---@type fun(builder: string[], v: any, option?: json-beautify.option)
 local beautify_builder = json._beautify_builder --[[@as any]]
 ---@type fun(option?: json-beautify.option): json-beautify.option
----@diagnostic disable-next-line: invisible
 local beautify_option = json._beautify_option --[[@as any]]
 
 local encode_escape_map = {

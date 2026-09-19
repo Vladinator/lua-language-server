@@ -577,7 +577,6 @@ local function parseLongString()
     local startPos     = getPosition(start, 'left')
     local finishMark   = sgsub(mark, '%[', ']')
     local stringResult, finishPos = resolveLongString(finishMark)
-    ---@diagnostic disable-next-line: missing-fields
     return {
         type   = 'string',
         start  = startPos,
@@ -1311,7 +1310,6 @@ local function parseNil()
     end
     local offset = TokenPos[Index]
     Index = Index + 2
-    ---@diagnostic disable-next-line: missing-fields
     return {
         type   = 'nil',
         start  = getPosition(offset, 'left'),
@@ -1329,7 +1327,6 @@ local function parseBoolean()
     local start  = getPosition(TokenPos[Index], 'left')
     local finish = getPosition(TokenPos[Index] + #word - 1, 'right')
     Index = Index + 2
-    ---@diagnostic disable-next-line: missing-fields
     return {
         type   = 'boolean',
         start  = start,
@@ -1892,7 +1889,6 @@ local function parseNumber()
     if neg then
         number = - number
     end
-    ---@diagnostic disable-next-line: missing-fields
     local result = {
         type   = integer and 'integer' or 'number',
         start  = startPos,
@@ -1979,7 +1975,6 @@ local function parseName(asAction)
             finish = finishPos,
         }
     end
-    ---@diagnostic disable-next-line: missing-fields
     return {
         type   = 'name',
         start  = startPos,
@@ -2204,7 +2199,6 @@ local function parseTable()
                         node   = tbl,
                         parent = tbl,
                         field  = name,
-                        ---@diagnostic disable-next-line: assign-type-mismatch
                         value  = fvalue,
                     }
                     name.type   = 'field'
@@ -2311,7 +2305,6 @@ local function addDummySelf(node, call)
     end
     -- dummy param `self`
     if not call.args then
-        ---@diagnostic disable-next-line: missing-fields
         call.args = {
             type   = 'callargs',
             start  = call.start,
@@ -3120,7 +3113,6 @@ local function parseFunction(declareType, isAction)
         end
     end
     if hasLeftParen then
-        ---@diagnostic disable-next-line: missing-fields
         params = params or {}
         local parenLeft = getPosition(TokenPos[Index], 'left')
         Index = Index + 2

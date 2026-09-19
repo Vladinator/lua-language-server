@@ -142,7 +142,6 @@ local function getBindComment(source)
         -- and its .text is always set
         local comment = docComment.comment --[[@as parser.state.comm|parser.object]]
         ---@type string
-        ---@diagnostic disable-next-line: need-check-nil
         local text = comment.text
         local normalized = normalizeComment(text, uri)
         if normalized then

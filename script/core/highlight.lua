@@ -230,7 +230,6 @@ local function checkRegion(ast, text, offset, callback)
     end
     if finish then
         -- selected is always set alongside `finish` above
-        ---@diagnostic disable-next-line: need-check-nil
         for i = selected - 1, 1, -1 do
             local comment = ast.comms[i]
             if comment.type == 'comment.short' then

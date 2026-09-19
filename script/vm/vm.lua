@@ -44,7 +44,6 @@ function m.getKeyName(source)
             return guide.getKeyNameOfLiteral(source.args[2])
         end
     end
-    ---@diagnostic disable-next-line: return-type-mismatch
     return guide.getKeyName(source)
 end
 

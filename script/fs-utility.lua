@@ -20,7 +20,6 @@ local m = {}
 ---@return string? err
 function m.loadFile(path, keepBom)
     if type(path) ~= 'string' then
-        ---@diagnostic disable-next-line: undefined-field
         path = path:string() --[[@as string]]
     end
     ---@cast path string
@@ -49,7 +48,6 @@ end
 ---@return string? err
 function m.saveFile(path, content)
     if type(path) ~= 'string' then
-        ---@diagnostic disable-next-line: undefined-field
         path = path:string() --[[@as string]]
     end
     local f, e = ioOpen(path, "wb")
@@ -336,7 +334,6 @@ local function fsIsDirectory(path)
     if not path then
         return false
     end
-    ---@diagnostic disable-next-line: undefined-field
     if path.type == 'dummy' then
         ---@cast path dummyfs
         return path:isDirectory()
@@ -353,7 +350,6 @@ local function fsPairs(path, option)
     if not path then
         return function () end
     end
-    ---@diagnostic disable-next-line: undefined-field
     if path.type == 'dummy' then
         ---@cast path dummyfs
         return path:listDirectory()
@@ -373,7 +369,6 @@ local function fsRemove(path, option)
     if not path then
         return false
     end
-    ---@diagnostic disable-next-line: undefined-field
     if path.type == 'dummy' then
         ---@cast path dummyfs
         return path:remove()
@@ -392,7 +387,6 @@ local function fsExists(path, option)
     if not path then
         return false
     end
-    ---@diagnostic disable-next-line: undefined-field
     if path.type == 'dummy' then
         ---@cast path dummyfs
         return path:exists()
@@ -413,7 +407,6 @@ local function fsSave(path, text, option)
     if not path then
         return false
     end
-    ---@diagnostic disable-next-line: undefined-field
     if path.type == 'dummy' then
         ---@cast path dummyfs
         local dir = path:_open(-2) --[[@as any]]
@@ -449,7 +442,6 @@ local function fsLoad(path, option)
     if not path then
         return nil
     end
-    ---@diagnostic disable-next-line: undefined-field
     if path.type == 'dummy' then
         ---@cast path dummyfs
         local text = path:_open()
@@ -479,7 +471,6 @@ local function fsCopy(source, target, option)
     if not source or not target then
         return
     end
-    ---@diagnostic disable-next-line: undefined-field
     if source.type == 'dummy' then
         ---@cast source dummyfs
         local sourceText = source:_open()
@@ -490,7 +481,6 @@ local function fsCopy(source, target, option)
         return fsSave(target, sourceText --[[@as string]], option)
     else
         ---@cast source -dummyfs
-        ---@diagnostic disable-next-line: undefined-field
         if target.type == 'dummy' then
             local sourceText, err = m.loadFile(source)
             if not sourceText then
@@ -517,7 +507,6 @@ local function fsCreateDirectories(path, option)
     if not path then
         return
     end
-    ---@diagnostic disable-next-line: undefined-field
     if path.type == 'dummy' then
         ---@cast path dummyfs
         return path:createDirectories()
@@ -756,7 +745,6 @@ end
 ---@param dir fs.path|dummyfs
 ---@return fun(): fs.path|dummyfs|nil
 function m.listDirectory(dir)
-    ---@diagnostic disable-next-line: undefined-field
     if dir.type == 'dummy' then
         ---@cast dir dummyfs
         return dir:listDirectory()

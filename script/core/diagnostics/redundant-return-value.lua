@@ -6,6 +6,7 @@ local protoDiagnostic = require 'proto.diagnostic'
 
 local MESSAGE       = 'Annotations specify that at most %d return value(s) are required, found %d returned here instead.'
 local MESSAGE_RANGE = 'Annotations specify that at most %d return value(s) are required, found %d to %d returned here instead.'
+local MESSAGE_OPEN  = 'Annotations specify that at most %d return value(s) are required, found at least %d returned here instead.'
 
 protoDiagnostic.register {
     'redundant-return-value',
@@ -40,19 +41,22 @@ return function (uri, callback)
                         message = MESSAGE:format(max, i),
                     }
                 end
+                ---@type string
+                local message
                 if #ret == rmax then
-                    callback {
-                        start   = ret[#ret].start,
-                        finish  = ret[#ret].finish,
-                        message = MESSAGE:format(max, rmax),
-                    }
+                    message = MESSAGE:format(max, rmax)
+                elseif rmax == math.huge then
+                    -- ends in `...` or a call with an unbounded number of results;
+                    -- `%d` cannot format an infinite maximum
+                    message = MESSAGE_OPEN:format(max, #ret)
                 else
-                    callback {
-                        start   = ret[#ret].start,
-                        finish  = ret[#ret].finish,
-                        message = MESSAGE_RANGE:format(max, #ret, rmax),
-                    }
+                    message = MESSAGE_RANGE:format(max, #ret, rmax)
                 end
+                callback {
+                    start   = ret[#ret].start,
+                    finish  = ret[#ret].finish,
+                    message = message,
+                }
             end
         end
     end)

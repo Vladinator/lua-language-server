@@ -30,3 +30,11 @@ function F()
     return 1, <!r2()!>
 end
 ]]
+
+-- 返回列表以 `...` 结尾：最大数量是无穷，格式化消息时不能崩溃
+TEST [[
+---@return number
+function F(...)
+    return 1, <!2!>, <!...!>
+end
+]]

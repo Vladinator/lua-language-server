@@ -94,6 +94,7 @@ function m.await(callback, ...)
         return callback(...)
     end
     return m.wait(function (resume, ...)
+        ---@async
         m.call(function ()
             local returnNil <close> = resume
             resume(callback())
@@ -158,7 +159,7 @@ function m.sleep(time)
         if coroutine.status(co) ~= 'suspended' then
             return
         end
-        return m.checkResult(co, coroutine.resume(co))
+        m.checkResult(co, coroutine.resume(co))
     end)
     return coroutine.yield()
 end
@@ -180,7 +181,7 @@ function m.wait(callback, ...)
         if coroutine.status(co) ~= 'suspended' then
             return
         end
-        return m.checkResult(co, coroutine.resume(co, ...))
+        m.checkResult(co, coroutine.resume(co, ...))
     end, ...)
     return coroutine.yield()
 end
@@ -204,7 +205,7 @@ function m.delay()
         if coroutine.status(co) ~= 'suspended' then
             return
         end
-        return m.checkResult(co, coroutine.resume(co))
+        m.checkResult(co, coroutine.resume(co))
     end
     return coroutine.yield()
 end

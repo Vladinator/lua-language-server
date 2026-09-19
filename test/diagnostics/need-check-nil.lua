@@ -309,3 +309,29 @@ local function f(t, maybe)
     print(#<!t.list!>)
 end
 ]]
+
+TEST [[
+---@class A
+---@field list? number[]
+---@param t A
+---@param maybe number[]?
+local function f(t, maybe)
+    t.list = maybe or {}
+    print(#t.list)
+    t.list = maybe
+    print(#<!t.list!>)
+end
+]]
+
+-- 循环体内 `t.x = t.x or {}`：右侧读取与追踪器自身循环依赖，不能因此放弃窄化
+TEST [[
+---@class A
+---@field list? number[]
+---@param t A
+local function f(t)
+    repeat
+        t.list = t.list or {}
+    until #t.list > 0
+    print(#t.list)
+end
+]]

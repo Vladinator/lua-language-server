@@ -898,6 +898,54 @@ function mt:lookIntoBlock(block, start, node)
     end
 end
 
+--- Whether an assigned value can never be nil. `alwaysTruthy` is stricter
+--- than needed here (it also rejects nodes without a "known type", e.g. an
+--- array or table constructor). `a or b` is checked syntactically first:
+--- inside a loop the read of `a` in `t.x = t.x or {}` is circular with the
+--- tracer that is asking, so the value's own node comes back empty.
+---@param value parser.object
+---@return boolean
+local function neverNil(value)
+    if value.type == 'paren' and value.exp then
+        return neverNil(value.exp)
+    end
+    if value.type == 'binary' and value.op.type == 'or' then
+        return (value[2] ~= nil and neverNil(value[2]))
+            or (value[1] ~= nil and neverNil(value[1]))
+    end
+    local node = vm.compileNode(value)
+    if #node == 0 or node:hasFalsy() then
+        return false
+    end
+    for _, c in ipairs(node) do
+        if c.type == 'global' and c.cate == 'type'
+        and (c.name == 'any' or c.name == 'unknown') then
+            return false
+        end
+    end
+    return true
+end
+
+--- The node of an assignment. A field assignment's own compiled node is the
+--- union of every type the field is declared with (`---@field x? T`
+--- contributes the `?`), not just what was assigned. When the assigned value
+--- can't be nil, the field can't be nil right after the write either --
+--- otherwise `t.x = {}` (or `if not t.x then t.x = {} end`) never narrows
+--- `t.x` afterwards.
+---@param source parser.object
+---@return vm.node
+local function getAssignNode(source)
+    local node = vm.compileNode(source)
+    if  source.value
+    and (source.type == 'setfield'
+    or   source.type == 'setindex'
+    or   source.type == 'setmethod')
+    and neverNil(source.value) then
+        node = node:copy():removeOptional() --[[@as vm.node]]
+    end
+    return node
+end
+
 ---@param source parser.object
 function mt:calcNode(source)
     if self.getMap[source] then
@@ -906,28 +954,14 @@ function mt:calcNode(source)
             return
         end
         if self.fastCalc then
-            self.nodes[source] = vm.compileNode(lastAssign)
+            self.nodes[source] = getAssignNode(lastAssign)
             return
         end
         self:calcNode(lastAssign)
         return
     end
     if self.assignMap[source] then
-        local node = vm.compileNode(source)
-        -- A field assignment's own node is the union of every type the field
-        -- is declared with (`---@field x? T` contributes the `?`), not just
-        -- what was assigned. When the assigned value can't be nil, the field
-        -- can't be nil right after the write either -- otherwise
-        -- `if not t.x then t.x = {} end` never narrows `t.x` past the join.
-        if  source.value
-        and (source.type == 'setfield'
-        or   source.type == 'setindex'
-        or   source.type == 'setmethod') then
-            local valueNode = vm.compileNode(source.value)
-            if valueNode:alwaysTruthy() then
-                node = node:copy():removeOptional() --[[@as vm.node]]
-            end
-        end
+        local node = getAssignNode(source)
         self.nodes[source] = node
         local parentBlock = guide.getParentBlock(source)
         if parentBlock then

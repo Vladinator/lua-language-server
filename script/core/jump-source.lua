@@ -50,7 +50,7 @@ return function (results)
             ---@cast target parser.object -- not yet resolved to the {uri,start,finish} shape in this branch
             if target.type == 'method'
             or target.type == 'field' then
-                target = target.parent
+                target = target.parent --[[@as parser.object]]
             end
             if target.bindDocs then
                 for _, doc in ipairs(target.bindDocs) do

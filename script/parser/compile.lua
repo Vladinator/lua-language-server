@@ -670,7 +670,7 @@ local function skipComment(isAction)
             if not nl or NLMap[nl] then
                 break
             end
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
         end
         local right = TokenPos[Index] and (TokenPos[Index] - 1) or #Lua
         State.comms[#State.comms+1] = {
@@ -1604,7 +1604,7 @@ local function parseShortString()
             escs[#escs+1] = right
             escs[#escs+1] = 'err'
         end
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         ::CONTINUE::
     end
     local stringResult = tconcat(stringPool, '', 1, stringIndex)
@@ -2135,7 +2135,7 @@ local function parseIndex()
     skipSpace()
     if TokenText[Index + 1] == ']' then
         index.finish = getPosition(TokenPos[Index], 'right')
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         missSymbol ']'
     end
@@ -2805,7 +2805,7 @@ local function parseParen()
     skipSpace()
     if TokenText[Index + 1] == ')' then
         paren.finish = getPosition(TokenPos[Index], 'right')
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         missSymbol ')'
     end
@@ -3123,7 +3123,7 @@ local function parseFunction(declareType, isAction)
         ---@diagnostic disable-next-line: missing-fields
         params = params or {}
         local parenLeft = getPosition(TokenPos[Index], 'left')
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         params = parseParams(params)
         params.type   = 'funcargs'
         params.start  = parenLeft
@@ -3138,7 +3138,7 @@ local function parseFunction(declareType, isAction)
             if params then
                 params.finish = parenRight
             end
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             skipSpace(true)
         else
             func.finish = lastRightPosition()
@@ -3196,7 +3196,7 @@ local function parseLambdaDoBlock(lambda)
         body.finish = getPosition(TokenPos[Index] + 2, 'right')
         body.keyword[3] = getPosition(TokenPos[Index], 'left')
         body.keyword[4] = body.finish
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         missEnd(doLeft, doRight)
     end
@@ -3269,7 +3269,7 @@ local function parseLambda(isDoublePipe)
             if params then
                 params.finish = pipeRight
             end
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             skipSpace()
         else
             lambda.finish = lastRightPosition()
@@ -3816,7 +3816,7 @@ local function parseSetValues()
         if TokenText[Index + 1] ~= ',' then
             return first, second, rest
         end
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         skipSeps()
         local exp = parseExp()
         if not exp then
@@ -3874,7 +3874,7 @@ local function parseVarTails(parser, isLocal)
         if TokenText[Index + 1] ~= ',' then
             return second, rest
         end
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         skipSeps()
         local name = parser(true)
         if not name then
@@ -4438,7 +4438,7 @@ local function parseDo()
         obj.finish     = getPosition(TokenPos[Index] + 2, 'right')
         obj.keyword[3] = getPosition(TokenPos[Index], 'left')
         obj.keyword[4] = getPosition(TokenPos[Index] + 2, 'right')
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         missEnd(doLeft, doRight)
     end
@@ -4506,7 +4506,7 @@ local function parseLabel()
     end
 
     if TokenText[Index + 1] == '::' then
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         if label then
             missSymbol '::'
@@ -4939,7 +4939,7 @@ local function parseFor()
         action.type = 'in'
         local inLeft  = getPosition(TokenPos[Index], 'left')
         local inRight = getPosition(TokenPos[Index] + 1, 'right')
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         skipSpace()
 
         local exps = parseExpList()
@@ -5188,7 +5188,7 @@ local function parseRepeat()
         action.finish                     = getPosition(TokenPos[Index] + 4, 'right')
         action.keyword[#action.keyword+1] = getPosition(TokenPos[Index], 'left')
         action.keyword[#action.keyword+1] = action.finish
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
 
         skipSpace()
         local filter = parseExp()

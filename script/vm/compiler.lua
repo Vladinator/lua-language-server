@@ -638,11 +638,12 @@ function vm.getClassFields(suri, object, key, pushResult)
                             end
                         end)
                     end
-                    if  src.value
-                    and src.value.type == 'select'
-                    and src.value.vararg.type == 'call' then
-                        local func = src.value.vararg.node
-                        local args = src.value.vararg.args
+                    local srcValue = src.value
+                    if  srcValue
+                    and srcValue.type == 'select'
+                    and srcValue.vararg.type == 'call' then
+                        local func = srcValue.vararg.node
+                        local args = srcValue.vararg.args
                         if  func.special == 'setmetatable'
                         and args
                         and args[1]
@@ -1595,6 +1596,20 @@ local function compileFunctionParam(func, source)
     end
 end
 
+---@param value parser.object
+---@param loc    parser.object
+---@return boolean
+local function referencesLocal(value, loc)
+    ---@type boolean
+    local found = false
+    guide.eachSource(value, function (src)
+        if src.type == 'getlocal' and src.node == loc then
+            found = true
+        end
+    end)
+    return found
+end
+
 ---@param source parser.object
 local function compileLocal(source)
     local myNode = vm.setNode(source, source)
@@ -1702,10 +1717,11 @@ local function compileLocal(source)
         end
     end
 
-    if  source.value
-    and source.value.type == 'nil'
+    local value = source.value
+    if  value
+    and value.type == 'nil'
     and not myNode:hasKnownType() then
-        vm.setNode(source, vm.compileNode(source.value))
+        vm.setNode(source, vm.compileNode(value))
     end
 
     myNode.hasDefined = hasMarkDoc or hasMarkParam or hasMarkValue
@@ -2066,6 +2082,14 @@ local compilerSwitch = util.switch()
             return
         end
         local valueNode = vm.compileNode(source.value)
+        if  valueNode:isEmpty()
+        and not locNode:isEmpty()
+        and referencesLocal(source.value, source.node) then
+            -- a self-referential assignment (`i = i + 1`, `s = s .. x`) is
+            -- circular for the tracer, so the value comes back empty; keep the
+            -- variable's own type instead of degrading it to unknown
+            valueNode = locNode
+        end
         vm.setNode(source, valueNode)
         if  locNode.hasDefined
         and guide.isLiteral(source.value) then

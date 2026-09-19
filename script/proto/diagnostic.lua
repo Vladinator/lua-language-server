@@ -141,7 +141,7 @@ function m.getDiagAndErrNameMap()
                     for line in f:lines() do
                         local name = line:match([=[type%s*=%s*['"](%u[%u_]+%u)['"]]=]) --[[@as string?]]
                         if name then
-                            local id = (name:lower():gsub('_', '-')) --[[@as string]]
+                            local id = (name:lower():gsub('_', '-'))
                             names[id] = true
                         end
                     end

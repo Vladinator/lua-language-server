@@ -37,14 +37,14 @@ local jass = require 'jass.common'
         })
 
         for c in ('jass'):gmatch '.' do
-            text = (text .. c) --[[@as string]]
+            text = text .. c
             client:awaitRequest('textDocument/didChange', {
                 textDocument = {
                     uri = furi.encode('abc/1.lua'),
                 },
                 contentChanges = {
                     {
-                        text = text --[[@as string]],
+                        text = text,
                     }
                 }
             })

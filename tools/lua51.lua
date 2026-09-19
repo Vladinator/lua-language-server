@@ -53,7 +53,6 @@ local function getFunc(f, level)
         level = 3
     end
     checkType(f, 'number', level)
-    ---@cast f integer
     if f < 0 then
         error('level must be non-negative', level)
     end
@@ -77,7 +76,7 @@ local function findTable(name)
     ---@type table<any, any>
     local current = lua51._G
     for idVal in stringGmatch(name, '[^%.]+') do
-        local id = idVal --[[@as string]]
+        local id = idVal
         id = stringMatch(id, '^%s*(.-)%s*$')
         pg[#pg+1] = id
         local field = rawget(current, id)
@@ -242,7 +241,6 @@ function lua51.module(name, ...)
         end
         loaded[name] = mod
     end
-    ---@cast mod table
     if mod._NAME == nil then
         mod._M = mod
         mod._NAME = name

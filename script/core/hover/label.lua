@@ -119,7 +119,7 @@ end
 local function isGlobalField(source)
     if source.type == 'field'
     or source.type == 'method' then
-        source = source.parent --[[@as parser.object]]
+        source = source.parent
     end
     if     source.type == 'setfield'
     or     source.type == 'getfield'

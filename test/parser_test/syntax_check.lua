@@ -89,7 +89,7 @@ local function catchTarget(script, sep)
             cuted = 0
             lastLine = line1
         end
-        cuted = cuted + 2 --[[@as integer]]
+        cuted = cuted + 2
         local left = assert(getPosition(a + 1, lns)) - cuted
         local line2 = assert(getLine(b - 3, lns))
         if line2 ~= lastLine then
@@ -97,7 +97,7 @@ local function catchTarget(script, sep)
             lastLine = line2
         end
         local right = assert(getPosition(b - 3, lns)) - cuted
-        cuted = cuted + 2 --[[@as integer]]
+        cuted = cuted + 2
         list[#list+1] = { left, right }
     end
     codes[#codes+1] = script:sub(pos)

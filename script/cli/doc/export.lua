@@ -159,7 +159,7 @@ export.makeDocObject['INIT'] = function(source, has_seen)
     local rawok, rawdesc = pcall(getDesc, source, true)
     return {
         type = source.cate or source.type,
-        name = export.documentObject((source.getCodeName and source:getCodeName()) or source.name, has_seen) --[[@as string]],
+        name = export.documentObject((source.getCodeName and source:getCodeName()) or source.name, has_seen),
         start = source.start and {guide.rowColOf(source.start)},
         finish = source.finish and {guide.rowColOf(source.finish)},
         types = export.documentObject(source.types, has_seen) --[[@as docUnion[] ]],

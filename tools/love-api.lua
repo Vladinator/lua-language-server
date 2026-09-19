@@ -161,7 +161,7 @@ function buildType(param)
     if param.arraytype then
         return ('%s[]'):format(getTypeName(param.arraytype))
     end
-    return getTypeName(param.type --[[@as string]])
+    return getTypeName(param.type)
 end
 
 ---@param tp love-api.type
@@ -227,14 +227,14 @@ local function buildDocFunc(variant, overload)
             params[#params+1] = '...'
         else
             if param.name:find '^[\'"]' then
-                params[#params+1] = ('%s%s: %s|%s'):format(param.name:sub(2, -2), getOptional(param), getTypeName(param.type --[[@as string]]), param.name)
+                params[#params+1] = ('%s%s: %s|%s'):format(param.name:sub(2, -2), getOptional(param), getTypeName(param.type), param.name)
             else
-                params[#params+1] = ('%s%s: %s'):format(param.name, getOptional(param), getTypeName(param.type --[[@as string]]))
+                params[#params+1] = ('%s%s: %s'):format(param.name, getOptional(param), getTypeName(param.type))
             end
         end
     end
     for _, rtn in ipairs(variant.returns or {}) do
-        returns[#returns+1] = ('%s'):format(getTypeName(rtn.type --[[@as string]]))
+        returns[#returns+1] = ('%s'):format(getTypeName(rtn.type))
     end
     return ('fun(%s)%s'):format(
         table.concat(params, ', '),

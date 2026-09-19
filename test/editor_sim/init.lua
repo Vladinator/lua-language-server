@@ -14,7 +14,7 @@
 --     SIM_TOUCH = <path fragment>                                 re-set the text of the matching
 --                 files, then diagnose everything again (editor invalidation)
 --     SIM_TOUCH_MODE = recreate                                   remove + add back instead
-local target = TARGET_TEST_NAME --[[@as string?]]
+local target = TARGET_TEST_NAME
 if not target or not ('editor_sim'):match(target) then
     return
 end

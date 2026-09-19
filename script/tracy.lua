@@ -5,7 +5,7 @@ local function enable()
     if not originTracy then
         local suc = pcall(require, 'luatracy')
         if suc then
-            originTracy = tracy --[[@as { ZoneBeginN: fun(info: any), ZoneEnd: fun() }]]
+            originTracy = tracy
         else
             originTracy = {
                 ZoneBeginN = function (_info) end,

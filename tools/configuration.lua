@@ -32,9 +32,9 @@ local liveDefaults = {
 ---@return any[]?
 local function resolveEnums(enums)
     if type(enums) == 'function' then
-        return (enums --[[@as fun(): any[] ]])()
+        return enums()
     end
-    return enums --[[@as any[]?]]
+    return enums
 end
 
 ---@alias tools.configuration.type string|tools.configuration.type[]

@@ -62,7 +62,7 @@ local function loadLocaleFile(filePath)
         if key then
             current = {
                 key     = key,
-                line    = lineCount --[[@as integer]],
+                line    = lineCount,
                 space   = space,
                 comment = comment,
                 content = {},
@@ -193,8 +193,8 @@ local function buildLocaleFile(localeName, allKeys, localeMap, fileName)
                     local utfLen  = 0
                     local charLen = 0
                     for _, line in ipairs(data.content) do
-                        utfLen  = (utfLen  + util.utf8Len(line)) --[[@as integer]]
-                        charLen = (charLen + #line) --[[@as integer]]
+                        utfLen  = utfLen  + util.utf8Len(line)
+                        charLen = charLen + #line
                     end
                     if charLen > 0 and utfLen / charLen < 0.8 then
                         needTranslate = true

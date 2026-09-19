@@ -20,9 +20,8 @@ local m = {}
 ---@return string? err
 function m.loadFile(path, keepBom)
     if type(path) ~= 'string' then
-        path = path:string() --[[@as string]]
+        path = path:string()
     end
-    ---@cast path string
     local f, e = ioOpen(path, 'rb')
     if not f then
         return nil, e
@@ -48,7 +47,7 @@ end
 ---@return string? err
 function m.saveFile(path, content)
     if type(path) ~= 'string' then
-        path = path:string() --[[@as string]]
+        path = path:string()
     end
     local f, e = ioOpen(path, "wb")
 

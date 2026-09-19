@@ -386,7 +386,7 @@ end
 ---@param codes any[]
 ---@return string[]?
 function m.compileCodes(codes)
-    local b = setmetatable({ globalAsts = {}, cacheEnums = {} }, { __index = builder }) --[[@as ffi.builder]]
+    local b = setmetatable({ globalAsts = {}, cacheEnums = {} }, { __index = builder })
 
     ---@type string[]?
     local lines
@@ -415,7 +415,7 @@ function m.build_single(codes, fileDir, uri)
     if fullPath:stem():string():find '%.' then
         local newPath = fullPath:parent_path() / (fullPath:stem():string():gsub('%.', '/') .. ".lua")
         fs.create_directories(newPath:parent_path())
-        fullPath = newPath --[[@as fs.path]]
+        fullPath = newPath
     end
 
     utility.saveFile(tostring(fullPath), table.concat(texts, '\n'))

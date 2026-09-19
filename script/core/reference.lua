@@ -29,8 +29,8 @@ local function sortResults(results)
         if lf and f > lf and uri == lu then
             table.remove(results, i)
         else
-            lu = uri --[[@as uri]]
-            lf = f --[[@as integer]]
+            lu = uri
+            lf = f
         end
     end
 end

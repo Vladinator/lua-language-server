@@ -52,7 +52,6 @@ function mt:checker(v)
         if type(enums) == 'function' then
             enums = enums()
         end
-        ---@cast enums any[]
         ---@type boolean?
         local ok
         for _, enum in ipairs(enums) do

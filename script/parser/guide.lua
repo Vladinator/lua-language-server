@@ -405,7 +405,6 @@ function m.getParentBlock(obj)
         if not obj then
             return nil
         end
-        ---@cast obj -?
         ---@type string
         local tp = obj.type
         if blockTypes[tp] then
@@ -420,11 +419,10 @@ end
 ---@return parser.object?
 function m.getBreakBlock(obj)
     for _ = 1, 10000 do
-        obj = (obj --[[@as parser.object]]).parent --[[@as parser.object?]]
+        obj = (obj).parent
         if not obj then
             return nil
         end
-        ---@cast obj -?
         ---@type string
         local tp = obj.type
         if breakBlockTypes[tp] then
@@ -442,14 +440,14 @@ end
 ---@return parser.object
 function m.getDocState(obj)
     for _ = 1, 10000 do
-        local parent = obj.parent --[[@as parser.object?]]
+        local parent = obj.parent
         if not parent then
             return obj
         end
         if parent.type == 'doc' then
             return obj
         end
-        obj = parent --[[@as parser.object]]
+        obj = parent
     end
     error('guide.getDocState overstack')
 end

@@ -2152,7 +2152,7 @@ local function getluaDocByContain(state, position)
         end
         if  range >= position - src.start
         and position <= src.finish then
-            range = (position - src.start) --[[@as number]]
+            range = (position - src.start)
             result = src
         end
     end)

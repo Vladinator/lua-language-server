@@ -594,7 +594,7 @@ function vm.isSubType(uri, child, parent, mark, errs)
 
     -- the key of every `mark` write below; only used where `childName` is known to be set
     -- (a setindex with an unresolved key is what came out `unknown` in the editor's order)
-    local markKey = childName --[[@as string]]
+    local markKey = childName
     -- check class parent
     if childName and not mark[markKey] then
         mark[markKey] = true

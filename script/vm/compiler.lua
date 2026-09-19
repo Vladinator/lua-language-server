@@ -1912,7 +1912,7 @@ local function bindReturnOfFunction(source, mfunc, index, args)
                                                         returnNode = vm.compileNode(newRtn)
                                                         for rnode in returnNode:eachObject() do
                                                             if rnode.type == 'generic' then
-                                                                returnNode = (rnode --[[@as vm.generic]]):resolve(guide.getUri(source), args)
+                                                                returnNode = rnode:resolve(guide.getUri(source), args)
                                                                 break
                                                             end
                                                         end
@@ -2103,7 +2103,7 @@ local compilerSwitch = util.switch()
             if  valueNode:isOptional()
             and (value.type == 'unary'
             or  (value.type == 'binary' and value.op.type ~= 'and' and value.op.type ~= 'or')) then
-                valueNode = valueNode:copy():removeOptional() --[[@as vm.node]]
+                valueNode = valueNode:copy():removeOptional()
             end
         end
         vm.setNode(source, valueNode)

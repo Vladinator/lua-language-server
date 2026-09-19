@@ -181,7 +181,7 @@ local function ofFieldThen(key, src, newname, callback)
     if     src.type == 'tablefield'
     or     src.type == 'getfield'
     or     src.type == 'setfield' then
-        src = src.field --[[@as parser.object]]
+        src = src.field
     elseif src.type == 'tableindex'
     or     src.type == 'getindex'
     or     src.type == 'setindex' then

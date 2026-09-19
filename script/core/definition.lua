@@ -32,7 +32,7 @@ local function sortResults(results)
             table.remove(results, i)
         else
             lu = uri
-            lf = f --[[@as integer]]
+            lf = f
         end
     end
 end

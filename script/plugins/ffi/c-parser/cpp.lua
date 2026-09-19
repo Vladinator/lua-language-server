@@ -236,8 +236,8 @@ cpp.initial_processing = typed("file* -> LineList",
     local output = {}
     local linenr = 0
     for lineVal in fd:lines() do
-        linenr = (linenr + 1) --[[@as integer]]
-        local line = lineVal --[[@as string]]
+        linenr = linenr + 1
+        local line = lineVal
         local len = #line
         if line:find("\\", len, true) then
             -- If backslash-terminated, buffer it
@@ -304,7 +304,7 @@ cpp.initial_processing = typed("file* -> LineList",
                 end
 
                 -- and move to the next state
-                state = transition.next --[[@as string]]
+                state = transition.next
                 i = n + 1
             end
 
@@ -312,7 +312,7 @@ cpp.initial_processing = typed("file* -> LineList",
             if states[state].continue_line then
                 -- buffer the output and keep going
                 buf = add(buf, out)
-                state = states[state].continue_line --[[@as string]]
+                state = states[state].continue_line
             else
                 -- otherwise, flush the buffer
                 if buf then
@@ -321,7 +321,7 @@ cpp.initial_processing = typed("file* -> LineList",
                     buf = nil
                 end
                 -- output the string and reset the state.
-                table.insert(output, { nr = linenr, line = out --[[@as string]] })
+                table.insert(output, { nr = linenr, line = out })
                 state = "any"
             end
         end

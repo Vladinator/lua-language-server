@@ -72,7 +72,7 @@ function m.check(state, word, position, callback)
                     goto INNER_CONTINUE
                 end
 
-                stemName = (stemPath --[[@as string]]):match("[%a_][%w_]*$")
+                stemName = stemPath:match("[%a_][%w_]*$")
 
                 if not stemName or testedStem[stemName] then
                     goto INNER_CONTINUE
@@ -138,7 +138,7 @@ function m.check(state, word, position, callback)
                 if node.type == 'setfield' or node.type == 'getfield' then
                     local fieldName = node.field and node.field[1]
                     if fieldName then
-                        fullKeyPath = ("." .. fieldName .. fullKeyPath) --[[@as string]]
+                        fullKeyPath = ("." .. fieldName .. fullKeyPath)
                     end
                 end
                 if node.type == 'getlocal' then

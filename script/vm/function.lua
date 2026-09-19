@@ -177,7 +177,7 @@ function vm.countReturnsOfFunction(func, onlyDoc, mark)
                         ddef = n
                         if  (not ret.name or ret.name[1] ~= '...')
                         and not vm.compileNode(ret):isNullable() then
-                            dmin = n --[[@as integer]]
+                            dmin = n
                         end
                     end
                 end

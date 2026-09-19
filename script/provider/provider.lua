@@ -811,8 +811,8 @@ m.register 'completionItem/resolve' {
         if not item.data then
             return item
         end
-        local id            = item.data.id --[[@as integer]]
-        local uri           = item.data.uri --[[@as uri]]
+        local id            = item.data.id
+        local uri           = item.data.uri
         --await.setPriority(1000)
         local state = files.getState(uri)
         if not state then

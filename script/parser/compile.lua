@@ -1169,7 +1169,7 @@ local function checkLocalCloseList(n1, n2, nrest)
     ---@param node parser.object?
     ---@param list parser.object[]
     local function collectCloseAttrs(node, list)
-        local attrs = node and node.attrs --[[@as parser.object?]]
+        local attrs = node and node.attrs
         if not attrs then
             return
         end
@@ -1221,7 +1221,7 @@ local function resolveLable(label, obj)
     end
 
     local block = guide.getBlock(obj)
-    local locals = block and block.locals --[[@as parser.object[]?]]
+    local locals = block and block.locals
     if not locals then
         return
     end

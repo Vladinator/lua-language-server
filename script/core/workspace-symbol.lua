@@ -17,7 +17,7 @@ local function buildSource(source, key, results)
     if     source.type == 'local'
     or     source.type == 'setlocal'
     or     source.type == 'setglobal' then
-        local name = source[1] --[[@as string]]
+        local name = source[1]
         if matchKey(key, name) then
             results[#results+1] = {
                 name   = name,
@@ -29,7 +29,7 @@ local function buildSource(source, key, results)
     elseif source.type == 'setfield'
     or     source.type == 'tablefield' then
         local field = source.field
-        local name  = field and field[1] --[[@as string]]
+        local name  = field and field[1]
         if field and name and matchKey(key, name) then
             results[#results+1] = {
                 name   = name,
@@ -40,7 +40,7 @@ local function buildSource(source, key, results)
         end
     elseif source.type == 'setmethod' then
         local method = source.method
-        local name   = method and method[1] --[[@as string]]
+        local name   = method and method[1]
         if method and name and matchKey(key, name) then
             results[#results+1] = {
                 name   = name,

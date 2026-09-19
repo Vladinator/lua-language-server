@@ -1588,6 +1588,21 @@ local function compileFunctionParam(func, source)
     end
 end
 
+--- A node that says nothing: empty, or only the placeholder `unknown` type (what a
+--- value whose own inference is still open evaluates to). `variable` members are
+--- links to the source, not types.
+---@param node vm.node
+---@return boolean
+local function isUnresolved(node)
+    for _, c in ipairs(node) do
+        if  c.type ~= 'variable'
+        and not (c.type == 'global' and c.cate == 'type' and c.name == 'unknown') then
+            return false
+        end
+    end
+    return true
+end
+
 ---@param value parser.object
 ---@param loc    parser.object
 ---@return boolean
@@ -2073,13 +2088,14 @@ local compilerSwitch = util.switch()
             return
         end
         local valueNode = vm.compileNode(source.value)
-        if  not valueNode:isTyped()
+        if  isUnresolved(valueNode)
         and locNode:isTyped()
-        and referencesLocal(source.value, source.node) then
+        and (source.node.bindDocs or referencesLocal(source.value, source.node)) then
             -- a self-referential assignment (`i = i + 1`, `s = s .. x`) is
-            -- circular for the tracer, so the value comes back empty or
-            -- untyped; keep the variable's own type instead of degrading it
-            -- to unknown
+            -- circular for the tracer, and a value that cannot be resolved yet
+            -- (its own inference is mid-cycle) is empty or untyped; keep the
+            -- variable's own type, and for a variable with a declared type
+            -- (---@type / ---@param) always, instead of degrading it to unknown
             valueNode = locNode
             -- arithmetic/concat/unary results are never nil, even when the
             -- variable's own type is optional

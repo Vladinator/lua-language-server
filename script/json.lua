@@ -303,6 +303,7 @@ json._encode_string = encode_string
 ---@type string
 local statusBuf
 ---@type integer
+---@type integer
 local statusPos
 ---@type integer
 local statusTop

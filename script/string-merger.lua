@@ -16,7 +16,9 @@
 ---@param key    'start'|'cstart'
 ---@return string.merger.info
 local function getNearDiff(diffs, offset, key)
+    ---@type integer
     local min = 1
+    ---@type integer
     local max = #diffs
     while max > min do
         local middle = min + (max - min) // 2

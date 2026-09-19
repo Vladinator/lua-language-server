@@ -1,6 +1,7 @@
 local guide    = require 'parser.guide'
 local vm       = require 'vm'
 
+---@type fun(source: parser.object, oop?: boolean): string?, boolean?
 local buildName
 
 ---@param source parser.object

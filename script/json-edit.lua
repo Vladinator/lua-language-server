@@ -108,6 +108,7 @@ end
 ---@type string
 local statusBuf
 ---@type integer
+---@type integer
 local statusPos
 ---@type integer
 local statusTop

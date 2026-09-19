@@ -266,7 +266,6 @@ local function parseName(tp, parent)
     end
     nextToken()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local name = {
         type   = tp,
         start  = getStart(),
@@ -303,7 +302,6 @@ local function parseDocAttr(parent)
     nextToken()
 
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local attrs = {
         type   = 'doc.attr',
         ---@diagnostic disable-next-line: assign-type-mismatch
@@ -381,7 +379,6 @@ local function parseTable(parent)
     end
     nextToken()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local typeUnit = {
         type    = 'doc.type.table',
         start   = getStart(),
@@ -396,7 +393,6 @@ local function parseTable(parent)
             break
         end
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local field = {
             type   = 'doc.type.field',
             parent = typeUnit,
@@ -463,7 +459,6 @@ local function parseTuple(parent)
     end
     nextToken()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local typeUnit = {
         type    = 'doc.type.table',
         start   = getStart(),
@@ -480,7 +475,6 @@ local function parseTuple(parent)
             break
         end
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local field = {
             type   = 'doc.type.field',
             parent = typeUnit,
@@ -493,7 +487,6 @@ local function parseTuple(parent)
                 nextToken()
                 needCloseParen = true
             end
-            ---@diagnostic disable-next-line: missing-fields
             field.name = {
                 type        = 'doc.type',
                 start       = getFinish(),
@@ -502,7 +495,6 @@ local function parseTuple(parent)
                 parent      = field,
             }
             field.name.types = {
-                ---@diagnostic disable-next-line: missing-fields
                 [1] = {
                     type   = 'doc.type.integer',
                     start  = getFinish(),
@@ -577,7 +569,6 @@ local function parseDots(tp, parent)
     end
     nextToken()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local dots = {
         type   = tp,
         start  = getStart(),
@@ -596,7 +587,6 @@ local function  parseTypeUnitFunction(parent)
     end
     nextToken()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local typeUnit = {
         type    = 'doc.type.function',
         parent  = parent,
@@ -617,7 +607,6 @@ local function  parseTypeUnitFunction(parent)
             break
         end
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local arg = {
             type   = 'doc.type.arg',
             parent = typeUnit,
@@ -793,7 +782,6 @@ local function parseTypeUnitArray(parent, node)
     end
     nextToken()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local result = {
         type   = 'doc.type.array',
         start  = node.start,
@@ -814,7 +802,6 @@ local function parseTypeUnitSign(parent, node)
     end
     nextToken()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local result = {
         type   = 'doc.type.sign',
         start  = node.start,
@@ -865,7 +852,6 @@ local function parseString(parent)
         end
     end
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local str = {
         type   = 'doc.type.string',
         start  = getStart(),
@@ -940,7 +926,6 @@ local function parseCodePattern(parent)
         end
     end
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local code = {
         type   = 'doc.type.code',
         start  = start,
@@ -962,7 +947,6 @@ local function parseInteger(parent)
 
     nextToken()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local integer = {
         type   = 'doc.type.integer',
         start  = getStart(),
@@ -985,7 +969,6 @@ local function parseBoolean(parent)
 
     nextToken()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local boolean = {
         type   = 'doc.type.boolean',
         start  = getStart(),
@@ -1072,7 +1055,6 @@ local lockResume = false
 
 function parseType(parent)
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local result = {
         type    = 'doc.type',
         parent  = parent,
@@ -1174,7 +1156,6 @@ local docSwitch = util.switch()
     : case 'class'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type      = 'doc.class',
             fields    = {},
@@ -1251,7 +1232,6 @@ local docSwitch = util.switch()
     : case 'alias'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.alias',
         }
@@ -1285,7 +1265,6 @@ local docSwitch = util.switch()
     : case 'param'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.param',
         }
@@ -1323,7 +1302,6 @@ local docSwitch = util.switch()
     : case 'return'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type    = 'doc.return',
             returns = {},
@@ -1369,7 +1347,6 @@ local docSwitch = util.switch()
     : case 'field'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type = 'doc.field',
         }
@@ -1442,14 +1419,12 @@ local docSwitch = util.switch()
     : case 'generic'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type = 'doc.generic',
             generics = {},
         }
         while true do
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local object = {
                 type = 'doc.generic.object',
                 parent = result,
@@ -1486,7 +1461,6 @@ local docSwitch = util.switch()
     : case 'vararg'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type = 'doc.vararg',
         }
@@ -1517,7 +1491,6 @@ local docSwitch = util.switch()
             return nil
         end
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type = 'doc.overload',
         }
@@ -1534,7 +1507,6 @@ local docSwitch = util.switch()
     : case 'meta'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local meta = {
             type   = 'doc.meta',
             start  = getFinish(),
@@ -1547,7 +1519,6 @@ local docSwitch = util.switch()
     : case 'version'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type     = 'doc.version',
             versions = {},
@@ -1566,7 +1537,6 @@ local docSwitch = util.switch()
                 result.start = getStart()
             end
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local version = {
                 type   = 'doc.version.unit',
                 parent = result,
@@ -1607,7 +1577,6 @@ local docSwitch = util.switch()
     : case 'see'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type     = 'doc.see',
         }
@@ -1628,7 +1597,6 @@ local docSwitch = util.switch()
     : case 'diagnostic'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type = 'doc.diagnostic',
         }
@@ -1683,7 +1651,6 @@ local docSwitch = util.switch()
     : case 'module'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type     = 'doc.module',
             start    = getFinish(),
@@ -1724,7 +1691,6 @@ local docSwitch = util.switch()
     : case 'as'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.as',
             start  = getFinish(),
@@ -1737,7 +1703,6 @@ local docSwitch = util.switch()
     : case 'cast'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.cast',
             start  = getFinish(),
@@ -1760,7 +1725,6 @@ local docSwitch = util.switch()
 
         while true do
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local block = {
                 type   = 'doc.cast.block',
                 parent = result,
@@ -1809,7 +1773,6 @@ local docSwitch = util.switch()
     : case 'operator'
     : call(function ()
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.operator',
             start  = getFinish(),
@@ -1868,7 +1831,6 @@ local docSwitch = util.switch()
         line   = tonumber(line) or 1
         char   = tonumber(char) or 0
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type   = 'doc.source',
             start  = getStart(),
@@ -1887,7 +1849,6 @@ local docSwitch = util.switch()
             return nil
         end
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local result = {
             type    = 'doc.enum',
             start   = name.start,
@@ -2607,7 +2568,6 @@ local function luadoc(state)
     table.sort(comments, function (a, b)
         return a.start < b.start
     end)
-    ---@diagnostic disable-next-line: missing-fields
     ast.docs = {
         type   = 'doc',
         parent = ast,

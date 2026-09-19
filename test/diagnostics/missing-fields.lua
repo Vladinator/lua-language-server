@@ -588,3 +588,27 @@ local t = {y = 1}
 ]]
 
 --
+
+-- (incremental)：对象是逐字段构建的，构造表不要求完整
+TEST [[
+---@class (incremental) A
+---@field x number
+---@field y number
+
+---@type A
+local t = {}
+
+---@type A
+local u = {x = 1}
+]]
+
+TEST [[
+---@class (incremental) A
+---@field x number
+
+---@class B: A
+---@field y number
+
+---@type B
+local t = <!{}!>
+]]

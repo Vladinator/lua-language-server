@@ -178,7 +178,6 @@ vm.unarySwich = util.switch()
         if result == nil then
             vm.setNode(source, vm.declareGlobal('type', 'boolean'))
         else
-            ---@diagnostic disable-next-line: missing-fields
             vm.setNode(source, {
                 type   = 'boolean',
                 start  = source.start,
@@ -210,7 +209,6 @@ vm.unarySwich = util.switch()
                 vm.setNode(source, node or vm.declareGlobal('type', 'number'))
             end
         else
-            ---@diagnostic disable-next-line: missing-fields
             vm.setNode(source, {
                 type   = 'number',
                 start  = source.start,
@@ -228,7 +226,6 @@ vm.unarySwich = util.switch()
             local node = vm.runOperator('bnot', source[1])
             vm.setNode(source, node or vm.declareGlobal('type', 'integer'))
         else
-            ---@diagnostic disable-next-line: missing-fields
             vm.setNode(source, {
                 type   = 'integer',
                 start  = source.start,
@@ -320,7 +317,6 @@ vm.binarySwitch = util.switch()
             if source.op.type == '~=' then
                 result = not result
             end
-            ---@diagnostic disable-next-line: missing-fields
             vm.setNode(source, {
                 type   = 'boolean',
                 start  = source.start,
@@ -349,7 +345,6 @@ vm.binarySwitch = util.switch()
                         or op == '&'  and a &  b
                         or op == '|'  and a |  b
                         or op == '~'  and a ~  b
-            ---@diagnostic disable-next-line: missing-fields
             vm.setNode(source, {
                 type   = 'integer',
                 start  = source.start,
@@ -399,7 +394,6 @@ vm.binarySwitch = util.switch()
                         or op == '%'  and a %  b
                         or op == '//' and a // b
                         or op == '^'  and a ^  b
-            ---@diagnostic disable-next-line: missing-fields
             vm.setNode(source, {
                 type   = (op == '//' or math.type(result) == 'integer') and 'integer' or 'number',
                 start  = source.start,
@@ -483,7 +477,6 @@ vm.binarySwitch = util.switch()
                     end
                 end
             end
-            ---@diagnostic disable-next-line: missing-fields
             vm.setNode(source, {
                 type   = 'string',
                 start  = source.start,
@@ -529,7 +522,6 @@ vm.binarySwitch = util.switch()
                         or op == '<'  and a <  b
                         or op == '>=' and a >= b
                         or op == '<=' and a <= b
-            ---@diagnostic disable-next-line: missing-fields
             vm.setNode(source, {
                 type   = 'boolean',
                 start  = source.start,

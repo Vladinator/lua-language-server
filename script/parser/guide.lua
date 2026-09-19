@@ -1,7 +1,7 @@
 local error        = error
 local type         = type
 
----@class parser.object
+---@class (incremental) parser.object
 ---@field bindDocs?              parser.object[]
 ---@field bindGroup?             parser.object[]
 ---@field bindSource?            parser.object

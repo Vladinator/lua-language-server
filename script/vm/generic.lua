@@ -24,7 +24,6 @@ local function cloneObject(source, resolved)
     if source.type == 'doc.generic.name' then
         local key = source[1]
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local newName = {
             type   = source.type,
             start  = source.start,
@@ -42,7 +41,6 @@ local function cloneObject(source, resolved)
         local key = source[1]
         if resolved[key] then
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local newName = {
                 type   = 'doc.generic.name',
                 start  = source.start,
@@ -57,7 +55,6 @@ local function cloneObject(source, resolved)
     end
     if source.type == 'doc.type' then
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local newType = {
             type     = source.type,
             start    = source.start,
@@ -95,7 +92,6 @@ local function cloneObject(source, resolved)
     end
     if source.type == 'doc.type.table' then
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local newTable = {
             type   = source.type,
             start  = source.start,
@@ -105,7 +101,6 @@ local function cloneObject(source, resolved)
         }
         for i, field in ipairs(source.fields) do
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local newField = {
                 type    = field.type,
                 start   = field.start,
@@ -120,7 +115,6 @@ local function cloneObject(source, resolved)
     end
     if source.type == 'doc.type.function' then
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local newDocFunc = {
             type    = source.type,
             start   = source.start,
@@ -177,7 +171,6 @@ local function cloneObject(source, resolved)
         end
         if needsClone then
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local newSign = {
                 type   = source.type,
                 start  = source.start,

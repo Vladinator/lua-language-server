@@ -763,7 +763,6 @@ local function parseLocalAttrs(kind)
             break
         end
         if not attrs then
-            ---@diagnostic disable-next-line: missing-fields
             attrs = {
                 type = 'localattrs',
                 start = getPosition(TokenPos[Index], 'left'),
@@ -771,7 +770,6 @@ local function parseLocalAttrs(kind)
             }
         end
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local attr = {
             type   = 'localattr',
             parent = attrs,
@@ -1606,7 +1604,6 @@ local function parseShortString()
     end
     local stringResult = tconcat(stringPool, '', 1, stringIndex)
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local str = {
         type   = 'string',
         start  = startPos,
@@ -2005,7 +2002,6 @@ local function parseNameOrList(parent)
             break
         end
         if not list then
-            ---@diagnostic disable-next-line: missing-fields
             list = {
                 type   = 'list',
                 start  = first.start,
@@ -2085,7 +2081,6 @@ local function parseExpList(mini)
             end
             wantSep = true
             if not list then
-                ---@diagnostic disable-next-line: missing-fields
                 list = {
                     type   = 'list',
                     start  = exp.start,
@@ -2113,7 +2108,6 @@ local function parseIndex()
     skipSpace()
     local exp = parseExp()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local index = {
         type   = 'index',
         start  = start,
@@ -2140,7 +2134,6 @@ end
 ---@return parser.object
 local function parseTable()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local tbl = {
         type   = 'table',
         start  = getPosition(TokenPos[Index], 'left'),
@@ -2187,7 +2180,6 @@ local function parseTable()
                     skipSpace()
                     local fvalue = parseExp()
                     ---@type parser.object
-                    ---@diagnostic disable-next-line: missing-fields
                     local tfield = {
                         type   = 'tablefield',
                         start  = name.start,
@@ -2235,7 +2227,6 @@ local function parseTable()
             index = index + 1
             tindex = tindex + 1
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local texp = {
                 type   = 'tableexp',
                 start  = exp.start,
@@ -2313,7 +2304,6 @@ local function addDummySelf(node, call)
         }
     end
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local self = {
         type   = 'self',
         start  = node.colon.start,
@@ -2436,7 +2426,6 @@ local function parseSimple(node, funcName, noMethod)
         if safe and token and not KeyWord[token]
         and CharMapWord[ssub(token, 1, 1)] then
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local safeDot = {
                 type   = '?.',
                 start  = getPosition(TokenPos[Index] - 2, 'left'),
@@ -2444,7 +2433,6 @@ local function parseSimple(node, funcName, noMethod)
             }
             local field = parseName(true)
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local getfield = {
                 type   = 'getfield',
                 start  = node.start,
@@ -2481,7 +2469,6 @@ local function parseSimple(node, funcName, noMethod)
             node        = getfield
         elseif token == '.' then
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local dot = {
                 type   = token,
                 start  = getPosition(TokenPos[Index], 'left'),
@@ -2491,7 +2478,6 @@ local function parseSimple(node, funcName, noMethod)
             skipSpace()
             local field = parseName(true)
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local getfield = {
                 type   = 'getfield',
                 start  = node.start,
@@ -2534,7 +2520,6 @@ local function parseSimple(node, funcName, noMethod)
                 break
             end
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local colon = {
                 type   = token,
                 start  = getPosition(TokenPos[Index], 'left'),
@@ -2544,7 +2529,6 @@ local function parseSimple(node, funcName, noMethod)
             skipSpace()
             local method = parseName(true)
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local getmethod = {
                 type   = 'getmethod',
                 start  = node.start,
@@ -2581,7 +2565,6 @@ local function parseSimple(node, funcName, noMethod)
             end
             local startPos = getPosition(TokenPos[Index], 'left')
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local call = {
                 type   = 'call',
                 start  = node.start,
@@ -2616,7 +2599,6 @@ local function parseSimple(node, funcName, noMethod)
             end
             local tbl = parseTable()
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local call = {
                 type   = 'call',
                 start  = node.start,
@@ -2627,7 +2609,6 @@ local function parseSimple(node, funcName, noMethod)
                 call.safe = true -- LuaJIT 安全导航（f?.{...} 检查 f）
             end
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local args = {
                 type   = 'callargs',
                 start  = tbl.start,
@@ -2646,7 +2627,6 @@ local function parseSimple(node, funcName, noMethod)
             end
             local str = parseShortString()
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local call = {
                 type   = 'call',
                 start  = node.start,
@@ -2657,7 +2637,6 @@ local function parseSimple(node, funcName, noMethod)
                 call.safe = true -- LuaJIT 安全导航（f?."str" 检查 f）
             end
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local args = {
                 type   = 'callargs',
                 start  = str.start,
@@ -2677,7 +2656,6 @@ local function parseSimple(node, funcName, noMethod)
                     break
                 end
                 ---@type parser.object
-                ---@diagnostic disable-next-line: missing-fields
                 local call = {
                     type   = 'call',
                     start  = node.start,
@@ -2688,7 +2666,6 @@ local function parseSimple(node, funcName, noMethod)
                     call.safe = true -- LuaJIT 安全导航（f?.[[...]] 检查 f）
                 end
                 ---@type parser.object
-                ---@diagnostic disable-next-line: missing-fields
                 local args = {
                     type   = 'callargs',
                     start  = str.start,
@@ -2934,11 +2911,9 @@ local function parseParams(params, isLambda)
             end
             lastSep = false
             if not params then
-                ---@diagnostic disable-next-line: missing-fields
                 params = {}
             end
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local vararg = {
                 type   = '...',
                 start  = getPosition(TokenPos[Index], 'left'),
@@ -2972,7 +2947,6 @@ local function parseParams(params, isLambda)
                     }
                 end
                 -- Create local variable for vararg
-                ---@diagnostic disable-next-line: missing-fields
                 local varargName = createLocal {
                     start  = getPosition(TokenPos[Index], 'left'),
                     finish = getPosition(TokenPos[Index] + #nextToken - 1, 'right'),
@@ -2993,10 +2967,8 @@ local function parseParams(params, isLambda)
             end
             lastSep = false
             if not params then
-                ---@diagnostic disable-next-line: missing-fields
                 params = {}
             end
-            ---@diagnostic disable-next-line: missing-fields
             params[#params+1] = createLocal {
                 start  = getPosition(TokenPos[Index], 'left'),
                 finish = getPosition(TokenPos[Index] + #token - 1, 'right'),
@@ -3030,7 +3002,6 @@ local function parseFunction(declareType, isAction)
     local funcLeft  = getPosition(TokenPos[Index], 'left')
     local funcRight = getPosition(TokenPos[Index] + 7, 'right')
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local func = {
         type    = 'function',
         start   = funcLeft,
@@ -3095,14 +3066,12 @@ local function parseFunction(declareType, isAction)
     local params
     if func.name and func.name.type == 'getmethod' then
         if func.name.type == 'getmethod' then
-            ---@diagnostic disable-next-line: missing-fields
             params = {
                 type   = 'funcargs',
                 start  = funcRight,
                 finish = funcRight,
                 parent = func
             }
-            ---@diagnostic disable-next-line: missing-fields
             params[1] = createLocal {
                 start  = funcRight,
                 finish = funcRight,
@@ -3168,7 +3137,6 @@ local function parseLambdaDoBlock(lambda)
     local doLeft  = getPosition(TokenPos[Index], 'left')
     local doRight = getPosition(TokenPos[Index] + 1, 'right')
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local body = {
         type   = 'do',
         start  = doLeft,
@@ -3211,7 +3179,6 @@ local function parseLambda(isDoublePipe)
     local lambdaLeft = getPosition(TokenPos[Index], 'left')
     local lambdaRight = getPosition(TokenPos[Index], 'right')
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local lambda = {
         type   = 'function',
         start  = lambdaLeft,
@@ -3234,7 +3201,6 @@ local function parseLambda(isDoublePipe)
     if isDoublePipe then
         pushChunk(lambda)
         LocalCount = 0
-        ---@diagnostic disable-next-line: missing-fields
         params = {
             start = pipeLeft,
             finish = pipeRight,
@@ -3246,7 +3212,6 @@ local function parseLambda(isDoublePipe)
         -- fake chunk to store locals
         pushChunk(lambda)
         LocalCount = 0
-        ---@diagnostic disable-next-line: missing-fields
         params = parseParams({}, true)
         params.type   = 'funcargs'
         params.start  = pipeLeft
@@ -3338,7 +3303,6 @@ end
 ---@return parser.object
 local function parseLambdaSingleArg(name)
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local lambda = {
         type   = 'function',
         start  = name.start,
@@ -3355,14 +3319,12 @@ local function parseLambdaSingleArg(name)
     skipSpace(true)
     -- 单参数
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local params = {
         type   = 'funcargs',
         start  = name.start,
         finish = name.finish,
         parent = lambda,
     }
-    ---@diagnostic disable-next-line: missing-fields
     local arg = createLocal {
         start  = name.start,
         finish = name.finish,
@@ -3387,7 +3349,6 @@ local function parseLambdaSingleArg(name)
     Chunk[#Chunk] = nil
     if child then
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local rtn = {
             type   = 'return',
             start  = child.start,
@@ -3653,7 +3614,6 @@ function parseExp(asAction, level, noMethod, noTernary)
             exp = child
         else
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             exp = {
                 type   = 'unary',
                 op     = uop,
@@ -3693,7 +3653,6 @@ function parseExp(asAction, level, noMethod, noTernary)
             end
         end
         ---@type parser.object
-        ---@diagnostic disable-next-line: missing-fields
         local bin = {
             type   = 'binary',
             start  = exp.start,
@@ -3735,7 +3694,6 @@ function parseExp(asAction, level, noMethod, noTernary)
                 missSymbol(':')
             end
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local ternary = {
                 type   = 'ternary',
                 start  = exp.start,
@@ -3936,7 +3894,6 @@ local function bindValue(n, v, index, lastValue, isLocal, isSet)
         if v.type == 'call'
         or v.type == 'varargs' then
             ---@type parser.object
-            ---@diagnostic disable-next-line: missing-fields
             local select = {
                 type   = 'select',
                 sindex = index,
@@ -4409,7 +4366,6 @@ local function parseDo()
     local doLeft  = getPosition(TokenPos[Index], 'left')
     local doRight = getPosition(TokenPos[Index] + 1, 'right')
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local obj = {
         type   = 'do',
         start  = doLeft,
@@ -4451,7 +4407,6 @@ local function parseReturn()
         rtn.type  = 'return'
         rtn.start = returnLeft
     else
-        ---@diagnostic disable-next-line: missing-fields
         rtn = {
             type   = 'return',
             start  = returnLeft,
@@ -4602,7 +4557,6 @@ local function parseIfBlock(parent)
     local ifRight = getPosition(TokenPos[Index] + 1, 'right')
     Index = Index + 2
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local ifblock = {
         type    = 'ifblock',
         parent  = parent,
@@ -4668,7 +4622,6 @@ local function parseElseIfBlock(parent)
     local ifLeft  = getPosition(TokenPos[Index], 'left')
     local ifRight = getPosition(TokenPos[Index] + 5, 'right')
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local elseifblock = {
         type    = 'elseifblock',
         parent  = parent,
@@ -4735,7 +4688,6 @@ local function parseElseBlock(parent)
     local ifLeft  = getPosition(TokenPos[Index], 'left')
     local ifRight = getPosition(TokenPos[Index] + 3, 'right')
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local elseblock = {
         type    = 'elseblock',
         parent  = parent,
@@ -4765,7 +4717,6 @@ local function parseIf()
     local token = TokenText[Index + 1]
     local left  = getPosition(TokenPos[Index], 'left')
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local action  = {
         type   = 'if',
         start  = left,
@@ -4819,7 +4770,6 @@ end
 ---@return parser.object
 local function parseFor()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local action = {
         type    = 'for',
         start   = getPosition(TokenPos[Index], 'left'),
@@ -4863,12 +4813,10 @@ local function parseFor()
             ---@type parser.object?
             local attrs
             if State.version == 'Lua 5.5' then
-                ---@diagnostic disable-next-line: missing-fields
                 attrs = {
                     type = 'localattrs',
                     start = name.start,
                     finish = name.finish,
-                    ---@diagnostic disable-next-line: missing-fields
                     [1] = {
                         type = 'localattr',
                         start = name.start,
@@ -4943,7 +4891,6 @@ local function parseFor()
         ---@type parser.object?
         local list
         if nameOrList and nameOrList.type == 'name' then
-            ---@diagnostic disable-next-line: missing-fields
             list = {
                 type   = 'list',
                 start  = nameOrList.start,
@@ -4990,12 +4937,10 @@ local function parseFor()
                 ---@type parser.object?
                 local attrs
                 if i == 1 and State.version == 'Lua 5.5' then
-                    ---@diagnostic disable-next-line: missing-fields
                     attrs = {
                         type = 'localattrs',
                         start = obj.start,
                         finish = obj.finish,
-                        ---@diagnostic disable-next-line: missing-fields
                         [1] = {
                             type = 'localattr',
                             start = obj.start,
@@ -5073,7 +5018,6 @@ end
 ---@return parser.object
 local function parseWhile()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local action = {
         type    = 'while',
         start   = getPosition(TokenPos[Index], 'left'),
@@ -5155,7 +5099,6 @@ end
 ---@return parser.object
 local function parseRepeat()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local action = {
         type    = 'repeat',
         start   = getPosition(TokenPos[Index], 'left'),
@@ -5211,7 +5154,6 @@ local function parseBreak()
     Index = Index + 2
     skipSpace()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local action = {
         type   = 'break',
         start  = returnLeft,
@@ -5401,7 +5343,6 @@ end
 ---@return parser.object
 local function parseLua()
     ---@type parser.object
-    ---@diagnostic disable-next-line: missing-fields
     local main = {
         type   = 'main',
         start  = 0,
@@ -5409,7 +5350,6 @@ local function parseLua()
         bstart = 0,
     }
     pushChunk(main)
-    ---@diagnostic disable-next-line: missing-fields
     createLocal{
         type   = 'local',
         start  = -1,
@@ -5459,7 +5399,6 @@ local function initState(lua, version, options)
     local state = {
         version = version,
         lua     = lua,
-        ---@diagnostic disable-next-line: missing-fields -- ast starts empty, populated incrementally by the parser below
         ast     = {},
         errs    = {},
         comms   = {},

@@ -32,6 +32,11 @@ return function (uri, callback)
         local sortedDefs = {}
         for _, def in ipairs(defs) do
             if def.type == 'doc.class' then
+                -- `---@class (incremental) X`: objects of X are built field by
+                -- field, so a table constructor is never expected to be complete
+                if vm.docHasAttr(def, 'incremental') then
+                    return
+                end
                 if def.bindSource and guide.isInRange(def.bindSource, src.start) then
                     return
                 end

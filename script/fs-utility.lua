@@ -82,7 +82,6 @@ end
 ---@param option? fs-utility.option
 ---@return fs-utility.option
 local function buildOption(option)
-    ---@diagnostic disable-next-line: missing-fields
     option     = option     or {}
     option.add = option.add or {}
     option.del = option.del or {}

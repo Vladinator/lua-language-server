@@ -400,7 +400,6 @@ local compilerGlobalSwitch = util.switch()
             for _, field in ipairs(tbl) do
                 if     field.type == 'tablefield' and field.field then
                     local key = field.field
-                    ---@diagnostic disable-next-line: missing-fields
                     enums[#enums+1] = {
                         type   = 'doc.type.string',
                         start  = key.start,
@@ -409,7 +408,6 @@ local compilerGlobalSwitch = util.switch()
                     }
                 elseif field.type == 'tableindex' then
                     if field.index then
-                        ---@diagnostic disable-next-line: missing-fields
                         enums[#enums+1] = {
                             type   = 'doc.type.string',
                             start  = field.index.start,
@@ -734,7 +732,6 @@ function vm.getGlobalBase(source)
     end
     local name = globalVar:asKeyName()
     if not root._globalBaseMap[name] then
-        ---@diagnostic disable-next-line: missing-fields
         root._globalBaseMap[name] = {
             type   = 'globalbase',
             parent = root,

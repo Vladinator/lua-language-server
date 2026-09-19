@@ -718,15 +718,12 @@ function vm.getClassFields(suri, object, key, pushResult)
                             local keyObject
                             if keyType == 'number' then
                                 if math.tointeger(key) then
-                                    ---@diagnostic disable-next-line: missing-fields
                                     keyObject = { type = 'integer', [1] = key }
                                 else
-                                    ---@diagnostic disable-next-line: missing-fields
                                     keyObject = { type = 'number', [1] = key }
                                 end
                             elseif keyType == 'boolean'
                             or     keyType == 'string' then
-                                ---@diagnostic disable-next-line: missing-fields
                                 keyObject = { type = keyType, [1] = key }
                             end
                             if keyObject and field.field.type ~= 'doc.field.name' then
@@ -807,7 +804,6 @@ function vm.getReturnOfFunction(func, index)
             func._returns = returns
         end
         if not returns[index] then
-            ---@diagnostic disable-next-line: missing-fields
             returns[index] = {
                 type        = 'function.return',
                 parent      = func,
@@ -924,7 +920,6 @@ local function getReturn(func, index, args)
     end
     if not callReturns[index] then
         local call = func.parent
-        ---@diagnostic disable-next-line: missing-fields
         callReturns[index] = {
             type   = 'call.return',
             parent = call,
@@ -1525,7 +1520,6 @@ local function compileFunctionParam(func, source)
             end
 
             -- simulate a completion at `cbIndex` to infer this callback function type
-            ---@diagnostic disable-next-line: missing-fields
             local node = vm.compileCallArg({ type = 'dummyarg', uri = guide.getUri(call) }, call, cbIndex)
             if not node then
                 goto continue

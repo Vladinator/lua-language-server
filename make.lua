@@ -1,3 +1,4 @@
+---@type any
 local lm = require 'luamake'
 
 lm.c = lm.compiler == 'msvc' and 'c89' or 'c11'
@@ -59,6 +60,7 @@ lm:executable "lua-language-server" {
     }
 }
 
+---@type { os: string }
 local platform = require 'bee.platform'
 local exe      = platform.os == 'windows' and ".exe" or ""
 

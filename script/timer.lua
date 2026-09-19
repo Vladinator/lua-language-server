@@ -1,4 +1,3 @@
----@type { monotonic: fun(): integer }
 local time         = require 'bee.time'
 local setmetatable = setmetatable
 local mathMax      = math.max

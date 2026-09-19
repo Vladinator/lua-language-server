@@ -1,11 +1,5 @@
 local channel = require 'bee.channel'
 
----@class brave.epollFd
----@field event_add fun(self: brave.epollFd, fd: userdata, events: integer): boolean?, string?
----@field wait fun(self: brave.epollFd, timeout?: integer): fun(): any?, integer?
----@field close fun(self: brave.epollFd): boolean?, string?
-
----@type { EPOLLIN: integer, create: fun(max_events: integer): brave.epollFd? }
 local epoll = require 'bee.epoll'
 
 local reqPad ---@type bee.channel.object?
@@ -70,7 +64,7 @@ end
 function m.start()
     local reqPad = assert(reqPad)
     local resPad = assert(resPad)
-    local epfd <close> = assert(epoll.create(16)) --[[@as brave.epollFd]]
+    local epfd <close> = assert(epoll.create(16))
     epfd:event_add(reqPad:fd(), epoll.EPOLLIN)
 
     m.push('mem', collectgarbage 'count')

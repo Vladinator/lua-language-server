@@ -60,7 +60,6 @@ lm:executable "lua-language-server" {
     }
 }
 
----@type { os: string }
 local platform = require 'bee.platform'
 local exe      = platform.os == 'windows' and ".exe" or ""
 

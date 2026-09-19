@@ -1,4 +1,3 @@
----@type { os: string }
 local platform = require 'bee.platform'
 local fs       = require 'bee.filesystem'
 local config   = require 'config'
@@ -14,7 +13,6 @@ local encoder  = require 'encoder'
 local scope    = require 'workspace.scope'
 local lazy     = require 'lazytable'
 local cacher   = require 'lazy-cacher'
----@type { get_id: fun(): integer }
 local sp       = require 'bee.subprocess'
 local pub      = require 'pub'
 

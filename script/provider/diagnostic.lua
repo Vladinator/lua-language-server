@@ -12,7 +12,6 @@ local client    = require 'client'
 local converter = require 'proto.converter'
 local loading   = require 'workspace.loading'
 local scope     = require 'workspace.scope'
----@type { time: fun(): number }
 local time      = require 'bee.time'
 local ltable    = require 'linked-table'
 local furi      = require 'file-uri'
@@ -370,7 +369,7 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
         diags[#diags+1] = buildDiagnostic(uri, result)
 
         if not isScopeDiag and time.time() - lastPushClock >= 500 then
-            lastPushClock = time.time() --[[@as number]]
+            lastPushClock = time.time()
             pushResult()
         end
     end, function (checkedName)

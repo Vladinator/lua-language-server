@@ -2,7 +2,6 @@ local proto  = require 'proto.proto'
 local util   = require 'utility'
 local timer  = require "timer"
 local config = require 'config'
----@type { time: fun(): number }
 local time   = require 'bee.time'
 
 local nextToken = util.counter()

@@ -1,5 +1,4 @@
 local lang       = require 'language'
----@type { os: string }
 local platform   = require 'bee.platform'
 local json       = require 'json'
 local jsonb      = require 'json-beautify'
@@ -10,10 +9,6 @@ local util       = require 'utility'
 local jsonBeautify = jsonb.beautify
 assert(jsonBeautify, 'json-beautify was not loaded')
 
----@class proc
----@field wait fun(self: proc): integer?, string?
-
----@type { spawn: fun(...): proc?, string? }
 local subprocess = require 'bee.subprocess'
 
 local export = {}
@@ -86,7 +81,7 @@ function export.runCLI()
         print(lang.script('CLI_CHECK_MULTIPLE_WORKERS', numThreads))
     end
 
-    ---@type proc[]
+    ---@type bee.subprocess.process[]
     local procs = {}
     for i = 1, numThreads do
         local process, err = subprocess.spawn({buildArgs(minIndex, numThreads, i, CHECK_FORMAT, QUIET)})

@@ -1,5 +1,4 @@
 local brave          = require 'brave'
----@type { monotonic: fun(): integer }
 local time           = require 'bee.time'
 
 local tablePack      = table.pack

@@ -5,7 +5,6 @@ local jsonrpc    = require 'jsonrpc'
 local define     = require 'proto.define'
 local json       = require 'json'
 local inspect    = require 'inspect'
----@type { os: string }
 local platform   = require 'bee.platform'
 local fs         = require 'bee.filesystem'
 local net        = require 'service.net'
@@ -305,7 +304,6 @@ function m.listen(mode, socketPort)
     if mode == 'stdio' then
         log.info('Listen Mode: stdio')
         if platform.os == 'windows' then
-            ---@type { filemode: fun(f: file*, mode: string) }
             local windows = require 'bee.windows'
             windows.filemode(io.stdin,  'b')
             windows.filemode(io.stdout, 'b')

@@ -1,4 +1,3 @@
----@type { os: string }
 local platform = require 'bee.platform'
 
 ---@alias uri string

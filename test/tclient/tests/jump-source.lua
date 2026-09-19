@@ -4,7 +4,6 @@ local ws       = require 'workspace'
 local files    = require 'files'
 local furi     = require 'file-uri'
 local fs       = require 'bee.filesystem'
----@type { os: string }
 local platform = require 'bee.platform'
 
 ---@async

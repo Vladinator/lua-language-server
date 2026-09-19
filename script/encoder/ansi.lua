@@ -1,9 +1,9 @@
-local platform = require 'bee.platform' --[[@as { os: string }]]
+local platform = require 'bee.platform'
 ---@type any
 local windows
 
 if platform.os == 'windows' then
-    windows = require 'bee.windows' --[[@as any]]
+    windows = require 'bee.windows'
 end
 
 local m = {}

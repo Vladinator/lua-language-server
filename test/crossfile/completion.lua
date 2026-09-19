@@ -1,7 +1,6 @@
 local files    = require 'files'
 local core     = require 'core.completion'
 local furi     = require 'file-uri'
----@type { os: string }
 local platform = require 'bee.platform'
 local util     = require 'utility'
 local config   = require 'config'
@@ -802,7 +801,7 @@ TEST {
     }
 }
 
-if require 'bee.platform'.OS == 'Windows' then
+if require 'bee.platform'.os == 'windows' then
 TEST {
     {
         path = [[abc/init.lua]],

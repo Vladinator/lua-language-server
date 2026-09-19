@@ -12,7 +12,6 @@
 ---@type detect_platform.luamake
 local lm = require 'luamake'
 
----@type { os: string }
 local platform = require 'bee.platform'
 
 if     platform.os == 'macos' then

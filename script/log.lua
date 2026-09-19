@@ -1,10 +1,5 @@
 local fs             = require 'bee.filesystem'
 
----@class log.bee_time
----@field time      fun(): integer
----@field monotonic fun(): integer
-
----@type log.bee_time
 local time           = require 'bee.time'
 
 local monotonic      = time.monotonic

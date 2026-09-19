@@ -8,7 +8,6 @@ local util   = require 'utility'
 local files  = require 'files'
 local lang   = require 'language'
 local ws     = require 'workspace'
----@type { monotonic: fun(): integer }
 local time   = require 'bee.time'
 local fw     = require 'filewatch'
 local furi   = require 'file-uri'
@@ -270,7 +269,6 @@ end
 
 function m.lockCache()
     local fs = require 'bee.filesystem'
-    ---@type { get_id: fun(): integer }
     local sp = require 'bee.subprocess'
     local cacheDir = string.format('%s/cache', LOGPATH)
     local myCacheDir = string.format('%s/%d'

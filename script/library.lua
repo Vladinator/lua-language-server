@@ -1,5 +1,4 @@
 local fs      = require 'bee.filesystem'
----@type { os: string }
 local plat    = require 'bee.platform'
 local config  = require 'config'
 local util    = require 'utility'

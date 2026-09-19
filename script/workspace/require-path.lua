@@ -1,4 +1,4 @@
-local platform  = require 'bee.platform' --[[@as { os: string }]]
+local platform  = require 'bee.platform'
 local files     = require 'files'
 local furi      = require 'file-uri'
 local workspace = require "workspace"

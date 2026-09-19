@@ -1,7 +1,7 @@
 local fw    = require 'bee.filewatch'
 local fs    = require 'bee.filesystem'
 local sys   = require 'bee.sys'
-local plat  = require 'bee.platform' --[[@as { os: string }]]
+local plat  = require 'bee.platform'
 local await = require 'await'
 local files = require 'files'
 

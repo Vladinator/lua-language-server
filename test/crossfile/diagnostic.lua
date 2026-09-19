@@ -2,7 +2,6 @@ local files    = require 'files'
 local furi     = require 'file-uri'
 local core     = require 'core.diagnostics'
 local config   = require 'config'
----@type { os: string }
 local platform = require 'bee.platform'
 local catch    = require 'catch'
 

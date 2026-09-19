@@ -4,7 +4,6 @@ local furi       = require 'file-uri'
 local files      = require 'files'
 local config     = require 'config'
 local glob       = require 'glob'
----@type { os: string }
 local platform   = require 'bee.platform'
 local await      = require 'await'
 local client     = require 'client'

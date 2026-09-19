@@ -2,10 +2,12 @@ local util    = require 'utility'
 local encoder = require 'encoder'
 local client  = require 'client'
 
+---@type encoder.encoding?
 local offsetEncoding
+---@return encoder.encoding
 local function getOffsetEncoding()
     if not offsetEncoding then
-        offsetEncoding = client.getOffsetEncoding():lower():gsub('%-', '')
+        offsetEncoding = (client.getOffsetEncoding():lower():gsub('%-', '')) --[[@as encoder.encoding]]
     end
     return offsetEncoding
 end
@@ -29,6 +31,7 @@ local function getLeft(text, char)
         return ''
     end
     local encoding = getOffsetEncoding()
+    ---@type string
     local left
     local length = encoder.len(encoding, text)
 
@@ -51,6 +54,7 @@ local function getRight(text, char)
         return ''
     end
     local encoding = getOffsetEncoding()
+    ---@type string
     local right
     local length = encoder.len(encoding, text)
 

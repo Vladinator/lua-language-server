@@ -92,6 +92,7 @@ end
 ---@param uri? uri
 ---@return table?
 function m.loadClientConfig(uri)
+    ---@type any[]? -- one JSON value per requested section
     local configs = proto.awaitRequest('workspace/configuration', {
         items = {
             {
@@ -122,11 +123,11 @@ function m.loadClientConfig(uri)
     end
 
     local newConfig = {
-        ['Lua']                                 = configs[1] --[[@as any]],
-        ['files.associations']                  = configs[2] --[[@as any]],
-        ['files.exclude']                       = configs[3] --[[@as any]],
-        ['editor.semanticHighlighting.enabled'] = configs[4] --[[@as any]],
-        ['editor.acceptSuggestionOnEnter']      = configs[5] --[[@as any]],
+        ['Lua']                                 = configs[1],
+        ['files.associations']                  = configs[2],
+        ['files.exclude']                       = configs[3],
+        ['editor.semanticHighlighting.enabled'] = configs[4],
+        ['editor.acceptSuggestionOnEnter']      = configs[5],
     }
 
     return newConfig

@@ -65,6 +65,7 @@ local function descString(desc)
     return desc --[[@as string?]]
 end
 
+---@class cli.doc.export
 local export = {}
 
 function export.getLocalPath(uri)

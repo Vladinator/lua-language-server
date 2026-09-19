@@ -54,11 +54,12 @@ end
 
 ---clones a module and assigns any internal upvalues pointing to the module to the new clone
 ---useful for sandboxing
----@param tbl any module to be cloned
+---@generic T
+---@param tbl T module to be cloned
 ---@param _new_module? any
 ---@param _old_module? any
 ---@param _has_seen? table<any, any>
----@return any module_clone the cloned module
+---@return T module_clone the cloned module
 local function reinstantiateModule(tbl, _new_module, _old_module, _has_seen)
     _old_module = _old_module or tbl --remember old module only at root
     _has_seen = (_has_seen or {}) --[[@as table<any, any>]] --remember visited indecies
@@ -109,7 +110,7 @@ require 'utility'
 require 'provider.markdown'
 
 ---Gets config file's doc gen overrides.
----@return any dirty_module clone of the export module modified by user buildscript
+---@return cli.doc.export dirty_module clone of the export module modified by user buildscript
 local function injectBuildScript()
     local sub_path = config.get(ws.rootUri, 'Lua.docScriptPath')
     local module = reinstantiateModule( ( require 'cli.doc.export' ) )
@@ -165,14 +166,13 @@ function doc.makeDoc(outputPath)
 
     local dirty_export = injectBuildScript()
 
-    local globals = dirty_export.gatherGlobals() --[[@as any]]
+    local globals = dirty_export.gatherGlobals()
 
     local docs = dirty_export.makeDocs(globals, function (i, max)
         prog:setMessage(('%d/%d'):format(i, max))
         prog:setPercentage((i) / max * 100)
-    end) --[[@as any]]
+    end)
 
-    ---@type boolean, any, any
     local ok, outPaths, err = dirty_export.serializeAndExport(docs, outputPath)
     if not ok then
         error(err)
@@ -236,7 +236,7 @@ function doc.runCLI()
 
         local dirty_export = injectBuildScript()
 
-        local globals = dirty_export.gatherGlobals() --[[@as any]]
+        local globals = dirty_export.gatherGlobals()
 
         local docs = dirty_export.makeDocs(globals, function (i, max)
             if os.clock() - lastClock > 0.2 then
@@ -249,17 +249,16 @@ function doc.runCLI()
                     .. tostring(i) .. '/' .. tostring(max)
                 io.write(output)
             end
-        end) --[[@as any]]
+        end)
         io.write('\x0D')
 
         if not DOC_OUT_PATH then
             DOC_OUT_PATH = fs.current_path():string()
         end
 
-        ---@type boolean, any, any
         local ok, outPaths, err = dirty_export.serializeAndExport(docs, DOC_OUT_PATH)
         print(lang.script('CLI_DOC_DONE'))
-        for i, path in ipairs(outPaths --[[@as any[] ]]) do
+        for i, path in ipairs(outPaths) do
             local this_err = (type(err) == 'table') and err[i] or nil
             print(this_err or files.normalize(path))
         end

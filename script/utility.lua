@@ -97,7 +97,7 @@ local m = {}
 ---@return string
 function m.dump(tbl, option)
     if not option then
-        option = {} --[[@as table<string, any>]]
+        option = {}
     end
     if type(tbl) ~= 'table' then
         return ('%s'):format(tbl)

@@ -141,7 +141,7 @@ return function (uri, callback)
     end
 
     local tagSupports = client.getAbility('textDocument.completion.completionItem.tagSupport.valueSet')
-    local supportUnnecessary = tagSupports and util.arrayHas(tagSupports, define.DiagnosticTag.Unnecessary)
+    local supportUnnecessary = (tagSupports and util.arrayHas(tagSupports, define.DiagnosticTag.Unnecessary)) --[[@as boolean?]]
 
     for source in pairs(white) do
         if supportUnnecessary then

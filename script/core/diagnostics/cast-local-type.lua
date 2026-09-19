@@ -44,7 +44,7 @@ return function (uri, callback)
                 or value.type == 'getindex' then
                     -- 由于无法对字段进行类型收窄，
                     -- 因此将假值移除再进行检查
-                    refNode = refNode:copy():setTruthy() --[[@as vm.node]]
+                    refNode = refNode:copy():setTruthy()
                 end
 
                 local errs = {}

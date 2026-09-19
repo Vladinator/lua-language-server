@@ -152,15 +152,15 @@ return function (uri, offset)
         if not root then
             goto CONTINUE
         end
-        src = (src.field or src.method or src.index or src) --[[@as parser.object]]
+        src = (src.field or src.method or src.index or src)
         if src.type == 'doc.class' then
-            src = src.class --[[@as parser.object]]
+            src = src.class
         end
         if src.type == 'doc.alias' then
-            src = src.alias --[[@as parser.object]]
+            src = src.alias
         end
         if src.type == 'doc.enum' then
-            src = src.enum --[[@as parser.object]]
+            src = src.enum
         end
         if src.type == 'doc.class.name'
         or src.type == 'doc.alias.name'

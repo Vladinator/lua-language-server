@@ -34,13 +34,13 @@ local function asDocTypeName(source)
     local defs = vm.getDefs(source)
     for _, doc in ipairs(defs) do
         if doc.type == 'doc.class' then
-            return '(class) ' .. (doc.class[1] --[[@as string]])
+            return '(class) ' .. (doc.class[1])
         end
         if doc.type == 'doc.alias' then
-            return '(alias) ' .. (doc.alias[1] --[[@as string]]) .. ' ' .. lang.script('HOVER_EXTENDS', vm.getInfer(doc.extends):view(guide.getUri(source)))
+            return '(alias) ' .. (doc.alias[1]) .. ' ' .. lang.script('HOVER_EXTENDS', vm.getInfer(doc.extends):view(guide.getUri(source)))
         end
         if doc.type == 'doc.enum' then
-            return '(enum) ' .. (doc.enum[1] --[[@as string]])
+            return '(enum) ' .. (doc.enum[1])
         end
     end
 end
@@ -165,7 +165,7 @@ local function asDocFieldName(source)
         end
     end
     local view = vm.getInfer(source.extends):view(guide.getUri(source))
-    local className = class and (class.class[1] --[[@as string]]) or '?'
+    local className = class and (class.class[1]) or '?'
     if name:match(guide.namePatternFull) then
         return ('(field) %s.%s: %s'):format(className, name, view)
     else

@@ -72,7 +72,7 @@ local function asStringView(source, literal)
     if not source[2] then
         return
     end
-    local quote = source[2] --[[@as string]]
+    local quote = source[2]
     ---@type integer
     local rawLen = source.finish - source.start - 2 * #quote
     if  config.get(guide.getUri(source), 'Lua.hover.viewString')
@@ -81,7 +81,7 @@ local function asStringView(source, literal)
         local view = literal
         local max = config.get(guide.getUri(source), 'Lua.hover.viewStringMax')
         if #view > max then
-            view = view:sub(1, max) .. '...' --[[@as string]]
+            view = view:sub(1, max) .. '...'
         end
         local md = markdown()
         md:add('txt', view)
@@ -140,7 +140,7 @@ local function getBindComment(source)
         -- .comment here is always the object-shaped comment (not the plain
         -- string used only on 'doc.resume' enum-default/additional nodes),
         -- and its .text is always set
-        local comment = docComment.comment --[[@as parser.state.comm|parser.object]]
+        local comment = docComment.comment
         ---@type string
         local text = comment.text
         local normalized = normalizeComment(text, uri)
@@ -157,7 +157,7 @@ end
 ---@async
 ---@param see parser.object
 local function packSee(see)
-    local name = see.name[1] --[[@as string]]
+    local name = see.name[1]
     ---@type string[]
     local buf  = {}
     ---@type parser.object?
@@ -420,7 +420,7 @@ local function getFunctionCommentMarkdown(source, raw)
                 local name = {}
                 for _, rtn in ipairs(doc.returns) do
                     if rtn.name then
-                        name[#name+1] = rtn.name[1] --[[@as string]]
+                        name[#name+1] = rtn.name[1]
                     end
                 end
                 if doc.comment then
@@ -463,11 +463,11 @@ local function tryDocComment(source, raw)
     local comment = lookUpDocComments(source)
     md:add('md', comment)
     if source.type == 'doc.alias' then
-        local enums = buildEnumChunk(source, source.alias[1] --[[@as string]], guide.getUri(source))
+        local enums = buildEnumChunk(source, source.alias[1], guide.getUri(source))
         md:add('lua', enums)
     end
     if source.type == 'doc.enum' then
-        local enums = buildEnumChunk(source, source.enum[1] --[[@as string]], guide.getUri(source))
+        local enums = buildEnumChunk(source, source.enum[1], guide.getUri(source))
         md:add('lua', enums)
     end
     local result = md:string()
@@ -565,7 +565,7 @@ local function tryDocEnum(source)
                 end
                 if field.value.type == 'integer'
                 or field.value.type == 'string' then
-                    md:add('lua', ('    %s: %s = %q,'):format(key, field.value.type, field.value[1] --[[@as string|integer]]))
+                    md:add('lua', ('    %s: %s = %q,'):format(key, field.value.type, field.value[1]))
                 end
                 if field.value.type == 'binary'
                 or field.value.type == 'unary' then

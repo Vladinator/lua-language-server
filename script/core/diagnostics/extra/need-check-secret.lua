@@ -134,7 +134,6 @@ end
 local function hasSecretType(node, uri)
     for c in node:eachObject() do
         if c.type == 'global' and c.cate == 'type' then
-            ---@cast c vm.global
             for _, set in ipairs(c:getSets(uri)) do
                 if hasSecretDoc(set, 'doc.secret') then
                     return true
@@ -220,14 +219,14 @@ vm.registerCallNarrowing {
         local value = action.args[1]
         tracer:lookIntoChild(value, topNode, outNode)
         if isAccessCheck then
-            topNode = topNode:copy():clearFlag('secret') --[[@as vm.node]]
+            topNode = topNode:copy():clearFlag('secret')
             if outNode then
                 outNode = outNode:copy()
             end
         else
             topNode = topNode:copy()
             if outNode then
-                outNode = outNode:copy():clearFlag('secret') --[[@as vm.node]]
+                outNode = outNode:copy():clearFlag('secret')
             end
         end
         return topNode, outNode

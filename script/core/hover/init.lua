@@ -22,7 +22,7 @@ local function getHover(source, level)
     local totalMaxLevel = 0
 
     if source.type == 'doc.see.name' then
-        for _, symbol in ipairs(wssymbol(source[1] --[[@as string]], guide.getUri(source))) do
+        for _, symbol in ipairs(wssymbol(source[1], guide.getUri(source))) do
             if symbol.name == source[1] then
                 source = symbol.source
                 break

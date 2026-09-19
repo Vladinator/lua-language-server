@@ -122,7 +122,7 @@ local function checkSee(source, results)
     if source.type ~= 'doc.see.name' then
         return
     end
-    local symbols = wssymbol(source[1] --[[@as string]], guide.getUri(source))
+    local symbols = wssymbol(source[1], guide.getUri(source))
     for _, symbol in ipairs(symbols) do
         if symbol.name == source[1] then
             results[#results+1] = {
@@ -182,11 +182,11 @@ return function (uri, offset)
         if src.type == 'self' then
             goto CONTINUE
         end
-        src = (src.field or src.method or src) --[[@as parser.object]]
+        src = (src.field or src.method or src)
         if src.type == 'getindex'
         or src.type == 'setindex'
         or src.type == 'tableindex' then
-            src = src.index --[[@as parser.object]]
+            src = src.index
             if not src then
                 goto CONTINUE
             end
@@ -202,16 +202,16 @@ return function (uri, offset)
             end
         end
         if src.type == 'doc.class' then
-            src = src.class --[[@as parser.object]]
+            src = src.class
         end
         if src.type == 'doc.alias' then
-            src = src.alias --[[@as parser.object]]
+            src = src.alias
         end
         if src.type == 'doc.enum' then
-            src = src.enum --[[@as parser.object]]
+            src = src.enum
         end
         if src.type == 'doc.type.field' then
-            src = src.name --[[@as parser.object]]
+            src = src.name
         end
         if src.type == 'doc.class.name'
         or src.type == 'doc.alias.name'

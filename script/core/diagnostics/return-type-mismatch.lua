@@ -38,7 +38,6 @@ local function getDocReturns(func)
     end
     for nd in vm.compileNode(func):eachObject() do
         if nd.type == 'doc.type.function' then
-            ---@cast nd parser.object
             for i, ret in ipairs(nd.returns) do
                 returns[i]:merge(vm.compileNode(ret))
             end

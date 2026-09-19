@@ -35,7 +35,7 @@ local function hasNonFieldInNode(source)
         or source.type == 'getmethod' then
             return true
         end
-        source = source.parent --[[@as parser.object]]
+        source = source.parent
     end
     return false
 end

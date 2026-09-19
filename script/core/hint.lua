@@ -60,9 +60,9 @@ local function typeHint(uri, results, start, finish)
         end
         local src = source
         if source.type == 'tablefield' then
-            src = source.field --[[@as parser.object]]
+            src = source.field
         elseif source.type == 'tableindex' then
-            src = source.index --[[@as parser.object]]
+            src = source.index
         end
         if not src then
             return
@@ -170,7 +170,7 @@ local function paramName(uri, results, start, finish)
                 local param = params[i]
                 if param and param[1] and param[1] ~= arg[1] then
                     results[#results+1] = {
-                        text    = (param[1] --[[@as string]]) .. ':',
+                        text    = (param[1]) .. ':',
                         offset  = arg.start,
                         kind    = define.InlayHintKind.Parameter,
                         where   = 'left',
@@ -328,8 +328,8 @@ local function semicolonHint(uri, results, _start, _finish)
         if #src < 1 then return end
 
         for i = 1, #src - 1 do
-            local current = src[i] --[[@as parser.object]]
-            local next    = src[i+1] --[[@as parser.object]]
+            local current = src[i]
+            local next    = src[i+1]
             local left    = current.range or current.finish
             local right   = next.start
             local text    = subber(current.finish, right)
@@ -355,7 +355,7 @@ local function semicolonHint(uri, results, _start, _finish)
         end
 
         if mode == 'All' then
-            local last = src[#src] --[[@as parser.object]]
+            local last = src[#src]
             results[#results+1] = {
                 text    = ';',
                 offset  = last.range or last.finish,

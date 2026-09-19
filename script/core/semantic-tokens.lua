@@ -71,7 +71,7 @@ local Care = util.switch()
         local modifier = isLib and define.TokenModifiers.defaultLibrary or define.TokenModifiers['global']
 
         if source.declare then
-            modifier = modifier | define.TokenModifiers.declaration --[[@as integer]]
+            modifier = modifier | define.TokenModifiers.declaration
         end
 
         results[#results+1] = {
@@ -907,7 +907,7 @@ local function buildTokens(results)
         lastLine = line
         lastStartChar = startChar
         -- see https://microsoft.github.io/language-server-protocol/specifications/specification-3-16/#textDocument_semanticTokens
-        index = index + 1 --[[@as integer]]
+        index = index + 1
         local len = index * 5 - 5
         tokens[len + 1] = deltaLine
         tokens[len + 2] = deltaStartChar
@@ -940,7 +940,6 @@ local function solveMultilineAndOverlapping(state, results)
     ---@return semantic.token?
     local function findToken(pos)
         for token in tokens:pairs(nil ,true) do
-            ---@cast token semantic.token
             if token.start <= pos and token.finish >= pos then
                 return token
             end
@@ -984,7 +983,6 @@ local function solveMultilineAndOverlapping(state, results)
     ---@type semantic.packedToken[]
     local new = {}
     for token in tokens:pairs() do
-        ---@cast token semantic.token
         local startPos = converter.packPosition(state, token.start)
         local endPos   = converter.packPosition(state, token.finish)
         if  startPos.line == endPos.line

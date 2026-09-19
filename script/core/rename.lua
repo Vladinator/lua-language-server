@@ -185,10 +185,10 @@ local function ofFieldThen(key, src, newname, callback)
     elseif src.type == 'tableindex'
     or     src.type == 'getindex'
     or     src.type == 'setindex' then
-        src = src.index --[[@as parser.object]]
+        src = src.index
     elseif src.type == 'getmethod'
     or     src.type == 'setmethod' then
-        src = src.method --[[@as parser.object]]
+        src = src.method
     end
     if src.type == 'string' then
         local quo = src[2]
@@ -261,7 +261,7 @@ end
 ---@param newname string
 ---@param callback core.rename.callback
 local function ofDocTypeName(source, newname, callback)
-    local oldname = source[1] --[[@as string]]
+    local oldname = source[1]
     local globalVar = vm.getGlobal('type', oldname)
     if not globalVar then
         return

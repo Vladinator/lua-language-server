@@ -216,10 +216,10 @@ local function checkRegion(ast, text, offset, callback)
                     -- count is always set alongside `selected` above (guarded by
                     -- `if not selected then return end` before this loop)
                     ---@diagnostic disable-next-line: need-check-nil
-                    count = count + 1 --[[@as integer]]
+                    count = count + 1
                 elseif isEndRegion(ltext) then
                     ---@diagnostic disable-next-line: need-check-nil
-                    count = count - 1 --[[@as integer]]
+                    count = count - 1
                     if count == 0 then
                         callback(start, comment.finish)
                         return
@@ -237,10 +237,10 @@ local function checkRegion(ast, text, offset, callback)
                 ltext = util.trim(ltext, 'left')
                 if     isEndRegion(ltext) then
                     ---@diagnostic disable-next-line: need-check-nil
-                    count = count + 1 --[[@as integer]]
+                    count = count + 1
                 elseif isRegion(ltext) then
                     ---@diagnostic disable-next-line: need-check-nil
-                    count = count - 1 --[[@as integer]]
+                    count = count - 1
                     if count == 0 then
                         callback(comment.start - 2, finish)
                         return
@@ -324,20 +324,20 @@ return function (uri, offset)
             ---@type integer?
             local kind
             if     target.type == 'getfield' then
-                target = target.field --[[@as parser.object]]
+                target = target.field
                 kind   = define.DocumentHighlightKind.Read
             elseif target.type == 'setfield'
             or     target.type == 'tablefield' then
-                target = target.field --[[@as parser.object]]
+                target = target.field
                 kind   = define.DocumentHighlightKind.Write
             elseif target.type == 'getmethod' then
-                target = target.method --[[@as parser.object]]
+                target = target.method
                 kind   = define.DocumentHighlightKind.Read
             elseif target.type == 'setmethod' then
-                target = target.method --[[@as parser.object]]
+                target = target.method
                 kind   = define.DocumentHighlightKind.Write
             elseif target.type == 'getindex' then
-                target = target.index --[[@as parser.object]]
+                target = target.index
                 kind   = define.DocumentHighlightKind.Read
             elseif target.type == 'field' then
                 if target.parent.type == 'getfield' then
@@ -365,7 +365,7 @@ return function (uri, offset)
                 end
             elseif target.type == 'setindex'
             or     target.type == 'tableindex' then
-                target = target.index --[[@as parser.object]]
+                target = target.index
                 kind   = define.DocumentHighlightKind.Write
             elseif target.type == 'getlocal'
             or     target.type == 'getglobal'

@@ -82,7 +82,7 @@ local function collectPsi(astNode, state)
         local subber = subString(state)
         local showText = subber(astNode.start + 1, astNode.finish)
         if string.len(showText) > 30 then
-            showText = showText:sub(0, 30).. " ... " --[[@as string]]
+            showText = showText:sub(0, 30).. " ... "
         end
 
         psiNode.name = psiNode.name .. "   " .. showText

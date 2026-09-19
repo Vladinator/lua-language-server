@@ -39,7 +39,7 @@ local function asFunction(source)
         ---@type string|integer|nil
         local name = doc and doc.name and doc.name[1]
         if name and name ~= '...' then
-            name = (name --[[@as string]]) .. ': '
+            name = (name) .. ': '
         end
         local text = rtn and ('%s%s'):format(
             name or '',
@@ -66,9 +66,9 @@ local function asDocFunction(source)
         local rtnText = vm.getInfer(rtn):view(guide.getUri(source))
         if rtn.name then
             if rtn.name[1] == '...' then
-                rtnText = (rtn.name[1] --[[@as string]]) .. rtnText --[[@as string]]
+                rtnText = (rtn.name[1]) .. rtnText
             else
-                rtnText = (rtn.name[1] --[[@as string]]) .. ': ' .. rtnText --[[@as string]]
+                rtnText = (rtn.name[1]) .. ': ' .. rtnText
             end
         end
         if i == 1 then

@@ -26,7 +26,6 @@ return function (data)
         })
         return
     end
-    ---@cast res table
     local luaStr = util.dump(res)
     if jsonStr:sub(1, 1) == '"' then
         local key = jsonStr:match '^"([^\r\n]+)"'

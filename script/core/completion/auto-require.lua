@@ -136,8 +136,8 @@ function m.check(state, word, position, callback)
                     goto CONTINUE
                 end
                 if node.type == 'setfield' or node.type == 'getfield' then
-                    local fieldName = node.field[1] --[[@as string]]
-                    fullKeyPath = ("." .. fieldName .. fullKeyPath) --[[@as string]]
+                    local fieldName = node.field[1]
+                    fullKeyPath = ("." .. fieldName .. fullKeyPath)
                 end
                 if node.type == 'getlocal' then
                     node = node.node
@@ -152,8 +152,8 @@ function m.check(state, word, position, callback)
                 for _, value in ipairs(targetSource) do
                     local valueObj = value.value
                     if valueObj and valueObj.node == node then
-                        local fieldName = valueObj[1] --[[@as string]]
-                        fullKeyPath = ("." .. fieldName .. fullKeyPath) --[[@as string]]
+                        local fieldName = valueObj[1]
+                        fullKeyPath = ("." .. fieldName .. fullKeyPath)
                         hit = true
                         break
                     end

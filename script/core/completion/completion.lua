@@ -161,7 +161,7 @@ local function findNearestTable(state, position)
         return nil
     end
 
-    for _, field in ipairs(source --[[@as parser.object[] ]]) do
+    for _, field in ipairs(source) do
         if field.start <= position and (field.range or field.finish) >= position then
             if field.type == 'tableexp' then
                 local value = field.value
@@ -400,7 +400,7 @@ local function isSameSource(state, source, pos)
     end
     if source.type == 'field'
     or source.type == 'method' then
-        source = source.parent --[[@as parser.object]]
+        source = source.parent
     end
     return source.start <= pos and source.finish >= pos
 end
@@ -418,9 +418,9 @@ local function getParams(func, oop)
         if     arg.type == '...' then
             args[#args+1] = '...'
         elseif arg.type == 'doc.type.arg' then
-            args[#args+1] = arg.name[1] --[[@as string]]
+            args[#args+1] = arg.name[1]
         else
-            args[#args+1] = arg[1] --[[@as string]]
+            args[#args+1] = arg[1]
         end
     end
     if oop and args[1] ~= '...' then
@@ -657,7 +657,7 @@ local function checkFieldThen(state, name, src, word, position, parent, oop, res
     local additionalTextEdits
     if parent.next and parent.next.index then
         local str = parent.next.index
-        local str2 = str[2] --[[@as string]]
+        local str2 = str[2]
         textEdit = {
             start   = str.start + #str2,
             finish  = position,
@@ -780,8 +780,8 @@ local function checkFieldOfRefs(refs, state, word, startPos, position, parent, o
         scoreMap[res] = i
     end
     table.sort(fieldResults, function (a, b)
-        local score1 = scoreMap[a] --[[@as integer]]
-        local score2 = scoreMap[b] --[[@as integer]]
+        local score1 = scoreMap[a]
+        local score2 = scoreMap[b]
         if oop then
             if not a.isMethod then
                 score1 = score1 + 10000
@@ -1125,23 +1125,23 @@ local function checkFunctionArgByDocParam(state, word, startPos, results)
     if not firstArg
     or firstArg.start <= startPos and firstArg.finish >= startPos then
         local firstParam = params[1]
-        if firstParam and matchKey(word, firstParam.param[1] --[[@as string]]) then
+        if firstParam and matchKey(word, firstParam.param[1]) then
             ---@type string[]
             local label = {}
             for _, param in ipairs(params) do
-                label[#label+1] = param.param[1] --[[@as string]]
+                label[#label+1] = param.param[1]
             end
             results[#results+1] = {
                 label = table.concat(label, ', '),
-                match = firstParam.param[1] --[[@as string]],
+                match = firstParam.param[1],
                 kind  = define.CompletionItemKind.Snippet,
             }
         end
     end
     for _, doc in ipairs(params) do
-        if matchKey(word, doc.param[1] --[[@as string]]) then
+        if matchKey(word, doc.param[1]) then
             results[#results+1] = {
-                label = doc.param[1] --[[@as string]],
+                label = doc.param[1],
                 kind  = define.CompletionItemKind.Interface,
             }
         end
@@ -1385,10 +1385,10 @@ local function tryLabelInString(label, source)
     if not state or not state.ast then
         return label
     end
-    if not matchKey(source[1] --[[@as string]], state.ast[1] --[[@as string]]) then
+    if not matchKey(source[1], state.ast[1]) then
         return nil
     end
-    return util.viewString(state.ast[1] --[[@as string]], source[2] --[[@as string?]])
+    return util.viewString(state.ast[1], source[2])
 end
 
 ---@param enums vm.completion.result[]
@@ -1429,7 +1429,7 @@ local function insertDocEnum(state, pos, doc, enums)
         local locals = guide.getVisibleLocals(state.ast, pos)
         for _, loc in pairs(locals) do
             if util.arrayHas(vm.getDefs(loc), tbl) then
-                parentName = loc[1] --[[@as string]]
+                parentName = loc[1]
                 break
             end
         end
@@ -1618,7 +1618,7 @@ local function checkTypingEnum(state, position, defs, str, results, isInArray)
     for _, def in ipairs(defs) do
         insertEnum(state, position, def, enums, isInArray)
     end
-    cleanEnums(enums --[[@as vm.completion.result[] ]], str)
+    cleanEnums(enums, str)
     for _, res in ipairs(enums) do
         results[#results+1] = res
     end
@@ -1667,7 +1667,7 @@ local function checkEqualEnum(state, position, results)
         return
     end
     if source.type == 'callargs' then
-        source = source.parent --[[@as parser.object]]
+        source = source.parent
     end
     if source.type == 'call' and not eqOrNeq then
         return
@@ -1694,7 +1694,7 @@ local function checkEqualEnumInString(state, position, results)
         if parent.op.type ~= '==' and parent.op.type ~= '~=' then
             return
         end
-        checkEqualEnumLeft(state, position, parent[1] --[[@as parser.object]], results)
+        checkEqualEnumLeft(state, position, parent[1], results)
     end
     if (parent.type == 'tableexp') then
         checkEqualEnumLeft(state, position, parent.parent and parent.parent.parent, results, true)
@@ -1749,7 +1749,7 @@ local function tryIndex(state, position, results)
     if not parent then
         return
     end
-    local word = parent.next and parent.next.index and parent.next.index[1] --[[@as string?]]
+    local word = parent.next and parent.next.index and parent.next.index[1]
     if not word then
         return
     end
@@ -2029,7 +2029,7 @@ local function tryArray(state, position, results)
     end
     local tbl = source
     if source.type ~= 'table' then
-        tbl = source.parent --[[@as parser.object]]
+        tbl = source.parent
     end
     if source.parent
     and source.parent.type == 'callargs'
@@ -2275,7 +2275,7 @@ local function tryluaDocBySource(state, position, source, results)
         end
         return true
     elseif source.type == 'doc.diagnostic.name' then
-        local sourceName = source[1] --[[@as string]]
+        local sourceName = source[1]
         for name in util.sortPairs(define.DiagnosticDefaultSeverity) do
             if matchKey(sourceName, name) then
                 results[#results+1] = {
@@ -2296,7 +2296,7 @@ local function tryluaDocBySource(state, position, source, results)
     elseif source.type == 'doc.cast.name' then
         local locals = guide.getVisibleLocals(state.ast, position)
         for name, loc in util.sortPairs(locals) do
-            if matchKey(source[1] --[[@as string]], name) then
+            if matchKey(source[1], name) then
                 results[#results+1] = {
                     label = name,
                     kind  = define.CompletionItemKind.Variable,
@@ -2441,7 +2441,7 @@ local function tryluaDocByErr(state, position, err, docState, results)
         ---@type string[]
         local insertText = {}
         for _, arg in ipairs(func.args) do
-            local argName = arg[1] --[[@as string?]]
+            local argName = arg[1]
             if argName and arg.type ~= 'self' then
                 label[#label+1] = argName
                 if #label == 1 then
@@ -2458,7 +2458,7 @@ local function tryluaDocByErr(state, position, err, docState, results)
             insertText       = table.concat(insertText, '\n'),
         }
         for _, arg in ipairs(func.args) do
-            local argName = arg[1] --[[@as string?]]
+            local argName = arg[1]
             if argName then
                 results[#results+1] = {
                     label  = argName,
@@ -2568,7 +2568,7 @@ local function buildluaDocOfFunction(func, pad)
     end
     for n, arg in ipairs(args) do
         local funcArg = func.args[n]
-        local funcArgName = funcArg[1] --[[@as string?]]
+        local funcArgName = funcArg[1]
         if funcArgName and funcArg.type ~= 'self' then
             index = index + 1
             buf[#buf+1] = ('---%s@param %s ${%d:%s}'):format(
@@ -2600,7 +2600,7 @@ local function tryluaDocOfFunction(doc, results, pad)
     end
     local func = (doc.bindSource.type == 'function' and doc.bindSource)
               or (doc.bindSource.value and doc.bindSource.value.type == 'function' and doc.bindSource.value)
-              or nil --[[@as parser.object?]]
+              or nil
     if not func then
         return
     end

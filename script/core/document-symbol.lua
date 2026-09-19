@@ -67,7 +67,7 @@ local function buildFunctionParams(func)
         if arg.type == '...' then
             params[#params+1] = '...'
         else
-            params[#params+1] = (arg[1] or '') --[[@as string]]
+            params[#params+1] = (arg[1] or '')
         end
         ::CONTINUE::
     end
@@ -80,7 +80,7 @@ local function buildTable(tbl, sub)
     ---@type string[]
     local buf = {}
     for i = 1, 5 do
-        local field = tbl[i] --[[@as parser.object?]]
+        local field = tbl[i]
         if not field then
             break
         end
@@ -106,7 +106,7 @@ local function buildArray(tbl, sub)
     ---@type string[]
     local buf = {}
     for i = 1, 5 do
-        local field = tbl[i] --[[@as parser.object?]]
+        local field = tbl[i]
         if not field then
             break
         end
@@ -197,7 +197,7 @@ local function buildValue(source, sub, used, symbols)
             end
         elseif source.value.type == 'table' then
             kind = define.SymbolKind.Object
-            local lastField = source.value[#source.value] --[[@as parser.object]]
+            local lastField = source.value[#source.value]
             if #source.value > 0 then
                 if  lastField.type == 'tableexp'
                 and lastField.tindex == #source.value then
@@ -228,9 +228,9 @@ local function buildValue(source, sub, used, symbols)
             valueRange = { source.value.start, source.value.finish }
             -- range is always set by the if/elseif chain above (the only
             -- way past it without one is an early `return`)
-            range[1]   = math.min(source.value.start, source.start) --[[@as integer]]
+            range[1]   = math.min(source.value.start, source.start)
         end
-        range      = { (range --[[@as integer[] ]])[1], source.value.finish }
+        range      = { (range)[1], source.value.finish }
     end
     symbols[#symbols+1] = {
         name           = name,
@@ -275,7 +275,7 @@ local function buildAnonymous(source, sub, used, symbols)
         local kind      = define.SymbolKind.Object
         ---@type string[]
         local details   = {}
-        local lastField = source[#source] --[[@as parser.object?]]
+        local lastField = source[#source]
         if lastField then
             if  lastField.type == 'tableexp'
             and lastField.tindex == #source then
@@ -313,9 +313,8 @@ local function buildBlock(source, sub, used, symbols)
     used[source] = true
     if source.type == 'if' then
         for _, block in ipairs(source) do
-            ---@cast block parser.object
             symbols[#symbols+1] = {
-                name           = (block.type:gsub('block$', '')) --[[@as string]],
+                name           = (block.type:gsub('block$', '')),
                 detail         = sub(block.start + 1, block.keyword[4] or block.keyword[2]),
                 kind           = define.SymbolKind.Package,
                 range          = { block.start, block.finish },

@@ -72,7 +72,7 @@ local function asDocFunction(source)
     end
     for i = 1, #source.args do
         local arg = source.args[i]
-        local name = arg.name[1] --[[@as string]]
+        local name = arg.name[1]
         args[i] = ('%s%s: %s'):format(
             name,
             arg.optional and '?' or '',

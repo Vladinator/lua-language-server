@@ -274,7 +274,7 @@ local function solveSyntaxByFix(uri, err, results)
     end
     ---@type vm.completion.edit[]
     local changes = {}
-    for _, fix in ipairs(err.fix --[[@as parser.state.err.fix.edit[] ]]) do
+    for _, fix in ipairs(err.fix) do
         changes[#changes+1] = {
             start   = fix.start,
             finish  = fix.finish,
@@ -836,7 +836,7 @@ local function checkMissingRequire(results, uri, start, finish)
 
     guide.eachSourceBetween(state.ast, start, finish, function (source)
         if vm.isUndefinedGlobal(source) then
-            addRequires(source[1] --[[@as string?]], source.finish)
+            addRequires(source[1], source.finish)
         end
     end)
 end

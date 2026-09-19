@@ -32,7 +32,7 @@ return function(uri, range, options)
         {
             start = converter.unpackPosition(state, { line = startLine, character = 0 }),
             finish = converter.unpackPosition(state, { line = endLine + 1, character = 0 }),
-            text = formattedText --[[@as string]],
+            text = formattedText,
         }
     }
 end

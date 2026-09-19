@@ -48,7 +48,7 @@ end
 ---@param paramMessage string
 ---@param returnMessage string
 local function checkFunction(source, callback, commentMessage, paramMessage, returnMessage)
-    local functionName = source.parent[1] --[[@as string]]
+    local functionName = source.parent[1]
     local argCount = source.args and #source.args or 0
 
     if argCount == 0 and not source.returns and not source.bindDocs then
@@ -61,7 +61,7 @@ local function checkFunction(source, callback, commentMessage, paramMessage, ret
 
     if argCount > 0 then
         for _, arg in ipairs(source.args) do
-            local argName = arg[1] --[[@as string|integer]]
+            local argName = arg[1]
             if  argName ~= 'self'
             and argName ~= '_' then
                 if not findParam(source.bindDocs, argName) then

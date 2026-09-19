@@ -55,13 +55,16 @@ local vars = {
     },
 }
 
+local env = _G --[[@as table<string, any>]]
+
 for _, var in ipairs(vars) do
+    ---@type any
     local value = os.getenv(var.name)
     if value then
         if var.converter then
             value = var.converter(value)
         end
 
-        _G[var.key] = value
+        env[var.key] = value
     end
 end

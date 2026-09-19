@@ -25,6 +25,28 @@ function m.getMarkerTagType(name)
 end
 
 ---@type table<string, true>
+local nameListTags = {}
+
+--- Like registerMarkerTag, but the tag may also carry a comma separated list of
+--- names -- `---@mytag a, b` -- produced as `node.names`, an array of
+--- `{type = docType .. '.name', [1] = name}` nodes. The list is only taken when the
+--- rest of the line is *exactly* such a list; anything else (a description, a
+--- dangling comma) leaves the tag bare and the text is an ordinary comment, so
+--- `---@mytag some words` keeps working as before.
+---@param name    string tag name after the `@`, e.g. 'secret'
+---@param docType string produced node's `.type`, e.g. 'doc.secret'
+function m.registerNameListTag(name, docType)
+    markerTags[name]     = docType
+    nameListTags[docType] = true
+end
+
+---@param docType string
+---@return boolean
+function m.isNameListTag(docType)
+    return nameListTags[docType] == true
+end
+
+---@type table<string, true>
 local continuesAfterClassGroup = {}
 
 --- Register a doc type that, appearing right after a `@class`/`@field`/

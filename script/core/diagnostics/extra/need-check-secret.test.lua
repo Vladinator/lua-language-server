@@ -277,3 +277,82 @@ if not issecretvalue(t2.s) then
     print(t2.s + 5)
 end
 ]]
+
+-- `---@secret b` before a multi-local declaration marks only `b`
+TEST [[
+---@secret b
+local a, b = 1, 2
+print(a + 5)
+print(<!b!> + 5)
+]]
+
+-- a name list can name several
+TEST [[
+---@secret a, c
+local a, b, c = 1, 2, 3
+print(<!a!> + 5)
+print(b + 5)
+print(<!c!> + 5)
+]]
+
+-- no list: every local of the statement, as before
+TEST [[
+---@secret
+local a, b = 1, 2
+print(<!a!> + 5)
+print(<!b!> + 5)
+]]
+
+-- a description after the tag is still just a comment (not a name list)
+TEST [[
+---@secret the api token
+local a = 1
+print(<!a!> + 5)
+]]
+
+-- `---@secret-unwrap` on a declaration drops inherited secrecy (here: a secret class type)
+TEST [[
+---@secret
+---@class A
+---@field a number
+
+local function f()
+    ---@type A
+    return { a = 0 }
+end
+
+---@secret-unwrap
+local x = f()
+print(x.a)
+]]
+
+-- ...only for the named local
+TEST [[
+---@secret
+---@class A
+---@field a number
+
+local function f()
+    ---@type A
+    return { a = 0 }
+end
+
+---@secret-unwrap y
+local x, y = f(), f()
+print(<!x!>.a)
+print(y.a)
+]]
+
+-- a `---@secret-unwrap` function is a sanitizer: its results are plain
+TEST [[
+---@secret
+---@class A
+---@field a number
+
+---@secret-unwrap
+---@return A
+local function open() return { a = 0 } end
+
+local s = open()
+print(s.a)
+]]

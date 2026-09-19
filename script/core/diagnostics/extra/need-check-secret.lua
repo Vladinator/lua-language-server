@@ -27,6 +27,7 @@ local specials        = require 'parser.specials'
 --- the keyword rather than naming a field called "secret".
 ---@class parser.object
 ---@field ["secret"]? boolean
+---@field ["secretUnwrapUsed"]? boolean -- on a `doc.secret-unwrap`: it cleared an inherited flag at least once
 
 local MESSAGE = 'Need check secret value.'
 
@@ -38,9 +39,14 @@ protoDiagnostic.register {
     status   = 'Opened',
 }
 
--- LuaDoc tags: @secret, @secret-check, @secret-access-check.
+-- LuaDoc tags: @secret [names], @secret-unwrap [names], @secret-check,
+-- @secret-access-check. `@secret` and `@secret-unwrap` take an optional
+-- comma separated list of local names (`---@secret b, c` before
+-- `local a, b, c`): only those locals are affected. No list means every
+-- local of the statement, as before.
 
-docTags.registerMarkerTag('secret',              'doc.secret')
+docTags.registerNameListTag('secret',        'doc.secret')
+docTags.registerNameListTag('secret-unwrap', 'doc.secret-unwrap')
 docTags.registerMarkerTag('secret-check',        'doc.secret-check')
 docTags.registerMarkerTag('secret-access-check', 'doc.secret-access-check')
 
@@ -48,6 +54,9 @@ docTags.registerContinuesAfterClassGroup('doc.secret')
 docTags.registerClassGroupDoc('doc.secret')
 
 docTags.registerBindRule('doc.secret', function (doc, source, isParam)
+    return not isParam
+end)
+docTags.registerBindRule('doc.secret-unwrap', function (doc, source, isParam)
     return not isParam
 end)
 docTags.registerBindRule('doc.secret-check', function (doc, source, isParam)
@@ -70,15 +79,39 @@ specials.register('next')
 -- Secrecy propagation: is `value` (or, if it's a reference, its resolved
 -- definition) tagged @secret / @secret-check / @secret-access-check.
 
+--- A `---@secret a, b` / `---@secret-unwrap a, b` only concerns the locals it names;
+--- without a list it concerns everything it is bound to. (For anything that is not
+--- a local, e.g. a function, a list has no meaning and is ignored.)
+---@param doc   parser.object
 ---@param value parser.object
----@param kind  'doc.secret' | 'doc.secret-check' | 'doc.secret-access-check'
+---@return boolean
+local function docAppliesTo(doc, value)
+    local names = doc.names
+    if not names then
+        return true
+    end
+    if value.type ~= 'local' and value.type ~= 'self' then
+        return true
+    end
+    for _, name in ipairs(names) do
+        if name[1] == value[1] then
+            return true
+        end
+    end
+    return false
+end
+
+---@alias secret.docKind 'doc.secret' | 'doc.secret-unwrap' | 'doc.secret-check' | 'doc.secret-access-check'
+
+---@param value parser.object
+---@param kind  secret.docKind
 ---@return boolean
 local function hasSecretDoc(value, kind)
     if not value.bindDocs then
         return false
     end
     for _, doc in ipairs(value.bindDocs) do
-        if doc.type == kind then
+        if doc.type == kind and docAppliesTo(doc, value) then
             return true
         end
     end
@@ -86,7 +119,7 @@ local function hasSecretDoc(value, kind)
 end
 
 ---@param value parser.object
----@param kind  'doc.secret' | 'doc.secret-check' | 'doc.secret-access-check'
+---@param kind  secret.docKind
 ---@return boolean
 local function checkSecretDoc(value, kind)
     if hasSecretDoc(value, kind) then
@@ -112,6 +145,13 @@ end
 ---@return boolean
 local function isSecret(value)
     return checkSecretDoc(value, 'doc.secret')
+end
+
+--- `---@secret-unwrap`: declassifies inherited secrecy here (see the genesis rules).
+---@param value parser.object
+---@return boolean
+local function isUnwrap(value)
+    return checkSecretDoc(value, 'doc.secret-unwrap')
 end
 
 ---@param value parser.object
@@ -241,15 +281,48 @@ for _, sourceType in ipairs { 'local', 'self' } do
         -- directly on this declaration) -- isSecret(source)'s fallback
         -- resolves through vm.getDefs(), which is unsound to call on every
         -- plain local (it can match through an unrelated assigned value).
-        if source.bindDocs and isSecret(source) then
+        if not source.bindDocs then
+            return
+        end
+        -- `---@secret-unwrap` declassifies whatever secrecy this local inherited
+        -- (a secret class type, a secret call result, an assignment from a secret
+        -- value); when it actually did something the doc is marked as used, so
+        -- redundant-secret-unwrap can tell.
+        if hasSecretDoc(source, 'doc.secret-unwrap') then
+            if node:hasFlag('secret') then
+                node:clearFlag('secret')
+                for _, doc in ipairs(source.bindDocs) do
+                    if doc.type == 'doc.secret-unwrap' and docAppliesTo(doc, source) then
+                        doc.secretUnwrapUsed = true
+                    end
+                end
+            end
+            return
+        end
+        if isSecret(source) then
             node:setFlag('secret')
         end
     end)
 end
 
 vm.registerGenesisRule('call', function (source, node)
-    if isSecret(source.node) then
-        node:setFlag('secret')
+    local secret = isSecret(source.node)
+    if secret or node:hasFlag('secret') then
+        -- a `---@secret-unwrap` function is a sanitizer: its results are plain
+        if isUnwrap(source.node) then
+            node:clearFlag('secret')
+        elseif secret then
+            node:setFlag('secret')
+        end
+    end
+end)
+
+-- `local s = f()` does not read the call node itself but a `select` of its results, so
+-- a `---@secret-unwrap` function has to clear the flag there too.
+vm.registerGenesisRule('select', function (source, node)
+    local call = source.vararg
+    if call and call.type == 'call' and node:hasFlag('secret') and isUnwrap(call.node) then
+        node:clearFlag('secret')
     end
 end)
 
@@ -266,7 +339,7 @@ vm.registerGenesisRule('doc.field', function (source, node)
 end)
 
 vm.registerGenesisRule('function.return', function (source, node)
-    if isSecret(source.parent) then
+    if isSecret(source.parent) and not hasSecretDoc(source.parent, 'doc.secret-unwrap') then
         node:setFlag('secret')
     end
 end)

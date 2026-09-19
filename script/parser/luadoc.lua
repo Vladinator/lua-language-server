@@ -1917,11 +1917,39 @@ local function convertTokens(doc)
     if not docSwitch:has(text) then
         local docType = docTags.getMarkerTagType(text)
         if docType then
-            return {
+            ---@type parser.object
+            local result = {
                 type   = docType,
                 start  = getFinish(),
                 finish = getFinish(),
             }
+            if docTags.isNameListTag(docType) then
+                -- cover the tag name itself (a zero-width range is useless for a diagnostic)
+                result.start = getStart()
+                local savePoint = Ci
+                ---@type parser.object[]
+                local names = {}
+                while true do
+                    local name = parseName(docType .. '.name', result)
+                    if not name then
+                        names = {}
+                        break
+                    end
+                    names[#names+1] = name
+                    if not checkToken('symbol', ',', 1) then
+                        break
+                    end
+                    nextToken()
+                end
+                if #names > 0 and not peekToken() then
+                    result.names  = names
+                    result.finish = getFinish()
+                else
+                    -- not a clean list (a description, a trailing comma): stay bare
+                    Ci = savePoint
+                end
+            end
+            return result
         end
     end
     return docSwitch(text, doc)
@@ -2152,7 +2180,13 @@ local function bindDoc(source, binded)
                     )
     local ok = false
     for _, doc in ipairs(binded) do
-        if doc.bindSource then
+        if doc.bindSource
+        -- a name-list tag (`---@secret b, c`) binds to *every* local of the statement
+        -- it precedes; the tag itself picks the names it applies to
+        and not (docTags.isNameListTag(doc.type)
+             and source.type == 'local'
+             and doc.bindSource.type == 'local'
+             and not isParam) then
             goto CONTINUE
         end
         if doc.type == 'doc.class'

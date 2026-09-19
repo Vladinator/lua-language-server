@@ -3,6 +3,9 @@ local core  = require 'core.reference'
 local files = require 'files'
 local catch = require 'catch'
 
+---@param targets [integer, integer][]
+---@param results [integer, integer][]
+---@return boolean
 local function founded(targets, results)
     if #targets ~= #results then
         return false
@@ -19,6 +22,7 @@ local function founded(targets, results)
     return true
 end
 
+---@param script string
 function TEST(script)
     local newScript, catched = catch(script, '!?~')
     files.setText(TESTURI, newScript)
@@ -27,11 +31,12 @@ function TEST(script)
     local expect = catched['!'] + catched['~']
     local results = core(TESTURI, input[1][1], true)
     if results then
+        ---@type [integer, integer][]
         local positions = {}
         for i, result in ipairs(results) do
-            positions[i] = { result.target.start, result.target.finish }
+            positions[i] = { result.target.start --[[@as integer]], result.target.finish --[[@as integer]] }
         end
-        assert(founded(expect, positions))
+        assert(founded(expect --[[@as [integer, integer][] ]], positions))
     else
         assert(#expect == 0)
     end

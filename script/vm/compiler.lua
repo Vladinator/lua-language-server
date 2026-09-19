@@ -565,6 +565,12 @@ local searchFieldSwitch = util.switch()
 ---@param key string|number|integer|boolean|vm.global|vm.ANY|vm.ANYDOC
 ---@param pushResult async fun(field: vm.object, isMark?: boolean)
 function vm.getClassFields(suri, object, key, pushResult)
+    -- `pushResult` is only genuinely async for cli/doc/export.lua, which
+    -- awaits inside its own callback; every other caller passes a sync
+    -- closure from a sync chain. Drop the marker locally instead of
+    -- propagating @async through the whole vm.compileNode call graph.
+    local pushResult = pushResult --[[@as fun(field: vm.object, isMark?: boolean)]]
+
     ---@type table<string, boolean>
     local mark = {}
 

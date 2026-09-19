@@ -17,7 +17,7 @@ local client = require 'client'
 require 'jsonc'
 require 'json-beautify'
 
----@class service.statusInfo
+---@class (incremental) service.statusInfo
 ---@field text     string
 ---@field tooltip? string
 
@@ -229,7 +229,6 @@ function m.reportStatus()
         return
     end
     ---@type service.statusInfo
-    ---@diagnostic disable-next-line: missing-fields
     local info = {}
     if m.workingClock and time.monotonic() - m.workingClock > 100 then
         info.text = '$(loading~spin)Lua'

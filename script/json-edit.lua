@@ -97,7 +97,7 @@ for k, v in next, encode_escape_map do
     decode_escape_set[string_byte(v, 2)] = true
 end
 
----@class json-edit.ast
+---@class (incremental) json-edit.ast
 ---@field s     integer -- start offset (of the value, or -- for object members -- of the value, with key_s/key_f covering the key separately)
 ---@field d     integer -- nesting depth at decode time
 ---@field f     integer -- finish offset
@@ -401,7 +401,6 @@ decode_map[-1] = unexpected_eol
 local function decode()
     local chr = next_byte()
     ---@type json-edit.ast
-    ---@diagnostic disable-next-line: missing-fields
     local ast = {s = statusPos, d = statusTop}
     ast.v = decode_map[chr](ast)
     ast.f = statusPos

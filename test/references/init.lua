@@ -34,9 +34,9 @@ function TEST(script)
         ---@type [integer, integer][]
         local positions = {}
         for i, result in ipairs(results) do
-            positions[i] = { result.target.start --[[@as integer]], result.target.finish --[[@as integer]] }
+            positions[i] = { result.target.start, result.target.finish }
         end
-        assert(founded(expect --[[@as [integer, integer][] ]], positions))
+        assert(founded(expect, positions))
     else
         assert(#expect == 0)
     end

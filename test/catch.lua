@@ -92,7 +92,7 @@ return function (script, seps)
                     break
                 end
             end
-            skipOffset = (skipOffset + 1 + #text) --[[@as integer]]
+            skipOffset = (skipOffset + 1 + #text)
         end
     end
 

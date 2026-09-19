@@ -69,7 +69,7 @@ local function TEST(datas)
         ---@type [integer, integer, uri][]
         local result = {}
         for i, position in ipairs(positions) do
-            local target = position.target --[[@as {uri: uri, start: integer, finish: integer}]]
+            local target = position.target
             result[i] = {
                 target.start,
                 target.finish,

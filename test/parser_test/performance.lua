@@ -46,7 +46,7 @@ for _, fileName in ipairs(fileNames) do
     local file = util.loadFile(fileName)
     if file then
         files[#files+1] = file
-        size = (size + #file) --[[@as integer]]
+        size = (size + #file)
     end
 end
 

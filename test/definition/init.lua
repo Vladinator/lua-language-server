@@ -42,10 +42,10 @@ function TEST(script, version)
         local positions = {}
         for i, result in ipairs(results) do
             if not vm.isMetaFile(result.uri) then
-                positions[#positions+1] = { result.target.start --[[@as integer]], result.target.finish --[[@as integer]] }
+                positions[#positions+1] = { result.target.start, result.target.finish }
             end
         end
-        assert(founded(catched['!'] --[[@as [integer, integer][] ]], positions))
+        assert(founded(catched['!'], positions))
     else
         assert(#catched['!'] == 0)
     end

@@ -11,7 +11,7 @@ local function TestVisualize(fileName)
 	local writer = {}
 	---@param text string
 	function writer:write(text)
-		output = (output .. text) --[[@as string]]
+		output = (output .. text)
 	end
 	visualize.visualizeAst(io.open(inputFile):read('a'), writer)
 	local expectedOutput = io.open(outputFile):read('a')

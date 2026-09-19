@@ -36,7 +36,7 @@ function TEST(script)
         for _, position in ipairs(positions) do
             results[#results+1] = { position.start, position.finish }
         end
-        assert(founded(catched['!'] --[[@as [integer, integer][] ]], results))
+        assert(founded(catched['!'], results))
     end
     files.remove(TESTURI)
 end

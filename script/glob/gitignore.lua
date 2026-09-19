@@ -1,30 +1,3 @@
----@class glob.lpegPattern
----@operator mul(glob.lpegPattern|string|integer): glob.lpegPattern
----@operator add(glob.lpegPattern|string|integer): glob.lpegPattern
----@operator sub(glob.lpegPattern|string|integer): glob.lpegPattern
----@operator unm(): glob.lpegPattern
----@operator pow(integer): glob.lpegPattern
----@operator div(string|table|function): glob.lpegPattern
-local lpegPattern = {}
-
----@param s string
----@return any[]? results
----@return any err
-function lpegPattern:match(s) end
-
----@class glob.lpegM
----@field Cg fun(pat: glob.lpegPattern, name?: string): glob.lpegPattern
----@field Cc fun(v: any): glob.lpegPattern
----@field Ct fun(pat: glob.lpegPattern): glob.lpegPattern
----@field Cs fun(pat: glob.lpegPattern): glob.lpegPattern
----@field C  fun(pat: glob.lpegPattern): glob.lpegPattern
----@field T  fun(label: string|integer): glob.lpegPattern
----@field P  fun(v: glob.lpegPattern|string|integer|table): glob.lpegPattern
----@field S  fun(s: string): glob.lpegPattern
----@field R  fun(...: string): glob.lpegPattern
----@field V  fun(name: string): glob.lpegPattern
-
----@type glob.lpegM
 local m = require 'lpeglabel'
 local matcher = require 'glob.matcher'
 
@@ -90,6 +63,7 @@ function mt:addPattern(pat)
     if self.options.ignoreCase then
         pat = pat:lower() --[[@as string]]
     end
+    ---@type any[]?, any
     local states, err = parser:match(pat)
     if not states then
         self.errors[#self.errors+1] = {

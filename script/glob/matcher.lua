@@ -1,4 +1,3 @@
----@type glob.lpegM
 local m = require 'lpeglabel'
 
 local Slash  = m.S('/\\')^1

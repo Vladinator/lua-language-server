@@ -1,4 +1,3 @@
----@type glob.lpegM
 local m = require 'lpeglabel'
 local matcher = require 'glob.matcher'
 
@@ -65,6 +64,7 @@ function mt:addPattern(pat)
     if self.options.ignoreCase then
         pat = pat:lower() --[[@as string]]
     end
+    ---@type any[]?, any
     local states, err = parser:match(pat)
     if not states then
         self.errors[#self.errors+1] = {

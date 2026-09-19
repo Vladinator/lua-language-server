@@ -1,8 +1,3 @@
----@class luadoc.lpegM
----@field S fun(s: string): any
----@field R fun(...: string): any
-
----@type luadoc.lpegM
 local m          = require 'lpeglabel'
 local re         = require 'parser.relabel'
 local guide      = require 'parser.guide'

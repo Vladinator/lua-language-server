@@ -1,25 +1,3 @@
----@class catch.lpegPattern
----@operator mul(catch.lpegPattern|string|integer): catch.lpegPattern
----@operator add(catch.lpegPattern|string|integer): catch.lpegPattern
----@operator sub(catch.lpegPattern|string|integer): catch.lpegPattern
----@operator pow(integer): catch.lpegPattern
-local lpegPattern = {}
-
----@param s string
----@return any[]? results
----@return any err
-function lpegPattern:match(s) end
-
----@class catch.lpegM
----@field P  fun(v: catch.lpegPattern|string|integer|table): catch.lpegPattern
----@field V  fun(name: string): catch.lpegPattern
----@field C  fun(pat: catch.lpegPattern): catch.lpegPattern
----@field Cc fun(v: any): catch.lpegPattern
----@field Cp fun(): catch.lpegPattern
----@field S  fun(s: string): catch.lpegPattern
----@field Ct fun(pat: catch.lpegPattern): catch.lpegPattern
-
----@type catch.lpegM
 local m = require 'lpeglabel'
 
 ---@class catched

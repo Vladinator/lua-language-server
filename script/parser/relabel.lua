@@ -14,6 +14,7 @@ local m = require"lpeglabel"
 local mm = m
 
 -- pattern's metatable
+---@type lpeglabel.metatable
 local mt = getmetatable(mm.P(0))
 
 
@@ -25,6 +26,7 @@ _ENV = nil
 local any = m.P(1)
 
 
+---@type table<string, string>
 local errinfo = {
   NoPatt = "no pattern found",
   ExtraChars = "unexpected characters after the pattern",
@@ -71,17 +73,24 @@ local errinfo = {
   MisTerm2 = "missing terminating double quote",
 }
 
+---@param pattern lpeglabel.value
+---@param label string|integer
+---@return lpeglabel.pattern
 local function expect (pattern, label)
   return pattern + m.T(label)
 end
 
 
 -- Pre-defined names
+---@type table<string, lpeglabel.pattern>
 local Predef = { nl = m.P"\n" }
 
 
+---@type table<string|lpeglabel.pattern, lpeglabel.pattern>
 local mem
+---@type table<string|lpeglabel.pattern, lpeglabel.pattern>
 local fmem
+---@type table<string|lpeglabel.pattern, table<any, lpeglabel.pattern>>
 local gmem
 
 
@@ -124,6 +133,9 @@ updatelocale()
 local I = m.P(function (s,i) print(i, s:sub(1, i-1)); return i end)
 
 
+---@param id string
+---@param defs? table<string, any>
+---@return any
 local function getdef (id, defs)
   local c = defs and defs[id]
   if not c then
@@ -133,16 +145,23 @@ local function getdef (id, defs)
 end
 
 
+---@param p lpeglabel.pattern
+---@param n number
+---@return lpeglabel.pattern
 local function mult (p, n)
   local np = mm.P(true)
   while n >= 1 do
-    if n%2 >= 1 then np = np * p end
-    p = p * p
+    if n%2 >= 1 then np = (np * p) --[[@as lpeglabel.pattern]] end
+    p = (p * p) --[[@as lpeglabel.pattern]]
     n = n/2
   end
   return np
 end
 
+---@param s string
+---@param i integer
+---@param c any
+---@return integer?
 local function equalcap (s, i, c)
   if type(c) ~= "string" then return nil end
   local e = #c + i
@@ -184,6 +203,10 @@ local Class =
     / function (c, p) return c == "^" and any - p or p end
   * expect("]", "MisClose8")
 
+---@param t table<any, any>
+---@param k any
+---@param exp any
+---@return table<any, any>
 local function adddef (t, k, exp)
   if t[k] then
     -- TODO 改了一下这里的代码，重复定义不会抛错
@@ -194,9 +217,15 @@ local function adddef (t, k, exp)
   return t
 end
 
+---@param n any
+---@param r any
+---@return table<any, any>
 local function firstdef (n, r) return adddef({n}, n, r) end
 
 
+---@param n string
+---@param b any
+---@return lpeglabel.pattern
 local function NT (n, b)
   if not b then
     error("rule '"..n.."' used outside a grammar")
@@ -262,12 +291,16 @@ local exp = m.P{ "Exp",
 local pattern = S * m.Cg(m.Cc(false), "G") * expect(exp, "NoPatt") / mm.P
                 * S * expect(-any, "ExtraChars")
 
+---@param s string
+---@param i integer
+---@return integer line
+---@return integer col
 local function lineno (s, i)
   if i == 1 then return 1, 1 end
   local adjustment = 0
   -- report the current line if at end of line, not the next
   if s:sub(i,i) == '\n' then
-    i = i-1
+    i = (i-1) --[[@as integer]]
     adjustment = 1
   end
   local rest, num = s:sub(1,i):gsub("[^\n]*\n", "")
@@ -275,6 +308,10 @@ local function lineno (s, i)
   return 1 + num, (r ~= 0 and r or 1) + adjustment
 end
 
+---@param s string
+---@param i integer
+---@return integer line
+---@return integer col
 local function calcline (s, i)
   if i == 1 then return 1, 1 end
   local rest, line = s:sub(1,i):gsub("[^\n]*\n", "")
@@ -283,6 +320,8 @@ local function calcline (s, i)
 end
 
 
+---@param str string
+---@return string[]
 local function splitlines(str)
   local t = {}
   local function helper(line) tinsert(t, line) return "" end
@@ -290,13 +329,17 @@ local function splitlines(str)
   return t
 end
 
+---@param p string|lpeglabel.pattern
+---@param defs? table<string, any>
+---@return lpeglabel.pattern
 local function compile (p, defs)
-  if mm.type(p) == "pattern" then return p end   -- already compiled
-  p = p .. " " -- for better reporting of column numbers in errors when at EOF
+  if mm.type(p) == "pattern" then return p --[[@as lpeglabel.pattern]] end   -- already compiled
+  p = (p --[[@as string]]) .. " " -- for better reporting of column numbers in errors when at EOF
+  ---@type boolean, any, any, any
   local ok, cp, label, poserr = pcall(function() return pattern:match(p, 1, defs) end)
   if not ok and cp then
     if type(cp) == "string" then
-      cp = cp:gsub("^[^:]+:[^:]+: ", "")
+      cp = (cp --[[@as string]]):gsub("^[^:]+:[^:]+: ", "")
     end
     error(cp, 3)
   end
@@ -312,6 +355,10 @@ local function compile (p, defs)
   return cp
 end
 
+---@param s string
+---@param p string|lpeglabel.pattern
+---@param i? integer
+---@return any ...
 local function match (s, p, i)
   local cp = mem[p]
   if not cp then
@@ -321,6 +368,10 @@ local function match (s, p, i)
   return cp:match(s, i or 1)
 end
 
+---@param s string
+---@param p string|lpeglabel.pattern
+---@param i? integer
+---@return integer?, integer?
 local function find (s, p, i)
   local cp = fmem[p]
   if not cp then
@@ -334,7 +385,12 @@ local function find (s, p, i)
   end
 end
 
+---@param s string
+---@param p string|lpeglabel.pattern
+---@param rep any
+---@return any
 local function gsub (s, p, rep)
+  ---@type table<any, lpeglabel.pattern>
   local g = gmem[p] or {}   -- ensure gmem[p] is not collected while here
   gmem[p] = g
   local cp = g[rep]

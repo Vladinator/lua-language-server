@@ -22,6 +22,15 @@ local pattern = {}
 ---@return any ...   Remaining captures, or the failure label/position.
 function pattern:match(subject, init, ...) end
 
+---@class lpeglabel.metatable
+---@field public __add fun(a: lpeglabel.value, b: lpeglabel.value): lpeglabel.pattern
+---@field public __sub fun(a: lpeglabel.value, b: lpeglabel.value): lpeglabel.pattern
+---@field public __mul fun(a: lpeglabel.value, b: lpeglabel.value): lpeglabel.pattern
+---@field public __div fun(a: lpeglabel.value, b: any): lpeglabel.pattern
+---@field public __pow fun(a: lpeglabel.value, b: integer): lpeglabel.pattern
+---@field public __unm fun(a: lpeglabel.value): lpeglabel.pattern
+---@field public __len fun(a: lpeglabel.value): lpeglabel.pattern
+
 ---@class lpeglabel
 ---@field P      fun(value: lpeglabel.value): lpeglabel.pattern
 ---@field S      fun(set: string): lpeglabel.pattern

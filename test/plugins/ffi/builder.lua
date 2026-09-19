@@ -2,16 +2,21 @@ local ffi = require 'plugins.ffi'
 local util = require 'utility'
 rawset(_G, 'TEST', true)
 
+---@param lines string[]
+---@return string[]
 local function removeEmpty(lines)
+    ---@type string[]
     local removeLines = {}
     for i, v in ipairs(lines) do
         if v ~= '\n' then
-            removeLines[#removeLines+1] = v:gsub('^%s+', '')
+            removeLines[#removeLines+1] = (v:gsub('^%s+', ''))
         end
     end
     return removeLines
 end
 
+---@param lines string[]?
+---@return string[]
 local function formatLines(lines)
     if not lines or #lines == 0 then
         return {}
@@ -21,7 +26,9 @@ local function formatLines(lines)
 end
 
 ---@param str string
+---@return string[]
 local function splitLines(str)
+    ---@type string[]
     local lines = {}
     local i = 1
     for line in str:gmatch("[^\r\n]+") do
@@ -31,11 +38,12 @@ local function splitLines(str)
     return lines
 end
 
+---@param wanted string
 function TEST(wanted)
-    wanted = removeEmpty(splitLines(wanted))
+    local wantedLines = removeEmpty(splitLines(wanted))
     return function (script)
         local lines = formatLines(ffi.compileCodes({ script }))
-        assert(util.equal(wanted, lines), util.dump(lines))
+        assert(util.equal(wantedLines, lines), util.dump(lines))
     end
 end
 

@@ -89,8 +89,7 @@ local type         = type
 ---@field groups?               parser.object[]
 ---@field asyncPos?             integer -- set by luadoc.lua on '@async' doc nodes
 ---@field specialBindGroup?     table -- set by luadoc.lua's buildAndBindDoc, passed straight through from its own `group` param
----@field typeGeneric?          boolean -- read by semantic-tokens.lua but never actually set anywhere; dead
----@field escs?                 table<integer, integer|string> -- read by semantic-tokens.lua but never actually set anywhere; dead
+---@field escs?                 table<integer, integer|string> -- escape spans of a short string, flattened as (start, finish, kind) triples; read by semantic-tokens.lua
 ---@field package _root         parser.object
 ---@field package _eachCache?   parser.object[]
 ---@field package _isGlobal?    boolean

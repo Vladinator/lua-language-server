@@ -191,7 +191,7 @@ end
 ---@param uri uri
 ---@param name string
 ---@param isScopeDiag boolean
----@param response async fun(result: any)
+---@param response async fun(result: proto.diagnostic.result)
 ---@param ignoreFileOpenState? boolean
 ---@return boolean
 local function check(uri, name, isScopeDiag, response, ignoreFileOpenState)
@@ -220,7 +220,7 @@ local function check(uri, name, isScopeDiag, response, ignoreFileOpenState)
     -- first and only fall back to the require() convention for built-ins.
     local diagnosticFn = customPlugins.get(name) or require('core.diagnostics.' .. name)
     ---@async
-    ---@param result any
+    ---@param result proto.diagnostic.result
     diagnosticFn(uri, function (result)
         if vm.isDiagDisabledAt(uri, result.start, name) then
             return
@@ -286,7 +286,7 @@ end
 ---@async
 ---@param uri uri
 ---@param isScopeDiag boolean
----@param response async fun(result: any)
+---@param response async fun(result: proto.diagnostic.result)
 ---@param checked? async fun(name: string)
 ---@param ignoreFileOpenState? boolean
 return function (uri, isScopeDiag, response, checked, ignoreFileOpenState)

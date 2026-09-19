@@ -17,6 +17,25 @@ local m = {}
 ---| 'Opened'
 ---| 'None'
 
+---@class proto.diagnostic.related
+---@field uri?     uri
+---@field message? string
+---@field start    integer
+---@field finish   integer
+
+--- What a diagnostic check reports through its callback. `level` and `code`
+--- are filled in by core.diagnostics; `data` is an opaque payload handed back
+--- to code actions.
+---@class proto.diagnostic.result
+---@field start    integer
+---@field finish   integer
+---@field message  string
+---@field level?   integer
+---@field code?    string
+---@field tags?    integer[]
+---@field data?    any
+---@field related? proto.diagnostic.related[]
+
 ---@class proto.diagnostic.info
 ---@field severity DiagnosticSeverity
 ---@field status   DiagnosticNeededFileStatus

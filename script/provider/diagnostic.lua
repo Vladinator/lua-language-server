@@ -22,8 +22,19 @@ local vm        = require 'vm.vm'
 ---@alias diagnosticProvider.errRelated { uri?: uri, message?: string, start: integer, finish: integer }
 ---@alias diagnosticProvider.errInfo { version?: string[]|string, related?: diagnosticProvider.errRelated[] }
 
+--- An LSP Diagnostic as sent to the client.
+---@class diagnosticProvider.diagnostic
+---@field range               table
+---@field source?             string
+---@field severity?           integer
+---@field message             string
+---@field code?               string
+---@field tags?               integer[]
+---@field data?               any
+---@field relatedInformation? table[]
+
 ---@class diagnosticProvider
----@field cache table<uri, table[]|false>
+---@field cache table<uri, diagnosticProvider.diagnostic[]|false>
 local m = {}
 m.cache = {}
 m.sleepRest = 0.0
@@ -39,7 +50,7 @@ end
 
 ---@param uri uri
 ---@param err parser.state.err
----@return table?
+---@return diagnosticProvider.diagnostic?
 local function buildSyntaxError(uri, err)
     local state = files.getState(uri)
     local text  = files.getText(uri)
@@ -94,8 +105,8 @@ local function buildSyntaxError(uri, err)
 end
 
 ---@param uri uri
----@param diag any
----@return table?
+---@param diag proto.diagnostic.result
+---@return diagnosticProvider.diagnostic?
 local function buildDiagnostic(uri, diag)
     local state = files.getState(uri)
     if not state then
@@ -106,7 +117,7 @@ local function buildDiagnostic(uri, diag)
     local relatedInformation
     if diag.related then
         relatedInformation = {}
-        for _, rel in ipairs(diag.related --[[@as any[] ]]) do
+        for _, rel in ipairs(diag.related) do
             local rtext = files.getText(rel.uri)
             if not rtext then
                 goto CONTINUE
@@ -126,35 +137,35 @@ local function buildDiagnostic(uri, diag)
     return {
         range    = converter.packRange(state, diag.start, diag.finish),
         source   = lang.script.DIAG_DIAGNOSTICS,
-        severity = diag.level --[[@as any]],
-        message  = diag.message --[[@as any]],
-        code     = diag.code --[[@as any]],
-        tags     = diag.tags --[[@as any]],
-        data     = diag.data --[[@as any]],
+        severity = diag.level,
+        message  = diag.message,
+        code     = diag.code,
+        tags     = diag.tags,
+        data     = diag.data,
 
         relatedInformation = relatedInformation,
     }
 end
 
----@param a table[]?
----@param b table[]?
----@param c table[]?
----@return table[]?
+---@param a diagnosticProvider.diagnostic[]?
+---@param b diagnosticProvider.diagnostic[]?
+---@param c diagnosticProvider.diagnostic[]?
+---@return diagnosticProvider.diagnostic[]?
 local function mergeDiags(a, b, c)
     if not a and not b and not c then
         return nil
     end
-    ---@type table[]
+    ---@type diagnosticProvider.diagnostic[]
     local t = {}
 
-    ---@param diags table[]?
+    ---@param diags diagnosticProvider.diagnostic[]?
     local function merge(diags)
         if not diags then
             return
         end
         for i = 1, #diags do
-            local diag = diags[i] --[[@as any]]
-            local severity = diag.severity --[[@as any]]
+            local diag = diags[i]
+            local severity = diag.severity
             if severity == define.DiagnosticSeverity.Hint
             or severity == define.DiagnosticSeverity.Information then
                 if #t > 10000 then
@@ -230,13 +241,13 @@ end
 
 ---@param uri uri
 ---@param ast parser.state
----@return table[]?
+---@return diagnosticProvider.diagnostic[]?
 function m.syntaxErrors(uri, ast)
     if #ast.errs == 0 then
         return nil
     end
 
-    ---@type table[]
+    ---@type diagnosticProvider.diagnostic[]
     local results = {}
 
     pcall(function ()
@@ -253,13 +264,13 @@ function m.syntaxErrors(uri, ast)
     return results
 end
 
----@param diags table[]?
----@return table[]?
+---@param diags diagnosticProvider.diagnostic[]?
+---@return diagnosticProvider.diagnostic[]?
 local function copyDiagsWithoutSyntax(diags)
     if not diags then
         return nil
     end
-    ---@type table[]
+    ---@type diagnosticProvider.diagnostic[]
     local copyed = {}
     for _, diag in ipairs(diags) do
         if diag.data ~= 'syntax' then
@@ -330,7 +341,7 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
 
     local syntax = m.syntaxErrors(uri, state)
 
-    ---@type table[]
+    ---@type diagnosticProvider.diagnostic[]
     local diags = {}
     local lastDiag = copyDiagsWithoutSyntax(m.cache[uri])
     local function pushResult()
@@ -430,7 +441,7 @@ function m.pullDiagnostic(uri, isScopeDiag)
     prog:setMessage(ws.getRelativePath(uri))
 
     local syntax = m.syntaxErrors(uri, state)
-    ---@type table[]
+    ---@type diagnosticProvider.diagnostic[]
     local diags = {}
 
     xpcall(core, log.error, uri, isScopeDiag, function (result)

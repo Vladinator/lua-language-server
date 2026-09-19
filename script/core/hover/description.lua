@@ -16,8 +16,10 @@ local wssymbol = require 'core.workspace-symbol'
 ---@param literal string
 ---@param uri uri
 local function collectRequire(mode, literal, uri)
-    ---@type uri[]?, table<uri, string>?
-    local result, searchers
+    ---@type uri[]?
+    local result
+    ---@type table<uri, string>?
+    local searchers
     if     mode == 'require' then
         result, searchers = rpath.findUrisByRequireName(uri, literal)
     elseif mode == 'dofile'
@@ -28,6 +30,7 @@ local function collectRequire(mode, literal, uri)
         ---@type string[]
         local shows = {}
         for i, uri0 in ipairs(result) do
+            ---@type string?
             local searcher = searchers and searchers[uri0]
             local path = ws.getRelativePath(uri0)
             if vm.isMetaFile(uri0) then

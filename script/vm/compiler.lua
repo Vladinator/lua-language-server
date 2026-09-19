@@ -2087,6 +2087,14 @@ local compilerSwitch = util.switch()
             -- untyped; keep the variable's own type instead of degrading it
             -- to unknown
             valueNode = locNode
+            -- arithmetic/concat/unary results are never nil, even when the
+            -- variable's own type is optional
+            local value = source.value
+            if  valueNode:isOptional()
+            and (value.type == 'unary'
+            or  (value.type == 'binary' and value.op.type ~= 'and' and value.op.type ~= 'or')) then
+                valueNode = valueNode:copy():removeOptional() --[[@as vm.node]]
+            end
         end
         vm.setNode(source, valueNode)
         if  locNode.hasDefined

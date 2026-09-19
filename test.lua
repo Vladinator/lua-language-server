@@ -54,10 +54,13 @@ local function test(name)
     local clock = os.clock()
     print(('测试[%s]...'):format(name))
     local originRequire = require
+    ---@param n string
     require = function (n)
+        ---@type any, string?
         local v, p = originRequire(n)
         if p and p:find 'test/' then
-            package.loaded[n] = nil
+            local loaded = package.loaded --[[@as table<string, any>]]
+            loaded[n] = nil
         end
         return v, p
     end

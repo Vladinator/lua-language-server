@@ -9,6 +9,7 @@ diag.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics in cases in which an unknown diagnostics code is entered.',
 }
 
 return function (uri, callback)

@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'unbalanced',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for function calls where the number of arguments is less than the number of annotated function parameters.',
 }
 
 ---@async

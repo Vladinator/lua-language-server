@@ -17,6 +17,7 @@ protoDiagnostic.register {
     group    = 'unbalanced',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Missing fields',
 }
 
 ---@async

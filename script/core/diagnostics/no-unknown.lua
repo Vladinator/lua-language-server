@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'strong',
     severity = 'Warning',
     status   = 'None',
+    description = 'Enable diagnostics for cases in which the type cannot be inferred.',
 }
 
 local types = {

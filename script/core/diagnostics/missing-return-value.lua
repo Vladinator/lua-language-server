@@ -13,6 +13,7 @@ protoDiagnostic.register {
     group    = 'unbalanced',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for return statements without values although the containing function declares returns.',
 }
 
 ---@async

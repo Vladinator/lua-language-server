@@ -10,6 +10,7 @@ protoDiagnostic.register {
     group    = 'ambiguity',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for `for` loops which will never reach their max/limit because the loop is incrementing instead of decrementing.',
 }
 
 return function (uri, callback)

@@ -19,6 +19,7 @@ protoDiagnostic.register {
     group    = 'global',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable undefined global variable diagnostics.',
 }
 
 ---@async

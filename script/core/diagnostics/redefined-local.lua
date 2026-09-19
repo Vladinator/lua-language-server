@@ -11,6 +11,7 @@ protoDiagnostic.register {
     group    = 'redefined',
     severity = 'Hint',
     status   = 'Opened',
+    description = 'Enable redefined local variable diagnostics.',
 }
 
 ---@async

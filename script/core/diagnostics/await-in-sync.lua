@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'await',
     severity = 'Warning',
     status   = 'None',
+    description = 'Enable diagnostics for calls of asynchronous functions within a synchronous function.',
 }
 
 ---@async

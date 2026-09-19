@@ -13,6 +13,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for return values whose type does not match the type declared in the corresponding return annotation.',
 }
 
 ---@param func parser.object

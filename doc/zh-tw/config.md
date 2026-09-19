@@ -379,6 +379,7 @@ Array<string>
 * ``"multi-close"``: 多重 close 操作
 * ``"name-style-check"``: 變數命名風格檢查
 * ``"need-check-nil"``: 變數曾被賦值為 `nil` 或可選值（可能是 `nil` ）
+* ``"need-check-secret"``: Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
 * ``"need-paren"``: 需要括號
 * ``"nesting-long-mark"``: 巢狀的長註解標記
 * ``"newfield-call"``: 在字面常數表中，2行程式碼之間缺少分隔符，在語法上被解析為了一次索引操作
@@ -392,6 +393,7 @@ Array<string>
 * ``"redundant-parameter"``: 函式呼叫時，傳入了多餘的引數
 * ``"redundant-return"``: 放了一個不需要的 `return` 陳述式，因為函式會自行退出
 * ``"redundant-return-value"``: 回傳了 `@return` 標註未指定的額外值
+* ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: 賦值操作時，值的數量比被賦值的對象多
 * ``"return-type-mismatch"``: 回傳值的類型不符合 `@return` 中宣告的類型
 * ``"set-const"``: 對 const 常數賦值
@@ -404,11 +406,13 @@ Array<string>
 * ``"undefined-env-child"``: `_ENV` 被設定為了新的字面常數表，但是試圖獲取的全域變數不在這張表中
 * ``"undefined-field"``: 讀取變數中為定義的欄位
 * ``"undefined-global"``: 未定義的全域變數
+* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
 * ``"unexpect-dots"``
 * ``"unexpect-efunc-name"``
 * ``"unexpect-gfunc-name"``
 * ``"unexpect-lfunc-name"``
 * ``"unexpect-symbol"``
+* ``"unfulfilled-expect"``: Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
 * ``"unicode-name"``: Unicode 名稱使用
 * ``"unknown-attribute"``: 未知的屬性
 * ``"unknown-cast-variable"``: 使用 `@cast` 對未定義的變數進行強制轉換
@@ -570,6 +574,7 @@ object<string, string>
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
+    * unfulfilled-expect
     * unknown-cast-variable
     * unknown-diag-code
     * unknown-operator
@@ -579,6 +584,12 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * need-check-secret
+    * redundant-secret-unwrap
+    * undefined-secret-name
+    */
+    "secret": "Fallback",
     /*
     * close-non-object
     * deprecated
@@ -699,6 +710,7 @@ object<string, string>
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
+    * unfulfilled-expect
     * unknown-cast-variable
     * unknown-diag-code
     * unknown-operator
@@ -708,6 +720,12 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * need-check-secret
+    * redundant-secret-unwrap
+    * undefined-secret-name
+    */
+    "secret": "Fallback",
     /*
     * close-non-object
     * deprecated
@@ -965,6 +983,10 @@ object<string, string>
     */
     "need-check-nil": "Opened",
     /*
+    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
+    */
+    "need-check-secret": "Opened",
+    /*
     在字面常數表中，2行程式碼之間缺少分隔符，在語法上被解析為了一次索引操作
     */
     "newfield-call": "Any",
@@ -1000,6 +1022,10 @@ object<string, string>
     回傳了 `@return` 標註未指定的額外值
     */
     "redundant-return-value": "Any",
+    /*
+    Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
+    */
+    "redundant-secret-unwrap": "Opened",
     /*
     賦值操作時，值的數量比被賦值的對象多
     */
@@ -1045,6 +1071,14 @@ object<string, string>
     */
     "undefined-global": "Any",
     /*
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    */
+    "undefined-secret-name": "Opened",
+    /*
+    Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
+    */
+    "unfulfilled-expect": "Any",
+    /*
     使用 `@cast` 對未定義的變數進行強制轉換
     */
     "unknown-cast-variable": "Any",
@@ -1077,6 +1111,22 @@ object<string, string>
     */
     "unused-vararg": "Opened"
 }
+```
+
+# diagnostics.pluginsDir
+
+**Missing description!!**
+
+## type
+
+```ts
+string
+```
+
+## default
+
+```jsonc
+""
 ```
 
 # diagnostics.severity
@@ -1243,6 +1293,10 @@ object<string, string>
     */
     "need-check-nil": "Warning",
     /*
+    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
+    */
+    "need-check-secret": "Warning",
+    /*
     在字面常數表中，2行程式碼之間缺少分隔符，在語法上被解析為了一次索引操作
     */
     "newfield-call": "Warning",
@@ -1278,6 +1332,10 @@ object<string, string>
     回傳了 `@return` 標註未指定的額外值
     */
     "redundant-return-value": "Warning",
+    /*
+    Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
+    */
+    "redundant-secret-unwrap": "Warning",
     /*
     賦值操作時，值的數量比被賦值的對象多
     */
@@ -1322,6 +1380,14 @@ object<string, string>
     未定義的全域變數
     */
     "undefined-global": "Warning",
+    /*
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    */
+    "undefined-secret-name": "Warning",
+    /*
+    Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
+    */
+    "unfulfilled-expect": "Warning",
     /*
     使用 `@cast` 對未定義的變數進行強制轉換
     */
@@ -2479,6 +2545,22 @@ string | boolean
 
 ```jsonc
 null
+```
+
+# workspace.dofileRoots
+
+除了目前工作區以外，`dofile` 會把這些目錄視為可能的根目錄。這些目錄中的檔案會被立即載入。
+
+## type
+
+```ts
+Array<string>
+```
+
+## default
+
+```jsonc
+[]
 ```
 
 # workspace.ignoreDir

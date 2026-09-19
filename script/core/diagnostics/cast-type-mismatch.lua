@@ -11,6 +11,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for casts where the target type does not match the initial type.',
 }
 
 ---@async

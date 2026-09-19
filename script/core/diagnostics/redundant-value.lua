@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'unbalanced',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable the redundant values assigned diagnostics. It\'s raised during assignment operation, when the number of values is higher than the number of objects being assigned.',
 }
 
 ---@async

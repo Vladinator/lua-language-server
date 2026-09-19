@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'ambiguity',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable newfield call diagnostics. It is raised when the parenthesis of a function call appear on the following line when defining a field in a table.',
 }
 
 ---@async

@@ -379,6 +379,7 @@ Array<string>
 * ``"multi-close"``: 多重 close 操作
 * ``"name-style-check"``: 名前スタイルの診断を有効にします。
 * ``"need-check-nil"``: 以前に`nil`または任意型が代入された変数を使用する際のnilチェック診断を有効にします。
+* ``"need-check-secret"``: Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
 * ``"need-paren"``: 括弧が必要
 * ``"nesting-long-mark"``: ネストした長いコメントマーカー
 * ``"newfield-call"``: newfield 呼び出しの診断を有効にします。テーブル定義中に関数呼び出しの括弧が次の行に現れる場合に発生します。
@@ -392,6 +393,7 @@ Array<string>
 * ``"redundant-parameter"``: 冗長な関数パラメータの診断を有効にします。
 * ``"redundant-return"``: 不要なreturn文の診断を有効にします。
 * ``"redundant-return-value"``: 注釈にない追加の戻り値を返すreturn文の診断を有効にします。
+* ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: 代入時の余分な値の診断を有効にします。値の数が変数の数を超える場合に発生します。
 * ``"return-type-mismatch"``: 戻り値の型が注釈と一致しない場合の診断を有効にします。
 * ``"set-const"``: const 定数への代入
@@ -404,11 +406,13 @@ Array<string>
 * ``"undefined-env-child"``: 未定義環境変数の診断を有効にします。`_ENV` を新しいリテラルテーブルに設定した結果、使用中のグローバルが存在しない場合に発生します。
 * ``"undefined-field"``: 未定義フィールドを参照する場合の診断を有効にします。
 * ``"undefined-global"``: 未定義のグローバル変数の診断を有効にします。
+* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
 * ``"unexpect-dots"``
 * ``"unexpect-efunc-name"``
 * ``"unexpect-gfunc-name"``
 * ``"unexpect-lfunc-name"``
 * ``"unexpect-symbol"``
+* ``"unfulfilled-expect"``: Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
 * ``"unicode-name"``: Unicode 名
 * ``"unknown-attribute"``: 不明な属性
 * ``"unknown-cast-variable"``: 未定義変数へのキャスト診断を有効にします。
@@ -570,6 +574,7 @@ object<string, string>
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
+    * unfulfilled-expect
     * unknown-cast-variable
     * unknown-diag-code
     * unknown-operator
@@ -579,6 +584,12 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * need-check-secret
+    * redundant-secret-unwrap
+    * undefined-secret-name
+    */
+    "secret": "Fallback",
     /*
     * close-non-object
     * deprecated
@@ -699,6 +710,7 @@ object<string, string>
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
+    * unfulfilled-expect
     * unknown-cast-variable
     * unknown-diag-code
     * unknown-operator
@@ -708,6 +720,12 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * need-check-secret
+    * redundant-secret-unwrap
+    * undefined-secret-name
+    */
+    "secret": "Fallback",
     /*
     * close-non-object
     * deprecated
@@ -965,6 +983,10 @@ object<string, string>
     */
     "need-check-nil": "Opened",
     /*
+    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
+    */
+    "need-check-secret": "Opened",
+    /*
     newfield 呼び出しの診断を有効にします。テーブル定義中に関数呼び出しの括弧が次の行に現れる場合に発生します。
     */
     "newfield-call": "Any",
@@ -1000,6 +1022,10 @@ object<string, string>
     注釈にない追加の戻り値を返すreturn文の診断を有効にします。
     */
     "redundant-return-value": "Any",
+    /*
+    Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
+    */
+    "redundant-secret-unwrap": "Opened",
     /*
     代入時の余分な値の診断を有効にします。値の数が変数の数を超える場合に発生します。
     */
@@ -1045,6 +1071,14 @@ object<string, string>
     */
     "undefined-global": "Any",
     /*
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    */
+    "undefined-secret-name": "Opened",
+    /*
+    Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
+    */
+    "unfulfilled-expect": "Any",
+    /*
     未定義変数へのキャスト診断を有効にします。
     */
     "unknown-cast-variable": "Any",
@@ -1077,6 +1111,22 @@ object<string, string>
     */
     "unused-vararg": "Opened"
 }
+```
+
+# diagnostics.pluginsDir
+
+**Missing description!!**
+
+## type
+
+```ts
+string
+```
+
+## default
+
+```jsonc
+""
 ```
 
 # diagnostics.severity
@@ -1244,6 +1294,10 @@ object<string, string>
     */
     "need-check-nil": "Warning",
     /*
+    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
+    */
+    "need-check-secret": "Warning",
+    /*
     newfield 呼び出しの診断を有効にします。テーブル定義中に関数呼び出しの括弧が次の行に現れる場合に発生します。
     */
     "newfield-call": "Warning",
@@ -1279,6 +1333,10 @@ object<string, string>
     注釈にない追加の戻り値を返すreturn文の診断を有効にします。
     */
     "redundant-return-value": "Warning",
+    /*
+    Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
+    */
+    "redundant-secret-unwrap": "Warning",
     /*
     代入時の余分な値の診断を有効にします。値の数が変数の数を超える場合に発生します。
     */
@@ -1323,6 +1381,14 @@ object<string, string>
     未定義のグローバル変数の診断を有効にします。
     */
     "undefined-global": "Warning",
+    /*
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    */
+    "undefined-secret-name": "Warning",
+    /*
+    Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
+    */
+    "unfulfilled-expect": "Warning",
     /*
     未定義変数へのキャスト診断を有効にします。
     */
@@ -2480,6 +2546,22 @@ string | boolean
 
 ```jsonc
 null
+```
+
+# workspace.dofileRoots
+
+現在のワークスペースに加えて、`dofile` がルートとして扱う可能性のあるディレクトリ。これらのディレクトリ内のファイルは即座にロードされます。
+
+## type
+
+```ts
+Array<string>
+```
+
+## default
+
+```jsonc
+[]
 ```
 
 # workspace.ignoreDir

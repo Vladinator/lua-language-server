@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'unused',
     severity = 'Hint',
     status   = 'Opened',
+    description = 'Enable trailing space diagnostics.',
 }
 
 ---@async

@@ -10,6 +10,7 @@ protoDiagnostic.register {
     group    = 'codestyle',
     severity = 'Warning',
     status   = 'None',
+    description = 'Enable diagnostics for incorrectly styled lines.',
 }
 
 ---@async

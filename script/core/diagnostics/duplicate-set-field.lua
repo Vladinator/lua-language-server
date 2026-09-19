@@ -13,6 +13,7 @@ protoDiagnostic.register {
     group    = 'duplicate',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for setting the same field in a class more than once.',
 }
 
 local sourceTypes = {

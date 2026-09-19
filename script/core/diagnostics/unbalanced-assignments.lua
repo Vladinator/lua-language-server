@@ -11,6 +11,7 @@ protoDiagnostic.register {
     group    = 'unbalanced',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics on multiple assignments if not all variables obtain a value (e.g., `local x,y = 1`).',
 }
 
 local types = {

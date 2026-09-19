@@ -11,6 +11,7 @@ protoDiagnostic.register {
     group    = 'unused',
     severity = 'Hint',
     status   = 'Opened',
+    description = 'Enable diagnostics for return statements which are not needed because the function would exit on its own.',
 }
 
 -- reports 'return' without any return values at the end of functions

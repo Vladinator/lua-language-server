@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'unbalanced',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable redundant function parameter diagnostics.',
 }
 
 ---@async

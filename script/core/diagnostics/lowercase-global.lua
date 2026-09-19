@@ -13,6 +13,7 @@ protoDiagnostic.register {
     group    = 'global',
     severity = 'Information',
     status   = 'Any',
+    description = 'Enable lowercase global variable definition diagnostics.',
 }
 
 ---@param source parser.object

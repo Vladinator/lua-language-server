@@ -11,6 +11,7 @@ protoDiagnostic.register {
     group    = 'strict',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for attempts to close a variable with a non-object.',
 }
 
 return function (uri, callback)

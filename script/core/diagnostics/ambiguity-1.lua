@@ -10,6 +10,7 @@ protoDiagnostic.register {
     group    = 'ambiguity',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable ambiguous operator precedence diagnostics. For example, the `num or 0 + 1` expression will be suggested `(num or 0) + 1` instead.',
 }
 
 local opMap = {

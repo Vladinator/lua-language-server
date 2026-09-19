@@ -10,6 +10,7 @@ protoDiagnostic.register {
     group    = 'codestyle',
     severity = 'Information',
     status   = 'None',
+    description = 'Enable diagnostics for typos in strings.',
 }
 
 ---@async

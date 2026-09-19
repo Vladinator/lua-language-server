@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for a duplicated alias annotation name.',
 }
 
 ---@async

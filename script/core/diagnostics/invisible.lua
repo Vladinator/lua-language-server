@@ -14,6 +14,7 @@ protoDiagnostic.register {
     group    = 'strict',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for accesses to fields which are invisible.',
 }
 
 local checkTypes = {'getfield', 'setfield', 'getmethod', 'setmethod', 'getindex', 'setindex'}

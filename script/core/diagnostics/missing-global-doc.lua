@@ -14,6 +14,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'None',
+    description = 'Missing annotations for globals! Global functions must have a comment and annotations for all parameters and return values.',
 }
 
 ---@async

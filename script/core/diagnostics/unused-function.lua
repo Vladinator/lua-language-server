@@ -15,6 +15,7 @@ protoDiagnostic.register {
     group    = 'unused',
     severity = 'Hint',
     status   = 'Opened',
+    description = 'Enable unused function diagnostics.',
 }
 
 ---@param source parser.object

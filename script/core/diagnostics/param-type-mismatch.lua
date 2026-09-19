@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for function calls where the type of a provided parameter does not match the type of the annotated function definition.',
 }
 
 ---@param defNode  vm.node

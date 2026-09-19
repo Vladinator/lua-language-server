@@ -14,6 +14,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'None',
+    description = 'Missing annotations for exported locals! Exported local functions must have a comment and annotations for all parameters and return values.',
 }
 
 ---@async

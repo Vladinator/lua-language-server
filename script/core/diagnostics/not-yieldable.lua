@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'await',
     severity = 'Warning',
     status   = 'None',
+    description = 'Enable diagnostics for calls to `coroutine.yield()` when it is not permitted.',
 }
 
 ---@param defs parser.object[]

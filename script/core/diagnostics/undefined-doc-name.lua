@@ -11,6 +11,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for type annotations referencing an undefined type or alias.',
 }
 
 --- Check if name is a generic parameter from a class context

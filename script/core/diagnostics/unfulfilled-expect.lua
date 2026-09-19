@@ -13,6 +13,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.',
 }
 
 --- `---@diagnostic expect-next-line: code[, code]` (and `expect-line`) suppresses the

@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'ambiguity',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for files which are required by two different paths.',
 }
 
 return function (uri, callback)

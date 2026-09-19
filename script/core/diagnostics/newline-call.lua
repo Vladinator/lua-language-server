@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'ambiguity',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable newline call diagnostics. It\'s raised when a line starting with `(` is encountered, which is syntactically parsed as a function call on the previous line.',
 }
 
 ---@async

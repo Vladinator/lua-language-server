@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for variable usages if `nil` or an optional (potentially `nil`) value was assigned to the variable before.',
 }
 
 -- Binary/unary operators that raise a runtime error when given a nil

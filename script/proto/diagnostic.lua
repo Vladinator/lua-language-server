@@ -1,7 +1,7 @@
 local util = require 'utility'
 
 ---@class proto.diagnostic
----@field diagnosticDatas  table<string, {severity: DiagnosticSeverity, status: DiagnosticNeededFileStatus}>
+---@field diagnosticDatas  table<string, {severity: DiagnosticSeverity, status: DiagnosticNeededFileStatus, description?: string}>
 ---@field diagnosticGroups table<string, table<string, boolean>>
 ---@field _errNames? table<string, true>
 ---@field isEnabled fun(uri: uri, name: string, ignoreFileOpenState?: boolean): boolean set by core.diagnostics; whether a diagnostic runs for a file under the current config
@@ -41,6 +41,7 @@ local m = {}
 ---@field severity DiagnosticSeverity
 ---@field status   DiagnosticNeededFileStatus
 ---@field group    string
+---@field description? string English text for the settings docs/schema (`config.diagnostics.<name>`); each plugin carries its own so deleting it removes everything
 
 m.diagnosticDatas  = {}
 m.diagnosticGroups = {}
@@ -52,8 +53,9 @@ function m.register(names)
     return function (info)
         for _, name in ipairs(names) do
             m.diagnosticDatas[name] = {
-                severity = info.severity,
-                status   = info.status,
+                severity    = info.severity,
+                status      = info.status,
+                description = info.description,
             }
             if not m.diagnosticGroups[info.group] then
                 m.diagnosticGroups[info.group] = {}

@@ -13,6 +13,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'None',
+    description = 'Incomplete @param or @return annotations for functions.',
 }
 
 ---@param docs  parser.object[]?

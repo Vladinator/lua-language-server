@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for cases in which an undefined field of a variable is read.',
 }
 
 local skipCheckClass = {

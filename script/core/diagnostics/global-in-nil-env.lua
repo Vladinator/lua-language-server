@@ -10,6 +10,7 @@ protoDiagnostic.register {
     group    = 'global',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable cannot use global variables （ `_ENV` is set to `nil`） diagnostics.',
 }
 
 return function (uri, callback)

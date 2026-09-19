@@ -37,6 +37,7 @@ protoDiagnostic.register {
     group    = 'secret',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.',
 }
 
 -- LuaDoc tags: @secret [names], @secret-unwrap [names], @secret-check,

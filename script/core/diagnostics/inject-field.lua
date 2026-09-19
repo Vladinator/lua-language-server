@@ -15,6 +15,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Injecting a field into an object',
 }
 
 local skipCheckClass = {

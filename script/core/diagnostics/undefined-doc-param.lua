@@ -9,6 +9,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for cases in which a parameter annotation is given without declaring the parameter in the function definition.',
 }
 
 return function (uri, callback)

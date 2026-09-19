@@ -24,6 +24,19 @@ local function mergeDiagnosticGroupLocale(locale)
     end
 end
 
+--- Each diagnostic carries its own English description (proto.diagnostic.register's
+--- `description`), so `config.diagnostics.<name>` keys are filled from the registry
+--- wherever a locale has no text of its own (a language falls back to English).
+---@param locale table<string, any>
+local function mergeDiagnosticDescriptions(locale)
+    for name, data in pairs(diagd.diagnosticDatas) do
+        local key = ('config.diagnostics.%s'):format(name)
+        if data.description and not locale[key] then
+            locale[key] = data.description
+        end
+    end
+end
+
 ---@return table<string, table<string, any>>
 local function getLocale()
     ---@type table<string, table<string, any>>
@@ -36,6 +49,7 @@ local function getLocale()
             locale[lang] = lloader(text, lang)
             -- add `config.diagnostics.XXX`
             mergeDiagnosticGroupLocale(locale[lang])
+            mergeDiagnosticDescriptions(locale[lang])
         end
     end
 

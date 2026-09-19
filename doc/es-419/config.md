@@ -379,6 +379,7 @@ Array<string>
 * ``"multi-close"``: Múltiples operaciones close
 * ``"name-style-check"``: Habilita el diagnóstico para el estilo de nombres.
 * ``"need-check-nil"``: Habilita el diagnóstico para usos de variables si `nil` o un valor opcional (potencialmente `nil`) haya sido asignado a la variable anteriormente.
+* ``"need-check-secret"``: Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
 * ``"need-paren"``: Se requieren paréntesis
 * ``"nesting-long-mark"``: Marcadores de comentario largo anidados
 * ``"newfield-call"``: Habilita el diagnóstico de campo nuevo en una llamada. Se alza un error cuando los paréntesis de una llamada a una función aparecen en la siguiente línea cuando se define un campo en una tabla.
@@ -392,6 +393,7 @@ Array<string>
 * ``"redundant-parameter"``: Habilita el diagnóstico de parámetros redundantes de una función.
 * ``"redundant-return"``: Habilita el diagnóstico para sentencias de retorno que no son necesarias porque la función terminaría de igual manera.
 * ``"redundant-return-value"``: Habilita el diagnóstico para sentencias de retorno que retornan un valor extra que no fue especificado por una anotación de retorno.
+* ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: Habilita el diagnóstico de valores asignados redundantemente. Se alza un error en una asignación, cuando el número de valores es mayor que el número de objetos a los cuales se les asigna.
 * ``"return-type-mismatch"``: Habilita el diagnóstico para valores retornados cuyo tipo no calza con el tipo declarado en la anotación correspondiente de la función.
 * ``"set-const"``: Asignando a una constante const
@@ -404,11 +406,13 @@ Array<string>
 * ``"undefined-env-child"``: Habilita el diagnóstico de variables de ambientes sin definir. Se alza un error cuando a la tabla `_ENV` se le asigna una tabla literal nueva, pero la variable global usada no está presente en el ambiente global.
 * ``"undefined-field"``: Habilita el diagnóstico para los casos en que se lee un campo sin definir de una variable.
 * ``"undefined-global"``: Habilita el diagnóstico de variables globales sin definir.
+* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
 * ``"unexpect-dots"``
 * ``"unexpect-efunc-name"``
 * ``"unexpect-gfunc-name"``
 * ``"unexpect-lfunc-name"``
 * ``"unexpect-symbol"``
+* ``"unfulfilled-expect"``: Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
 * ``"unicode-name"``: Nombre Unicode
 * ``"unknown-attribute"``: Atributo desconocido
 * ``"unknown-cast-variable"``: Habilita el diagnóstico para conversiones de tipo de variables sin definir.
@@ -570,6 +574,7 @@ object<string, string>
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
+    * unfulfilled-expect
     * unknown-cast-variable
     * unknown-diag-code
     * unknown-operator
@@ -579,6 +584,12 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * need-check-secret
+    * redundant-secret-unwrap
+    * undefined-secret-name
+    */
+    "secret": "Fallback",
     /*
     * close-non-object
     * deprecated
@@ -699,6 +710,7 @@ object<string, string>
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
+    * unfulfilled-expect
     * unknown-cast-variable
     * unknown-diag-code
     * unknown-operator
@@ -708,6 +720,12 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * need-check-secret
+    * redundant-secret-unwrap
+    * undefined-secret-name
+    */
+    "secret": "Fallback",
     /*
     * close-non-object
     * deprecated
@@ -965,6 +983,10 @@ object<string, string>
     */
     "need-check-nil": "Opened",
     /*
+    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
+    */
+    "need-check-secret": "Opened",
+    /*
     Habilita el diagnóstico de campo nuevo en una llamada. Se alza un error cuando los paréntesis de una llamada a una función aparecen en la siguiente línea cuando se define un campo en una tabla.
     */
     "newfield-call": "Any",
@@ -1000,6 +1022,10 @@ object<string, string>
     Habilita el diagnóstico para sentencias de retorno que retornan un valor extra que no fue especificado por una anotación de retorno.
     */
     "redundant-return-value": "Any",
+    /*
+    Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
+    */
+    "redundant-secret-unwrap": "Opened",
     /*
     Habilita el diagnóstico de valores asignados redundantemente. Se alza un error en una asignación, cuando el número de valores es mayor que el número de objetos a los cuales se les asigna.
     */
@@ -1045,6 +1071,14 @@ object<string, string>
     */
     "undefined-global": "Any",
     /*
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    */
+    "undefined-secret-name": "Opened",
+    /*
+    Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
+    */
+    "unfulfilled-expect": "Any",
+    /*
     Habilita el diagnóstico para conversiones de tipo de variables sin definir.
     */
     "unknown-cast-variable": "Any",
@@ -1077,6 +1111,22 @@ object<string, string>
     */
     "unused-vararg": "Opened"
 }
+```
+
+# diagnostics.pluginsDir
+
+**Missing description!!**
+
+## type
+
+```ts
+string
+```
+
+## default
+
+```jsonc
+""
 ```
 
 # diagnostics.severity
@@ -1244,6 +1294,10 @@ object<string, string>
     */
     "need-check-nil": "Warning",
     /*
+    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
+    */
+    "need-check-secret": "Warning",
+    /*
     Habilita el diagnóstico de campo nuevo en una llamada. Se alza un error cuando los paréntesis de una llamada a una función aparecen en la siguiente línea cuando se define un campo en una tabla.
     */
     "newfield-call": "Warning",
@@ -1279,6 +1333,10 @@ object<string, string>
     Habilita el diagnóstico para sentencias de retorno que retornan un valor extra que no fue especificado por una anotación de retorno.
     */
     "redundant-return-value": "Warning",
+    /*
+    Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
+    */
+    "redundant-secret-unwrap": "Warning",
     /*
     Habilita el diagnóstico de valores asignados redundantemente. Se alza un error en una asignación, cuando el número de valores es mayor que el número de objetos a los cuales se les asigna.
     */
@@ -1323,6 +1381,14 @@ object<string, string>
     Habilita el diagnóstico de variables globales sin definir.
     */
     "undefined-global": "Warning",
+    /*
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    */
+    "undefined-secret-name": "Warning",
+    /*
+    Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
+    */
+    "unfulfilled-expect": "Warning",
     /*
     Habilita el diagnóstico para conversiones de tipo de variables sin definir.
     */
@@ -2484,6 +2550,22 @@ string | boolean
 
 ```jsonc
 null
+```
+
+# workspace.dofileRoots
+
+Además del espacio de trabajo actual, `dofile` tratará estos directorios como posibles raíces. Los archivos en estos directorios se cargarán inmediatamente.
+
+## type
+
+```ts
+Array<string>
+```
+
+## default
+
+```jsonc
+[]
 ```
 
 # workspace.ignoreDir

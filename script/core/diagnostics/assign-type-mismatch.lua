@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for assignments in which the value\'s type does not match the type of the assigned variable.',
 }
 
 local checkTypes = {

@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'unused',
     severity = 'Hint',
     status   = 'Opened',
+    description = 'Enable diagnostics for code placed after a break statement in a loop.',
 }
 
 ---@async

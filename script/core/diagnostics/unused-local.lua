@@ -14,6 +14,7 @@ protoDiagnostic.register {
     group    = 'unused',
     severity = 'Hint',
     status   = 'Opened',
+    description = 'Enable unused local variable diagnostics.',
 }
 
 ---@param loc parser.object

@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'unbalanced',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for functions with return annotations which have no return statement.',
 }
 
 ---@param block parser.object

@@ -14,6 +14,7 @@ protoDiagnostic.register {
     group    = 'unbalanced',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for return statements which return an extra value which is not specified by a return annotation.',
 }
 
 ---@async

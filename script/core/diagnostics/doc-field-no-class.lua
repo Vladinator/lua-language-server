@@ -9,6 +9,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics to highlight a field annotation without a defining class annotation.',
 }
 
 return function (uri, callback)

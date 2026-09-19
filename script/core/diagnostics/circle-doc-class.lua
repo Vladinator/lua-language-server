@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Circular `@class` inheritance',
 }
 
 ---@async

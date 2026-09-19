@@ -11,6 +11,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for casts of local variables where the target type does not match the defined type.',
 }
 
 ---@async

@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'duplicate',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable duplicate table index diagnostics.',
 }
 
 ---@async

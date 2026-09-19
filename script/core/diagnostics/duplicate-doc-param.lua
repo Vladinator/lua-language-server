@@ -9,6 +9,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for a duplicated param annotation name.',
 }
 
 return function (uri, callback)

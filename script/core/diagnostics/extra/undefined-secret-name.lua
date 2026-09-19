@@ -14,6 +14,7 @@ protoDiagnostic.register {
     group    = 'secret',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.',
 }
 
 ---@async

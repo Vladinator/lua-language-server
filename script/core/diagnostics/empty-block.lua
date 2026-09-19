@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'unused',
     severity = 'Hint',
     status   = 'Opened',
+    description = 'Enable empty code block diagnostics.',
 }
 
 -- 检查空代码块

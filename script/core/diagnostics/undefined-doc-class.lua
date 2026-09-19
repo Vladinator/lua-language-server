@@ -10,6 +10,7 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for class annotations in which an undefined class is referenced.',
 }
 
 return function (uri, callback)

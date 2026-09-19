@@ -13,6 +13,7 @@ protoDiagnostic.register {
     group    = 'unused',
     severity = 'Hint',
     status   = 'Opened',
+    description = 'Enable diagnostics for unreachable code.',
 }
 
 ---@param source parser.object

@@ -379,6 +379,7 @@ Array<string>
 * ``"multi-close"``: Multiple close operations
 * ``"name-style-check"``: Enable diagnostics for name style.
 * ``"need-check-nil"``: Enable diagnostics for variable usages if `nil` or an optional (potentially `nil`) value was assigned to the variable before.
+* ``"need-check-secret"``: Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
 * ``"need-paren"``: Parentheses required
 * ``"nesting-long-mark"``: Nested long comment markers
 * ``"newfield-call"``: Enable newfield call diagnostics. It is raised when the parenthesis of a function call appear on the following line when defining a field in a table.
@@ -392,6 +393,7 @@ Array<string>
 * ``"redundant-parameter"``: Enable redundant function parameter diagnostics.
 * ``"redundant-return"``: Enable diagnostics for return statements which are not needed because the function would exit on its own.
 * ``"redundant-return-value"``: Enable diagnostics for return statements which return an extra value which is not specified by a return annotation.
+* ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: Enable the redundant values assigned diagnostics. It's raised during assignment operation, when the number of values is higher than the number of objects being assigned.
 * ``"return-type-mismatch"``: Enable diagnostics for return values whose type does not match the type declared in the corresponding return annotation.
 * ``"set-const"``: Assigning to a const constant
@@ -404,11 +406,13 @@ Array<string>
 * ``"undefined-env-child"``: Enable undefined environment variable diagnostics. It's raised when `_ENV` table is set to a new literal table, but the used global variable is no longer present in the global environment.
 * ``"undefined-field"``: Enable diagnostics for cases in which an undefined field of a variable is read.
 * ``"undefined-global"``: Enable undefined global variable diagnostics.
+* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
 * ``"unexpect-dots"``
 * ``"unexpect-efunc-name"``
 * ``"unexpect-gfunc-name"``
 * ``"unexpect-lfunc-name"``
 * ``"unexpect-symbol"``
+* ``"unfulfilled-expect"``: Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
 * ``"unicode-name"``: Unicode name
 * ``"unknown-attribute"``: Unknown attribute
 * ``"unknown-cast-variable"``: Enable diagnostics for casts of undefined variables.
@@ -570,6 +574,7 @@ object<string, string>
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
+    * unfulfilled-expect
     * unknown-cast-variable
     * unknown-diag-code
     * unknown-operator
@@ -579,6 +584,12 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * need-check-secret
+    * redundant-secret-unwrap
+    * undefined-secret-name
+    */
+    "secret": "Fallback",
     /*
     * close-non-object
     * deprecated
@@ -699,6 +710,7 @@ object<string, string>
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
+    * unfulfilled-expect
     * unknown-cast-variable
     * unknown-diag-code
     * unknown-operator
@@ -708,6 +720,12 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * need-check-secret
+    * redundant-secret-unwrap
+    * undefined-secret-name
+    */
+    "secret": "Fallback",
     /*
     * close-non-object
     * deprecated
@@ -965,6 +983,10 @@ object<string, string>
     */
     "need-check-nil": "Opened",
     /*
+    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
+    */
+    "need-check-secret": "Opened",
+    /*
     Enable newfield call diagnostics. It is raised when the parenthesis of a function call appear on the following line when defining a field in a table.
     */
     "newfield-call": "Any",
@@ -1000,6 +1022,10 @@ object<string, string>
     Enable diagnostics for return statements which return an extra value which is not specified by a return annotation.
     */
     "redundant-return-value": "Any",
+    /*
+    Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
+    */
+    "redundant-secret-unwrap": "Opened",
     /*
     Enable the redundant values assigned diagnostics. It's raised during assignment operation, when the number of values is higher than the number of objects being assigned.
     */
@@ -1045,6 +1071,14 @@ object<string, string>
     */
     "undefined-global": "Any",
     /*
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    */
+    "undefined-secret-name": "Opened",
+    /*
+    Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
+    */
+    "unfulfilled-expect": "Any",
+    /*
     Enable diagnostics for casts of undefined variables.
     */
     "unknown-cast-variable": "Any",
@@ -1077,6 +1111,22 @@ object<string, string>
     */
     "unused-vararg": "Opened"
 }
+```
+
+# diagnostics.pluginsDir
+
+Directory containing custom diagnostic plugin files (`.lua`). Blank by default -- disabled unless set. Each file must self-register (via `proto.diagnostic.register`) under a name matching its own filename, and return `function(uri, callback) ... end`, the same as a built-in diagnostic. Loading a plugin from here runs arbitrary Lua code, so you will be asked to trust the directory the first time it is loaded.
+
+## type
+
+```ts
+string
+```
+
+## default
+
+```jsonc
+""
 ```
 
 # diagnostics.severity
@@ -1244,6 +1294,10 @@ object<string, string>
     */
     "need-check-nil": "Warning",
     /*
+    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
+    */
+    "need-check-secret": "Warning",
+    /*
     Enable newfield call diagnostics. It is raised when the parenthesis of a function call appear on the following line when defining a field in a table.
     */
     "newfield-call": "Warning",
@@ -1279,6 +1333,10 @@ object<string, string>
     Enable diagnostics for return statements which return an extra value which is not specified by a return annotation.
     */
     "redundant-return-value": "Warning",
+    /*
+    Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
+    */
+    "redundant-secret-unwrap": "Warning",
     /*
     Enable the redundant values assigned diagnostics. It's raised during assignment operation, when the number of values is higher than the number of objects being assigned.
     */
@@ -1323,6 +1381,14 @@ object<string, string>
     Enable undefined global variable diagnostics.
     */
     "undefined-global": "Warning",
+    /*
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    */
+    "undefined-secret-name": "Warning",
+    /*
+    Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
+    */
+    "unfulfilled-expect": "Warning",
     /*
     Enable diagnostics for casts of undefined variables.
     */
@@ -2480,6 +2546,22 @@ string | boolean
 
 ```jsonc
 null
+```
+
+# workspace.dofileRoots
+
+In addition to the current workspace, which directories `dofile` will treat as a possible root. The files in these directories will be loaded immediately.
+
+## type
+
+```ts
+Array<string>
+```
+
+## default
+
+```jsonc
+[]
 ```
 
 # workspace.ignoreDir

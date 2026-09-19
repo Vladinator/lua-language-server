@@ -17,6 +17,7 @@ protoDiagnostic.register {
     group    = 'strict',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics to highlight deprecated API.',
 }
 
 -- The @deprecated LuaDoc tag itself (a bare marker, like @secret). Its

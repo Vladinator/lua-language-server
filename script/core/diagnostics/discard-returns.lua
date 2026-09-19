@@ -12,6 +12,7 @@ protoDiagnostic.register {
     group    = 'strict',
     severity = 'Warning',
     status   = 'Any',
+    description = 'Enable diagnostics for calls of functions annotated with `---@nodiscard` where the return values are ignored.',
 }
 
 ---@async

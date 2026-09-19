@@ -11,6 +11,7 @@ protoDiagnostic.register {
     group    = 'global',
     severity = 'Information',
     status   = 'Any',
+    description = 'Enable undefined environment variable diagnostics. It\'s raised when `_ENV` table is set to a new literal table, but the used global variable is no longer present in the global environment.',
 }
 
 ---@param source parser.object

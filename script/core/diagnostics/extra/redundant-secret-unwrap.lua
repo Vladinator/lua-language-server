@@ -18,6 +18,7 @@ protoDiagnostic.register {
     group    = 'secret',
     severity = 'Warning',
     status   = 'Opened',
+    description = 'Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.',
 }
 
 ---@async

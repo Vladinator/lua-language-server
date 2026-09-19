@@ -11,6 +11,7 @@ protoDiagnostic.register {
     group    = 'unused',
     severity = 'Hint',
     status   = 'Opened',
+    description = 'Enable unused label diagnostics.',
 }
 
 return function (uri, callback)

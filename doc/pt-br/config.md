@@ -379,6 +379,7 @@ Array<string>
 * ``"multi-close"``: Múltiplas operações close
 * ``"name-style-check"``: Habilita diagnóstico para estilo de nomes.
 * ``"need-check-nil"``: Habilita diagnóstico para uso de variável após ela receber `nil` ou valor opcional.
+* ``"need-check-secret"``: Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
 * ``"need-paren"``: Parênteses necessários
 * ``"nesting-long-mark"``: Marcadores de comentário longo aninhados
 * ``"newfield-call"``: Em uma tabela literal, faltou um separador entre duas linhas; foi interpretado como uma operação de índice
@@ -392,6 +393,7 @@ Array<string>
 * ``"redundant-parameter"``: Chamada de função com parâmetros em excesso
 * ``"redundant-return"``: Habilita diagnóstico para retornos desnecessários porque a função já terminaria.
 * ``"redundant-return-value"``: Habilita diagnóstico para retornos que entregam valor extra não especificado na anotação.
+* ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: Em uma atribuição, há mais valores que variáveis-alvo
 * ``"return-type-mismatch"``: Habilita diagnóstico para retornos cujo tipo não corresponde ao tipo declarado.
 * ``"set-const"``: Atribuindo a uma constante const
@@ -404,11 +406,13 @@ Array<string>
 * ``"undefined-env-child"``: `_ENV` foi definido como nova tabela literal, mas a variável global acessada não está nela
 * ``"undefined-field"``: Habilita diagnóstico para leitura de campo indefinido de uma variável.
 * ``"undefined-global"``: Variável global não definida
+* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
 * ``"unexpect-dots"``
 * ``"unexpect-efunc-name"``
 * ``"unexpect-gfunc-name"``
 * ``"unexpect-lfunc-name"``
 * ``"unexpect-symbol"``
+* ``"unfulfilled-expect"``: Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
 * ``"unicode-name"``: Nome Unicode
 * ``"unknown-attribute"``: Atributo desconhecido
 * ``"unknown-cast-variable"``: Habilita diagnóstico para coerções de variáveis indefinidas.
@@ -570,6 +574,7 @@ object<string, string>
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
+    * unfulfilled-expect
     * unknown-cast-variable
     * unknown-diag-code
     * unknown-operator
@@ -579,6 +584,12 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * need-check-secret
+    * redundant-secret-unwrap
+    * undefined-secret-name
+    */
+    "secret": "Fallback",
     /*
     * close-non-object
     * deprecated
@@ -699,6 +710,7 @@ object<string, string>
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
+    * unfulfilled-expect
     * unknown-cast-variable
     * unknown-diag-code
     * unknown-operator
@@ -708,6 +720,12 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * need-check-secret
+    * redundant-secret-unwrap
+    * undefined-secret-name
+    */
+    "secret": "Fallback",
     /*
     * close-non-object
     * deprecated
@@ -965,6 +983,10 @@ object<string, string>
     */
     "need-check-nil": "Opened",
     /*
+    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
+    */
+    "need-check-secret": "Opened",
+    /*
     Em uma tabela literal, faltou um separador entre duas linhas; foi interpretado como uma operação de índice
     */
     "newfield-call": "Any",
@@ -1000,6 +1022,10 @@ object<string, string>
     Habilita diagnóstico para retornos que entregam valor extra não especificado na anotação.
     */
     "redundant-return-value": "Any",
+    /*
+    Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
+    */
+    "redundant-secret-unwrap": "Opened",
     /*
     Em uma atribuição, há mais valores que variáveis-alvo
     */
@@ -1045,6 +1071,14 @@ object<string, string>
     */
     "undefined-global": "Any",
     /*
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    */
+    "undefined-secret-name": "Opened",
+    /*
+    Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
+    */
+    "unfulfilled-expect": "Any",
+    /*
     Habilita diagnóstico para coerções de variáveis indefinidas.
     */
     "unknown-cast-variable": "Any",
@@ -1077,6 +1111,22 @@ object<string, string>
     */
     "unused-vararg": "Opened"
 }
+```
+
+# diagnostics.pluginsDir
+
+**Missing description!!**
+
+## type
+
+```ts
+string
+```
+
+## default
+
+```jsonc
+""
 ```
 
 # diagnostics.severity
@@ -1244,6 +1294,10 @@ object<string, string>
     */
     "need-check-nil": "Warning",
     /*
+    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
+    */
+    "need-check-secret": "Warning",
+    /*
     Em uma tabela literal, faltou um separador entre duas linhas; foi interpretado como uma operação de índice
     */
     "newfield-call": "Warning",
@@ -1279,6 +1333,10 @@ object<string, string>
     Habilita diagnóstico para retornos que entregam valor extra não especificado na anotação.
     */
     "redundant-return-value": "Warning",
+    /*
+    Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
+    */
+    "redundant-secret-unwrap": "Warning",
     /*
     Em uma atribuição, há mais valores que variáveis-alvo
     */
@@ -1323,6 +1381,14 @@ object<string, string>
     Variável global não definida
     */
     "undefined-global": "Warning",
+    /*
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    */
+    "undefined-secret-name": "Warning",
+    /*
+    Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.
+    */
+    "unfulfilled-expect": "Warning",
     /*
     Habilita diagnóstico para coerções de variáveis indefinidas.
     */
@@ -2480,6 +2546,22 @@ string | boolean
 
 ```jsonc
 null
+```
+
+# workspace.dofileRoots
+
+Além da workspace atual, `dofile` tratará estes diretórios como possíveis raízes. Os arquivos nesses diretórios serão carregados imediatamente.
+
+## type
+
+```ts
+Array<string>
+```
+
+## default
+
+```jsonc
+[]
 ```
 
 # workspace.ignoreDir

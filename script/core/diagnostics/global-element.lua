@@ -13,6 +13,7 @@ protoDiagnostic.register {
     group    = 'conventions',
     severity = 'Warning',
     status   = 'None',
+    description = 'Enable diagnostics to warn about global elements.',
 }
 
 ---@param source parser.object

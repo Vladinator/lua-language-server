@@ -110,7 +110,8 @@ local function report_pretty(uri, diags)
             )
         )
         if #lines > 0 then
-            io.write('    ', lines[rstart.line + 1], '\n')
+            -- a diagnostic can sit past the last line (e.g. at EOF)
+            io.write('    ', lines[rstart.line + 1] or '', '\n')
             io.write('    ', colors.grey, (' '):rep(rstart.character), '^')
             if rstart.line == rend.line then
                 io.write(('^'):rep(rend.character - rstart.character - 1))

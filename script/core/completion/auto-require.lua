@@ -136,8 +136,10 @@ function m.check(state, word, position, callback)
                     goto CONTINUE
                 end
                 if node.type == 'setfield' or node.type == 'getfield' then
-                    local fieldName = node.field[1]
-                    fullKeyPath = ("." .. fieldName .. fullKeyPath)
+                    local fieldName = node.field and node.field[1]
+                    if fieldName then
+                        fullKeyPath = ("." .. fieldName .. fullKeyPath) --[[@as string]]
+                    end
                 end
                 if node.type == 'getlocal' then
                     node = node.node

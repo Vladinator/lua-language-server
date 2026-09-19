@@ -726,7 +726,7 @@ function vm.getClassFields(suri, object, key, pushResult)
                             or     keyType == 'string' then
                                 keyObject = { type = keyType, [1] = key }
                             end
-                            if keyObject and field.field.type ~= 'doc.field.name' then
+                            if keyObject and field.field and field.field.type ~= 'doc.field.name' then
                                 -- ---@field [integer] boolean -> class[1]
                                 local fieldNode = vm.compileNode(field.field)
                                 if vm.isSubType(suri, keyObject --[[@as parser.object]], fieldNode) then

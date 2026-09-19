@@ -304,7 +304,7 @@ local function getNodeTypesWithLiteralField(uri, source, fieldName, literal)
             for _, set in ipairs(c:getSets(uri)) do
                 if set.type == 'doc.class' then
                     for _, f in ipairs(set.fields) do
-                        if f.field[1] == fieldName then
+                        if f.field and f.field[1] == fieldName then
                             for _, t in ipairs(f.extends.types) do
                                 if guide.isLiteral(t) and t[1] ~= nil and t[1] == literal[1] then
                                     tys = tys or {}

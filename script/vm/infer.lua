@@ -668,6 +668,9 @@ function vm.viewKey(source, uri)
     or source.type == 'setindex'
     or source.type == 'getindex' then
         local index = source.index
+        if not index then
+            return nil
+        end
         local name = vm.getInfer(index):viewLiterals()
         if not name then
             return nil

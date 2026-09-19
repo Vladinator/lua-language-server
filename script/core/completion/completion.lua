@@ -1749,7 +1749,9 @@ local function tryIndex(state, position, results)
     if not parent then
         return
     end
-    local word = parent.next and parent.next.index and parent.next.index[1]
+    local nextIndex = parent.next and parent.next.index
+    ---@type string?
+    local word = nextIndex and nextIndex[1]
     if not word then
         return
     end

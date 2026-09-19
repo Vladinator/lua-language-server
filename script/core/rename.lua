@@ -190,6 +190,9 @@ local function ofFieldThen(key, src, newname, callback)
     or     src.type == 'setmethod' then
         src = src.method
     end
+    if not src then
+        return
+    end
     if src.type == 'string' then
         local quo = src[2]
         local text = util.viewString(newname, quo)

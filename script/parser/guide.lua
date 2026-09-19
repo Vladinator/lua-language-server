@@ -30,9 +30,9 @@ local type         = type
 ---@field specials              parser.object[]
 ---@field labels                parser.object[]
 ---@field node                  parser.object
----@field field                 parser.object
----@field method                parser.object
----@field index                 parser.object
+---@field field?                 parser.object
+---@field method?                parser.object
+---@field index?                 parser.object
 ---@field extends               parser.object[]|parser.object
 ---@field types                 parser.object[]
 ---@field fields                parser.object[]
@@ -1141,7 +1141,7 @@ function m.getKeyName(obj)
     elseif tp == 'doc.enum' then
         return obj.enum[1]
     elseif tp == 'doc.field' then
-        return obj.field[1]
+        return obj.field and obj.field[1]
     elseif tp == 'doc.field.name'
     or     tp == 'doc.type.name'
     or     tp == 'doc.class.name'
@@ -1218,7 +1218,7 @@ function m.getKeyType(obj)
     elseif tp == 'doc.enum' then
         return 'string'
     elseif tp == 'doc.field' then
-        return type(obj.field[1])
+        return obj.field and type(obj.field[1]) or nil
     elseif tp == 'doc.type.field' then
         return type(obj.name[1])
     end

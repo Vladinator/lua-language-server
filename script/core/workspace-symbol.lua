@@ -30,7 +30,7 @@ local function buildSource(source, key, results)
     or     source.type == 'tablefield' then
         local field = source.field
         local name  = field and field[1] --[[@as string]]
-        if name and matchKey(key, name) then
+        if field and name and matchKey(key, name) then
             results[#results+1] = {
                 name   = name,
                 skind  = define.SymbolKind.Field,
@@ -41,7 +41,7 @@ local function buildSource(source, key, results)
     elseif source.type == 'setmethod' then
         local method = source.method
         local name   = method and method[1] --[[@as string]]
-        if name and matchKey(key, name) then
+        if method and name and matchKey(key, name) then
             results[#results+1] = {
                 name   = name,
                 skind  = define.SymbolKind.Method,

@@ -82,13 +82,17 @@ return function (uri, callback)
                 if view ~= myView then
                     goto CONTINUE
                 end
+                local myName, name = myField.field, field.field
+                if not myName or not name then
+                    goto CONTINUE
+                end
                 callback {
-                    start   = myField.field.start,
-                    finish  = myField.field.finish,
+                    start   = myName.start,
+                    finish  = myName.finish,
                     message = MESSAGE:format(myView),
                     related = {{
-                        start  = field.field.start,
-                        finish = field.field.finish,
+                        start  = name.start,
+                        finish = name.finish,
                         uri    = guide.getUri(field),
                     }}
                 }

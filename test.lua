@@ -88,6 +88,7 @@ local function testAll()
     test 'document_symbol'
     test 'code_action'
     test 'other'
+    test 'fuzz_doc'
 end
 
 local files = require "files"

@@ -190,10 +190,14 @@ end
 ---@param obj docUnion
 ---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['doc.field'] = function(source, obj, has_seen)
-    if source.field.type == 'doc.field.name' then
-        obj.name = source.field[1]
+    local field = source.field
+    if not field then
+        return
+    end
+    if field.type == 'doc.field.name' then
+        obj.name = field[1]
     else
-        obj.name = ('[%s]'):format(vm.getInfer(source.field):view(ws.rootUri))
+        obj.name = ('[%s]'):format(vm.getInfer(field):view(ws.rootUri))
     end
     obj.file = export.getLocalPath(guide.getUri(source))
     obj.extends = source.extends and export.documentObject(source.extends, has_seen) --[[@as string|docUnion]] --check if bug?
@@ -308,7 +312,7 @@ export.makeDocObject['setmethod'] = export.makeDocObject['doc.class']
 ---@param obj docUnion
 ---@param has_seen table<parser.object|vm.global|vm.generic, true>?
 export.makeDocObject['tableindex'] = function(source, obj, has_seen)
-    obj.name = source.index[1]
+    obj.name = source.index and source.index[1]
 end
 
 ---@async

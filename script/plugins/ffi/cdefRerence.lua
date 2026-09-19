@@ -15,7 +15,7 @@ local function getCdefSourcePosition(ffi_state)
     local source = vm.getFields(cdef_position)
     for _, value in ipairs(source) do
         local name = guide.getKeyName(value)
-        if name == 'cdef' then
+        if name == 'cdef' and value.field then
             return value.field.start
         end
     end

@@ -91,9 +91,13 @@ return function (uri, callback)
             return
         end
         local message = MESSAGE:format(guide.getKeyName(src))
+        local index = src.index
+        if not index then
+            return
+        end
         callback {
-            start   = src.index.start,
-            finish  = src.index.finish,
+            start   = index.start,
+            finish  = index.finish,
             message = message,
         }
     end

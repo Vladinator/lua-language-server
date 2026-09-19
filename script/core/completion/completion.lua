@@ -2300,7 +2300,9 @@ local function tryluaDocBySource(state, position, source, results)
         return true
     elseif source.type == 'doc.diagnostic.name' then
         local sourceName = source[1]
-        for name in util.sortPairs(define.DiagnosticDefaultSeverity) do
+        -- the live registry: `define.DiagnosticDefaultSeverity` is a snapshot taken when
+        -- proto.define loads, before the diagnostics have registered themselves
+        for name in util.sortPairs(diag.getDiagAndErrNameMap()) do
             if matchKey(sourceName, name) then
                 results[#results+1] = {
                     label    = name,

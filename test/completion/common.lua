@@ -4697,3 +4697,36 @@ local x
         kind  = define.CompletionItemKind.Event,
     },
 }
+
+-- names of the diagnostics after a `---@diagnostic` mode, half typed, in every mode and after
+-- a comma; they come from the live registry, which the plugin diagnostics join when
+-- core.diagnostics has loaded
+require 'core.diagnostics'
+
+---@param label string
+---@return fun(result: table[])
+local function offers(label)
+    return function (result)
+        for _, item in ipairs(result) do
+            if item.label == label then
+                return
+            end
+        end
+        error(('`%s` not offered'):format(label))
+    end
+end
+
+TEST [[
+---@diagnostic disable-next-line: unused-l<??>
+]]
+(offers 'unused-local')
+
+TEST [[
+---@diagnostic expect-next-line: unused-local, need-check-s<??>
+]]
+(offers 'need-check-secret')
+
+TEST [[
+---@diagnostic expect-line: unfulfilled-ex<??>
+]]
+(offers 'unfulfilled-expect')

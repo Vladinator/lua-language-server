@@ -42,10 +42,11 @@ x
         }
     })
 
+    ---@type any
     local targetItem
-    for _, item in ipairs(completions.items) do
+    for _, item in ipairs(completions.items --[[@as any[] ]]) do
         if item.label == 'xxxx' then
-            targetItem = item
+            targetItem = item --[[@as any]]
             break
         end
     end

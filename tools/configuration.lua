@@ -1,6 +1,41 @@
 local json     = require 'json'
 local template = require 'config.template'
 local util     = require 'utility'
+-- Diagnostics that self-register (core/diagnostics/init.lua's eager list,
+-- core/diagnostics/extra/ plugins) only exist in the registry once their file
+-- ran; load them all before anything below reads the diagnostic names or defaults.
+-- (the extras scan needs the server root; a normal server start has set it, a
+-- standalone `bin/lua-language-server tools/build-doc.lua` run has not.)
+if not ROOT then
+    local fs  = require 'bee.filesystem'
+    local sys = require 'bee.sys'
+    ---@diagnostic disable-next-line: lowercase-global, inject-field, undefined-global
+    ROOT = fs.path(sys.exe_path():parent_path():parent_path():string())
+end
+require 'core.diagnostics'
+local diagd    = require 'proto.diagnostic'
+
+--- The template's diagnostic key sets are computed from the live registry (functions),
+--- and its `default` tables are a snapshot taken before the plugins registered. Use the
+--- live registry for both so the schema lists every diagnostic, plugins included.
+---@type table<string, table<string, string>>
+local liveDefaults = {
+    ['Lua.diagnostics.severity']        = diagd.getDefaultSeverity(),
+    ['Lua.diagnostics.neededFileStatus'] = diagd.getDefaultStatus(),
+    ['Lua.diagnostics.groupSeverity']   = diagd.getGroupSeverity(),
+    ['Lua.diagnostics.groupFileStatus'] = diagd.getGroupStatus(),
+}
+
+--- `enums` can be a list or a function that computes it (see the diagnostics entries in
+--- config/template.lua); the schema needs the list.
+---@param enums (any[]|fun(): any[])?
+---@return any[]?
+local function resolveEnums(enums)
+    if type(enums) == 'function' then
+        return (enums --[[@as fun(): any[] ]])()
+    end
+    return enums --[[@as any[]?]]
+end
 
 ---@alias tools.configuration.type string|tools.configuration.type[]
 
@@ -48,9 +83,9 @@ local function getDefault(temp)
 end
 
 ---@param temp config.unit
----@return any[]|fun(): any[]|nil
+---@return any[]?
 local function getEnum(temp)
-    return temp.enums
+    return resolveEnums(temp.enums)
 end
 
 ---@param name string
@@ -58,11 +93,10 @@ end
 ---@return string[]?
 local function getEnumDesc(name, temp)
     -- Array 类型的枚举挂在子单元 sub.enums 上（如 Lua.runtime.nonstandardSymbol）
-    local enums = temp.enums or (temp.sub and temp.sub.enums)
+    local enums = resolveEnums(temp.enums or (temp.sub and temp.sub.enums))
     if not enums then
         return nil
     end
-    ---@cast enums any[] -- see TODO.md: `enums` can also be `fun(): any[]` here, not resolved (pre-existing)
     ---@type string[]
     local descs = {}
     -- Lua.diagnostics.disable 的枚举（诊断名）复用 locale 中已有的
@@ -87,7 +121,7 @@ end
 ---@field scope? string
 ---@field type? tools.configuration.type
 ---@field default any
----@field enum? any[]|fun(): any[]
+---@field enum? any[]
 ---@field markdownDescription? string
 ---@field description? string
 ---@field markdownEnumDescriptions? string[]
@@ -115,6 +149,9 @@ local function insertHash(name, conf, temp)
     conf.additionalProperties = false
 
     local subvalue = assert(temp.subvalue)
+    if liveDefaults[name] then
+        conf.default = liveDefaults[name]
+    end
     if type(conf.default) == 'table' and next(conf.default) then
         local default = conf.default
         conf.default = nil

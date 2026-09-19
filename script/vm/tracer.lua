@@ -882,13 +882,22 @@ function mt:lookIntoChild(action, topNode, outNode)
     return topNode, outNode or topNode
 end
 
----@param block parser.object
----@param start integer
----@param node  vm.node
-function mt:lookIntoBlock(block, start, node)
+---@param block   parser.object
+---@param start   integer
+---@param node    vm.node
+---@param effect? integer  when walking on from an assignment: its `effect`, to step over the statement itself
+function mt:lookIntoBlock(block, start, node, effect)
     self:resetCastsIndex(start)
     for _, action in ipairs(block) do
         if (action.effect or action.start) < start then
+            goto CONTINUE
+        end
+        -- The assignment's own statement is not "after" it: `id = f(id)` reads `id` before the
+        -- assignment takes effect. Its target ends before its value, so the position test above
+        -- lets it through, and the reads in the value used to get the assigned type instead of
+        -- the earlier one, but only when this walk happened to run before the one from the
+        -- previous assignment (which stops at the assignment).
+        if effect and effect ~= math.maxinteger and action.effect == effect then
             goto CONTINUE
         end
         if self.careMap[action] then
@@ -995,7 +1004,7 @@ function mt:calcNode(source)
         self.nodes[source] = node
         local parentBlock = guide.getParentBlock(source)
         if parentBlock then
-            self:lookIntoBlock(parentBlock, source.finish, node)
+            self:lookIntoBlock(parentBlock, source.finish, node, source.type == 'setlocal' and source.effect or nil)
         end
         return
     end

@@ -47,3 +47,51 @@ local view = vm.getInfer(last):view(TESTURI)
 assert(view == 'string', ('expected `string`, got `%s`'):format(view))
 
 files.remove(TESTURI)
+
+-- A read inside the value of an assignment sees the variable as it was BEFORE the assignment.
+-- Asking for a later read first walks on from the assignment, and that walk used to visit the
+-- assignment's own statement as well: the `id` in `id = f(id)` then got the type of `f`'s
+-- result (`any`) instead of `string?`, for as long as the tracer lived (the CLI check goes
+-- through the file in an order where that happens, the editor in another, which is how a
+-- `string?` passed to `string.match` was reported in the editor only).
+local script2 = [==[
+local stringMatch = string.match
+
+---@param name string
+local function g(name)
+    ---@type string[]
+    local pg = {}
+    for idVal in string.gmatch(name, '[^%.]+') do
+        local id = idVal --[[@as string?]]
+        id = stringMatch(id, '^%s*(.-)%s*$')
+        if id ~= '' then
+            pg[#pg+1] = id
+        end
+    end
+    return pg
+end
+]==]
+
+files.setText(TESTURI, script2)
+local state2 = files.getState(TESTURI)
+assert(state2)
+
+---@type parser.object?, parser.object?
+local arg, after
+guide.eachSource(state2.ast, function (source)
+    if source.type ~= 'getlocal' or source[1] ~= 'id' then
+        return
+    end
+    if source.parent and source.parent.type == 'callargs' then
+        arg = source
+    else
+        after = source   -- `pg[#pg+1] = id`
+    end
+end)
+assert(arg and after)
+
+vm.compileNode(after)
+local argView = vm.getInfer(vm.compileNode(arg)):view(TESTURI)
+assert(argView == 'string?', ('expected `string?`, got `%s`'):format(argView))
+
+files.remove(TESTURI)

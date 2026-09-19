@@ -7,6 +7,9 @@
 --     SIM_ORDER = forward (default) | reverse | shuffle:<seed>    file launch order
 --     SIM_JOBS  = <n>                                             limit the number of files
 --     SIM_ONLY  = <path fragment>                                 only those files, opened like editor tabs
+--     SIM_DIRS  = /script/,/tools/                                directories to diagnose (default /script/)
+--     SIM_SEQUENTIAL = 1                                          diagnose one file after the other (CLI order)
+--     SIM_AWAIT_OFF = 1                                           run with await.disable(), like `--check`
 --     SIM_CODE  = <diagnostic code>                               list this code (default no-unknown)
 --     SIM_TOUCH = <path fragment>                                 re-set the text of the matching
 --                 files, then diagnose everything again (editor invalidation)
@@ -25,6 +28,8 @@ local diagnostics = require 'core.diagnostics'
 local wantCode   = os.getenv('SIM_CODE') or 'no-unknown'
 -- keeps the client loop (script/lclient.lua) running after the last test returned
 SIM_KEEPALIVE = true
+-- SIM_SEQUENTIAL=1: one file after the other, the way the CLI check goes (nothing interleaves)
+local sequential = os.getenv('SIM_SEQUENTIAL') == '1'
 local jobsWanted = tonumber(os.getenv('SIM_JOBS') or '') or 100000
 ---@type string[]
 local unknownLines = {}
@@ -32,12 +37,22 @@ local pending = 0
 local jobs = 0
 ---@type uri[]
 local uris = {}
+-- SIM_DIRS = /script/,/tools/ : which directories to diagnose (default /script/)
+---@type string[]
+local dirs = {}
+for dir in (os.getenv('SIM_DIRS') or '/script/'):gmatch('[^,]+') do
+    dirs[#dirs+1] = dir
+end
 for uri in files.eachFile() do
     local path = furi.decode(uri):gsub('[\\]', '/')
-    if path:find('/script/', 1, true)
-    and not path:find('/script/plugins/', 1, true)
+    if not path:find('/script/plugins/', 1, true)
     and not path:find('/script/meta/', 1, true) then
-        uris[#uris+1] = uri
+        for _, dir in ipairs(dirs) do
+            if path:find(dir, 1, true) then
+                uris[#uris+1] = uri
+                break
+            end
+        end
     end
 end
 table.sort(uris)
@@ -90,11 +105,16 @@ local function pass(label)
                         local off = guide.positionToOffset(state, result.start)
                         text = state.lua:sub(off, off + 70):match('^[^\n]*') or ''
                     end
-                    unknownLines[#unknownLines+1] = furi.decode(uri):gsub('[\\]', '/'):match('script/.*') .. ' [' .. tostring(result.code) .. '] :: ' .. text
+                    unknownLines[#unknownLines+1] = furi.decode(uri):gsub('[\\]', '/'):match('/lua%-language%-server/(.*)') .. ' [' .. tostring(result.code) .. '] :: ' .. text
                 end
             end)
             pending = pending - 1
         end)
+        if sequential then
+            while pending > 0 do
+                await.sleep(0)
+            end
+        end
     end
     print('editor_sim: launched', jobs, 'concurrent diagnostics' .. label)
     while pending > 0 do
@@ -105,6 +125,11 @@ local function pass(label)
     for _, l in ipairs(unknownLines) do
         print('   ' .. l)
     end
+end
+
+-- SIM_AWAIT_OFF=1: `await.disable()` first, which is how `--check` runs (diagnostics never yield)
+if os.getenv('SIM_AWAIT_OFF') == '1' then
+    await.disable()
 end
 
 ---@async

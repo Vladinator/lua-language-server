@@ -22,7 +22,7 @@ local function findSetField(ast, name, callback)
     guide.eachSourceType(ast, 'setfield', function (source)
         await.delay()
         if source.node[1] == name then
-            local funcPtr = source.value.node
+            local funcPtr = source.value and source.value.node
             if not funcPtr then
                 return
             end

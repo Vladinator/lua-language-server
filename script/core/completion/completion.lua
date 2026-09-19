@@ -164,8 +164,10 @@ local function findNearestTable(state, position)
     for _, field in ipairs(source --[[@as parser.object[] ]]) do
         if field.start <= position and (field.range or field.finish) >= position then
             if field.type == 'tableexp' then
-                if field.value.type == 'getlocal'
-                or field.value.type == 'getglobal' then
+                local value = field.value
+                if value
+                and (value.type == 'getlocal'
+                or   value.type == 'getglobal') then
                     if field.finish >= position then
                         return source
                     else

@@ -125,7 +125,11 @@ function m.check(state, word, position, callback)
             end
             -- 枚举的完整路径
             local fullKeyPath = ""
-            local node = doc.bindSource.parent
+            local bindSource = doc.bindSource
+            if not bindSource then
+                goto CONTINUE
+            end
+            local node = bindSource.parent
             while node do
                 -- 检查是否可见
                 if not vm.isVisible(state.ast, node) then
@@ -133,7 +137,7 @@ function m.check(state, word, position, callback)
                 end
                 if node.type == 'setfield' or node.type == 'getfield' then
                     local fieldName = node.field[1] --[[@as string]]
-                    fullKeyPath = "." .. fieldName .. fullKeyPath
+                    fullKeyPath = ("." .. fieldName .. fullKeyPath) --[[@as string]]
                 end
                 if node.type == 'getlocal' then
                     node = node.node
@@ -146,9 +150,10 @@ function m.check(state, word, position, callback)
                 hit = true
             elseif targetSource.type == 'table' then
                 for _, value in ipairs(targetSource) do
-                    if value.value.node == node then
-                        local fieldName = value.value[1] --[[@as string]]
-                        fullKeyPath = "." .. fieldName .. fullKeyPath
+                    local valueObj = value.value
+                    if valueObj and valueObj.node == node then
+                        local fieldName = valueObj[1] --[[@as string]]
+                        fullKeyPath = ("." .. fieldName .. fullKeyPath) --[[@as string]]
                         hit = true
                         break
                     end

@@ -45,7 +45,7 @@ local function TestaddClassDocAtParam(script, index)
     ---@type parser.object?
     local arg
     local state = Run(script, function (state)
-        local func = state.ast[1].value
+        local func = assert(state.ast[1].value)
         local ok
         ok, arg = helper.addClassDocAtParam(state.ast, "AA", func, index)
         assert(ok)

@@ -39,8 +39,10 @@ return function (uri, callback)
             if not last then
                 return
             end
-            if  last.start       <= source.start
-            and last.value.start >= source.finish then
+            local lastValue = last.value
+            if  lastValue
+            and last.start      <= source.start
+            and lastValue.start >= source.finish then
                 callback {
                     start   = source.start,
                     finish  = source.finish,

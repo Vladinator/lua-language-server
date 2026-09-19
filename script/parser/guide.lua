@@ -2,16 +2,16 @@ local error        = error
 local type         = type
 
 ---@class parser.object
----@field bindDocs              parser.object[]
----@field bindGroup             parser.object[]
----@field bindSource            parser.object
----@field value                 parser.object
+---@field bindDocs?              parser.object[]
+---@field bindGroup?             parser.object[]
+---@field bindSource?            parser.object
+---@field value?                 parser.object
 ---@field parent                parser.object
 ---@field type                  string
----@field special               string|parser.object -- almost always the name of a recognized builtin (e.g. 'pcall', 'setmetatable', '_G'); luadoc.lua's buildAndBindDoc is the one place that stores a parser.object here instead (looks like it should be .bindSource -- see spawned follow-up task)
----@field tag                   string
+---@field special?               string|parser.object -- almost always the name of a recognized builtin (e.g. 'pcall', 'setmetatable', '_G'); luadoc.lua's buildAndBindDoc is the one place that stores a parser.object here instead (looks like it should be .bindSource -- see spawned follow-up task)
+---@field tag?                   string
 ---@field args                  { [integer]: parser.object, start: integer, finish: integer, type: string }
----@field locals                parser.object[]
+---@field locals?                parser.object[]
 ---@field globals?              parser.object[]
 ---@field gotos?                parser.object[]
 ---@field returns?              parser.object[]

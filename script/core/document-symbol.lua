@@ -155,6 +155,9 @@ local function buildValue(source, sub, used, symbols)
         range      = { source.index.start, source.index.finish }
         sRange     = { source.index.start, source.index.finish }
     elseif source.type == 'tableexp' then
+        if not source.value then
+            return
+        end
         range      = { source.value.start, source.value.finish }
         sRange     = { source.value.start, source.value.finish }
     elseif source.type == 'setfield' then

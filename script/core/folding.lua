@@ -150,18 +150,26 @@ local care = {
         results[#results+1] = folding
     end,
     ['doc.class'] = function (source, _text, results)
+        local group = source.bindGroup
+        if not group then
+            return
+        end
         local folding = {
             start        = source.start,
-            finish       = source.bindGroup[#source.bindGroup].finish,
+            finish       = group[#group].finish,
             kind         = 'comment',
             hideLastLine = true,
         }
         results[#results+1] = folding
     end,
     ['doc.alias'] = function (source, _text, results)
+        local group = source.bindGroup
+        if not group then
+            return
+        end
         local folding = {
             start        = source.start,
-            finish       = source.bindGroup[#source.bindGroup].finish,
+            finish       = group[#group].finish,
             kind         = 'comment',
             hideLastLine = true,
         }

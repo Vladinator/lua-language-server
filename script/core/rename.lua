@@ -100,6 +100,9 @@ local function renameField(source, newname, callback)
             return false
         end
         local func = parent.value
+        if not func then
+            return false
+        end
         -- function mt:name () end --> mt['newname'] = function (self) end
         local startOffset  = guide.positionToOffset(state, parent.start) + 1
         local finishOffset = guide.positionToOffset(state, parent.node.finish)

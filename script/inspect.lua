@@ -1,4 +1,19 @@
+---@type any
 local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local math = _tl_compat and _tl_compat.math or math; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+---@class inspect.Options
+---@field depth? number
+---@field newline? string
+---@field indent? string
+---@field process? fun(item: any, path: any[]): any
+
+---@class inspect
+---@field Options table
+---@field public _VERSION string
+---@field public _URL string
+---@field public _DESCRIPTION string
+---@field public _LICENSE string
+---@field KEY table
+---@field METATABLE table
 local inspect = {Options = {}, }
 
 
@@ -54,12 +69,20 @@ local char = string.char
 local gsub = string.gsub
 local fmt = string.format
 
+---@alias inspect.next fun(t: table, k?: any): any, any
+
+---@param t table
+---@return inspect.next
+---@return table
+---@return nil
 local function rawpairs(t)
    return next, t, nil
 end
 
 
 
+---@param str string
+---@return string
 local function smartQuote(str)
    if match(str, '"') and not match(str, "'") then
       return "'" .. str .. "'"
@@ -81,17 +104,24 @@ for i = 0, 31 do
    end
 end
 
+---@param str string
+---@return string
 local function escape(str)
    return (gsub(gsub(gsub(str, "\\", "\\\\"),
    "(%c)%f[0-9]", longControlCharEscapes),
    "%c", shortControlCharEscapes))
 end
 
+---@param str any
+---@return boolean
 local function isIdentifier(str)
    return type(str) == "string" and not not str:match("^[_%a][_%a%d]*$")
 end
 
 local flr = math.floor
+---@param k any
+---@param sequenceLength integer
+---@return boolean
 local function isSequenceKey(k, sequenceLength)
    return type(k) == "number" and
    flr(k) == k and
@@ -104,6 +134,9 @@ local defaultTypeOrders = {
    ['function'] = 5, ['userdata'] = 6, ['thread'] = 7,
 }
 
+---@param a any
+---@param b any
+---@return boolean
 local function sortKeys(a, b)
    local ta, tb = type(a), type(b)
 
@@ -119,6 +152,10 @@ local function sortKeys(a, b)
    return dta == dtb and ta < tb or dta < dtb
 end
 
+---@param t table
+---@return any[] keys
+---@return integer keysLen
+---@return integer seqLen
 local function getKeys(t)
 
    local seqLen = 1
@@ -127,6 +164,7 @@ local function getKeys(t)
    end
    seqLen = seqLen - 1
 
+   ---@type any[], integer
    local keys, keysLen = {}, 0
    for k in rawpairs(t) do
       if not isSequenceKey(k, seqLen) then
@@ -138,6 +176,8 @@ local function getKeys(t)
    return keys, keysLen, seqLen
 end
 
+---@param x any
+---@param cycles table<any, integer>
 local function countCycles(x, cycles)
    if type(x) == "table" then
       if cycles[x] then
@@ -153,7 +193,12 @@ local function countCycles(x, cycles)
    end
 end
 
+---@param path any[]
+---@param a any
+---@param b? any
+---@return any[]
 local function makePath(path, a, b)
+   ---@type any[]
    local newPath = {}
    local len = #path
    for i = 1, len do newPath[i] = path[i] end
@@ -165,6 +210,11 @@ local function makePath(path, a, b)
 end
 
 
+---@param process fun(item: any, path: any[]): any
+---@param item any
+---@param path any[]
+---@param visited table<any, any>
+---@return any
 local function processRecursive(process,
    item,
    path,
@@ -174,8 +224,10 @@ local function processRecursive(process,
 
    local processed = process(item, path)
    if type(processed) == "table" then
+      ---@type table<any, any>
       local processedCopy = {}
       visited[item] = processedCopy
+      ---@type any
       local processedKey
 
       for k, v in rawpairs(processed) do
@@ -193,6 +245,12 @@ local function processRecursive(process,
    return processed
 end
 
+---@class inspect.Buffer
+---@field n integer
+---@field [integer] string
+
+---@param buf inspect.Buffer
+---@param str string
 local function puts(buf, str)
    buf.n = buf.n + 1
    buf[buf.n] = str
@@ -200,6 +258,14 @@ end
 
 
 
+---@class inspect.Inspector
+---@field buf inspect.Buffer
+---@field ids table<any, integer>
+---@field cycles table<any, integer>
+---@field depth number
+---@field level integer
+---@field newline string
+---@field indent string
 local Inspector = {}
 
 
@@ -213,10 +279,13 @@ local Inspector = {}
 
 local Inspector_mt = { __index = Inspector }
 
+---@param inspector inspect.Inspector
 local function tabify(inspector)
    puts(inspector.buf, inspector.newline .. rep(inspector.indent, inspector.level))
 end
 
+---@param v any
+---@return string
 function Inspector:getId(v)
    local id = self.ids[v]
    local ids = self.ids
@@ -228,6 +297,7 @@ function Inspector:getId(v)
    return tostring(id)
 end
 
+---@param v any
 function Inspector:putValue(v)
    local buf = self.buf
    local tv = type(v)
@@ -298,6 +368,9 @@ end
 
 
 
+---@param root any
+---@param options? inspect.Options
+---@return string
 function inspect.inspect(root, options)
    options = options or {}
 
@@ -313,6 +386,7 @@ function inspect.inspect(root, options)
    local cycles = {}
    countCycles(root, cycles)
 
+   ---@type inspect.Inspector
    local inspector = setmetatable({
       buf = { n = 0 },
       ids = {},

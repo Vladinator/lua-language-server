@@ -251,6 +251,12 @@ local Chunk
 --- token text (string) at even indices.
 ---@type table<integer, integer|string>
 local Tokens
+-- `Tokens` alternates position, text, position, text, ...; these two are the
+-- same table viewed as its integer (odd) slots and its string (even) slots
+---@type integer[]
+local TokenPos
+---@type string[]
+local TokenText
 ---@type integer
 local Index
 ---@type integer
@@ -346,15 +352,15 @@ end
 ---@return parser.position? startPosition
 ---@return parser.position? finishPosition
 local function peekWord()
-    local word = (Tokens[Index + 1] --[[@as string]])
+    local word = TokenText[Index + 1]
     if not word then
         return nil
     end
     if not CharMapWord[ssub(word, 1, 1)] then
         return nil
     end
-    local startPos  = getPosition((Tokens[Index] --[[@as integer]]) , 'left')
-    local finishPos = getPosition((Tokens[Index] --[[@as integer]]) + #word - 1, 'right')
+    local startPos  = getPosition(TokenPos[Index] , 'left')
+    local finishPos = getPosition(TokenPos[Index] + #word - 1, 'right')
     return word, startPos, finishPos
 end
 
@@ -363,11 +369,11 @@ local function lastRightPosition()
     if Index < 2 then
         return 0
     end
-    local token = (Tokens[Index - 1] --[[@as string]])
+    local token = TokenText[Index - 1]
     if NLMap[token] then
         return LastTokenFinish
     elseif token then
-        return getPosition((Tokens[Index - 2] --[[@as integer]]) + #token - 1, 'right')
+        return getPosition(TokenPos[Index - 2] + #token - 1, 'right')
     else
         return getPosition(#Lua, 'right')
     end
@@ -433,14 +439,14 @@ end
 ---@param word? string
 ---@return boolean
 local function unknownSymbol(start, finish, word)
-    local token = word or (Tokens[Index + 1] --[[@as string]])
+    local token = word or TokenText[Index + 1]
     if not token then
         return false
     end
     pushError {
         type   = 'UNKNOWN_SYMBOL',
-        start  = start  or getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-        finish = finish or getPosition((Tokens[Index] --[[@as integer]]) + #token - 1, 'right'),
+        start  = start  or getPosition(TokenPos[Index], 'left'),
+        finish = finish or getPosition(TokenPos[Index] + #token - 1, 'right'),
         info   = {
             symbol = token,
         }
@@ -450,21 +456,21 @@ end
 
 local function skipUnknownSymbol()
     if unknownSymbol() then
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         return true
     end
     return false
 end
 
 local function skipNL()
-    local token = (Tokens[Index + 1] --[[@as string]])
+    local token = TokenText[Index + 1]
     if NLMap[token] then
-        if Index >= 2 and not NLMap[(Tokens[Index - 1] --[[@as string]])] then
-            LastTokenFinish = getPosition((Tokens[Index - 2] --[[@as integer]]) + #(Tokens[Index - 1] --[[@as string]]) - 1, 'right')
+        if Index >= 2 and not NLMap[TokenText[Index - 1]] then
+            LastTokenFinish = getPosition(TokenPos[Index - 2] + #TokenText[Index - 1] - 1, 'right')
         end
         Line       = Line + 1
-        LineOffset = (Tokens[Index] --[[@as integer]]) + #token
-        Index = Index + 2 --[[@as integer]]
+        LineOffset = TokenPos[Index] + #token
+        Index = Index + 2
         State.lines[Line] = LineOffset
         return true
     end
@@ -490,18 +496,18 @@ end
 ---@param offset integer
 local function fastForwardToken(offset)
     while true do
-        local myOffset = (Tokens[Index] --[[@as integer]])
+        local myOffset = TokenPos[Index]
         if not myOffset
         or myOffset >= offset then
             break
         end
-        local token = (Tokens[Index + 1] --[[@as string]])
+        local token = TokenText[Index + 1]
         if NLMap[token] then
             Line       = Line + 1
-            LineOffset = (Tokens[Index] --[[@as integer]]) + #token
+            LineOffset = TokenPos[Index] + #token
             State.lines[Line] = LineOffset
         end
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     end
 end
 
@@ -512,7 +518,7 @@ local function resolveLongString(finishMark)
     skipNL()
     ---@type boolean?
     local miss
-    local start        = (Tokens[Index] --[[@as integer]])
+    local start        = TokenPos[Index]
     local finishOffset = sfind(Lua, finishMark, start, true)
     if not finishOffset then
         finishOffset = #Lua + 1
@@ -563,7 +569,7 @@ end
 
 ---@return parser.object?
 local function parseLongString()
-    local start, finish, mark = sfind(Lua, '^(%[%=*%[)', (Tokens[Index] --[[@as integer]]))
+    local start, finish, mark = sfind(Lua, '^(%[%=*%[)', TokenPos[Index])
     if not start or not finish then
         return nil
     end
@@ -628,7 +634,7 @@ local function pushLongCommentError(left, right)
 end
 
 local function skipComment(isAction)
-    local token = (Tokens[Index + 1] --[[@as string]])
+    local token = TokenText[Index + 1]
     if token == '--'
     or (
         token == '//'
@@ -637,15 +643,15 @@ local function skipComment(isAction)
             or State.options.nonstandardSymbol['//']
         )
     ) then
-        local start = (Tokens[Index] --[[@as integer]])
+        local start = TokenPos[Index]
         local left = getPosition(start, 'left')
         local chead = false
         if token == '//' then
             chead = true
             pushCommentHeadError(left)
         end
-        Index = Index + 2 --[[@as integer]]
-        local longComment = (start + 2 == (Tokens[Index] --[[@as integer]]) and parseLongString() --[[@as parser.object?]])
+        Index = Index + 2
+        local longComment = (start + 2 == TokenPos[Index] and parseLongString() --[[@as parser.object?]])
         if longComment then
             -- reuses the parser.object 'string' node parseLongString() built,
             -- repurposing it in place as a parser.state.comm (same
@@ -660,13 +666,13 @@ local function skipComment(isAction)
             return true
         end
         while true do
-            local nl = (Tokens[Index + 1] --[[@as string]])
+            local nl = TokenText[Index + 1]
             if not nl or NLMap[nl] then
                 break
             end
             Index = Index + 2 --[[@as integer]]
         end
-        local right = (Tokens[Index] --[[@as integer]]) and ((Tokens[Index] --[[@as integer]]) - 1) or #Lua
+        local right = TokenPos[Index] and (TokenPos[Index] - 1) or #Lua
         State.comms[#State.comms+1] = {
             type   = chead and 'comment.cshort' or 'comment.short',
             start  = left,
@@ -676,9 +682,9 @@ local function skipComment(isAction)
         return true
     end
     if token == '/*' then
-        local start = (Tokens[Index] --[[@as integer]])
+        local start = TokenPos[Index]
         local left = getPosition(start, 'left')
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         local result, right = resolveLongString '*/'
         pushLongCommentError(left, right)
         State.comms[#State.comms+1] = {
@@ -698,14 +704,14 @@ local function skipSpace(isAction)
 end
 
 local function expectAssign(isAction)
-    local token = (Tokens[Index + 1] --[[@as string]])
+    local token = TokenText[Index + 1]
     if token == '=' then
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         return true
     end
     if token == '==' then
-        local left  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-        local right = getPosition((Tokens[Index] --[[@as integer]]) + #token - 1, 'right')
+        local left  = getPosition(TokenPos[Index], 'left')
+        local right = getPosition(TokenPos[Index] + #token - 1, 'right')
         pushError {
             type   = 'ERR_ASSIGN_AS_EQ',
             start  = left,
@@ -719,7 +725,7 @@ local function expectAssign(isAction)
                 }
             }
         }
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         return true
     end
     if isAction then
@@ -739,7 +745,7 @@ local function expectAssign(isAction)
             if not (State.options.nonstandardSymbol[token] or State.luaJITExtensions) then
                 unknownSymbol()
             end
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             return true
         end
     end
@@ -753,7 +759,7 @@ local function parseLocalAttrs(kind)
     local attrs
     while true do
         skipSpace()
-        local token = (Tokens[Index + 1] --[[@as string]])
+        local token = TokenText[Index + 1]
         if token ~= '<' then
             break
         end
@@ -761,8 +767,8 @@ local function parseLocalAttrs(kind)
             ---@diagnostic disable-next-line: missing-fields
             attrs = {
                 type = 'localattrs',
-                start = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                finish = getPosition((Tokens[Index] --[[@as integer]]), 'right'),
+                start = getPosition(TokenPos[Index], 'left'),
+                finish = getPosition(TokenPos[Index], 'right'),
             }
         end
         ---@type parser.object
@@ -770,19 +776,19 @@ local function parseLocalAttrs(kind)
         local attr = {
             type   = 'localattr',
             parent = attrs,
-            start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-            finish = getPosition((Tokens[Index] --[[@as integer]]), 'right'),
+            start  = getPosition(TokenPos[Index], 'left'),
+            finish = getPosition(TokenPos[Index], 'right'),
             kind   = kind or 'suffix',
         }
         attrs[#attrs+1] = attr
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         skipSpace()
         local word, wstart, wfinish = peekWord()
         if word then
             attr[1] = word
             -- peekWord() returns wstart/wfinish non-nil exactly when word is non-nil
             attr.finish = wfinish --[[@as parser.position]]
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             if  word ~= 'const'
             and word ~= 'close' then
                 pushError {
@@ -796,17 +802,17 @@ local function parseLocalAttrs(kind)
         end
         attr.finish = lastRightPosition()
         skipSpace()
-        if (Tokens[Index + 1] --[[@as string]]) == '>' then
-            attr.finish = getPosition((Tokens[Index] --[[@as integer]]), 'right')
-            Index = Index + 2 --[[@as integer]]
-        elseif (Tokens[Index + 1] --[[@as string]]) == '>=' then
-            attr.finish = getPosition((Tokens[Index] --[[@as integer]]), 'right')
+        if TokenText[Index + 1] == '>' then
+            attr.finish = getPosition(TokenPos[Index], 'right')
+            Index = Index + 2
+        elseif TokenText[Index + 1] == '>=' then
+            attr.finish = getPosition(TokenPos[Index], 'right')
             pushError {
                 type   = 'MISS_SPACE_BETWEEN',
-                start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                finish = getPosition((Tokens[Index] --[[@as integer]]) + 1, 'right'),
+                start  = getPosition(TokenPos[Index], 'left'),
+                finish = getPosition(TokenPos[Index] + 1, 'right'),
             }
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
         else
             missSymbol '>'
         end
@@ -1300,11 +1306,11 @@ end
 
 ---@return parser.object?
 local function parseNil()
-    if (Tokens[Index + 1] --[[@as string]]) ~= 'nil' then
+    if TokenText[Index + 1] ~= 'nil' then
         return nil
     end
-    local offset = (Tokens[Index] --[[@as integer]])
-    Index = Index + 2 --[[@as integer]]
+    local offset = TokenPos[Index]
+    Index = Index + 2
     ---@diagnostic disable-next-line: missing-fields
     return {
         type   = 'nil',
@@ -1315,14 +1321,14 @@ end
 
 ---@return parser.object?
 local function parseBoolean()
-    local word = (Tokens[Index+1] --[[@as string]])
+    local word = TokenText[Index+1]
     if  word ~= 'true'
     and word ~= 'false' then
         return nil
     end
-    local start  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local finish = getPosition((Tokens[Index] --[[@as integer]]) + #word - 1, 'right')
-    Index = Index + 2 --[[@as integer]]
+    local start  = getPosition(TokenPos[Index], 'left')
+    local finish = getPosition(TokenPos[Index] + #word - 1, 'right')
+    Index = Index + 2
     ---@diagnostic disable-next-line: missing-fields
     return {
         type   = 'boolean',
@@ -1335,7 +1341,7 @@ end
 ---@return string?  result
 ---@return integer  offset
 local function parseStringUnicode()
-    local offset = (Tokens[Index] --[[@as integer]]) + 1
+    local offset = TokenPos[Index] + 1
     if ssub(Lua, offset, offset) ~= '{' then
         local pos  = getPosition(offset, 'left')
         missSymbol('{', pos)
@@ -1426,8 +1432,8 @@ end
 local stringPool = {}
 ---@return parser.object
 local function parseShortString()
-    local mark        = (Tokens[Index+1] --[[@as string]])
-    local startOffset = (Tokens[Index] --[[@as integer]])
+    local mark        = TokenText[Index+1]
+    local startOffset = TokenPos[Index]
     local startPos    = getPosition(startOffset, 'left')
     Index             = Index + 2
     local stringIndex = 0
@@ -1435,16 +1441,16 @@ local function parseShortString()
     ---@type table<integer, integer|string>
     local escs        = {}
     while true do
-        local token = (Tokens[Index + 1] --[[@as string]])
+        local token = TokenText[Index + 1]
         if token == mark then
             stringIndex = stringIndex + 1
-            stringPool[stringIndex] = ssub(Lua, currentOffset, (Tokens[Index] --[[@as integer]]) - 1)
-            Index = Index + 2 --[[@as integer]]
+            stringPool[stringIndex] = ssub(Lua, currentOffset, TokenPos[Index] - 1)
+            Index = Index + 2
             break
         end
         if NLMap[token] then
             stringIndex = stringIndex + 1
-            stringPool[stringIndex] = ssub(Lua, currentOffset, (Tokens[Index] --[[@as integer]]) - 1)
+            stringPool[stringIndex] = ssub(Lua, currentOffset, TokenPos[Index] - 1)
             missSymbol(mark)
             break
         end
@@ -1456,15 +1462,15 @@ local function parseShortString()
         end
         if token == '\\' then
             stringIndex = stringIndex + 1
-            stringPool[stringIndex] = ssub(Lua, currentOffset, (Tokens[Index] --[[@as integer]]) - 1)
-            currentOffset = (Tokens[Index] --[[@as integer]])
-            Index = Index + 2 --[[@as integer]]
-            if not (Tokens[Index] --[[@as integer]]) then
+            stringPool[stringIndex] = ssub(Lua, currentOffset, TokenPos[Index] - 1)
+            currentOffset = TokenPos[Index]
+            Index = Index + 2
+            if not TokenPos[Index] then
                 goto CONTINUE
             end
             local escLeft = getPosition(currentOffset, 'left')
             -- has space?
-            if (Tokens[Index] --[[@as integer]]) - currentOffset > 1 then
+            if TokenPos[Index] - currentOffset > 1 then
                 local right = getPosition(currentOffset + 1, 'right')
                 pushError {
                     type   = 'ERR_ESC',
@@ -1476,12 +1482,12 @@ local function parseShortString()
                 escs[#escs+1] = 'err'
                 goto CONTINUE
             end
-            local nextToken = ssub((Tokens[Index + 1] --[[@as string]]), 1, 1)
+            local nextToken = ssub(TokenText[Index + 1], 1, 1)
             if EscMap[nextToken] then
                 stringIndex = stringIndex + 1
                 stringPool[stringIndex] = EscMap[nextToken]
-                currentOffset = (Tokens[Index] --[[@as integer]]) + #nextToken
-                Index = Index + 2 --[[@as integer]]
+                currentOffset = TokenPos[Index] + #nextToken
+                Index = Index + 2
                 escs[#escs+1] = escLeft
                 escs[#escs+1] = escLeft + 2
                 escs[#escs+1] = 'normal'
@@ -1490,28 +1496,28 @@ local function parseShortString()
             if nextToken == mark then
                 stringIndex = stringIndex + 1
                 stringPool[stringIndex] = mark
-                currentOffset = (Tokens[Index] --[[@as integer]]) + #nextToken
-                Index = Index + 2 --[[@as integer]]
+                currentOffset = TokenPos[Index] + #nextToken
+                Index = Index + 2
                 escs[#escs+1] = escLeft
                 escs[#escs+1] = escLeft + 2
                 escs[#escs+1] = 'normal'
                 goto CONTINUE
             end
             if nextToken == 'z' then
-                Index = Index + 2 --[[@as integer]]
+                Index = Index + 2
                 repeat until not skipNL()
-                currentOffset = (Tokens[Index] --[[@as integer]])
+                currentOffset = TokenPos[Index]
                 escs[#escs+1] = escLeft
                 escs[#escs+1] = escLeft + 2
                 escs[#escs+1] = 'normal'
                 goto CONTINUE
             end
             if CharMapNumber[nextToken] then
-                local numbers = smatch((Tokens[Index + 1] --[[@as string]]), '^%d+')
+                local numbers = smatch(TokenText[Index + 1], '^%d+')
                 if #numbers > 3 then
                     numbers = ssub(numbers, 1, 3)
                 end
-                currentOffset = (Tokens[Index] --[[@as integer]]) + #numbers
+                currentOffset = TokenPos[Index] + #numbers
                 fastForwardToken(currentOffset)
                 local right = getPosition(currentOffset - 1, 'right')
                 local byte = tointeger(numbers)
@@ -1531,15 +1537,15 @@ local function parseShortString()
                 goto CONTINUE
             end
             if nextToken == 'x' then
-                local left = getPosition((Tokens[Index] --[[@as integer]]) - 1, 'left')
-                local x16  = ssub((Tokens[Index + 1] --[[@as string]]), 2, 3)
+                local left = getPosition(TokenPos[Index] - 1, 'left')
+                local x16  = ssub(TokenText[Index + 1], 2, 3)
                 local byte = tonumber(x16, 16)
                 if byte then
-                    currentOffset = (Tokens[Index] --[[@as integer]]) + 3
+                    currentOffset = TokenPos[Index] + 3
                     stringIndex = stringIndex + 1
                     stringPool[stringIndex] = schar(byte)
                 else
-                    currentOffset = (Tokens[Index] --[[@as integer]]) + 1
+                    currentOffset = TokenPos[Index] + 1
                     pushError {
                         type   = 'MISS_ESC_X',
                         start  = getPosition(currentOffset, 'left'),
@@ -1561,7 +1567,7 @@ local function parseShortString()
                         }
                     }
                 end
-                Index = Index + 2 --[[@as integer]]
+                Index = Index + 2
                 goto CONTINUE
             end
             if nextToken == 'u' then
@@ -1581,7 +1587,7 @@ local function parseShortString()
             if NLMap[nextToken] then
                 stringIndex = stringIndex + 1
                 stringPool[stringIndex] = '\n'
-                currentOffset = (Tokens[Index] --[[@as integer]]) + #nextToken
+                currentOffset = TokenPos[Index] + #nextToken
                 skipNL()
                 escs[#escs+1] = escLeft
                 escs[#escs+1] = escLeft + 1
@@ -1643,7 +1649,7 @@ end
 
 ---@return parser.object?
 local function parseString()
-    local c = (Tokens[Index + 1] --[[@as string]])
+    local c = TokenText[Index + 1]
     if CharMapStrSH[c] then
         return parseShortString()
     end
@@ -1839,7 +1845,7 @@ end
 
 ---@return parser.object?
 local function parseNumber()
-    local offset = (Tokens[Index] --[[@as integer]])
+    local offset = TokenPos[Index]
     if not offset then
         return nil
     end
@@ -1956,9 +1962,9 @@ local function parseName(asAction)
     if asAction and ChunkStartMap[word] then
         return nil
     end
-    local startPos  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local finishPos = getPosition((Tokens[Index] --[[@as integer]]) + #word - 1, 'right')
-    Index = Index + 2 --[[@as integer]]
+    local startPos  = getPosition(TokenPos[Index], 'left')
+    local finishPos = getPosition(TokenPos[Index] + #word - 1, 'right')
+    Index = Index + 2
     if not State.options.unicodeName and word:find '[\x80-\xff]' then
         pushError {
             type   = 'UNICODE_NAME',
@@ -1966,7 +1972,7 @@ local function parseName(asAction)
             finish = finishPos,
         }
     end
-    if isKeyWord(word, (Tokens[Index + 1] --[[@as string]])) then
+    if isKeyWord(word, TokenText[Index + 1]) then
         pushError {
             type   = 'KEYWORD',
             start  = startPos,
@@ -1993,10 +1999,10 @@ local function parseNameOrList(parent)
     ---@type parser.object?
     local list
     while true do
-        if (Tokens[Index + 1] --[[@as string]]) ~= ',' then
+        if TokenText[Index + 1] ~= ',' then
             break
         end
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         skipSpace()
         local name = parseName(true)
         if not name then
@@ -2027,7 +2033,7 @@ local function parseExpList(mini)
     local wantSep = false
     while true do
         skipSpace()
-        local token = (Tokens[Index + 1] --[[@as string]])
+        local token = TokenText[Index + 1]
         if not token then
             break
         end
@@ -2035,11 +2041,11 @@ local function parseExpList(mini)
             break
         end
         if token == ',' then
-            local sepPos = getPosition((Tokens[Index] --[[@as integer]]), 'right')
+            local sepPos = getPosition(TokenPos[Index], 'right')
             if not wantSep then
                 pushError {
                     type   = 'UNEXPECT_SYMBOL',
-                    start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
+                    start  = getPosition(TokenPos[Index], 'left'),
                     finish = sepPos,
                     info = {
                         symbol = ',',
@@ -2047,7 +2053,7 @@ local function parseExpList(mini)
                 }
             end
             wantSep = false
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             goto CONTINUE
         else
             if mini then
@@ -2064,7 +2070,7 @@ local function parseExpList(mini)
                 -- since Lua's string library coerces numbers. Pre-existing;
                 -- left as-is (behavior-preserving cast only) pending a
                 -- dedicated look.
-                if  isKeyWord(nextToken, (Tokens[Index + 2] --[[@as string]]))
+                if  isKeyWord(nextToken, TokenText[Index + 2])
                 and nextToken ~= 'function'
                 and nextToken ~= 'true'
                 and nextToken ~= 'false'
@@ -2107,8 +2113,8 @@ end
 
 ---@return parser.object
 local function parseIndex()
-    local start = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    Index = Index + 2 --[[@as integer]]
+    local start = getPosition(TokenPos[Index], 'left')
+    Index = Index + 2
     skipSpace()
     local exp = parseExp()
     ---@type parser.object
@@ -2127,8 +2133,8 @@ local function parseIndex()
         missExp()
     end
     skipSpace()
-    if (Tokens[Index + 1] --[[@as string]]) == ']' then
-        index.finish = getPosition((Tokens[Index] --[[@as integer]]), 'right')
+    if TokenText[Index + 1] == ']' then
+        index.finish = getPosition(TokenPos[Index], 'right')
         Index = Index + 2 --[[@as integer]]
     else
         missSymbol ']'
@@ -2142,20 +2148,20 @@ local function parseTable()
     ---@diagnostic disable-next-line: missing-fields
     local tbl = {
         type   = 'table',
-        start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-        finish = getPosition((Tokens[Index] --[[@as integer]]), 'right'),
+        start  = getPosition(TokenPos[Index], 'left'),
+        finish = getPosition(TokenPos[Index], 'right'),
     }
     tbl.bstart = tbl.finish
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     local index = 0
     local tindex = 0
     local wantSep = false
     while true do
         skipSpace(true)
-        local token = (Tokens[Index + 1] --[[@as string]])
+        local token = TokenText[Index + 1]
         if token == '}' then
-            tbl.bfinish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-            Index = Index + 2 --[[@as integer]]
+            tbl.bfinish = getPosition(TokenPos[Index], 'left')
+            Index = Index + 2
             break
         end
         if CharMapTSep[token] then
@@ -2163,7 +2169,7 @@ local function parseTable()
                 missExp()
             end
             wantSep = false
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             goto CONTINUE
         end
         local lastRight = lastRightPosition()
@@ -2173,13 +2179,13 @@ local function parseTable()
             local name = parseName()
             if name then
                 skipSpace()
-                if (Tokens[Index + 1] --[[@as string]]) == '=' then
-                    Index = Index + 2 --[[@as integer]]
+                if TokenText[Index + 1] == '=' then
+                    Index = Index + 2
                     if wantSep then
                         pushError {
                             type   = 'MISS_SEP_IN_TABLE',
                             start  = lastRight,
-                            finish = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
+                            finish = getPosition(TokenPos[Index], 'left'),
                         }
                     end
                     wantSep = true
@@ -2254,7 +2260,7 @@ local function parseTable()
                 pushError {
                     type   = 'MISS_SEP_IN_TABLE',
                     start  = lastRight,
-                    finish = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
+                    finish = getPosition(TokenPos[Index], 'left'),
                 }
             end
             wantSep = true
@@ -2283,7 +2289,7 @@ local function parseTable()
 
         missSymbol '}'
         skipSpace()
-        tbl.bfinish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+        tbl.bfinish = getPosition(TokenPos[Index], 'left')
         break
         -- unreachable by fallthrough, but still a valid `goto CONTINUE`
         -- target from earlier in the loop body above
@@ -2380,7 +2386,7 @@ local function parseSimple(node, funcName, noMethod)
             lastMethod = nil
         end
         skipSpace()
-        local token = (Tokens[Index + 1] --[[@as string]])
+        local token = TokenText[Index + 1]
         -- LuaJIT 安全导航 `?.`：标记后续操作为 safe（仅启用 LuaJIT 扩展时生效）
         local safe = false
         if token == '?.' then
@@ -2388,14 +2394,14 @@ local function parseSimple(node, funcName, noMethod)
             --   ?.( -> 安全调用：f?.() / f?."str" / f?.{...} / f?.[[...]]
             --   ?.[ -> 安全索引：t?.[key]
             --   ?.  -> 安全字段/方法：a?.b / obj?.:method / obj:method?.
-            local suffix = (Tokens[Index + 3] --[[@as string]])
+            local suffix = TokenText[Index + 3]
             ---@type string
             local opt
             if suffix == '(' or suffix == '{' or CharMapStrSH[suffix] then
                 opt = '?.('
             elseif suffix == '[' then
                 -- 长字符串调用 f?.[[...]] 属于 ?.(，普通索引 t?.[k] 属于 ?.[
-                local next2 = (Tokens[Index + 5] --[[@as string]])
+                local next2 = TokenText[Index + 5]
                 if next2 == '[' or next2 == '=' then
                     opt = '?.('
                 else
@@ -2409,26 +2415,26 @@ local function parseSimple(node, funcName, noMethod)
             end
             -- LuaJIT 三元 b 部分：?. 后紧跟 : 属语法错误（EXPR_F_NOCOLON + nav），
             -- 这里 break 不消费 ?.，把 : 留给三元处理
-            if noMethod and (Tokens[Index + 3] --[[@as string]]) == ':' then
+            if noMethod and TokenText[Index + 3] == ':' then
                 break
             end
             safe = true
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             skipSpace()
-            token = (Tokens[Index + 1] --[[@as string]])
+            token = TokenText[Index + 1]
         -- 无点号可选链（非 LuaJIT 语法，本项目独立扩展）：? 直接后跟 ( / [ / :（f?() / t?[1] / obj?:get()，相对 ?. 省略点号）。
         -- 仅由 nonstandardSymbol['?('] / ['?['] / ['?:'] 单独启用，与 LuaJIT 版本/主开关无关：
         -- ?( 与 ?[ 与三元（ternary）解析存在冲突（如 `a ? (x) : c` 会被当作 `a?(x)`）；
         -- ?: 的无点号方法形式（obj?:get()）与合法三元不冲突（三元 ? 后跟表达式而非 :）
         elseif token == '?' then
-            local nextToken = (Tokens[Index + 3] --[[@as string]])
+            local nextToken = TokenText[Index + 3]
             if (nextToken == '(' and State.options.nonstandardSymbol['?('])
             or (nextToken == '[' and State.options.nonstandardSymbol['?['])
             or (nextToken == ':' and State.options.nonstandardSymbol['?:'] and not noMethod) then
                 safe = true
-                Index = Index + 2 --[[@as integer]]
+                Index = Index + 2
                 skipSpace()
-                token = (Tokens[Index + 1] --[[@as string]])
+                token = TokenText[Index + 1]
             else
                 break
             end
@@ -2440,8 +2446,8 @@ local function parseSimple(node, funcName, noMethod)
             ---@diagnostic disable-next-line: missing-fields
             local safeDot = {
                 type   = '?.',
-                start  = getPosition((Tokens[Index] --[[@as integer]]) - 2, 'left'),
-                finish = getPosition((Tokens[Index] --[[@as integer]]) - 2, 'right'),
+                start  = getPosition(TokenPos[Index] - 2, 'left'),
+                finish = getPosition(TokenPos[Index] - 2, 'right'),
             }
             local field = parseName(true)
             ---@type parser.object
@@ -2485,10 +2491,10 @@ local function parseSimple(node, funcName, noMethod)
             ---@diagnostic disable-next-line: missing-fields
             local dot = {
                 type   = token,
-                start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                finish = getPosition((Tokens[Index] --[[@as integer]]), 'right'),
+                start  = getPosition(TokenPos[Index], 'left'),
+                finish = getPosition(TokenPos[Index], 'right'),
             }
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             skipSpace()
             local field = parseName(true)
             ---@type parser.object
@@ -2538,10 +2544,10 @@ local function parseSimple(node, funcName, noMethod)
             ---@diagnostic disable-next-line: missing-fields
             local colon = {
                 type   = token,
-                start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                finish = getPosition((Tokens[Index] --[[@as integer]]), 'right'),
+                start  = getPosition(TokenPos[Index], 'left'),
+                finish = getPosition(TokenPos[Index], 'right'),
             }
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             skipSpace()
             local method = parseName(true)
             ---@type parser.object
@@ -2580,7 +2586,7 @@ local function parseSimple(node, funcName, noMethod)
             if funcName then
                 break
             end
-            local startPos = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+            local startPos = getPosition(TokenPos[Index], 'left')
             ---@type parser.object
             ---@diagnostic disable-next-line: missing-fields
             local call = {
@@ -2591,11 +2597,11 @@ local function parseSimple(node, funcName, noMethod)
             if safe then
                 call.safe = true -- LuaJIT 安全导航（f?.() 检查 f）
             end
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             local args = parseExpList()
-            if (Tokens[Index + 1] --[[@as string]]) == ')' then
-                call.finish = getPosition((Tokens[Index] --[[@as integer]]), 'right')
-                Index = Index + 2 --[[@as integer]]
+            if TokenText[Index + 1] == ')' then
+                call.finish = getPosition(TokenPos[Index], 'right')
+                Index = Index + 2
             else
                 call.finish = lastRightPosition()
                 missSymbol ')'
@@ -2750,10 +2756,10 @@ end
 local function parseVarargs()
     local varargs = {
         type   = 'varargs',
-        start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-        finish = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right'),
+        start  = getPosition(TokenPos[Index], 'left'),
+        finish = getPosition(TokenPos[Index] + 2, 'right'),
     }
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     for i = #Chunk, 1, -1 do
         local chunk = Chunk[i]
         if chunk.vararg then
@@ -2780,13 +2786,13 @@ local function parseVarargs()
 end
 
 local function parseParen()
-    local pl = (Tokens[Index] --[[@as integer]])
+    local pl = TokenPos[Index]
     local paren = {
         type   = 'paren',
         start  = getPosition(pl, 'left'),
         finish = getPosition(pl, 'right')
     }
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     skipSpace()
     local exp = parseExp()
     if exp then
@@ -2797,8 +2803,8 @@ local function parseParen()
         missExp()
     end
     skipSpace()
-    if (Tokens[Index + 1] --[[@as string]]) == ')' then
-        paren.finish = getPosition((Tokens[Index] --[[@as integer]]), 'right')
+    if TokenText[Index + 1] == ')' then
+        paren.finish = getPosition(TokenPos[Index], 'right')
         Index = Index + 2 --[[@as integer]]
     else
         missSymbol ')'
@@ -2870,9 +2876,9 @@ local function parseActions()
     local rtn, last
     while true do
         skipSpace(true)
-        local token = (Tokens[Index + 1] --[[@as string]])
+        local token = TokenText[Index + 1]
         if token == ';' then
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             goto CONTINUE
         end
         if  ChunkFinishMap[token]
@@ -2913,7 +2919,7 @@ local function parseParams(params, isLambda)
     local endToken = isLambda and '|' or ')'
     while true do
         skipSpace()
-        local token = (Tokens[Index + 1] --[[@as string]])
+        local token = TokenText[Index + 1]
         if not token or token == endToken then
             if lastSep then
                 missName()
@@ -2926,7 +2932,7 @@ local function parseParams(params, isLambda)
             else
                 lastSep = true
             end
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             goto CONTINUE
         end
         if token == '...' then
@@ -2942,8 +2948,8 @@ local function parseParams(params, isLambda)
             ---@diagnostic disable-next-line: missing-fields
             local vararg = {
                 type   = '...',
-                start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                finish = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right'),
+                start  = getPosition(TokenPos[Index], 'left'),
+                finish = getPosition(TokenPos[Index] + 2, 'right'),
                 parent = params,
                 [1]    = '...',
             }
@@ -2953,37 +2959,37 @@ local function parseParams(params, isLambda)
             if hasDots then
                 pushError {
                     type   = 'ARGS_AFTER_DOTS',
-                    start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                    finish = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right'),
+                    start  = getPosition(TokenPos[Index], 'left'),
+                    finish = getPosition(TokenPos[Index] + 2, 'right'),
                 }
             end
             hasDots = true
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
 
             -- Lua 5.5: check for (...args) syntax
             skipSpace()
-            local nextToken = (Tokens[Index + 1] --[[@as string]])
+            local nextToken = TokenText[Index + 1]
             if nextToken and CharMapWord[ssub(nextToken, 1, 1)] then
                 if State.version ~= 'Lua 5.5' then
                     pushError {
                         type   = 'UNSUPPORT_NAMED_VARARG',
-                        start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                        finish = getPosition((Tokens[Index] --[[@as integer]]) + #nextToken - 1, 'right'),
+                        start  = getPosition(TokenPos[Index], 'left'),
+                        finish = getPosition(TokenPos[Index] + #nextToken - 1, 'right'),
                         version = 'Lua 5.5',
                     }
                 end
                 -- Create local variable for vararg
                 ---@diagnostic disable-next-line: missing-fields
                 local varargName = createLocal {
-                    start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                    finish = getPosition((Tokens[Index] --[[@as integer]]) + #nextToken - 1, 'right'),
+                    start  = getPosition(TokenPos[Index], 'left'),
+                    finish = getPosition(TokenPos[Index] + #nextToken - 1, 'right'),
                     parent = params,
                     [1]    = nextToken,
                 }
                 varargName.varargRef = vararg
                 vararg.name = varargName
                 vararg.finish = varargName.finish
-                Index = Index + 2 --[[@as integer]]
+                Index = Index + 2
             end
 
             goto CONTINUE
@@ -2999,26 +3005,26 @@ local function parseParams(params, isLambda)
             end
             ---@diagnostic disable-next-line: missing-fields
             params[#params+1] = createLocal {
-                start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                finish = getPosition((Tokens[Index] --[[@as integer]]) + #token - 1, 'right'),
+                start  = getPosition(TokenPos[Index], 'left'),
+                finish = getPosition(TokenPos[Index] + #token - 1, 'right'),
                 parent = params,
                 [1]    = token,
             }
             if hasDots then
                 pushError {
                     type   = 'ARGS_AFTER_DOTS',
-                    start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                    finish = getPosition((Tokens[Index] --[[@as integer]]) + #token - 1, 'right'),
+                    start  = getPosition(TokenPos[Index], 'left'),
+                    finish = getPosition(TokenPos[Index] + #token - 1, 'right'),
                 }
             end
-            if isKeyWord(token, (Tokens[Index + 3] --[[@as string]])) then
+            if isKeyWord(token, TokenText[Index + 3]) then
                 pushError {
                     type   = 'KEYWORD',
-                    start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-                    finish = getPosition((Tokens[Index] --[[@as integer]]) + #token - 1, 'right'),
+                    start  = getPosition(TokenPos[Index], 'left'),
+                    finish = getPosition(TokenPos[Index] + #token - 1, 'right'),
                 }
             end
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
             goto CONTINUE
         end
         skipUnknownSymbol()
@@ -3028,8 +3034,8 @@ local function parseParams(params, isLambda)
 end
 
 local function parseFunction(declareType, isAction)
-    local funcLeft  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local funcRight = getPosition((Tokens[Index] --[[@as integer]]) + 7, 'right')
+    local funcLeft  = getPosition(TokenPos[Index], 'left')
+    local funcRight = getPosition(TokenPos[Index] + 7, 'right')
     ---@type parser.object
     ---@diagnostic disable-next-line: missing-fields
     local func = {
@@ -3042,9 +3048,9 @@ local function parseFunction(declareType, isAction)
             [2] = funcRight,
         },
     }
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     skipSpace(true)
-    local hasLeftParen = (Tokens[Index + 1] --[[@as string]]) == '('
+    local hasLeftParen = TokenText[Index + 1] == '('
     if not hasLeftParen then
         local name = parseName()
         if name then
@@ -3086,7 +3092,7 @@ local function parseFunction(declareType, isAction)
                 }
             end
             skipSpace(true)
-            hasLeftParen = (Tokens[Index + 1] --[[@as string]]) == '('
+            hasLeftParen = TokenText[Index + 1] == '('
         end
     end
     local LastLocalCount = LocalCount
@@ -3116,7 +3122,7 @@ local function parseFunction(declareType, isAction)
     if hasLeftParen then
         ---@diagnostic disable-next-line: missing-fields
         params = params or {}
-        local parenLeft = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+        local parenLeft = getPosition(TokenPos[Index], 'left')
         Index = Index + 2 --[[@as integer]]
         params = parseParams(params)
         params.type   = 'funcargs'
@@ -3125,8 +3131,8 @@ local function parseFunction(declareType, isAction)
         params.parent = func
         func.args     = params --[[@as parser.object]]
         skipSpace(true)
-        if (Tokens[Index + 1] --[[@as string]]) == ')' then
-            local parenRight = getPosition((Tokens[Index] --[[@as integer]]), 'right')
+        if TokenText[Index + 1] == ')' then
+            local parenRight = getPosition(TokenPos[Index], 'right')
             func.finish = parenRight
             func.bstart = parenRight
             if params then
@@ -3147,14 +3153,14 @@ local function parseFunction(declareType, isAction)
     end
     parseActions()
     popChunk()
-    func.bfinish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    if (Tokens[Index + 1] --[[@as string]]) == 'end' then
-        local endLeft   = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-        local endRight  = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right')
+    func.bfinish = getPosition(TokenPos[Index], 'left')
+    if TokenText[Index + 1] == 'end' then
+        local endLeft   = getPosition(TokenPos[Index], 'left')
+        local endRight  = getPosition(TokenPos[Index] + 2, 'right')
         func.keyword[3] = endLeft
         func.keyword[4] = endRight
         func.finish     = endRight
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         func.finish = lastRightPosition()
         missEnd(funcLeft, funcRight)
@@ -3167,8 +3173,8 @@ end
 ---@param lambda parser.object
 ---@return parser.object
 local function parseLambdaDoBlock(lambda)
-    local doLeft  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local doRight = getPosition((Tokens[Index] --[[@as integer]]) + 1, 'right')
+    local doLeft  = getPosition(TokenPos[Index], 'left')
+    local doRight = getPosition(TokenPos[Index] + 1, 'right')
     ---@type parser.object
     ---@diagnostic disable-next-line: missing-fields
     local body = {
@@ -3181,14 +3187,14 @@ local function parseLambdaDoBlock(lambda)
             [2] = doRight,
         },
     }
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     pushChunk(body)
     parseActions()
     popChunk()
-    body.bfinish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    if (Tokens[Index + 1] --[[@as string]]) == 'end' then
-        body.finish = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right')
-        body.keyword[3] = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+    body.bfinish = getPosition(TokenPos[Index], 'left')
+    if TokenText[Index + 1] == 'end' then
+        body.finish = getPosition(TokenPos[Index] + 2, 'right')
+        body.keyword[3] = getPosition(TokenPos[Index], 'left')
         body.keyword[4] = body.finish
         Index = Index + 2 --[[@as integer]]
     else
@@ -3210,8 +3216,8 @@ local function parseLambdaDoBlock(lambda)
 end
 
 local function parseLambda(isDoublePipe)
-    local lambdaLeft = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local lambdaRight = getPosition((Tokens[Index] --[[@as integer]]), 'right')
+    local lambdaLeft = getPosition(TokenPos[Index], 'left')
+    local lambdaRight = getPosition(TokenPos[Index], 'right')
     ---@type parser.object
     ---@diagnostic disable-next-line: missing-fields
     local lambda = {
@@ -3225,9 +3231,9 @@ local function parseLambda(isDoublePipe)
         },
         hasReturn = true
     }
-    Index = Index + 2 --[[@as integer]]
-    local pipeLeft = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local pipeRight = getPosition((Tokens[Index] --[[@as integer]]), 'right')
+    Index = Index + 2
+    local pipeLeft = getPosition(TokenPos[Index], 'left')
+    local pipeRight = getPosition(TokenPos[Index], 'right')
     skipSpace(true)
     ---@type parser.object?
     local params
@@ -3256,8 +3262,8 @@ local function parseLambda(isDoublePipe)
         params.parent = lambda
         lambda.args   = params --[[@as parser.object]]
         skipSpace()
-        if (Tokens[Index + 1] --[[@as string]]) == '|' then
-            pipeRight = getPosition((Tokens[Index] --[[@as integer]]), 'right')
+        if TokenText[Index + 1] == '|' then
+            pipeRight = getPosition(TokenPos[Index], 'right')
             lambda.finish = pipeRight
             lambda.bstart = pipeRight
             if params then
@@ -3277,8 +3283,8 @@ local function parseLambda(isDoublePipe)
     -- LuaJIT 短函数：消费 -> 箭头（LuaJIT 扩展必选，旧 |lambda| 语法可选）
     if isLuaJITExt('->') then
         skipSpace(true)
-        if (Tokens[Index + 1] --[[@as string]]) == '->' then
-            Index = Index + 2 --[[@as integer]]
+        if TokenText[Index + 1] == '->' then
+            Index = Index + 2
             skipSpace(true)
         else
             pushError {
@@ -3290,14 +3296,14 @@ local function parseLambda(isDoublePipe)
         end
     else
         skipSpace(true)
-        if (Tokens[Index + 1] --[[@as string]]) == '->' then
-            Index = Index + 2 --[[@as integer]]
+        if TokenText[Index + 1] == '->' then
+            Index = Index + 2
             skipSpace(true)
         end
     end
 
     -- 语句体：|x| -> do ... end
-    if (Tokens[Index + 1] --[[@as string]]) == 'do' then
+    if TokenText[Index + 1] == 'do' then
         parseLambdaDoBlock(lambda)
         -- don't want popChunk logic here as this is not a real chunk
         Chunk[#Chunk] = nil
@@ -3330,7 +3336,7 @@ local function parseLambda(isDoublePipe)
         lambda.finish = lastRightPosition()
         missExp()
     end
-    lambda.bfinish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+    lambda.bfinish = getPosition(TokenPos[Index], 'left')
     LocalCount = LastLocalCount
     return lambda
 end
@@ -3353,7 +3359,7 @@ local function parseLambdaSingleArg(name)
         hasReturn = true
     }
     -- 消费 ->
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     skipSpace(true)
     -- 单参数
     ---@type parser.object
@@ -3378,7 +3384,7 @@ local function parseLambdaSingleArg(name)
     local LastLocalCount = LocalCount
     LocalCount = 0
     -- 语句体：x -> do ... end
-    if (Tokens[Index + 1] --[[@as string]]) == 'do' then
+    if TokenText[Index + 1] == 'do' then
         parseLambdaDoBlock(lambda)
         Chunk[#Chunk] = nil
         LocalCount = LastLocalCount
@@ -3407,7 +3413,7 @@ local function parseLambdaSingleArg(name)
         lambda.finish = lastRightPosition()
         missExp()
     end
-    lambda.bfinish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+    lambda.bfinish = getPosition(TokenPos[Index], 'left')
     LocalCount = LastLocalCount
     return lambda
 end
@@ -3416,7 +3422,7 @@ end
 ---@param noMethod boolean? # 禁止方法调用后缀（三元 b 部分）
 ---@return parser.object
 local function checkNeedParen(source, noMethod)
-    local token = (Tokens[Index + 1] --[[@as string]])
+    local token = TokenText[Index + 1]
     if  token ~= '.'
     and (token ~= ':' or noMethod) then
         return source
@@ -3448,7 +3454,7 @@ end
 
 ---@param noMethod boolean? # 禁止方法调用后缀（三元 b 部分）
 local function parseExpUnit(noMethod)
-    local token = (Tokens[Index + 1] --[[@as string]])
+    local token = TokenText[Index + 1]
     if token == '(' then
         local paren = parseParen()
         return parseSimple(paren, false, noMethod)
@@ -3518,7 +3524,7 @@ local function parseExpUnit(noMethod)
     if node then
         -- LuaJIT 短函数：x -> expr（单参数省略管道）
         skipSpace()
-        if isLuaJITExt('->') and (Tokens[Index + 1] --[[@as string]]) == '->' then
+        if isLuaJITExt('->') and TokenText[Index + 1] == '->' then
             return parseLambdaSingleArg(node)
         end
         local nameNode = resolveName(node)
@@ -3531,7 +3537,7 @@ local function parseExpUnit(noMethod)
 end
 
 local function parseUnaryOP()
-    local token  = (Tokens[Index + 1] --[[@as string]])
+    local token  = TokenText[Index + 1]
     local symbol = UnarySymbol[token] and token or UnaryAlias[token]
     if not symbol then
         return nil
@@ -3539,16 +3545,16 @@ local function parseUnaryOP()
     local myLevel = UnarySymbol[symbol]
     local op = {
         type   = symbol,
-        start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-        finish = getPosition((Tokens[Index] --[[@as integer]]) + #symbol - 1, 'right'),
+        start  = getPosition(TokenPos[Index], 'left'),
+        finish = getPosition(TokenPos[Index] + #symbol - 1, 'right'),
     }
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     return op, myLevel
 end
 
 ---@param level number? # op level must greater than this level
 local function parseBinaryOP(asAction, level)
-    local token  = (Tokens[Index + 1] --[[@as string]])
+    local token  = TokenText[Index + 1]
     local symbol = (BinarySymbol[token] and token)
                 or BinaryAlias[token]
                 or (not asAction and BinaryActionAlias[token])
@@ -3570,8 +3576,8 @@ local function parseBinaryOP(asAction, level)
     end
     local op = {
         type   = symbol,
-        start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-        finish = getPosition((Tokens[Index] --[[@as integer]]) + #token - 1, 'right'),
+        start  = getPosition(TokenPos[Index], 'left'),
+        finish = getPosition(TokenPos[Index] + #token - 1, 'right'),
     }
     if not asAction then
         if token == '=' then
@@ -3630,7 +3636,7 @@ local function parseBinaryOP(asAction, level)
             }
         end
     end
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     return op, myLevel
 end
 
@@ -3714,9 +3720,9 @@ function parseExp(asAction, level, noMethod, noTernary)
     -- LuaJIT 三元（'ternary'，符号 ?:；右结合、优先级最低，仅在表达式根位置检查，操作数位置由 noTernary 屏蔽）
     if isLuaJITExt('ternary') and not noTernary then
         skipSpace()
-        if (Tokens[Index + 1] --[[@as string]]) == '?' then
-            local qEnd = getPosition((Tokens[Index] --[[@as integer]]), 'right')
-            Index = Index + 2 --[[@as integer]]
+        if TokenText[Index + 1] == '?' then
+            local qEnd = getPosition(TokenPos[Index], 'right')
+            Index = Index + 2
             skipSpace()
             -- b 部分：NOCOLON，禁止方法调用（如 obj:method()），括号内可加括号绕过
             local b = parseExp(nil, nil, true)
@@ -3726,8 +3732,8 @@ function parseExp(asAction, level, noMethod, noTernary)
             skipSpace()
             ---@type parser.object?
             local c
-            if (Tokens[Index + 1] --[[@as string]]) == ':' then
-                Index = Index + 2 --[[@as integer]]
+            if TokenText[Index + 1] == ':' then
+                Index = Index + 2
                 skipSpace()
                 c = parseExp()
                 if not c then
@@ -3763,9 +3769,9 @@ end
 local function skipSeps()
     while true do
         skipSpace()
-        if (Tokens[Index + 1] --[[@as string]]) == ',' then
+        if TokenText[Index + 1] == ',' then
             missExp()
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
         else
             break
         end
@@ -3782,10 +3788,10 @@ local function parseSetValues()
         return nil
     end
     skipSpace()
-    if (Tokens[Index + 1] --[[@as string]]) ~= ',' then
+    if TokenText[Index + 1] ~= ',' then
         return first
     end
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     skipSeps()
     local second = parseExp()
     if not second then
@@ -3793,10 +3799,10 @@ local function parseSetValues()
         return first
     end
     skipSpace()
-    if (Tokens[Index + 1] --[[@as string]]) ~= ',' then
+    if TokenText[Index + 1] ~= ',' then
         return first, second
     end
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     skipSeps()
     local third = parseExp()
     if not third then
@@ -3807,7 +3813,7 @@ local function parseSetValues()
     local rest = { third }
     while true do
         skipSpace()
-        if (Tokens[Index + 1] --[[@as string]]) ~= ',' then
+        if TokenText[Index + 1] ~= ',' then
             return first, second, rest
         end
         Index = Index + 2 --[[@as integer]]
@@ -3835,10 +3841,10 @@ end
 ---@return parser.object?   second
 ---@return parser.object[]? rest
 local function parseVarTails(parser, isLocal)
-    if (Tokens[Index + 1] --[[@as string]]) ~= ',' then
+    if TokenText[Index + 1] ~= ',' then
         return nil
     end
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     skipSpace()
     local second = parser(true)
     if not second then
@@ -3849,10 +3855,10 @@ local function parseVarTails(parser, isLocal)
         createLocal(second, parseLocalAttrs())
     end
     skipSpace()
-    if (Tokens[Index + 1] --[[@as string]]) ~= ',' then
+    if TokenText[Index + 1] ~= ',' then
         return second
     end
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     skipSeps()
     local third = parser(true)
     if not third then
@@ -3865,7 +3871,7 @@ local function parseVarTails(parser, isLocal)
     local rest = { third }
     while true do
         skipSpace()
-        if (Tokens[Index + 1] --[[@as string]]) ~= ',' then
+        if TokenText[Index + 1] ~= ',' then
             return second, rest
         end
         Index = Index + 2 --[[@as integer]]
@@ -4130,8 +4136,8 @@ local function compileExpAsAction(exp)
 end
 
 local function parseLocal()
-    local locPos = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    Index = Index + 2 --[[@as integer]]
+    local locPos = getPosition(TokenPos[Index], 'left')
+    Index = Index + 2
     skipSpace()
     local attrsBefore = parseLocalAttrs('prefix')
     if attrsBefore and State.version ~= 'Lua 5.5' then
@@ -4194,8 +4200,8 @@ end
 
 -- LuaJIT const 声明（const 为 soft keyword）
 local function parseConst()
-    local locPos = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    Index = Index + 2 --[[@as integer]]
+    local locPos = getPosition(TokenPos[Index], 'left')
+    Index = Index + 2
     skipSpace()
     local word, wstart, wfinish = peekWord()
     if not word then
@@ -4243,8 +4249,8 @@ local function parseConst()
 end
 
 local function parseGlobal()
-    local globalPos = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    Index = Index + 2 --[[@as integer]]
+    local globalPos = getPosition(TokenPos[Index], 'left')
+    Index = Index + 2
     skipSpace()
     local word = peekWord()
 
@@ -4271,11 +4277,11 @@ local function parseGlobal()
     -- Parse optional attributes before '*'
     local attrs = parseLocalAttrs()
     skipSpace()
-    if (Tokens[Index + 1] --[[@as string]]) == '*' then
+    if TokenText[Index + 1] == '*' then
         local action = {
             type   = 'globalall',
-            start  = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-            finish = getPosition((Tokens[Index] --[[@as integer]]), 'right'),
+            start  = getPosition(TokenPos[Index], 'left'),
+            finish = getPosition(TokenPos[Index], 'right'),
             attrs  = attrs,
             [1]    = '*',
         }
@@ -4293,7 +4299,7 @@ local function parseGlobal()
             end
         end
         createGlobalDeclare(action, attrs)
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
         pushActionIntoCurrentChunk(action)
         return action
     end
@@ -4408,8 +4414,8 @@ end
 
 ---@return parser.object
 local function parseDo()
-    local doLeft  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local doRight = getPosition((Tokens[Index] --[[@as integer]]) + 1, 'right')
+    local doLeft  = getPosition(TokenPos[Index], 'left')
+    local doRight = getPosition(TokenPos[Index] + 1, 'right')
     ---@type parser.object
     ---@diagnostic disable-next-line: missing-fields
     local obj = {
@@ -4422,16 +4428,16 @@ local function parseDo()
             [2] = doRight,
         },
     }
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     pushActionIntoCurrentChunk(obj)
     pushChunk(obj)
     parseActions()
     popChunk()
-    obj.bfinish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    if (Tokens[Index + 1] --[[@as string]]) == 'end' then
-        obj.finish     = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right')
-        obj.keyword[3] = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-        obj.keyword[4] = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right')
+    obj.bfinish = getPosition(TokenPos[Index], 'left')
+    if TokenText[Index + 1] == 'end' then
+        obj.finish     = getPosition(TokenPos[Index] + 2, 'right')
+        obj.keyword[3] = getPosition(TokenPos[Index], 'left')
+        obj.keyword[4] = getPosition(TokenPos[Index] + 2, 'right')
         Index = Index + 2 --[[@as integer]]
     else
         missEnd(doLeft, doRight)
@@ -4444,9 +4450,9 @@ local function parseDo()
 end
 
 local function parseReturn()
-    local returnLeft  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local returnRight = getPosition((Tokens[Index] --[[@as integer]]) + 5, 'right')
-    Index = Index + 2 --[[@as integer]]
+    local returnLeft  = getPosition(TokenPos[Index], 'left')
+    local returnRight = getPosition(TokenPos[Index] + 5, 'right')
+    Index = Index + 2
     skipSpace()
     local rtn = parseExpList(true)
     if rtn then
@@ -4489,8 +4495,8 @@ local function parseReturn()
 end
 
 local function parseLabel()
-    local left = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    Index = Index + 2 --[[@as integer]]
+    local left = getPosition(TokenPos[Index], 'left')
+    Index = Index + 2
     skipSpace()
     local label = parseName()
     skipSpace()
@@ -4499,7 +4505,7 @@ local function parseLabel()
         missName()
     end
 
-    if (Tokens[Index + 1] --[[@as string]]) == '::' then
+    if TokenText[Index + 1] == '::' then
         Index = Index + 2 --[[@as integer]]
     else
         if label then
@@ -4557,8 +4563,8 @@ local function parseLabel()
 end
 
 local function parseGoTo()
-    local start = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    Index = Index + 2 --[[@as integer]]
+    local start = getPosition(TokenPos[Index], 'left')
+    Index = Index + 2
     skipSpace()
 
     local action = parseName()
@@ -4600,9 +4606,9 @@ end
 ---@param parent parser.object
 ---@return parser.object
 local function parseIfBlock(parent)
-    local ifLeft  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local ifRight = getPosition((Tokens[Index] --[[@as integer]]) + 1, 'right')
-    Index = Index + 2 --[[@as integer]]
+    local ifLeft  = getPosition(TokenPos[Index], 'left')
+    local ifRight = getPosition(TokenPos[Index] + 1, 'right')
+    Index = Index + 2
     ---@type parser.object
     ---@diagnostic disable-next-line: missing-fields
     local ifblock = {
@@ -4627,12 +4633,12 @@ local function parseIfBlock(parent)
         missExp()
     end
     skipSpace()
-    local thenToken = (Tokens[Index + 1] --[[@as string]])
+    local thenToken = TokenText[Index + 1]
     if thenToken == 'then'
     or thenToken == 'do' then
-        ifblock.finish     = getPosition((Tokens[Index] --[[@as integer]]) + #thenToken - 1, 'right')
+        ifblock.finish     = getPosition(TokenPos[Index] + #thenToken - 1, 'right')
         ifblock.bstart     = ifblock.finish
-        ifblock.keyword[3] = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+        ifblock.keyword[3] = getPosition(TokenPos[Index], 'left')
         ifblock.keyword[4] = ifblock.finish
         if thenToken == 'do' then
             pushError {
@@ -4649,14 +4655,14 @@ local function parseIfBlock(parent)
                 }
             }
         end
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         missSymbol 'then'
     end
     pushChunk(ifblock)
     parseActions()
     popChunk()
-    ifblock.finish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+    ifblock.finish = getPosition(TokenPos[Index], 'left')
     ifblock.bfinish = ifblock.finish
     if ifblock.locals then
         LocalCount = LocalCount - #ifblock.locals
@@ -4667,8 +4673,8 @@ end
 ---@param parent parser.object
 ---@return parser.object
 local function parseElseIfBlock(parent)
-    local ifLeft  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local ifRight = getPosition((Tokens[Index] --[[@as integer]]) + 5, 'right')
+    local ifLeft  = getPosition(TokenPos[Index], 'left')
+    local ifRight = getPosition(TokenPos[Index] + 5, 'right')
     ---@type parser.object
     ---@diagnostic disable-next-line: missing-fields
     local elseifblock = {
@@ -4682,7 +4688,7 @@ local function parseElseIfBlock(parent)
             [2] = ifRight,
         }
     }
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     skipSpace()
     local filter = parseExp()
     if filter then
@@ -4694,12 +4700,12 @@ local function parseElseIfBlock(parent)
         missExp()
     end
     skipSpace()
-    local thenToken = (Tokens[Index + 1] --[[@as string]])
+    local thenToken = TokenText[Index + 1]
     if thenToken == 'then'
     or thenToken == 'do' then
-        elseifblock.finish     = getPosition((Tokens[Index] --[[@as integer]]) + #thenToken - 1, 'right')
+        elseifblock.finish     = getPosition(TokenPos[Index] + #thenToken - 1, 'right')
         elseifblock.bstart     = elseifblock.finish
-        elseifblock.keyword[3] = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+        elseifblock.keyword[3] = getPosition(TokenPos[Index], 'left')
         elseifblock.keyword[4] = elseifblock.finish
         if thenToken == 'do' then
             pushError {
@@ -4716,14 +4722,14 @@ local function parseElseIfBlock(parent)
                 }
             }
         end
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         missSymbol 'then'
     end
     pushChunk(elseifblock)
     parseActions()
     popChunk()
-    elseifblock.finish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+    elseifblock.finish = getPosition(TokenPos[Index], 'left')
     elseifblock.bfinish = elseifblock.finish
     if elseifblock.locals then
         LocalCount = LocalCount - #elseifblock.locals
@@ -4734,8 +4740,8 @@ end
 ---@param parent parser.object
 ---@return parser.object
 local function parseElseBlock(parent)
-    local ifLeft  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local ifRight = getPosition((Tokens[Index] --[[@as integer]]) + 3, 'right')
+    local ifLeft  = getPosition(TokenPos[Index], 'left')
+    local ifRight = getPosition(TokenPos[Index] + 3, 'right')
     ---@type parser.object
     ---@diagnostic disable-next-line: missing-fields
     local elseblock = {
@@ -4749,12 +4755,12 @@ local function parseElseBlock(parent)
             [2] = ifRight,
         }
     }
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     skipSpace()
     pushChunk(elseblock)
     parseActions()
     popChunk()
-    elseblock.finish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+    elseblock.finish = getPosition(TokenPos[Index], 'left')
     elseblock.bfinish = elseblock.finish
     if elseblock.locals then
         LocalCount = LocalCount - #elseblock.locals
@@ -4764,14 +4770,14 @@ end
 
 ---@return parser.object
 local function parseIf()
-    local token = (Tokens[Index + 1] --[[@as string]])
-    local left  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+    local token = TokenText[Index + 1]
+    local left  = getPosition(TokenPos[Index], 'left')
     ---@type parser.object
     ---@diagnostic disable-next-line: missing-fields
     local action  = {
         type   = 'if',
         start  = left,
-        finish = getPosition((Tokens[Index] --[[@as integer]]) + #token - 1, 'right'),
+        finish = getPosition(TokenPos[Index] + #token - 1, 'right'),
     }
     pushActionIntoCurrentChunk(action)
     if token ~= 'if' then
@@ -4780,7 +4786,7 @@ local function parseIf()
     ---@type boolean?
     local hasElse
     while true do
-        local word = (Tokens[Index + 1] --[[@as string]])
+        local word = TokenText[Index + 1]
         ---@type parser.object?
         local child
         if     word == 'if' then
@@ -4808,9 +4814,9 @@ local function parseIf()
         skipSpace()
     end
 
-    if (Tokens[Index + 1] --[[@as string]]) == 'end' then
-        action.finish = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right')
-        Index = Index + 2 --[[@as integer]]
+    if TokenText[Index + 1] == 'end' then
+        action.finish = getPosition(TokenPos[Index] + 2, 'right')
+        Index = Index + 2
     else
         missEnd(action[1].keyword[1], action[1].keyword[2])
     end
@@ -4824,14 +4830,14 @@ local function parseFor()
     ---@diagnostic disable-next-line: missing-fields
     local action = {
         type    = 'for',
-        start   = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-        finish  = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right'),
+        start   = getPosition(TokenPos[Index], 'left'),
+        finish  = getPosition(TokenPos[Index] + 2, 'right'),
         keyword = {},
     }
     action.bstart     = action.finish
     action.keyword[1] = action.start
     action.keyword[2] = action.finish
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
     pushActionIntoCurrentChunk(action)
     pushChunk(action)
     skipSpace()
@@ -4929,10 +4935,10 @@ local function parseFor()
         if action.loc then
             action.loc.effect = action.finish
         end
-    elseif (Tokens[Index + 1] --[[@as string]]) == 'in' then
+    elseif TokenText[Index + 1] == 'in' then
         action.type = 'in'
-        local inLeft  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-        local inRight = getPosition((Tokens[Index] --[[@as integer]]) + 1, 'right')
+        local inLeft  = getPosition(TokenPos[Index], 'left')
+        local inRight = getPosition(TokenPos[Index] + 1, 'right')
         Index = Index + 2 --[[@as integer]]
         skipSpace()
 
@@ -5021,11 +5027,11 @@ local function parseFor()
     end
 
     skipSpace()
-    local doToken = (Tokens[Index + 1] --[[@as string]])
+    local doToken = TokenText[Index + 1]
     if doToken == 'do'
     or doToken == 'then' then
-        local left  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-        local right = getPosition((Tokens[Index] --[[@as integer]]) + #doToken - 1, 'right')
+        local left  = getPosition(TokenPos[Index], 'left')
+        local right = getPosition(TokenPos[Index] + #doToken - 1, 'right')
         action.finish                     = right
         action.bstart                     = action.finish
         action.keyword[#action.keyword+1] = left
@@ -5045,7 +5051,7 @@ local function parseFor()
                 }
             }
         end
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         missSymbol 'do'
     end
@@ -5054,12 +5060,12 @@ local function parseFor()
     parseActions()
     popChunk()
     skipSpace()
-    action.bfinish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    if (Tokens[Index + 1] --[[@as string]]) == 'end' then
-        action.finish                     = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right')
-        action.keyword[#action.keyword+1] = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+    action.bfinish = getPosition(TokenPos[Index], 'left')
+    if TokenText[Index + 1] == 'end' then
+        action.finish                     = getPosition(TokenPos[Index] + 2, 'right')
+        action.keyword[#action.keyword+1] = getPosition(TokenPos[Index], 'left')
         action.keyword[#action.keyword+1] = action.finish
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         missEnd(action.keyword[1], action.keyword[2])
     end
@@ -5080,17 +5086,17 @@ local function parseWhile()
     ---@diagnostic disable-next-line: missing-fields
     local action = {
         type    = 'while',
-        start   = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-        finish  = getPosition((Tokens[Index] --[[@as integer]]) + 4, 'right'),
+        start   = getPosition(TokenPos[Index], 'left'),
+        finish  = getPosition(TokenPos[Index] + 4, 'right'),
         keyword = {},
     }
     action.bstart     = action.finish
     action.keyword[1] = action.start
     action.keyword[2] = action.finish
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
 
     skipSpace()
-    local nextToken = (Tokens[Index + 1] --[[@as string]])
+    local nextToken = TokenText[Index + 1]
     local filter =  nextToken ~= 'do'
                 and nextToken ~= 'then'
                 and parseExp()
@@ -5103,11 +5109,11 @@ local function parseWhile()
     end
 
     skipSpace()
-    local doToken = (Tokens[Index + 1] --[[@as string]])
+    local doToken = TokenText[Index + 1]
     if doToken == 'do'
     or doToken == 'then' then
-        local left  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-        local right = getPosition((Tokens[Index] --[[@as integer]]) + #doToken - 1, 'right')
+        local left  = getPosition(TokenPos[Index], 'left')
+        local right = getPosition(TokenPos[Index] + #doToken - 1, 'right')
         action.finish                     = left
         action.bstart                     = right
         action.keyword[#action.keyword+1] = left
@@ -5127,7 +5133,7 @@ local function parseWhile()
                 }
             }
         end
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         missSymbol 'do'
     end
@@ -5139,12 +5145,12 @@ local function parseWhile()
     popChunk()
 
     skipSpace()
-    action.bfinish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    if (Tokens[Index + 1] --[[@as string]]) == 'end' then
-        action.finish                     = getPosition((Tokens[Index] --[[@as integer]]) + 2, 'right')
-        action.keyword[#action.keyword+1] = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+    action.bfinish = getPosition(TokenPos[Index], 'left')
+    if TokenText[Index + 1] == 'end' then
+        action.finish                     = getPosition(TokenPos[Index] + 2, 'right')
+        action.keyword[#action.keyword+1] = getPosition(TokenPos[Index], 'left')
         action.keyword[#action.keyword+1] = action.finish
-        Index = Index + 2 --[[@as integer]]
+        Index = Index + 2
     else
         missEnd(action.keyword[1], action.keyword[2])
     end
@@ -5162,14 +5168,14 @@ local function parseRepeat()
     ---@diagnostic disable-next-line: missing-fields
     local action = {
         type    = 'repeat',
-        start   = getPosition((Tokens[Index] --[[@as integer]]), 'left'),
-        finish  = getPosition((Tokens[Index] --[[@as integer]]) + 5, 'right'),
+        start   = getPosition(TokenPos[Index], 'left'),
+        finish  = getPosition(TokenPos[Index] + 5, 'right'),
         keyword = {},
     }
     action.bstart     = action.finish
     action.keyword[1] = action.start
     action.keyword[2] = action.finish
-    Index = Index + 2 --[[@as integer]]
+    Index = Index + 2
 
     pushActionIntoCurrentChunk(action)
     pushChunk(action)
@@ -5177,10 +5183,10 @@ local function parseRepeat()
     parseActions()
 
     skipSpace()
-    action.bfinish = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    if (Tokens[Index + 1] --[[@as string]]) == 'until' then
-        action.finish                     = getPosition((Tokens[Index] --[[@as integer]]) + 4, 'right')
-        action.keyword[#action.keyword+1] = getPosition((Tokens[Index] --[[@as integer]]), 'left')
+    action.bfinish = getPosition(TokenPos[Index], 'left')
+    if TokenText[Index + 1] == 'until' then
+        action.finish                     = getPosition(TokenPos[Index] + 4, 'right')
+        action.keyword[#action.keyword+1] = getPosition(TokenPos[Index], 'left')
         action.keyword[#action.keyword+1] = action.finish
         Index = Index + 2 --[[@as integer]]
 
@@ -5210,9 +5216,9 @@ local function parseRepeat()
 end
 
 local function parseBreak()
-    local returnLeft  = getPosition((Tokens[Index] --[[@as integer]]), 'left')
-    local returnRight = getPosition((Tokens[Index] --[[@as integer]]) + #(Tokens[Index + 1] --[[@as string]]) - 1, 'right')
-    Index = Index + 2 --[[@as integer]]
+    local returnLeft  = getPosition(TokenPos[Index], 'left')
+    local returnRight = getPosition(TokenPos[Index] + #TokenText[Index + 1] - 1, 'right')
+    Index = Index + 2
     skipSpace()
     ---@type parser.object
     ---@diagnostic disable-next-line: missing-fields
@@ -5268,7 +5274,7 @@ end
 ---@return parser.object? action
 ---@return boolean?       failed
 function parseAction()
-    local token = (Tokens[Index + 1] --[[@as string]])
+    local token = TokenText[Index + 1]
 
     if token == '::' then
         return parseLabel()
@@ -5280,7 +5286,7 @@ function parseAction()
 
     -- LuaJIT const 声明（soft keyword：后跟标识符或 function 才视为声明）
     if token == 'const' and isLuaJITExt('const') then
-        local nextToken = (Tokens[Index + 3] --[[@as string]])
+        local nextToken = TokenText[Index + 3]
         if nextToken == 'function'
         or (nextToken and nextToken ~= 'goto'
         and not KeyWord[nextToken]
@@ -5290,7 +5296,7 @@ function parseAction()
     end
 
     if token == 'global' then
-        local nextToken = (Tokens[Index + 3] --[[@as string]])
+        local nextToken = TokenText[Index + 3]
         if isGlobalActionStart(nextToken) then
             return parseGlobal()
         end
@@ -5321,7 +5327,7 @@ function parseAction()
     if token == 'continue' and (State.options.nonstandardSymbol['continue'] or State.luaJITExtensions) then
         -- continue 是 soft keyword：仅当其后为换行/`;`/块结束符时才视为 continue 语句，
         -- 否则（如 `continue = 2`、`continue()`）作为变量名
-        local nextToken = (Tokens[Index + 3] --[[@as string]])
+        local nextToken = TokenText[Index + 3]
         if nextToken == nil
         or NLMap[nextToken]
         or nextToken == ';'
@@ -5342,7 +5348,7 @@ function parseAction()
         return parseRepeat()
     end
 
-    if token == 'goto' and isKeyWord('goto', (Tokens[Index + 3] --[[@as string]])) then
+    if token == 'goto' and isKeyWord('goto', TokenText[Index + 3]) then
         return parseGoTo()
     end
 
@@ -5386,12 +5392,12 @@ function parseAction()
 end
 
 local function skipFirstComment()
-    if (Tokens[Index + 1] --[[@as string]]) ~= '#' then
+    if TokenText[Index + 1] ~= '#' then
         return
     end
     while true do
-        Index = Index + 2 --[[@as integer]]
-        local token = (Tokens[Index + 1] --[[@as string]])
+        Index = Index + 2
+        local token = TokenText[Index + 1]
         if not token then
             break
         end
@@ -5430,7 +5436,7 @@ local function parseLua()
         parseActions()
         if Index <= #Tokens then
             unknownSymbol()
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
         else
             break
         end
@@ -5454,6 +5460,8 @@ local function initState(lua, version, options)
     LocalLimited        = false
     Chunk               = {}
     Tokens              = tokens(lua) --[[@as table<integer, integer|string>]]
+    TokenPos            = Tokens --[[@as integer[] ]]
+    TokenText           = Tokens --[[@as string[] ]]
     Index               = 1
     ---@class parser.state
     ---@field uri uri
@@ -5543,7 +5551,7 @@ return function (lua, mode, version, options)
     while true do
         if Index <= #Tokens then
             unknownSymbol()
-            Index = Index + 2 --[[@as integer]]
+            Index = Index + 2
         else
             break
         end

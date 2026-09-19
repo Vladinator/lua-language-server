@@ -194,6 +194,12 @@ end
 ---@param ignoreFileOpenState? boolean
 ---@return boolean
 local function isEnabled(uri, name, ignoreFileOpenState)
+    -- a name that is not a registered diagnostic (a typo, or half typed in an
+    -- `expect-next-line` comment) can never fire; getStatus has no status for it
+    if not define.DiagnosticDefaultSeverity[name]
+    and not diagd.diagnosticDatas[name] then
+        return false
+    end
     local disables = config.get(uri, 'Lua.diagnostics.disable')
     if util.arrayHas(disables, name) then
         return false

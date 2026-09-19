@@ -49,7 +49,12 @@ return function (uri, callback)
                 return
             end
         end
-        local message = MESSAGE:format(guide.getKeyName(src))
+        local key = guide.getKeyName(src)
+        if key == nil then
+            -- `x.` typed but not finished: there is no name to report yet
+            return
+        end
+        local message = MESSAGE:format(key)
         if     src.type == 'getfield' and src.field then
             callback {
                 start   = src.field.start,

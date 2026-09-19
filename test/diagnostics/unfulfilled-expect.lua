@@ -40,3 +40,9 @@ local x
 local s = x:upper()
 local t = x:upper()
 ]]
+
+-- a name that is not a registered diagnostic can never fire: not reported, not a crash
+TEST [[
+---@diagnostic expect-next-line: no-such-diagnostic
+local s = 1
+]]

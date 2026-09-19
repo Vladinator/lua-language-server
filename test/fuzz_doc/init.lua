@@ -26,6 +26,7 @@ local semantic = require 'core.semantic-tokens'
 local symbols  = require 'core.document-symbol'
 local folding  = require 'core.folding'
 local hint     = require 'core.hint'
+local diagnostics = require 'core.diagnostics'
 local codeAction = require 'core.code-action'
 local wsSymbol = require 'core.workspace-symbol'
 local formatting = require 'core.formatting'
@@ -61,6 +62,9 @@ local samples = {
     '---@async',
     '---@deprecated use other',
     '---@diagnostic disable-next-line: undefined-global, unused-local',
+    '---@diagnostic expect-next-line: undefined-global, no-such-diagnostic',
+    '---@diagnostic expect-line: need-check-nil',
+    '---@diagnostic expect-next-line',
     '---@version >5.1, JIT',
     '---@source file:///x.lua#1:2',
     '---@vararg string',
@@ -260,6 +264,7 @@ for _, text in ipairs(cases) do
         try('folding', text, folding, TESTURI)
         try('inlay-hint', text, hint, TESTURI, 0, #text)
         try('workspace-symbol', text, wsSymbol, '', TESTURI)
+        try('diagnostics', text, diagnostics, TESTURI, false, function () end)
         try('formatting', text, formatting, TESTURI, {})
         for off = 1, #text + 1, 7 do
             try('code-action', text, codeAction, TESTURI, off, off + 3, {})

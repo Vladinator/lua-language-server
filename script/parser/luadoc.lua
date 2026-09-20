@@ -2325,12 +2325,12 @@ local function bindDocsBetween(sources, binded, start, finish)
     local left  = 1
     local right = max
     for _ = 1, 1000 do
-        index = left + (right - left) // 2
+        index = left + (right - left) // 2 --[[@as integer]]
         if index <= left then
-            index = left
+            index = left --[[@as integer]]
             break
         elseif index >= right then
-            index = right
+            index = right --[[@as integer]]
             break
         end
         local src = sources[index]

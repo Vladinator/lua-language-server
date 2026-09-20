@@ -95,3 +95,53 @@ local argView = vm.getInfer(vm.compileNode(arg)):view(TESTURI)
 assert(argView == 'string?', ('expected `string?`, got `%s`'):format(argView))
 
 files.remove(TESTURI)
+
+-- The walk of a variable (vm/tracer.lua) and the compile of what it needs can ask each other for
+-- answers: the walk of `clock` reaches an `if` whose condition reads `last`, `last`'s walk
+-- compiles `last = clock.now()`, which reads `clock` again, while the first walk of `clock` is
+-- still running and has not reached that read. The answer for it used to be empty and was
+-- cached, so `last = clock.now()` came out unknown (it depended on which read was asked for
+-- first, i.e. on the order in which diagnostics happened to run).
+local script3 = [==[
+---@class Clock
+---@field now fun(): integer
+
+---@type Clock
+local clock
+
+---@param cb   fun(f: fun())
+---@param quiet boolean
+local function run(cb, quiet)
+    local last = clock.now()
+    cb(function ()
+        if not quiet and clock.now() - last >= 500 then
+            last = clock.now()
+        end
+    end)
+end
+]==]
+
+files.setText(TESTURI, script3)
+local state3 = files.getState(TESTURI)
+assert(state3)
+
+---@type parser.object[]
+local clockReads = {}
+---@type parser.object?
+local reassign
+guide.eachSource(state3.ast, function (source)
+    if source.type == 'getlocal' and source[1] == 'clock' then
+        clockReads[#clockReads+1] = source
+    end
+    if source.type == 'setlocal' and source.node[1] == 'last' then
+        reassign = source
+    end
+end)
+table.sort(clockReads, function (a, b) return a.start < b.start end)
+assert(#clockReads == 3 and reassign)
+
+vm.compileNode(clockReads[1])   -- the first read starts the walk of `clock`
+local reassignView = vm.getInfer(reassign):view(TESTURI)
+assert(reassignView == 'integer', ('expected `integer`, got `%s`'):format(reassignView))
+
+files.remove(TESTURI)

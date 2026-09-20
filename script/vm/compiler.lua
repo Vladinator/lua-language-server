@@ -2959,6 +2959,7 @@ end
 ---@field outer?     vm.compileFrame  an earlier open frame for the same source
 ---@field dependsOn? integer          smallest stack index of an open ancestor this frame consumed
 ---@field tainted    any[]            completed nodes whose result consumed this frame's half-built node
+---@field owner?     vm.tracer        set on a tracer-walk frame (see vm.beginWalk): the tracer
 
 ---@type vm.compileFrame[]
 local frames    = {}
@@ -3029,6 +3030,18 @@ local function popFrame(frame)
     compiling[frame.source] = frame.outer
     frames[frame.index]     = nil
     depth                   = frame.index - 1
+    local owner = frame.owner
+    if owner then
+        owner.walkFrame = nil
+        ---@type any[]
+        local tainted = frame.tainted
+        for _, t in ipairs(tainted) do
+            if taintedBy[t] == frame and not compiling[t] then
+                taintedBy[t] = nil
+                vm.removeNode(t)
+            end
+        end
+    end
 end
 
 -- Popped through `<close>` so that a compile that raises still unwinds its frames.
@@ -3039,6 +3052,42 @@ local frameMT = {
         end
     end,
 }
+
+-- A tracer walk (vm/tracer.lua) computes the types of many reads of one variable in one go.
+-- While it runs, a compile that needs one of those reads (`lastPushClock = time.time()` is
+-- compiled by the walk of `lastPushClock`, and reads `time`, whose own walk is running further
+-- down the stack) gets nothing back for the reads the walk has not reached yet, and would cache
+-- that emptiness for good. So a walk is a pseudo frame on the compile stack: whoever comes back
+-- empty handed from a walk that is still running consumes it (`vm.consumeWalk`), which taints
+-- everything computed from that, and when the walk ends what was tainted is dropped and
+-- compiled again on demand, now with the walk's results in place.
+
+--- Open a walk frame for `owner` (the tracer); it closes with `<close>`, dropping what was
+--- computed from an unfinished walk. `owner.walkFrame` is set while it is open.
+---@param owner vm.tracer
+---@return vm.compileFrame
+function vm.beginWalk(owner)
+    depth = depth + 1
+    ---@type vm.compileFrame
+    local frame = setmetatable({
+        index   = depth,
+        source  = {},
+        pass    = 1,
+        open    = true,
+        tainted = {},
+        owner   = owner,
+    }, frameMT)
+    frames[depth]    = frame
+    owner.walkFrame  = frame
+    return frame
+end
+
+--- A read that a running walk has not computed yet was asked for: what depends on the answer
+--- must not be kept.
+---@param frame vm.compileFrame
+function vm.consumeWalk(frame)
+    consume(frame)
+end
 
 ---@param source parser.object
 ---@return vm.node

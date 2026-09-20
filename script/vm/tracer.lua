@@ -39,6 +39,7 @@ vm.registerCallNarrowing {
 ---@field main      parser.object
 ---@field uri       uri
 ---@field castIndex integer?
+---@field walkFrame? vm.compileFrame  set while a walk of this tracer is running (vm.beginWalk)
 ---@field fieldFallbackDone? boolean
 local mt = {}
 mt.__index = mt
@@ -1161,11 +1162,21 @@ function vm.traceNode(source)
         if not tracer then
             return nil
         end
+        -- the walk of this tracer may already be running further down the stack (see
+        -- vm.beginWalk): then we are a nested request for a read it has not reached yet
+        local running = tracer.walkFrame
+        local walk <close> = not running and vm.beginWalk(tracer) or nil
         local watch <close> = vm.watchCompileCycles()
         node = tracer:getNode(source)
         if not node and mode == 'local' then
             ---@cast base vm.variable
             node = tracer:getFallbackFieldNode(source, base)
+        end
+        -- whatever comes back from a walk that is still running is provisional: the reads it
+        -- has not reached are empty, and the ones it has may still change (an assignment
+        -- further on decides them)
+        if running then
+            vm.consumeWalk(running)
         end
         local owner = vm.getNode(base)
         if not owner then

@@ -374,7 +374,6 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
 
     pushResult()
 
-    ---@type integer
     local lastPushClock = time.time()
     ---@async
     xpcall(core, log.error, uri, isScopeDiag, function (result)

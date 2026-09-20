@@ -454,6 +454,7 @@ end
 
 --- 寻找所在父类型
 ---@param obj parser.object
+---@param want string
 ---@return parser.object?
 function m.getParentType(obj, want)
     for _ = 1, 10000 do
@@ -470,6 +471,7 @@ end
 
 --- 寻找所在父类型
 ---@param obj parser.object
+---@param wants table<string, boolean>
 ---@return parser.object?
 function m.getParentTypes(obj, wants)
     for _ = 1, 10000 do
@@ -523,6 +525,8 @@ function m.getUri(obj)
     return ''
 end
 
+---@param source parser.object
+---@param start integer?
 ---@return parser.object?
 function m.getENV(source, start)
     if not start then

@@ -8,6 +8,7 @@ EXISTS = compare.EXISTS
 
 ---@param a any
 ---@param b any
+---@return boolean
 local function include(a, b)
     if a == EXISTS and b ~= nil then
         return true

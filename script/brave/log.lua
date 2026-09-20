@@ -11,6 +11,7 @@ local monotonic      = time.monotonic
 _ENV = nil
 
 ---@param level string
+---@param ... any
 ---@return string
 local function pushLog(level, ...)
     ---@type { n: integer, [integer]: any }

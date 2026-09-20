@@ -62,6 +62,7 @@ function mt:_localLoadFile()
     ---@async
     ---@param name   string
     ---@param params any
+    ---@return any
     pubAny.awaitTask = function (name, params)
         if name == 'loadFile' then
             local path = params

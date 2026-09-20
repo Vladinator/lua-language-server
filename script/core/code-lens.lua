@@ -148,6 +148,7 @@ local function getCodeLens(uri)
 end
 
 ---@async
+---@param uri uri
 ---@param id integer
 ---@return proto.command?
 local function resolve(uri, id)

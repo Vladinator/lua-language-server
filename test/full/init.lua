@@ -4,6 +4,7 @@ local util    = require 'utility'
 rawset(_G, 'TEST', true)
 
 ---@param script string
+---@return parser.state
 function TEST(script)
     local clock = os.clock()
     local state = parser.compile(script, 'Lua', 'Lua 5.4')

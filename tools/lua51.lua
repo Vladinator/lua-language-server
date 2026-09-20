@@ -274,6 +274,8 @@ lua51.type = type
 lua51._VERSION = 'Lua 5.1'
 ---@param f    function
 ---@param msgh function
+---@return boolean
+---@return any ...
 function lua51.xpcall(f, msgh)
     checkType(f, 'function')
     checkType(f, 'function')

@@ -628,6 +628,7 @@ m.register 'textDocument/rename' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return { changes: table<uri, textEdit[]> }?
     function (params)
         ---@type provider.textDocumentItem
         local doc  = params.textDocument
@@ -1104,6 +1105,7 @@ m.register 'workspace/executeCommand' {
     },
     ---@async
     ---@param params any
+    ---@return any
     function (params)
         local command = (params.command --[[@as string]]):gsub(':.+', '')
         if     command == 'lua.removeSpace' then

@@ -134,6 +134,7 @@ function mt:addName(name)
     self.nameMap[fsname] = name
 end
 
+---@param path string
 ---@return require-manager.visibleResult[]
 function mt:getVisiblePath(path)
     local uri = furi.encode(path)

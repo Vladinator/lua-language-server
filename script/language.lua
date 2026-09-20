@@ -107,6 +107,7 @@ local function loadLang(name, language)
     return setmetatable(tbl, {
         ---@param self any
         ---@param key  any
+        ---@return any
         __index = function (self, key)
             local selfMap = self --[[@as table<any, any>]]
             selfMap[key] = key
@@ -114,6 +115,8 @@ local function loadLang(name, language)
         end,
         ---@param self any
         ---@param key  any
+        ---@param ... any
+        ---@return string
         __call = function (self, key, ...)
             local str = (self --[[@as table<any, any>]])[key]
             if not ... then

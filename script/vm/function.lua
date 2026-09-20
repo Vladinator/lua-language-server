@@ -282,6 +282,7 @@ function vm.countReturnsOfSource(source)
 end
 
 ---@param func parser.object
+---@param args parser.object[]?
 ---@param mark? table<parser.object, boolean>
 ---@return integer min
 ---@return number  max
@@ -355,6 +356,7 @@ end
 
 ---@param uri uri
 ---@param args parser.object[]
+---@param params parser.object[]?
 ---@return boolean
 local function isAllParamMatched(uri, args, params)
     if not params then

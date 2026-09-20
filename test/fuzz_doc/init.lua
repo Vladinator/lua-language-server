@@ -7,6 +7,7 @@ local guide = require 'parser.guide'
 ---@async
 ---@param uri uri
 ---@param pos integer
+---@return markdown?
 local function hover(uri, pos)
     return require 'core.hover'.byUri(uri, pos, 1)
 end

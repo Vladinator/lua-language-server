@@ -136,6 +136,8 @@ function m.isLibrary(uri, excludeFolder)
 end
 
 --- 获取库文件的根目录
+---@param suri uri
+---@param uri uri
 ---@return uri?
 function m.getLibraryUri(suri, uri)
     local scp = scope.getScope(suri)
@@ -143,6 +145,7 @@ function m.getLibraryUri(suri, uri)
 end
 
 --- 是否存在
+---@param uri uri
 ---@return boolean
 function m.exists(uri)
     return m.fileMap[uri] ~= nil
@@ -481,6 +484,7 @@ end
 
 --- 遍历文件
 ---@param suri? uri
+---@return fun(): uri?
 function m.eachFile(suri)
     local files = m.getAllUris(suri)
     local i = 0
@@ -935,6 +939,7 @@ end
 ---@return string resolvedPath
 function m.resolvePathPlaceholders(path)
     ---@param key string
+    ---@return string?
     path = path:gsub("%$%{(.-)%}", function(key)
         if key == "3rd" then
             return (ROOT / "meta" / "3rd"):string()

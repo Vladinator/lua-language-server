@@ -352,6 +352,7 @@ diagd.getRunOrder = buildDiagList
 ---@param response async fun(result: proto.diagnostic.result)
 ---@param checked? async fun(name: string)
 ---@param ignoreFileOpenState? boolean
+---@return nil
 return function (uri, isScopeDiag, response, checked, ignoreFileOpenState)
     local ast = files.getState(uri)
     if not ast then

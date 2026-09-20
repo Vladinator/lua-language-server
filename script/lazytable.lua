@@ -199,6 +199,7 @@ function mt:entry()
     local infoMap = setmt({}, {
         __mode = 'v',
         ---@param map table<table, lazytable.info>
+        ---@param t table
         ---@return { [1]: table<any, any>, [2]: integer, [3]: table<any, any>? }?
         __index = function (map, t)
             local id   = idMap[t]
@@ -321,6 +322,7 @@ function mt:entry()
     setmt(instMap, {
         __mode  = 'v',
         ---@param map table<integer, table>
+        ---@param id integer
         ---@return table
         __index = function (map, id)
             local inst  = {}

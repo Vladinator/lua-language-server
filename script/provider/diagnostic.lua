@@ -423,6 +423,8 @@ function m.resendDiagnostic(uri)
 end
 
 ---@async
+---@param uri uri
+---@param isScopeDiag boolean
 ---@return table|nil result
 ---@return boolean? unchanged
 function m.pullDiagnostic(uri, isScopeDiag)

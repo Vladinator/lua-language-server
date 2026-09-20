@@ -201,6 +201,7 @@ local m = {}
 ---@type table<workspace.loading, boolean>
 m._loadings = setmetatable({}, { __mode = 'k' })
 
+---@param scp scope
 ---@return workspace.loading
 function m.create(scp)
     local loading = setmetatable({

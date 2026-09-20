@@ -113,6 +113,7 @@ function mt:getHead()
     return self:getAfter(HEAD)
 end
 
+---@param node any
 ---@return any
 function mt:getBefore(node)
     if node == nil then

@@ -542,6 +542,10 @@ end
 
 ---@param ast  json-edit.ast
 ---@param path any
+---@return json-edit.ast?
+---@return (string|integer)?
+---@return boolean?
+---@return string[]?
 local function query(ast, path)
     local pathlst, err = split_path(path)
     if not pathlst then
@@ -752,6 +756,7 @@ local OP = {}
 ---@param option json-beautify.option
 ---@param path   any
 ---@param value  any
+---@return string?
 function OP.add(str, option, path, value)
     if path == '/' then
         return beautify(value, option)
@@ -771,6 +776,7 @@ function OP.add(str, option, path, value)
         error(k)
         return
     end
+    ---@cast k string|integer -- `query` returns the key when it returns an ast
     if lastpath then
         value = add_prefix(value, lastpath)
     end
@@ -795,6 +801,7 @@ end
 ---@param str  string
 ---@param _    json-beautify.option
 ---@param path any
+---@return string?
 function OP.remove(str, _, path)
     if path == '/' then
         return ''
@@ -808,6 +815,7 @@ function OP.remove(str, _, path)
         error(k)
         return
     end
+    ---@cast k string|integer -- `query` returns the key when it returns an ast
     if lastpath then
         --warning: path does not exist
         return str
@@ -832,6 +840,7 @@ end
 ---@param option json-beautify.option
 ---@param path   any
 ---@param value  any
+---@return string?
 function OP.replace(str, option, path, value)
     if path == '/' then
         return beautify(value, option)
@@ -851,6 +860,7 @@ function OP.replace(str, option, path, value)
         error(k)
         return
     end
+    ---@cast k string|integer -- `query` returns the key when it returns an ast
     if lastpath then
         value = add_prefix(value, lastpath)
     end

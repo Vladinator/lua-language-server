@@ -1748,6 +1748,8 @@ local function trySpecial(state, position, results)
 end
 
 ---@async
+---@param state parser.state
+---@param position integer
 ---@param results completion.results
 local function tryIndex(state, position, results)
     local parent, oop = findParentInStringIndex(state, position)

@@ -46,6 +46,7 @@ m._watchings = {}
 ---@param path string
 ---@param recursive boolean
 ---@param filter? fun(path: string):boolean
+---@return fun()
 function m.watch(path, recursive, filter)
     if path == '' or not fs.is_directory(fs.path(path)) then
         return function () end

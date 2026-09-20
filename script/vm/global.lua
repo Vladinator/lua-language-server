@@ -160,7 +160,9 @@ function mt:getParentBase(uri)
     return vm.getGlobalBase(luckyBoy)
 end
 
+---@param name string
 ---@param cate vm.global.cate
+---@param uri? uri
 ---@return vm.global
 local function createGlobal(name, cate, uri)
     return setmetatable({

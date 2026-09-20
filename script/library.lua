@@ -533,6 +533,7 @@ local hasAsked = {}
 ---@param uri             uri
 ---@param cfg             library.3rdConfig
 ---@param checkThirdParty string
+---@return nil
 local function askFor3rd(uri, cfg, checkThirdParty)
     if hasAsked[cfg.name] then
         return nil

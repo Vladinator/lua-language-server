@@ -243,6 +243,8 @@ local function makeSignatures(text, call, pos)
 end
 
 ---@async
+---@param uri uri
+---@param pos integer
 ---@return core.signature.result[]?
 return function (uri, pos)
     local state = files.getState(uri)

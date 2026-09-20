@@ -76,6 +76,7 @@ function _M.removeArg(source, index)
 end
 
 ---把特定函数当成构造函数,`index` 参数是self
+---@param ast parser.object
 ---@param classname string
 ---@param source parser.object function node
 ---@param index integer

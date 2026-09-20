@@ -55,6 +55,8 @@ local function test(name)
     print(('测试[%s]...'):format(name))
     local originRequire = require
     ---@param n string
+    ---@return any
+    ---@return string?
     require = function (n)
         ---@type any, string?
         local v, p = originRequire(n)

@@ -8,6 +8,7 @@ local EXISTS = {}
 
 ---@param a any
 ---@param b any
+---@return boolean
 local function eq(a, b)
     if a == EXISTS and b ~= nil then
         return true

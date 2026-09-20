@@ -44,6 +44,7 @@ local function toPsiNode(astNode, state)
 end
 
 ---@param astNode parser.object
+---@param state parser.state
 ---@return psi.view.node | nil
 local function collectPsi(astNode, state)
     local psiNode = toPsiNode(astNode, state)

@@ -318,6 +318,7 @@ end
 ---@param source parser.object
 ---@param newname string
 ---@param callback core.rename.callback
+---@return nil
 local function rename(source, newname, callback)
     if source.type == 'label'
     or source.type == 'goto' then

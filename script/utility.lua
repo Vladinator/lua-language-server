@@ -989,6 +989,7 @@ function m.defaultTable(default)
     return setmetatable({}, { __index =
         ---@param t table<any, any>
         ---@param k any
+        ---@return any
         function (t, k)
             if k == nil then
                 return nil
@@ -1022,6 +1023,7 @@ function m.multiTable(max, default)
             mts[i] = { __index =
                 ---@param t table<any, any>
                 ---@param k any
+                ---@return any
                 function (t, k)
                     local v = default(k)
                     t[k] = v

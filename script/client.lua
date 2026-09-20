@@ -102,6 +102,7 @@ function m.getOffsetEncoding()
     return m._offsetEncoding
 end
 
+---@param ... any
 ---@return string
 local function packMessage(...)
     local strs = table.pack(...) --[[@as table<any, any>]]
@@ -115,6 +116,7 @@ end
 
 ---show message to client
 ---@param type message.type
+---@param ... any
 function m.showMessage(type, ...)
     local message = packMessage(...)
     proto.notify('window/showMessage', {
@@ -175,6 +177,7 @@ function m.awaitRequestMessage(type, message, titles)
 end
 
 ---@param type message.type
+---@param ... any
 function m.logMessage(type, ...)
     local message = packMessage(...)
     proto.notify('window/logMessage', {

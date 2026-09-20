@@ -28,6 +28,7 @@ local specials        = require 'parser.specials'
 --- the keyword rather than naming a field called "secret".
 ---@class parser.object
 ---@field ["secret"]? boolean
+---@field ["nosecret"]? boolean -- the `nosecret` type keyword below: a slot that cannot take a secret value (checked by secret-argument.lua and secret-field.lua)
 ---@field ["secretUnwrapUsed"]? boolean -- on a `doc.secret-unwrap`: it cleared an inherited flag at least once
 
 local MESSAGE = 'Need check secret value.'
@@ -85,6 +86,12 @@ docTags.registerFieldKeyword('secret', 'secret',
 -- item, so the type and the secrecy live in one annotation.
 docTags.registerTypeKeyword('secret', 'secret',
     'Marks this type item as secret: `---@param token secret string`.')
+
+-- `nosecret` is the other way round: the slot cannot take a secret value (`---@param str nosecret string`,
+-- `---@field name nosecret string`). Nothing here reads it; the companions secret-argument.lua and
+-- secret-field.lua report a secret that is passed or assigned to such a slot.
+docTags.registerTypeKeyword('nosecret', 'nosecret',
+    'This slot cannot take a secret value: `---@param str nosecret string`, `---@field name nosecret string`. Passing or assigning one is reported by `secret-argument` / `secret-field`.')
 
 -- Recognize `next` as an iteration entry point, alongside the parser's
 -- own built-in pairs/ipairs, so `next(secretTable)` can be banned below.

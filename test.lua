@@ -93,6 +93,7 @@ local function testAll()
     test 'fuzz_doc'
     test 'editor_sim'
     test 'suggest_returns'
+    test 'diag_partial'
 end
 
 local files = require "files"

@@ -134,6 +134,8 @@ local samples = {
     '---@diagnostic expect-next-line: undefined-global, no-such-diagnostic',
     '---@diagnostic expect-line: need-check-nil',
     '---@diagnostic expect-next-line',
+    -- the tags of the secret plugin (core/diagnostics/extra/): text only, without the plugin they are
+    -- plain comments and still must not make anything throw
     '---@secret a, b, c',
     '---@secret a b c',
     '---@secret-unwrap x, y',
@@ -435,10 +437,12 @@ for _, text in ipairs(cases) do
     do
         files.setText(TESTURI, text)
         local state = files.getState(TESTURI)
-        try('semantic-tokens', text, semantic, TESTURI, 0, #text)
+        -- (positions, as the requests give them: `#text` would only cover the first line)
+        try('semantic-tokens', text, semantic, TESTURI, 0, math.huge)
+        try('semantic-tokens/range', text, semantic, TESTURI, 10000, 30000)
         try('document-symbol', text, symbols, TESTURI)
         try('folding', text, folding, TESTURI)
-        try('inlay-hint', text, hint, TESTURI, 0, #text)
+        try('inlay-hint', text, hint, TESTURI, 0, math.huge)
         try('workspace-symbol', text, wsSymbol, '', TESTURI)
         try('diagnostics', text, diagnostics, TESTURI, false, function () end)
         try('formatting', text, formatting, TESTURI, {})
@@ -533,7 +537,7 @@ for i, text in ipairs(cases) do
         files.setText(TESTURI, text)
         local state = files.getState(TESTURI)
         local shown = state and state.lua or text
-        try('plugin/semantic-tokens', text, semantic, TESTURI, 0, #shown)
+        try('plugin/semantic-tokens', text, semantic, TESTURI, 0, math.huge)
         try('plugin/document-symbol', text, symbols, TESTURI)
         try('plugin/diagnostics', text, diagnostics, TESTURI, false, function () end)
         try('plugin/formatting', text, formatting, TESTURI, {})

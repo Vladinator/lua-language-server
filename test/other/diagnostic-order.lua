@@ -13,8 +13,13 @@ for name, data in pairs(diagd.diagnosticDatas) do
     assert(define.DiagnosticDefaultSeverity[name] == data.severity, name)
     assert(define.DiagnosticDefaultNeededFileStatus[name] == data.status, name)
 end
-assert(define.DiagnosticDefaultSeverity['need-check-secret'], 'plugin diagnostic missing from define')
-assert(define.DiagnosticDefaultGroupSeverity['secret'], 'plugin group missing from define')
+-- (whichever plugin diagnostics are there: core/diagnostics/extra/)
+for _, name in ipairs(require 'extra_diagnostics'()) do
+    assert(define.DiagnosticDefaultSeverity[name], name .. ': plugin diagnostic missing from define')
+    for _, group in ipairs(diagd.getGroups(name)) do
+        assert(define.DiagnosticDefaultGroupSeverity[group], group .. ': plugin group missing from define')
+    end
+end
 
 -- every registered diagnostic runs exactly once, `unfulfilled-expect` (always last) is not in the list
 local order = diagd.getRunOrder()

@@ -2514,9 +2514,9 @@ end
 function f(a: number, b: string, ...args: boolean)
 ]]
 
--- the tags and attributes that were registered with a description (the secret plugin registers
--- its tags when core.diagnostics loads)
-require 'core.diagnostics'
+-- the tags and attributes that were registered with a description (the tags of the test
+-- fixture, so this does not depend on a plugin; test/docfixture.lua)
+require 'docfixture'
 ---@param script string
 ---@param expect string
 local function hoverContains(script, expect)
@@ -2529,9 +2529,14 @@ local function hoverContains(script, expect)
 end
 
 hoverContains([[
----@<?secret?>
+---@<?fixture-marker?>
 local x = 1
-]], '`@secret`')
+]], '`@fixture-marker`')
+
+hoverContains([[
+---@<?fixture-names?> a
+local a = 1
+]], 'list of names')
 
 hoverContains([[
 ---@class (<?exact?>) A

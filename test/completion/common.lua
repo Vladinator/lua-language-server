@@ -4615,57 +4615,53 @@ print(a:<??>)
     },
 }
 
--- tags, field / type keywords and name lists taught by plugins (parser.docTags)
+-- tags, field / type keywords and name lists taught by plugins (parser.docTags): the ones the
+-- tests register themselves (test/docfixture.lua), so nothing here depends on a plugin. What the
+-- plugins in core/diagnostics/extra/ add is tested next to them.
+require 'docfixture'
+
 TEST [[
----@sec<??>
+---@fixture-<??>
 local x
 ]]
 {
     include = true,
     {
-        label = 'secret',
+        label = 'fixture-marker',
         kind  = define.CompletionItemKind.Event,
     },
     {
-        label = 'secret-unwrap',
-        kind  = define.CompletionItemKind.Event,
-    },
-    {
-        label = 'secret-check',
-        kind  = define.CompletionItemKind.Event,
-    },
-    {
-        label = 'secret-access-check',
+        label = 'fixture-names',
         kind  = define.CompletionItemKind.Event,
     },
 }
 
 TEST [[
 ---@class A
----@field sec<??> string
+---@field fixturef<??> string
 ]]
 {
     include = true,
     {
-        label = 'secret',
+        label = 'fixturefield',
         kind  = define.CompletionItemKind.Keyword,
     },
 }
 
 TEST [[
----@param token sec<??>
+---@param token fixturet<??>
 local function f(token) end
 ]]
 {
     include = true,
     {
-        label = 'secret',
+        label = 'fixturetype',
         kind  = define.CompletionItemKind.Keyword,
     },
 }
 
 TEST [[
----@secret a<??>
+---@fixture-names a<??>
 local abc, xyz = 1, 2
 ]]
 {
@@ -4688,12 +4684,12 @@ TEST [[
 }
 
 TEST [[
----@secret-u<??>
+---@fixture-n<??>
 local x
 ]]
 {
     {
-        label = 'secret-unwrap',
+        label = 'fixture-names',
         kind  = define.CompletionItemKind.Event,
     },
 }
@@ -4772,10 +4768,17 @@ TEST [[
 ]]
 (offers 'partial')
 
-TEST [[
----@diagnostic expect-next-line: unused-local, need-check-s<??>
-]]
-(offers 'need-check-secret')
+-- the diagnostics of the plugins are offered too (any one that is there: with none, nothing to check)
+do
+    local plugins = require 'extra_diagnostics'()
+    if plugins[1] then
+        local name = plugins[1]
+        TEST(([[
+---@diagnostic expect-next-line: unused-local, %s<??>
+]]):format(name:sub(1, #name - 1)))
+        (offers(name))
+    end
+end
 
 TEST [[
 ---@diagnostic expect-line: unfulfilled-ex<??>

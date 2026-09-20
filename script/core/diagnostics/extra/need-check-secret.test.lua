@@ -399,3 +399,81 @@ TEST [[
 local s = { a = 1 }
 print(s.a)
 ]]
+
+-- What the plugin teaches the editor features: its tags, its `secret` field and type keywords, the
+-- names in `---@secret a, b`, hover text and colours. The generic machinery is tested with the
+-- fixture in test/docfixture.lua; this is the part that belongs to this plugin, so it goes when
+-- the plugin goes.
+do
+    local files      = require 'files'
+    local catch      = require 'catch'
+    local define     = require 'proto.define'
+    local completion = require 'core.completion'
+    local hover      = require 'core.hover'
+    local semantic   = require 'core.semantic-tokens'
+
+    ---@diagnostic disable: await-in-sync
+
+    --- The labels (with kinds) that completion offers at the `<??>` of a script.
+    ---@param script string
+    ---@return table<string, integer>
+    local function offered(script)
+        local text, catched = catch(script, '?')
+        files.setText(TESTURI, text)
+        local items = completion.completion(TESTURI, catched['?'][1][2] --[[@as integer]], nil) or {}
+        ---@type table<string, integer>
+        local labels = {}
+        for _, item in ipairs(items) do
+            labels[item.label] = item.kind
+        end
+        files.remove(TESTURI)
+        return labels
+    end
+
+    ---@param script string
+    ---@param label  string
+    ---@param kind   integer
+    local function assertOffers(script, label, kind)
+        local labels = offered(script)
+        assert(labels[label] == kind, ('`%s` (kind %d) not offered, got kind %s'):format(label, kind, tostring(labels[label])))
+    end
+
+    local event, keyword, variable = define.CompletionItemKind.Event, define.CompletionItemKind.Keyword, define.CompletionItemKind.Variable
+
+    -- the tags
+    for _, tag in ipairs { 'secret', 'secret-unwrap', 'secret-check', 'secret-access-check' } do
+        assertOffers('---@' .. tag:sub(1, 5) .. '<??>\nlocal x\n', tag, event)
+    end
+    assertOffers('---@secret-u<??>\nlocal x\n', 'secret-unwrap', event)
+    -- the keyword in front of a field name and in front of a type
+    assertOffers('---@class A\n---@field sec<??> string\n', 'secret', keyword)
+    assertOffers('---@param token sec<??>\nlocal function f(token) end\n', 'secret', keyword)
+    -- the locals a `---@secret a, b` can name
+    local names = offered('---@secret a<??>\nlocal abc, xyz = 1, 2\n')
+    assert(names['abc'] == variable and not names['xyz'], 'names in `---@secret a`')
+
+    -- hover
+    local text, catched = catch('---@<?secret?>\nlocal x = 1\n', '?')
+    files.setText(TESTURI, text)
+    local shown = assert(hover.byUri(TESTURI, catched['?'][1][1] --[[@as integer]], 1))
+    assert(shown:string():find('`@secret`', 1, true), shown:string())
+    assert(shown:string():find('secret', 1, true))
+    files.remove(TESTURI)
+
+    -- colours: the tag word is a documentation keyword like every other tag
+    files.setText(TESTURI, '---@secret\nlocal a\n---@secret-unwrap a\nlocal b\n')
+    local data = semantic(TESTURI, 0, math.huge) --[[@as integer[] ]]
+    files.remove(TESTURI)
+    ---@type table<string, integer>
+    local found = {}
+    local line, char = 0, 0
+    for i = 1, #data, 5 do
+        line = line + data[i]
+        char = (data[i] == 0) and (char + data[i + 1]) or data[i + 1]
+        if data[i + 3] == define.TokenTypes.keyword and data[i + 4] == define.TokenModifiers.documentation then
+            found[line .. ':' .. char] = data[i + 2]
+        end
+    end
+    assert(found['0:3'] == 7, '`@secret` is a documentation keyword')
+    assert(found['2:3'] == 14, '`@secret-unwrap` is a documentation keyword')
+end

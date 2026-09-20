@@ -15,12 +15,11 @@ local function toSet(list)
     return set
 end
 
-local pluginNames = {
-    'need-check-secret',
-    'redundant-secret-unwrap',
-    'undefined-secret-name',
-    'unfulfilled-expect',
-}
+-- every diagnostic that a plugin brings (whichever are there: core/diagnostics/extra/), and
+-- `unfulfilled-expect`, which registers itself too
+local diagd = require 'proto.diagnostic'
+local pluginNames = require 'extra_diagnostics'()
+pluginNames[#pluginNames+1] = 'unfulfilled-expect'
 
 local severity = assert(config['Lua.diagnostics.severity'].properties)
 local status   = assert(config['Lua.diagnostics.neededFileStatus'].properties)
@@ -30,5 +29,10 @@ for _, name in ipairs(pluginNames) do
     assert(status[name],   name .. ' missing from Lua.diagnostics.neededFileStatus')
     assert(disable[name],  name .. ' missing from Lua.diagnostics.disable')
 end
-assert(assert(config['Lua.diagnostics.groupSeverity'].properties)['secret'],   'group `secret` missing (severity)')
-assert(assert(config['Lua.diagnostics.groupFileStatus'].properties)['secret'], 'group `secret` missing (file status)')
+-- and the groups they put themselves in
+for _, name in ipairs(pluginNames) do
+    for _, group in ipairs(diagd.getGroups(name)) do
+        assert(assert(config['Lua.diagnostics.groupSeverity'].properties)[group],   ('group `%s` missing (severity)'):format(group))
+        assert(assert(config['Lua.diagnostics.groupFileStatus'].properties)[group], ('group `%s` missing (file status)'):format(group))
+    end
+end

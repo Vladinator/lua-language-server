@@ -2771,6 +2771,19 @@ local function trySymbolReference(state, position, results)
     end
 end
 
+--- The name of the attribute list `(a, b)` at the position, or the list itself between them.
+---@param attr     parser.object
+---@param position integer
+---@return parser.object
+local function getAttrSource(attr, position)
+    for _, name in ipairs(attr.names or {}) do
+        if position >= name.start and position <= name.finish then
+            return name
+        end
+    end
+    return attr
+end
+
 ---@async
 ---@param state    parser.state
 ---@param position integer
@@ -2798,13 +2811,7 @@ local function tryLuaDoc(state, position, results)
     -- below would not go down to them
     local attr = doc.docAttr
     if attr and position >= attr.start and position <= attr.finish then
-        local attrSource = attr
-        for _, name in ipairs(attr.names) do
-            if position >= name.start and position <= name.finish then
-                attrSource = name
-            end
-        end
-        if tryluaDocBySource(state, position, attrSource, results) then
+        if tryluaDocBySource(state, position, getAttrSource(attr, position), results) then
             return
         end
     end

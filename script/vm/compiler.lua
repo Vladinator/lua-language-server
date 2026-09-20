@@ -2090,15 +2090,21 @@ local compilerSwitch = util.switch()
             vm.setNode(source, locNode)
             return
         end
+        -- did compiling the value run into a compile (or a tracer walk) that is still open?
+        local watch <close> = vm.watchCompileCycles()
         local valueNode = vm.compileNode(source.value)
         if  isUnresolved(valueNode)
         and locNode:isTyped()
-        and (source.node.bindDocs or referencesLocal(source.value, source.node)) then
+        and (source.node.bindDocs or referencesLocal(source.value, source.node) or watch.hit) then
             -- a self-referential assignment (`i = i + 1`, `s = s .. x`) is
             -- circular for the tracer, and a value that cannot be resolved yet
             -- (its own inference is mid-cycle) is empty or untyped; keep the
             -- variable's own type, and for a variable with a declared type
-            -- (---@type / ---@param) always, instead of degrading it to unknown
+            -- (---@type / ---@param) always, instead of degrading it to unknown.
+            -- Likewise when the value came back empty because it ran into a
+            -- compile that is still open (`left = index + 1` and `index = left + ...`
+            -- in one loop): whatever consumed that is compiled again once the open
+            -- one is done, this only keeps it from being cached as unknown meanwhile
             valueNode = locNode
             -- arithmetic/concat/unary results are never nil, even when the
             -- variable's own type is optional

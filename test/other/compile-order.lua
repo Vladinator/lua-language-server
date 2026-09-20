@@ -145,3 +145,52 @@ local reassignView = vm.getInfer(reassign):view(TESTURI)
 assert(reassignView == 'integer', ('expected `integer`, got `%s`'):format(reassignView))
 
 files.remove(TESTURI)
+
+-- Three locals that assign each other in one loop (a binary search): compiling `left = index + 1`
+-- reads `index`, whose walk is running and needs `index = left + ...`, which needs `left` again.
+-- The assignments that ran into the open compile came back empty and were cached as unknown
+-- (`right = index` stayed `unknown` when the read in `list[index]` was asked for first).
+files.setText(TESTURI, [==[
+---@param list integer[]
+---@param want integer
+local function search(list, want)
+    ---@type integer
+    local index
+    local left  = 1
+    local right = #list
+    for _ = 1, 1000 do
+        index = left + (right - left) // 2
+        if index <= left then
+            break
+        elseif index >= right then
+            break
+        end
+        if list[index] < want then
+            left = index + 1
+        else
+            right = index
+        end
+    end
+    return index
+end
+]==])
+local state5 = files.getState(TESTURI)
+assert(state5)
+
+---@type parser.object?, parser.object?
+local firstRead, rightAssign
+guide.eachSource(state5.ast, function (source)
+    if source.type == 'getindex' and source.index and source.index[1] == 'index' then
+        firstRead = source.index
+    end
+    if source.type == 'setlocal' and source.node[1] == 'right' then
+        rightAssign = source
+    end
+end)
+assert(firstRead and rightAssign)
+
+vm.compileNode(firstRead)
+local rightView = vm.getInfer(rightAssign):view(TESTURI)
+assert(rightView == 'integer', ('expected `integer`, got `%s`'):format(rightView))
+
+files.remove(TESTURI)

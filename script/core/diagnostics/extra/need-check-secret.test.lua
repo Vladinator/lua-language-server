@@ -374,6 +374,30 @@ local function f(token)
 end
 ]]
 
+-- ...an optional secret parameter of a method: passing it on is fine, using it is not until it is
+-- checked (the check clears the secret, not the `?`)
+TEST [[
+local ns = {}
+
+---@secret-check
+---@param v any
+---@return boolean
+local function issecretvalue(v) return false end
+
+---@param guidOrUnit secret string?
+---@return number? id
+function ns:UnitID(guidOrUnit)
+    print(guidOrUnit)
+    print(#<!guidOrUnit!>)
+    print(<!guidOrUnit!>:upper())
+    if not issecretvalue(guidOrUnit) then
+        print(#guidOrUnit)
+    end
+end
+
+ns:UnitID('abc')
+]]
+
 -- ...on a return value
 TEST [[
 ---@return secret string

@@ -88,13 +88,16 @@ local function utf16codes(s, tobyte)
     end, s, 1
 end
 
-local _utf8byte = utf8.codes ""
+local utf8codepoint = utf8.codepoint
+--- The code point of the character that starts at `n`; utf8next has already checked that a
+--- well formed character starts there. (This used to be the `utf8.codes ""` iterator, which
+--- raises "invalid UTF-8 code" when the character is followed by a stray continuation byte:
+--- a valid `a` then `` in a file that is not UTF-8 made semantic tokens throw.)
 ---@param s string
 ---@param n integer
 ---@return integer
 local function utf8byte(s, n)
-    local _, code = _utf8byte(s, n-1)
-    return code
+    return utf8codepoint(s, n)
 end
 
 --[[

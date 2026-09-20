@@ -22,6 +22,16 @@ local features = {
     implement   = require 'core.implementation',
     completion  = require 'core.completion'.completion,
     rename      = require 'core.rename'.prepareRename,
+    -- the rename itself, with a new name, not only its preparation
+    ---@async
+    renameTo    = function (uri, pos)
+        return require 'core.rename'.rename(uri, pos, 'renamed')
+    end,
+    -- what the editor asks on typing a newline
+    ---@async
+    typeFormat  = function (uri, pos)
+        return require 'core.type-formatting'(uri, pos, '\n', {})
+    end,
 }
 local semantic = require 'core.semantic-tokens'
 local symbols  = require 'core.document-symbol'
@@ -31,6 +41,38 @@ local diagnostics = require 'core.diagnostics'
 local codeAction = require 'core.code-action'
 local wsSymbol = require 'core.workspace-symbol'
 local formatting = require 'core.formatting'
+local color      = require 'core.color'
+local codeLens   = require 'core.code-lens'
+local psiView    = require 'core.view.psi-view'
+local rangeFormatting = require 'core.rangeformatting'
+local vm         = require 'vm'
+local export     = require 'cli.doc.export'
+
+-- `--doc` export reads the global `DOC` (the project directory), and turns a file uri into a path
+-- with `fs.canonical`, which needs the file to exist; the unit test file does not
+DOC = ROOT:string()
+export.getLocalPath = function (uri)
+    return uri
+end
+
+--- What `--doc` does for the classes, aliases and enums a file declares.
+---@async
+---@param uri uri
+local function docExport(uri)
+    local state = files.getState(uri)
+    if not state or not state.ast or not state.ast.docs then
+        return
+    end
+    for _, doc in ipairs(state.ast.docs) do
+        local name = (doc.class and doc.class[1]) or (doc.alias and doc.alias[1]) or (doc.enum and doc.enum[1])
+        if type(name) == 'string' then
+            local global = vm.getGlobal('type', name)
+            if global then
+                export.documentObject(global)
+            end
+        end
+    end
+end
 
 local samples = {
     '---@class Foo: Bar<T>, Baz',
@@ -78,6 +120,56 @@ local samples = {
     '---@version >5.1, JIT',
     '---@source file:///x.lua#1:2',
     '---@vararg string',
+    '---@class (incremental) Foo',
+    '---@class (partial, exact) Foo: Bar',
+    '---@field x [string, integer?]',
+    '---@field y { [1]: string, n: integer, f: fun(...: any) }',
+    '---@field [integer] string',
+    '---@field public z fun(self: Foo, a: `T`): T',
+    "---@type 'a'|'b'|1|true",
+    '---@type fun(a: integer, ...: string): (string, integer)',
+    '---@type async fun(): table<string, [integer, string]>',
+    '---@type string[][]?',
+    '---@type Foo.Bar<T>[]',
+    '---@type table<string, table<string, table<string, integer>>>',
+    '---@type {}',
+    '---@type [ ]',
+    '---@type fun()',
+    '---@type (fun())?',
+    '---@type ...',
+    '---@param self Foo\n---@param ... integer\n---@return ...',
+    '---@return integer|string ...',
+    '---@return T, U',
+    '---@generic T: table, U: {x: integer}',
+    '---@generic T\n---@param a T\n---@return T',
+    '---@overload fun(...: string): boolean',
+    '---@overload fun(self: Foo): self',
+    '---@cast x -?',
+    '---@cast x +nil',
+    '---@cast x string|integer, -nil',
+    '---@cast a, b string',
+    '---@as string',
+    '---@enum (key) Color\n---@enum Other',
+    '---@operator call(...): Foo',
+    '---@operator concat(string): Foo',
+    '---@operator len: integer',
+    '---@nodiscard',
+    '---@package',
+    '---@private',
+    '---@protected',
+    '---@meta _',
+    '---@meta',
+    '---@see Foo#bar',
+    "---@module 'a.b'",
+    '---@source c:\\x.lua:3',
+    '---@version 5.4',
+    '---@version <5.4, JIT',
+    '---@diagnostic disable',
+    '---@diagnostic enable: unused-local',
+    '---@diagnostic disable-line: undefined-global',
+    '---@diagnostic expect-next-line: need-check-nil, undefined-field',
+    '---@secret-access-check',
+    '---@field secret token string',
     '---@class A\n---@field x integer',
     '---@param a integer\n---@param b',
     '--[[@as string]]',
@@ -162,6 +254,25 @@ local luaSamples = {
     'local ok = pcall(function () return M:method "s" end)',
     'local i = 0x1p4 + 1e3 + 0b101',
     'return function () end',
+    -- Lua 5.4 / 5.5 attributes, integer division, bit operators, goto
+    'local x <const>, y <close> = 1, nil; local z = x // 2 | y ~ 3 << 1 >> 2 & 4',
+    'goto a; ::a:: ::b:: local n = 7 // 2 % 3',
+    -- Lua 5.5 `global` declarations and named varargs
+    'global x, y = 1, 2; global function f(...args) return #args end',
+    'global <const> *; global z <const> = 1',
+    'local function g(...rest) return rest, select("#", ...rest) end',
+    -- LuaJIT / integer suffixes / odd literals
+    'local a = 1LL + 2ULL + 0xFFi + 3e-2 + .5 + 5. + 0x.1p-1',
+    'local s = "\\z   \\x41\\65\\u{1F600}" .. \'q\' .. [==[a]]b]==]',
+    -- comments, long comments, shebang-ish and unfinished strings
+    '--[==[ long\ncomment ]==] local x = 1 -- trailing',
+    'local s = "unterminated',
+    'local t = { [ =',
+    'function ( end',
+    'if then elseif else end until',
+    'x = = = 1',
+    '::',
+    '@ # $ ` ~ ^',
 }
 
 ---@type string[]
@@ -265,6 +376,35 @@ for _, snippet in ipairs(snippets) do
     end
 end
 
+-- token soup: keywords, doc tags, punctuation and names in random order
+local vocab = {
+    'local', 'function', 'end', 'if', 'then', 'else', 'for', 'in', 'do', 'while', 'repeat', 'until', 'return',
+    'goto', 'global', 'nil', 'true', 'false', 'and', 'or', 'not', 'x', 'y', 'M', 'self', '...', '1', '"s"',
+    '{', '}', '(', ')', '[', ']', ',', ';', ':', '.', '=', '==', '..', '<const>', '<close>', '::',
+    '---@class', '---@param', '---@return', '---@type', '---@field', '---@alias', '---@generic',
+    '---@overload', '---@cast', '---@diagnostic', '---@secret', 'fun(', '|', '?', 'integer', 'string',
+    '\n', '\n', ' ',
+}
+for _ = 1, 150 do
+    ---@type string[]
+    local parts = {}
+    for _ = 1, 20 + rand(60) do
+        parts[#parts+1] = vocab[rand(#vocab)]
+    end
+    cases[#cases+1] = table.concat(parts, ' ')
+end
+-- byte-level damage: random bytes, including invalid UTF-8 and NUL, inside a realistic snippet
+for _, snippet in ipairs(snippets) do
+    for _ = 1, 30 do
+        local text = snippet
+        for _ = 1, 1 + rand(4) do
+            local at = rand(#text)
+            text = text:sub(1, at - 1) .. string.char(rand(256) - 1) .. text:sub(at + 1)
+        end
+        cases[#cases+1] = text
+    end
+end
+
 for _, text in ipairs(cases) do
     do
         files.setText(TESTURI, text)
@@ -276,6 +416,12 @@ for _, text in ipairs(cases) do
         try('workspace-symbol', text, wsSymbol, '', TESTURI)
         try('diagnostics', text, diagnostics, TESTURI, false, function () end)
         try('formatting', text, formatting, TESTURI, {})
+        try('color', text, color.colors, TESTURI)
+        try('code-lens', text, codeLens.codeLens, TESTURI)
+        try('psi-view', text, psiView, TESTURI)
+        try('doc-export', text, docExport, TESTURI)
+        try('range-formatting', text, rangeFormatting, TESTURI,
+            { start = { line = 0, character = 0 }, ['end'] = { line = 2, character = 0 } }, {})
         for off = 1, #text + 1, 7 do
             try('code-action', text, codeAction, TESTURI, off, off + 3, {})
         end

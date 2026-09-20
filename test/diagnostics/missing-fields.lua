@@ -612,3 +612,54 @@ TEST [[
 ---@type B
 local t = <!{}!>
 ]]
+
+-- many tables of one class in a file: each is checked against what the class requires, whatever
+-- the ones before it were (the required keys of a class are worked out once)
+TEST [[
+---@diagnostic disable: unused-local
+---@class A
+---@field x number
+---@field y? number
+---@field z number
+
+---@type A
+local a = <!{ x = 1 }!>
+---@type A
+local b = { x = 1, z = 3 }
+---@type A
+local c = <!{ z = 3 }!>
+---@type A
+local d = { x = 1, y = 2, z = 3 }
+---@type A
+local e = <!{}!>
+]]
+
+-- inherited fields count too, and a class is not mixed up with its parent
+TEST [[
+---@diagnostic disable: unused-local
+---@class Base
+---@field id integer
+
+---@class Child: Base
+---@field name string
+
+---@type Child
+local a = <!{ name = 'a' }!>
+---@type Child
+local b = { id = 1, name = 'b' }
+---@type Base
+local c = { id = 2 }
+---@type Base
+local d = <!{}!>
+]]
+
+-- the class changes: the answer follows (each TEST is a new text)
+TEST [[
+---@diagnostic disable: unused-local
+---@class A
+---@field x number
+---@field w number
+
+---@type A
+local a = <!{ x = 1 }!>
+]]

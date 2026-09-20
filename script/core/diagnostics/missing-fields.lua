@@ -20,6 +20,42 @@ protoDiagnostic.register {
     description = 'Missing fields',
 }
 
+--- The keys a table has to have to be a complete `def`: its fields that are neither optional nor
+--- nullable. Worked out once per class definition, not for every table constructor that is checked
+--- against it (a file that builds thousands of tables of one class did all of it each time); what a
+--- class has is the same until a file changes, which is when `vm.getCache` starts a new cache.
+---@param def       parser.object
+---@param isPartial boolean?
+---@return (string|integer)[]
+local function getRequiredKeys(def, isPartial)
+    local cache = vm.getCache(isPartial and 'missing-fields.required.partial' or 'missing-fields.required', true) --[[@as table<parser.object, (string|integer)[]>]]
+    local keys = cache[def]
+    if keys then
+        return keys
+    end
+    keys = {}
+    local fields = isPartial and def.fields or vm.getFields(def)
+    for _, field in ipairs(fields or {}) do
+        if  not field.optional
+        and field.type == "doc.field"
+        and not vm.compileNode(field):isNullable() then
+            local key = vm.getKeyName(field)
+            if not key then
+                local fieldnode = vm.compileNode(field.field)[1]
+                if fieldnode and fieldnode.type == 'doc.type.integer' then
+                    ---@cast fieldnode parser.object
+                    key = vm.getKeyName(fieldnode)
+                end
+            end
+            if key then
+                keys[#keys+1] = key
+            end
+        end
+    end
+    cache[def] = keys
+    return keys
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -79,8 +115,8 @@ return function (uri, callback)
             ---@type string[]
             local missedKeys = {}
             for _, def in ipairs(samedefs --[[@as parser.object[] ]]) do
-                local fields = samedefs.isPartial and def.fields or vm.getFields(def)
-                if not fields or #fields == 0 then
+                local required = getRequiredKeys(def, samedefs.isPartial)
+                if #required == 0 then
                     goto continue
                 end
 
@@ -94,25 +130,12 @@ return function (uri, callback)
                     end
                 end
 
-                for _, field in ipairs(fields) do
-                    if  not field.optional
-                    and field.type == "doc.field"
-                    and not vm.compileNode(field):isNullable() then
-                        local key = vm.getKeyName(field)
-                        if not key then
-                            local fieldnode = vm.compileNode(field.field)[1]
-                            if fieldnode and fieldnode.type == 'doc.type.integer' then
-                                ---@cast fieldnode parser.object
-                                key = vm.getKeyName(fieldnode)
-                            end
-                        end
-
-                        if key and not myKeys[key] then
-                            if type(key) == "number" then
-                                missedKeys[#missedKeys+1] = ('`[%s]`'):format(key)
-                            else
-                                missedKeys[#missedKeys+1] = ('`%s`'):format(key)
-                            end
+                for _, key in ipairs(required) do
+                    if not myKeys[key] then
+                        if type(key) == "number" then
+                            missedKeys[#missedKeys+1] = ('`[%s]`'):format(key)
+                        else
+                            missedKeys[#missedKeys+1] = ('`%s`'):format(key)
                         end
                     end
                 end

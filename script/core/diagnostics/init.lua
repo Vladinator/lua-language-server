@@ -96,6 +96,52 @@ require 'core.diagnostics.undefined-field'
 
 local sleepRest = 0.0
 
+--- `LLS_DIAG_PROFILE=<file>` writes what each diagnostic has cost so far (seconds in all, files, the
+--- longest single run and where) to the file, at most every 5 seconds: for a workspace that is slow to
+--- diagnose, to see which checks it is. What a check compiles for the first time is charged to it,
+--- so the checks that run first pay for the compile of what the ones after them reuse.
+---@type string?
+local PROFILE_FILE = os.getenv('LLS_DIAG_PROFILE')
+---@type table<string, { total: number, files: integer, longest: number, where: string }>
+local profile = {}
+local profileFlushed = 0
+
+---@param name   string
+---@param uri    uri
+---@param passed number
+local function recordProfile(name, uri, passed)
+    local entry = profile[name]
+    if not entry then
+        entry = { total = 0, files = 0, longest = 0, where = '' }
+        profile[name] = entry
+    end
+    entry.total = entry.total + passed
+    entry.files = entry.files + 1
+    if passed > entry.longest then
+        entry.longest = passed
+        entry.where   = uri
+    end
+    if PROFILE_FILE and os.clock() - profileFlushed > 5 then
+        profileFlushed = os.clock()
+        ---@type string[]
+        local names = {}
+        for n in pairs(profile) do
+            names[#names+1] = n
+        end
+        table.sort(names, function (a, b)
+            return profile[a].total > profile[b].total
+        end)
+        ---@type string[]
+        local lines = {}
+        for _, n in ipairs(names) do
+            local e = profile[n]
+            lines[#lines+1] = ('%-28s %8.1f s  %6d files  %7.1f ms avg  %7.1f ms max  %s'):format(
+                n, e.total, e.files, e.total / e.files * 1000, e.longest * 1000, e.where)
+        end
+        util.saveFile(PROFILE_FILE, table.concat(lines, string.char(10)))
+    end
+end
+
 ---@async
 ---@param uri uri
 ---@param passed number
@@ -251,6 +297,9 @@ local function check(uri, name, isScopeDiag, response, ignoreFileOpenState)
     local passed = os.clock() - clock
     if passed >= 0.5 then
         log.warn(('Diagnostics [%s] @ [%s] takes [%.3f] sec!'):format(name, uri, passed))
+    end
+    if PROFILE_FILE then
+        recordProfile(name, uri, passed)
     end
     if isScopeDiag then
         checkSleep(uri, passed)

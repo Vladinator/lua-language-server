@@ -18,6 +18,7 @@ local furi      = require 'file-uri'
 local json      = require 'json'
 local fw        = require 'filewatch'
 local vm        = require 'vm.vm'
+local diagd     = require 'proto.diagnostic'
 
 ---@alias diagnosticProvider.errRelated { uri?: uri, message?: string, start: integer, finish: integer }
 ---@alias diagnosticProvider.errInfo { version?: string[]|string, related?: diagnosticProvider.errRelated[] }
@@ -38,6 +39,60 @@ local vm        = require 'vm.vm'
 local m = {}
 m.cache = {}
 m.sleepRest = 0.0
+
+--- The files whose cached diagnostics are the result of a run of every diagnostic. Only for
+--- those can a run of a few diagnostics take the rest from the cache (see `only` below).
+---@type table<uri, true>
+m.complete = {}
+
+--- What a scope still has to diagnose. A configuration change that only concerns some of the
+--- diagnostics asks for those, anything else asks for all of them.
+---@class diagnosticProvider.request
+---@field all   boolean
+---@field names table<string, true>
+
+---@type table<string, diagnosticProvider.request>
+m.pending = {}
+--- The scopes with a workspace diagnosis running.
+---@type table<string, true>
+m.scopeRunning = {}
+
+--- Adds to what the scope has to diagnose.
+---@param scpName string
+---@param only?   table<string, true> nil: every diagnostic
+function m.addRequest(scpName, only)
+    local request = m.pending[scpName]
+    if not request then
+        request = { all = false, names = {} }
+        m.pending[scpName] = request
+    end
+    if not only then
+        request.all = true
+        return
+    end
+    for name in pairs(only) do
+        request.names[name] = true
+    end
+end
+
+--- Takes what the scope has to diagnose, for a pass that is about to run it.
+---@param scpName string
+---@return diagnosticProvider.request?
+function m.takeRequest(scpName)
+    local request = m.pending[scpName]
+    m.pending[scpName] = nil
+    return request
+end
+
+--- Puts back what a pass that did not finish had taken.
+---@param scpName string
+---@param request diagnosticProvider.request
+function m.restoreRequest(scpName, request)
+    if request.all then
+        m.addRequest(scpName)
+    end
+    m.addRequest(scpName, request.names)
+end
 m.scopeDiagCount = 0
 m.pauseCount = 0
 
@@ -195,6 +250,7 @@ function m.clear(uri, force)
         return
     end
     m.cache[uri] = nil
+    m.complete[uri] = nil
     proto.notify('textDocument/publishDiagnostics', {
         uri = uri,
         diagnostics = {},
@@ -212,6 +268,7 @@ function m.clearCacheExcept(uris)
     for uri in pairs(m.cache) do
         if not excepts[uri] then
             m.cache[uri] = false
+            m.complete[uri] = nil
         end
     end
 end
@@ -318,8 +375,27 @@ local function isValid(uri)
     return true
 end
 
+--- Whether the file has `---@diagnostic expect-next-line` / `expect-line` comments: the
+--- `unfulfilled-expect` check reads what every other diagnostic suppressed, so such a file
+--- always gets all of them.
+---@param state parser.state
+---@return boolean
+local function hasExpectDirective(state)
+    for _, doc in ipairs(state.ast.docs or {}) do
+        if  doc.type == 'doc.diagnostic'
+        and (doc.mode == 'expect-next-line' or doc.mode == 'expect-line') then
+            return true
+        end
+    end
+    return false
+end
+
 ---@async
-function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
+---@param uri uri
+---@param isScopeDiag? boolean
+---@param ignoreFileState? boolean
+---@param only? table<string, true> run just these diagnostics and keep the cached results of the others. Ignored (all of them run) when the file has no complete result cached yet
+function m.doDiagnostic(uri, isScopeDiag, ignoreFileState, only)
     if not isValid(uri) then
         return
     end
@@ -330,6 +406,13 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
     if not state then
         m.clear(uri)
         return
+    end
+
+    if only
+    and (not m.complete[uri]
+      or only['unfulfilled-expect']
+      or hasExpectDirective(state)) then
+        only = nil
     end
 
     local version = files.getVersion(uri)
@@ -376,7 +459,7 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
 
     local lastPushClock = time.time()
     ---@async
-    xpcall(core, log.error, uri, isScopeDiag, function (result)
+    local suc = xpcall(core, log.error, uri, isScopeDiag, function (result)
         diags[#diags+1] = buildDiagnostic(uri, result)
 
         if not isScopeDiag and time.time() - lastPushClock >= 500 then
@@ -387,17 +470,31 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState)
         if not lastDiag then
             return
         end
-        local checkedDiags = lastDiag
-        for i, diag in ipairs(checkedDiags) do
-            if diag.code == checkedName then
-                checkedDiags[i] = checkedDiags[#checkedDiags]
-                checkedDiags[#checkedDiags] = nil
+        -- drop the old results of what was just checked (in place, keeping the order; the
+        -- swap-with-the-last version this replaces skipped the item it moved into the gap)
+        local size = #lastDiag
+        local kept = 0
+        for i = 1, size do
+            local diag = lastDiag[i]
+            if diag.code ~= checkedName then
+                kept = kept + 1
+                lastDiag[kept] = diag
             end
         end
-    end, ignoreFileState)
+        for i = kept + 1, size do
+            lastDiag[i] = nil
+        end
+    end, ignoreFileState, only)
 
-    lastDiag = nil
+    -- what a run of everything did not report again is gone; a run of a few diagnostics keeps
+    -- the cached results of the others
+    if not only then
+        lastDiag = nil
+    end
     pushResult()
+    if suc and not only then
+        m.complete[uri] = true
+    end
 end
 
 ---@param uri uri
@@ -569,15 +666,24 @@ local function clearMemory(finished)
 end
 
 ---@async
+---@param suri     uri
+---@param callback async fun(uri: uri)
+---@return boolean completed every file was diagnosed (not cancelled, by the user or by being replaced)
 function m.awaitDiagnosticsScope(suri, callback)
     local scp = scope.getScope(suri)
     if scp.type == 'fallback' then
-        return
+        return true
     end
     while loading.count() > 0 do
         await.sleep(1.0)
     end
     local finished
+    local completed = false
+    -- (the caches keep what the checks concluded: undefinedGlobal, ... under the configuration
+    -- of the time they were made)
+    if m.scopeDiagCount == 0 then
+        vm.clearNodeCache()
+    end
     m.scopeDiagCount = m.scopeDiagCount + 1
     local scopeDiag <close> = util.defer(function ()
         m.scopeDiagCount = m.scopeDiagCount - 1
@@ -623,9 +729,50 @@ function m.awaitDiagnosticsScope(suri, callback)
     bar:remove()
     log.info(('Diagnostics scope [%s] finished, takes [%.3f] sec.'):format(scp:getName(), os.clock() - clock))
     finished = true
+    completed = not cancelled
+    return completed
 end
 
-function m.diagnosticsScope(uri, force, ignoreFileOpenState)
+--- Diagnoses the scope until nothing is left to do: what was asked for while a pass was running
+--- is done by the next pass.
+---@async
+---@param uri uri
+---@param ignoreFileOpenState? boolean
+function m.runScopeDiag(uri, ignoreFileOpenState)
+    local name = scope.getScope(uri):getName()
+    m.scopeRunning[name] = true
+    ---@type diagnosticProvider.request?
+    local request
+    local completed = false
+    -- however the pass ends (it can be cancelled at any of its waits), what it took but did not
+    -- do goes back
+    local _ <close> = util.defer(function ()
+        m.scopeRunning[name] = nil
+        if request and not completed then
+            m.restoreRequest(name, request)
+        end
+    end)
+    while true do
+        request = m.takeRequest(name)
+        if not request then
+            return
+        end
+        local only = (not request.all) and request.names or nil
+        completed = false
+        completed = m.awaitDiagnosticsScope(uri, function (fileUri)
+            xpcall(m.doDiagnostic, log.error, fileUri, true, ignoreFileOpenState, only)
+        end)
+        if not completed then
+            return
+        end
+    end
+end
+
+---@param uri uri
+---@param force? boolean
+---@param ignoreFileOpenState? boolean
+---@param only? table<string, true> only these diagnostics have to run again (nil: all of them)
+function m.diagnosticsScope(uri, force, ignoreFileOpenState, only)
     if not ws.isReady(uri) then
         return
     end
@@ -637,13 +784,19 @@ function m.diagnosticsScope(uri, force, ignoreFileOpenState)
         return
     end
     local scp = scope.getScope(uri)
-    local id = 'diagnosticsScope:' .. scp:getName()
+    local name = scp:getName()
+    m.addRequest(name, only)
+    -- a pass that is running is not cancelled for a few diagnostics: it goes on, and then
+    -- the next one does them (a client that writes settings while the workspace is being
+    -- diagnosed would keep it from ever getting past the first files)
+    if only and m.scopeRunning[name] then
+        return
+    end
+    local id = 'diagnosticsScope:' .. name
     await.close(id)
     await.call(function () ---@async
         await.sleep(0.0)
-        m.awaitDiagnosticsScope(uri, function (fileUri)
-            xpcall(m.doDiagnostic, log.error, fileUri, true, ignoreFileOpenState)
-        end)
+        m.runScopeDiag(uri, ignoreFileOpenState)
     end, id)
 end
 
@@ -726,6 +879,10 @@ ws.watch(function (ev, uri)
 end)
 
 files.watch(function (ev, uri) ---@async
+    -- what was cached is about the old text
+    if ev == 'remove' or ev == 'create' or ev == 'update' then
+        m.complete[uri] = nil
+    end
     if ev == 'remove' then
         m.clear(uri)
         m.stopScopeDiag(uri)
@@ -754,12 +911,104 @@ files.watch(function (ev, uri) ---@async
     end
 end)
 
+--- The diagnostics that read these settings.
+---@type table<string, string[]>
+local readers = {
+    ['Lua.diagnostics.globals']            = { 'undefined-global', 'deprecated', 'global-element', 'lowercase-global' },
+    ['Lua.diagnostics.globalsRegex']       = { 'undefined-global', 'deprecated', 'global-element', 'lowercase-global' },
+    ['Lua.diagnostics.unusedLocalExclude'] = { 'unused-local' },
+    ['Lua.spell.dict']                     = { 'spell-check' },
+    -- read by the pass itself, when it sleeps between two checks
+    ['Lua.diagnostics.workspaceRate']      = {},
+}
+
+--- The keys of a table (or the items of a list) that differ between two.
+---@param a any
+---@param b any
+---@return table<string, true>
+local function differences(a, b)
+    ---@type table<string, true>
+    local result = {}
+    ---@param t any
+    ---@return table<any, any>
+    local function asMap(t)
+        ---@type table<any, any>
+        local map = {}
+        if type(t) ~= 'table' then
+            return map
+        end
+        for k, v in pairs(t --[[@as table<any, any>]]) do
+            if math.type(k) == 'integer' then
+                map[v] = true
+            else
+                map[k] = v
+            end
+        end
+        return map
+    end
+    local mapA, mapB = asMap(a), asMap(b)
+    for k, v in pairs(mapA) do
+        if not util.equal(v, mapB[k]) then
+            result[tostring(k)] = true
+        end
+    end
+    for k, v in pairs(mapB) do
+        if not util.equal(v, mapA[k]) then
+            result[tostring(k)] = true
+        end
+    end
+    return result
+end
+
+--- Which diagnostics can give another result after this setting changed: what a workspace
+--- diagnosis has to run again. `nil` means all of them (any setting that is not known here:
+--- a wrong guess must cost time, never an out of date result); an empty table means none.
+---@param key      string
+---@param value    any
+---@param oldValue any
+---@return table<string, true>?
+function m.getAffectedDiagnostics(key, value, oldValue)
+    ---@type table<string, true>?
+    local names
+    local reading = readers[key]
+    if reading then
+        names = {}
+        for _, name in ipairs(reading) do
+            names[name] = true
+        end
+    elseif key == 'Lua.diagnostics.disable'
+    or     key == 'Lua.diagnostics.severity'
+    or     key == 'Lua.diagnostics.neededFileStatus' then
+        -- a list of names, or a map from names
+        names = differences(value, oldValue)
+    elseif key == 'Lua.diagnostics.groupSeverity'
+    or     key == 'Lua.diagnostics.groupFileStatus' then
+        local groups = differences(value, oldValue)
+        names = {}
+        for name in pairs(diagd.diagnosticDatas) do
+            for _, group in ipairs(diagd.getGroups(name)) do
+                if groups[group] then
+                    names[name] = true
+                end
+            end
+        end
+    end
+    -- `unfulfilled-expect` needs the outcome of every other diagnostic
+    if names and names['unfulfilled-expect'] then
+        return nil
+    end
+    return names
+end
+
 config.watch(function (uri, key, value, oldValue)
     if util.stringStartWith(key, 'Lua.diagnostics')
     or util.stringStartWith(key, 'Lua.spell')
     or util.stringStartWith(key, 'Lua.doc') then
         if value ~= oldValue then
-            m.diagnosticsScope(uri)
+            local names = m.getAffectedDiagnostics(key, value, oldValue)
+            if not names or next(names) then
+                m.diagnosticsScope(uri, nil, nil, names)
+            end
             m.refreshClient()
         end
     end

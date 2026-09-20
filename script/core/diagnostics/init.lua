@@ -352,14 +352,18 @@ diagd.getRunOrder = buildDiagList
 ---@param response async fun(result: proto.diagnostic.result)
 ---@param checked? async fun(name: string)
 ---@param ignoreFileOpenState? boolean
+---@param only? table<string, true> run just these diagnostics (`checked` is called for them, also when they are disabled, so that the caller can drop their old results); not `unfulfilled-expect`, which needs every one of them
 ---@return nil
-return function (uri, isScopeDiag, response, checked, ignoreFileOpenState)
+return function (uri, isScopeDiag, response, checked, ignoreFileOpenState, only)
     local ast = files.getState(uri)
     if not ast then
         return nil
     end
 
     for _, name in ipairs(buildDiagList()) do
+        if only and not only[name] then
+            goto continue
+        end
         await.delay()
         local clock = os.clock()
         local suc = check(uri, name, isScopeDiag, response, ignoreFileOpenState)
@@ -371,6 +375,10 @@ return function (uri, isScopeDiag, response, checked, ignoreFileOpenState)
         if checked then
             checked(name)
         end
+        ::continue::
+    end
+    if only then
+        return nil
     end
     -- ran the whole list for this file: now report `expect-*` comments that
     -- suppressed nothing

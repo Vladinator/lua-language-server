@@ -14,6 +14,7 @@ require 'tclient.tests.same-prefix'
 require 'tclient.tests.recursive-runner'
 require 'tclient.tests.modify-luarc'
 require 'tclient.tests.diag-scope'
+require 'tclient.tests.library-inside-workspace'
 
 require 'tclient.tests.performance-jass-common'
 require 'tclient.tests.build-meta'

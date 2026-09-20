@@ -12,6 +12,7 @@ local pub      = require 'pub'
 ---@field _bar progress
 ---@field _stash function[]
 ---@field _refs uri[]
+---@field _seen table<uri, boolean>
 ---@field _cache table<uri, boolean>
 ---@field _sets function[]
 ---@field _removed boolean
@@ -75,6 +76,13 @@ function mt:loadFile(uri, libraryUri)
                 return
             end
         end
+        -- a file that is in the workspace and in a library folder inside it (the folder of a
+        -- library set in the workspace's own settings) is reached by both scans: it is loaded,
+        -- counted and referenced once
+        if self._seen[uri] then
+            return
+        end
+        self._seen[uri] = true
         self.max = self.max + 1
         self:update()
         ---@async
@@ -114,6 +122,10 @@ function mt:loadFile(uri, libraryUri)
             end
         end
     elseif files.isDll(uri) then
+        if self._seen[uri] then
+            return
+        end
+        self._seen[uri] = true
         self.max = self.max + 1
         self:update()
         ---@async
@@ -208,6 +220,7 @@ function m.create(scp)
         scp    = scp,
         _bar   = progress.create(scp.uri, lang.script('WORKSPACE_LOADING', scp.uri), 0.5),
         _stash = {},
+        _seen  = {},
         _cache = {},
         _sets  = {},
     }, mt)

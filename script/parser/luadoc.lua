@@ -2628,7 +2628,7 @@ local function luadoc(state)
     pushWarning = function (err)
         local errs = state.errs
         if err.start and err.finish and err.finish < err.start then
-            err.finish = err.start --[[@as integer]]
+            err.finish = err.start
         end
         local last = errs[#errs]
         if last and last.start and last.finish and err.start and err.finish then

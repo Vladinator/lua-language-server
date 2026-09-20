@@ -5391,9 +5391,9 @@ local function initState(lua, version, options)
     LocalCount          = 0
     LocalLimited        = false
     Chunk               = {}
-    Tokens              = tokens(lua) --[[@as table<integer, integer|string>]]
-    TokenPos            = Tokens --[[@as integer[] ]]
-    TokenText           = Tokens --[[@as string[] ]]
+    Tokens              = tokens(lua)
+    TokenPos            = Tokens
+    TokenText           = Tokens
     Index               = 1
     ---@class parser.state
     ---@field uri uri
@@ -5428,7 +5428,7 @@ local function initState(lua, version, options)
     pushError = function (err)
         local errs = state.errs
         if err.start and err.finish and err.finish < err.start then
-            err.finish = err.start --[[@as integer]]
+            err.finish = err.start
         end
         local last = errs[#errs]
         if last and last.start and last.finish and err.start and err.finish then

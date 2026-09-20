@@ -556,13 +556,13 @@ function m.getLocal(source, name, pos)
         and blockTypes[block.type] then
             break
         end
-        block = block.parent --[[@as parser.object]]
+        block = block.parent
     end
 
     m.eachSourceContain(block, pos, function (src)
         if  blockTypes[src.type]
         and (src.finish - src.start) < (block.finish - src.start) then
-            block = src --[[@as parser.object]]
+            block = src
         end
     end)
 
@@ -646,7 +646,7 @@ function m.getStartFinish(source)
     local start  = source.start
     local finish = source.finish
     if source.bfinish and source.bfinish > finish then
-        finish = source.bfinish --[[@as integer]]
+        finish = source.bfinish
     end
     if not start then
         local first = source[1]
@@ -667,7 +667,7 @@ function m.getRange(source)
     local start  = source.vstart or source.start
     local finish = source.range  or source.finish
     if source.bfinish and source.bfinish > finish then
-        finish = source.bfinish --[[@as integer]]
+        finish = source.bfinish
     end
     if not start then
         local first = source[1]

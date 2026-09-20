@@ -118,7 +118,6 @@ function mt:collectLocal()
     local finishPos = 0
 
     local variable = self.source
-    ---@cast variable vm.variable
 
     if  variable.base.type ~= 'local'
     and variable.base.type ~= 'self' then

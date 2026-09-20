@@ -2514,6 +2514,34 @@ end
 function f(a: number, b: string, ...args: boolean)
 ]]
 
+-- the tags and attributes that were registered with a description (the secret plugin registers
+-- its tags when core.diagnostics loads)
+require 'core.diagnostics'
+---@param script string
+---@param expect string
+local function hoverContains(script, expect)
+    local newScript, catched = catch(script, '?')
+    files.setText(TESTURI, newScript)
+    local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
+    assert(hover, 'no hover')
+    assert(hover:string():find(expect, 1, true), hover:string())
+    files.remove(TESTURI)
+end
+
+hoverContains([[
+---@<?secret?>
+local x = 1
+]], '`@secret`')
+
+hoverContains([[
+---@class (<?exact?>) A
+]], 'not declared')
+
+hoverContains([[
+---@enum (<?key?>) E
+local t = {}
+]], 'keys')
+
 config.set(nil, 'Lua.runtime.version', 'Lua 5.5')
 TEST [[
 global <?*?>

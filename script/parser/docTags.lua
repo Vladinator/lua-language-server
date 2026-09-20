@@ -17,6 +17,9 @@ local tagDescriptions = {}
 ---@type table<string, string>
 local keywordDescriptions = {}
 
+---@type table<string, string> # produced node type -> tag name
+local tagByDocType = {}
+
 ---@param keywords table<string, string>
 ---@param prefix   string
 ---@return fun(): string?, string?
@@ -47,6 +50,18 @@ end
 function m.registerMarkerTag(name, docType, description)
     markerTags[name]       = docType
     tagDescriptions[name]  = description
+    tagByDocType[docType]  = name
+end
+
+--- The registered tag that produces nodes of `docType`, with its description, for hover.
+---@param docType string
+---@return string? name
+---@return string? description
+function m.getTagInfo(docType)
+    local name = tagByDocType[docType]
+    if name then
+        return name, tagDescriptions[name]
+    end
 end
 
 --- The registered tag names (marker and name-list tags) with their descriptions, sorted by
@@ -210,5 +225,56 @@ end
 function m.isClassGroupDoc(docType)
     return classGroupDocTypes[docType] == true
 end
+
+---@type table<string, table<string, string>> # doc type -> attribute -> description
+local attributes = {}
+
+--- Register an attribute usable in parentheses right after a tag, e.g. `---@class (exact) A`
+--- (`docType` is `doc.class`). The parser reads any name there; the checkers ask for the ones
+--- they know (`vm.docHasAttr`), so this registry is what completion offers, and where a plugin
+--- announces the attribute it reads.
+---@param docType      string
+---@param name         string
+---@param description? string shown by completion (markdown)
+function m.registerAttribute(docType, name, description)
+    attributes[docType] = attributes[docType] or {}
+    attributes[docType][name] = description or ''
+end
+
+---@param docType string
+---@param name     string
+---@return string?
+function m.getAttributeDescription(docType, name)
+    local set = attributes[docType]
+    return set and set[name]
+end
+
+--- The attributes registered for `docType` with their descriptions, sorted, for completion.
+---@param docType string
+---@return fun(): string?, string?
+function m.eachAttribute(docType)
+    local set = attributes[docType] or {}
+    ---@type string[]
+    local names = {}
+    for name in pairs(set) do
+        names[#names+1] = name
+    end
+    table.sort(names)
+    local i = 0
+    return function ()
+        i = i + 1
+        local name = names[i]
+        if name then
+            return name, set[name]
+        end
+    end
+end
+
+-- the attributes the core checkers read
+m.registerAttribute('doc.class', 'exact', 'Fields that are assigned to this class but not declared are reported (`inject-field`).')
+m.registerAttribute('doc.class', 'partial', 'The class may be declared again elsewhere; the declarations are merged and complete each other (`missing-fields`).')
+m.registerAttribute('doc.class', 'incremental', 'A table constructor `{}` for this class is not checked for missing fields, it is filled in step by step (`missing-fields`, fork extension).')
+m.registerAttribute('doc.alias', 'partial', 'The alias may be declared more than once; the declarations are merged (`duplicate-doc-alias`).')
+m.registerAttribute('doc.enum', 'key', 'The enum stands for the keys of the table, not its values.')
 
 return m

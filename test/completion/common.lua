@@ -4721,6 +4721,57 @@ TEST [[
 ]]
 (offers 'unused-local')
 
+-- the visibility keywords in front of a field name
+TEST [[
+---@class A
+---@field priv<??> string
+]]
+{
+    include = true,
+    {
+        label = 'private',
+        kind  = define.CompletionItemKind.Keyword,
+    },
+}
+
+TEST [[
+---@class A
+---@field pack<??> string
+]]
+(offers 'package')
+
+-- attributes in parentheses after `@class` / `@alias` / `@enum`, from the registry
+TEST [[
+---@class (inc<??>) A
+]]
+{
+    include = true,
+    {
+        label = 'incremental',
+        kind  = define.CompletionItemKind.Keyword,
+    },
+}
+
+TEST [[
+---@class (<??>) A
+]]
+(offers 'exact')
+
+TEST [[
+---@class (exact, par<??>) A
+]]
+(offers 'partial')
+
+TEST [[
+---@enum (k<??>) E
+]]
+(offers 'key')
+
+TEST [[
+---@alias (p<??>) X string
+]]
+(offers 'partial')
+
 TEST [[
 ---@diagnostic expect-next-line: unused-local, need-check-s<??>
 ]]

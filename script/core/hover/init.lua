@@ -7,6 +7,7 @@ local findSource = require 'core.find-source'
 local markdown   = require 'provider.markdown'
 local guide      = require 'parser.guide'
 local wssymbol   = require 'core.workspace-symbol'
+local docTags    = require 'parser.docTags'
 
 ---@async
 ---@param source parser.object
@@ -22,6 +23,25 @@ local function getHover(source, level)
     ---@type table<string, boolean>
     local descMark  = {}
     local totalMaxLevel = 0
+
+    -- what a plugin registered: a tag (`---@secret`) or an attribute (`---@class (exact)`)
+    local tagName, tagDesc = docTags.getTagInfo(source.type)
+    if tagName then
+        md:add('md', ('`@%s`'):format(tagName))
+        if tagDesc then
+            md:add('md', tagDesc)
+        end
+        return md, 0
+    end
+    if source.type == 'doc.attr.name' then
+        local owner = source.parent and source.parent.parent
+        local desc = owner and docTags.getAttributeDescription(owner.type, source[1] --[[@as string]])
+        if desc then
+            md:add('md', ('`%s`'):format(source[1]))
+            md:add('md', desc)
+            return md, 0
+        end
+    end
 
     if source.type == 'doc.see.name' then
         for _, symbol in ipairs(wssymbol(source[1], guide.getUri(source))) do
@@ -143,6 +163,31 @@ local accept = {
     ['doc.see.name']   = true,
 }
 
+--- The tags plugins register (`---@secret`) and the attributes in parentheses. A marker tag node
+--- has no width (it sits at the end of the tag), a name list tag starts at the tag name: the word
+--- itself is what is hovered.
+---@param state    parser.state
+---@param position integer
+---@return parser.object?
+local function findPluginDoc(state, position)
+    for _, doc in ipairs(state.ast.docs) do
+        -- `---@class (exact) A`: the attributes lie before the start of the node, out of reach
+        -- of the general search
+        for _, name in ipairs(doc.docAttr and doc.docAttr.names or {}) do
+            if position >= name.start and position <= name.finish then
+                return name
+            end
+        end
+        local name = docTags.getTagInfo(doc.type)
+        if name then
+            local from = docTags.isNameListTag(doc.type) and doc.start or doc.finish - #name
+            if position >= from and position <= from + #name then
+                return doc
+            end
+        end
+    end
+end
+
 ---@async
 ---@param uri uri
 ---@param position integer
@@ -155,7 +200,7 @@ local function getHoverByUri(uri, position, level)
     if not ast then
         return nil
     end
-    local source = findSource(ast, position, accept)
+    local source = findSource(ast, position, accept) or findPluginDoc(ast, position)
     if not source then
         return nil
     end

@@ -2092,6 +2092,11 @@ local function getLuaDoc(state, position)
         if symbolPosition >= doc.start and symbolPosition <= doc.range then
             return doc
         end
+        -- `---@class (exact) A`: the attributes come before what starts the node
+        local attr = doc.docAttr
+        if attr and symbolPosition >= attr.start and symbolPosition <= attr.finish then
+            return doc
+        end
     end
     return nil
 end
@@ -2200,6 +2205,15 @@ local function getluaDocByErr(state, start, position)
     end
     return targetError, targetDoc
 end
+
+--- What may stand in front of a `---@field` name (the parser reads these itself).
+---@type [string, string][]
+local visibilityKeywords = {
+    { 'public',    'Visible everywhere, the default.' },
+    { 'protected', 'Visible in the class and in the classes that inherit from it.' },
+    { 'private',   'Visible only inside the class.' },
+    { 'package',   'Visible only in the file that declares the class.' },
+}
 
 ---@async
 ---@param state    parser.state
@@ -2324,8 +2338,35 @@ local function tryluaDocBySource(state, position, source, results)
             end
         end
         return true
+    elseif source.type == 'doc.attr.name' or source.type == 'doc.attr' then
+        -- `---@class (ex<??>)`: the attributes registered for the tag the parentheses belong to
+        local attr  = source.type == 'doc.attr' and source or source.parent
+        local owner = attr and attr.parent
+        if owner then
+            local word = source.type == 'doc.attr.name' and source[1] --[[@as string]] or ''
+            for name, description in docTags.eachAttribute(owner.type) do
+                if matchKey(word, name) then
+                    results[#results+1] = {
+                        label       = name,
+                        kind        = define.CompletionItemKind.Keyword,
+                        description = description,
+                    }
+                end
+            end
+        end
+        return true
     elseif source.type == 'doc.field.name' then
-        -- the field name position also takes the keywords plugins put in front of it
+        -- the field name position also takes the visibility keywords and the ones plugins put in
+        -- front of it
+        for _, keyword in ipairs(visibilityKeywords) do
+            if matchKey(source[1] --[[@as string]], keyword[1]) then
+                results[#results+1] = {
+                    label       = keyword[1],
+                    kind        = define.CompletionItemKind.Keyword,
+                    description = keyword[2],
+                }
+            end
+        end
         for name, description in docTags.eachFieldKeyword() do
             if matchKey(source[1] --[[@as string]], name) then
                 results[#results+1] = {
@@ -2750,6 +2791,20 @@ local function tryLuaDoc(state, position, results)
         local cate = line:match('^-+%s*@([%a%-]*)$')
         if cate then
             tryluaDocCate(cate, results)
+            return
+        end
+    end
+    -- `---@class (exact) A`: the attributes lie before the start of the node, so the search
+    -- below would not go down to them
+    local attr = doc.docAttr
+    if attr and position >= attr.start and position <= attr.finish then
+        local attrSource = attr
+        for _, name in ipairs(attr.names) do
+            if position >= name.start and position <= name.finish then
+                attrSource = name
+            end
+        end
+        if tryluaDocBySource(state, position, attrSource, results) then
             return
         end
     end

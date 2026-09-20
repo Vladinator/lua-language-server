@@ -434,3 +434,224 @@ while math.random() > 0.5 do
 end
 S = #<!l!>
 ]]
+
+-- a guarded initialisation before the first `break` makes the variable non-nil at every `break`
+TEST [[
+---@type integer[]?
+local x
+while true do
+    if not x then
+        x = {}
+    end
+    if math.random() > 0.5 then
+        break
+    end
+end
+S = #x
+]]
+
+TEST [[
+---@type integer[]?
+local x
+while true do
+    if x == nil then
+        x = {}
+    end
+    x[#x+1] = 1
+    if #x > 3 then
+        break
+    end
+end
+S = #x
+]]
+
+-- ... unless something after it can make it nil again,
+TEST [[
+---@type integer[]?
+local x
+while true do
+    if not x then
+        x = {}
+    end
+    x = math.random() > 0.5 and {} or nil
+    if math.random() > 0.5 then
+        break
+    end
+end
+S = #<!x!>
+]]
+
+-- or the guard has another branch, or comes after a `break`
+TEST [[
+---@type integer[]?
+local x
+while true do
+    if not x then
+        x = {}
+    else
+        x = nil
+    end
+    if math.random() > 0.5 then
+        break
+    end
+end
+S = #<!x!>
+]]
+
+TEST [[
+---@type integer[]?
+local x
+while true do
+    if math.random() > 0.5 then
+        break
+    end
+    if not x then
+        x = {}
+    end
+end
+S = #<!x!>
+]]
+
+-- a `goto` to a label after the last `break` (the usual `continue`) does not matter
+TEST [[
+---@type string?
+local x
+while true do
+    x = 'a'
+    if math.random() > 0.5 then
+        goto continue
+    end
+    if math.random() > 0.5 then
+        break
+    end
+    ::continue::
+end
+S = #x
+]]
+
+-- but one that can land before a `break`, after skipping the assignment, does,
+TEST [[
+---@type string?
+local x
+while true do
+    if math.random() > 0.5 then
+        goto skip
+    end
+    x = 'a'
+    ::skip::
+    if math.random() > 0.5 then
+        break
+    end
+end
+S = #<!x!>
+]]
+
+-- and one that leaves the loop is another way out of it
+TEST [[
+---@type string?
+local x
+while true do
+    x = 'a'
+    if math.random() > 0.5 then
+        x = nil
+        goto out
+    end
+    if math.random() > 0.5 then
+        break
+    end
+end
+::out::
+S = #<!x!>
+]]
+
+-- (a later assignment of something optional)
+TEST [[
+---@type integer[]?
+local x
+---@type integer[]?
+local y
+while true do
+    if not x then
+        x = {}
+    end
+    x = y
+    if math.random() > 0.5 then
+        break
+    end
+end
+S = #<!x!>
+]]
+
+-- (a guard with an else branch is not recognised: still reported, a limit and not a promise)
+TEST [[
+---@type integer[]?
+local x
+while true do
+    if not x then
+        x = {}
+    else
+        print(1)
+    end
+    if math.random() > 0.5 then
+        break
+    end
+end
+S = #<!x!>
+]]
+
+-- (something optional assigned after the last `break`: the guard comes before any `break` again)
+TEST [[
+---@type integer[]?
+local x
+---@type integer[]?
+local y
+while true do
+    if not x then
+        x = {}
+    end
+    if math.random() > 0.5 then
+        break
+    end
+    x = y
+end
+S = #x
+]]
+
+-- (and between the guard and a `break`: not)
+TEST [[
+---@type integer[]?
+local x
+---@type integer[]?
+local y
+while true do
+    if not x then
+        x = {}
+    end
+    if math.random() > 0.5 then
+        break
+    end
+    x = y
+    if math.random() > 0.5 then
+        break
+    end
+end
+S = #<!x!>
+]]
+
+-- (an assignment that reads the variable itself, in a loop with a `goto`: what the reader of a
+-- protocol header does; the type comes from the approximation, and stays known)
+TEST [[
+local line = ''
+while true do
+    line = line .. 'x'
+    if line == 'xx' then
+        break
+    end
+    if #line > 5 then
+        goto continue
+    end
+    line = ''
+    ::continue::
+end
+S = line:upper()
+]]

@@ -258,62 +258,6 @@ function mt:getLastAssign(start, finish)
     return lastAssign
 end
 
---- The node the variable has after `while true do ... end`: the union of what it is at each of
---- the `break`s. Only when that does not depend on how the loop was entered or came around: the
---- loop's own block assigns the variable before the first `break`, and nothing can `goto` past
---- that assignment. Otherwise `nil`, and the caller keeps the approximation (entry merged with
---- the end of the body).
----@param loop parser.object
----@return vm.node?
-function mt:getBreakExit(loop)
-    local breaks = loop.breaks
-    if not breaks then
-        return
-    end
-    ---@type parser.object[]
-    local assigns = {}
-    for _, assign in ipairs(self.assigns) do
-        if assign.type ~= 'variable' then
-            ---@cast assign parser.object
-            if assign.start >= loop.start and assign.finish <= loop.finish then
-                assigns[#assigns+1] = assign
-            end
-        end
-    end
-    -- (the breaks are in source order)
-    local firstBreak = breaks[1].start
-    local guarded = false
-    for _, assign in ipairs(assigns) do
-        if assign.parent == loop and assign.finish < firstBreak then
-            guarded = true
-            break
-        end
-    end
-    if not guarded then
-        return
-    end
-    local hasGoto = false
-    guide.eachSourceType(loop, 'goto', function ()
-        hasGoto = true
-    end)
-    if hasGoto then
-        return
-    end
-    -- every walk that can reach a `break` has to have run
-    for _, assign in ipairs(assigns) do
-        self:getNode(assign)
-    end
-    local nodes = self.breakNodes[loop]
-    if not nodes or #nodes ~= #breaks then
-        return
-    end
-    local exit = nodes[1]:copy()
-    for i = 2, #nodes do
-        exit:merge(nodes[i])
-    end
-    return exit
-end
-
 ---@param pos integer
 function mt:resetCastsIndex(pos)
     for i = 1, #self.casts do
@@ -684,7 +628,7 @@ local lookIntoChild = util.switch()
                 topNode = mainNode:merge(actionNode)
             end
             if tracer.trackBreaks[action] then
-                topNode = tracer:getBreakExit(action) or topNode
+                topNode = tracer:getBreakExit(action, topNode) or topNode
             end
         end
         if action.filter then
@@ -1145,6 +1089,148 @@ local function getAssignNode(source)
         node = node:copy():removeOptional()
     end
     return node
+end
+
+--- Whether the loop's block makes the variable non-nil before its first `break` on every path:
+--- `if not x then x = {} end` (or `x == nil`) as a statement of the block, the assignment in it a
+--- value that is never nil, and no assignment between it and the last `break` that could give nil
+--- (one after the last `break` is followed by the guard again before any `break`).
+---@param loop      parser.object
+---@param assigns   parser.object[] the assignments of the variable in the loop
+---@param firstBreak integer
+---@param lastBreak  integer
+---@return boolean
+function mt:hasGuardedInit(loop, assigns, firstBreak, lastBreak)
+    for _, stmt in ipairs(loop) do
+        if stmt.type ~= 'if' or stmt.finish >= firstBreak or #stmt ~= 1 then
+            goto continue
+        end
+        do
+            local block = stmt[1]
+            local cond  = block.filter
+            ---@type parser.object?
+            local operand
+            if cond and cond.type == 'unary' and cond.op.type == 'not' then
+                operand = cond[1]
+            elseif cond and cond.type == 'binary' and cond.op.type == '==' and cond[1] and cond[2] then
+                if cond[2].type == 'nil' then
+                    operand = cond[1]
+                elseif cond[1].type == 'nil' then
+                    operand = cond[2]
+                end
+            end
+            if not operand or not self.getMap[operand] then
+                goto continue
+            end
+            if block.hasReturn or block.hasBreak or block.hasGoTo or block.hasExit then
+                goto continue
+            end
+            local initialises = false
+            for _, assign in ipairs(assigns) do
+                if assign.parent == block and assign.value and neverNil(assign.value) then
+                    initialises = true
+                end
+            end
+            if not initialises then
+                goto continue
+            end
+            for _, assign in ipairs(assigns) do
+                if  assign.start >= stmt.start
+                and assign.start <  lastBreak
+                and not (assign.value and neverNil(assign.value)) then
+                    goto continue
+                end
+            end
+            return true
+        end
+        ::continue::
+    end
+    return false
+end
+
+--- The node the variable has after `while true do ... end`. The loop is left only through its
+--- `break`s, so it is what it is at each of them, when that does not depend on how the loop was
+--- entered or came around: the loop's own block assigns the variable before the first `break`
+--- (then it is the union of the nodes at the breaks), or makes it non-nil there (a guarded
+--- initialisation: then it is what `approx`, entry merged with the end of the body, is without nil).
+--- A `goto` only counts when it lands after the last `break`, inside the loop. Otherwise `nil`,
+--- and the caller keeps the approximation.
+---@param loop   parser.object
+---@param approx vm.node
+---@return vm.node?
+function mt:getBreakExit(loop, approx)
+    local breaks = loop.breaks
+    if not breaks then
+        return
+    end
+    ---@type parser.object[]
+    local assigns = {}
+    for _, assign in ipairs(self.assigns) do
+        if assign.type ~= 'variable' then
+            ---@cast assign parser.object
+            if assign.start >= loop.start and assign.finish <= loop.finish then
+                assigns[#assigns+1] = assign
+            end
+        end
+    end
+    -- (the breaks are in source order)
+    local firstBreak = breaks[1].start
+    local lastBreak  = breaks[#breaks].finish
+    ---@type table<string, parser.object>
+    local labels = {}
+    guide.eachSourceType(loop, 'label', function (label)
+        labels[label[1] --[[@as string]]] = label
+    end)
+    local gotosAreSafe = true
+    guide.eachSourceType(loop, 'goto', function (jump)
+        local label = labels[jump[1] --[[@as string]]]
+        if not label or label.start <= lastBreak or label.start < jump.start then
+            gotosAreSafe = false
+        end
+    end)
+    if not gotosAreSafe then
+        return
+    end
+    local guarded = false
+    for _, assign in ipairs(assigns) do
+        if assign.parent == loop and assign.finish < firstBreak then
+            guarded = true
+            break
+        end
+    end
+    -- an assignment whose value reads the variable (`line = line .. char`) is circular with the
+    -- walk that asks for it: what comes back is empty, and what the reads in the loop got from
+    -- it stays wrong, so those loops keep the approximation; unless the value is a constructor
+    -- or `x or <constructor>` (`l = l or {}`), which is what it is whatever the read says
+    for _, assign in ipairs(assigns) do
+        local value = assign.value
+        if value and not neverNil(value) then
+            for get in pairs(self.getMap) do
+                if get.start >= value.start and get.finish <= value.finish then
+                    guarded = false
+                end
+            end
+        end
+    end
+    if not guarded then
+        if self:hasGuardedInit(loop, assigns, firstBreak, lastBreak) then
+            return approx:copy():removeOptional()
+        end
+        return
+    end
+    -- every walk that can reach a `break` has to have run
+    for _, assign in ipairs(assigns) do
+        self:getNode(assign)
+    end
+    local nodes = self.breakNodes[loop]
+    if not nodes or #nodes ~= #breaks then
+        return
+    end
+    local exit = nodes[1]:copy()
+    for i = 2, #nodes do
+        exit:merge(nodes[i])
+    end
+    return exit
 end
 
 ---@param source parser.object

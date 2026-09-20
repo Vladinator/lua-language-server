@@ -233,7 +233,16 @@ await.call(function ()
                     end
                     types[#types+1] = view
                 end
+                -- `return f(x)` passes on every value f returns, more than the index we can see
+                local passesOn = false
+                for _, ret in ipairs(func.returns) do
+                    local last = ret[#ret]
+                    if last and #ret == maxIndex and (last.type == 'call' or last.type == 'varargs') then
+                        passesOn = true
+                    end
+                end
                 local record = {
+                    passesOn = passesOn,
                     file   = rel,
                     after  = line,
                     indent = indent,

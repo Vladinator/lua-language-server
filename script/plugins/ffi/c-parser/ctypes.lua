@@ -44,6 +44,7 @@ local add_type = typed("TypeList, string, CType -> ()",
 local equal_lists = typed("array, array -> boolean",
     ---@param l1 ctypes.array
     ---@param l2 ctypes.array
+    ---@return boolean
     function (l1, l2)
         if #l1 ~= #l2 then
             return false
@@ -227,6 +228,8 @@ end
 
 ---@param lst ctypes.TypeList
 ---@param fields_src any
+---@return boolean|any[]
+---@return string?
 get_fields = function (lst, fields_src)
     ---@type any[]
     local fields = {}
@@ -240,6 +243,7 @@ get_fields = function (lst, fields_src)
 end
 
 ---@param values any
+---@return any[]
 local function get_enum_items(_, values)
     ---@type any[]
     local items = {}
@@ -267,6 +271,8 @@ local get_composite_type = typed("TypeList, string?, string, array, string, func
     ---@param parts any
     ---@param partsfield string
     ---@param get_parts fun(lst: ctypes.TypeList, parts: any): any, string?
+    ---@return ctypes.CType?
+    ---@return string?
     function (lst, specid, spectype, parts, partsfield, get_parts)
         local name = specid
         local key = spectype .. "@" .. (name or ctypes.TESTMODE and 'anonymous' or getAnonymousID(parts))
@@ -306,6 +312,8 @@ local get_composite_type = typed("TypeList, string?, string, array, string, func
 
 ---@param lst ctypes.TypeList
 ---@param spec any
+---@return ctypes.CType
+---@return string
 local function get_structunion(lst, spec)
     if spec.fields and not spec.fields[1] then
         spec.fields = { spec.fields }
@@ -315,6 +323,8 @@ end
 
 ---@param lst ctypes.TypeList
 ---@param spec any
+---@return ctypes.CType
+---@return string
 local function get_enum(lst, spec)
     if spec.values and not spec.values[1] then
         spec.values = { spec.values }
@@ -356,6 +366,7 @@ local calculate
 
 ---@param val any
 ---@param fn fun(a: number, b: number): number
+---@return number|table
 local function binop(val, fn)
     ---@type any, any
     local e1, e2 = calculate(val[1]), calculate(val[2])
@@ -484,6 +495,7 @@ get_type = function (lst, spec, ret_pointer)
 end
 
 ---@param param any
+---@return boolean
 local function is_void(param)
     return #param.type == 1 and param.type[1] == "void"
 end
@@ -492,6 +504,8 @@ end
 local get_params = typed("TypeList, array -> array, boolean",
     ---@param lst ctypes.TypeList
     ---@param params_src any
+    ---@return any[]?
+    ---@return string|boolean|nil
     function (lst, params_src)
         ---@type any[]
         local params = {}
@@ -519,6 +533,8 @@ local get_params = typed("TypeList, array -> array, boolean",
 ---@param lst ctypes.TypeList
 ---@param ids any
 ---@param spec any
+---@return boolean
+---@return string?
 local register_many = function (register_item_fn, lst, ids, spec)
     for _, id in ipairs(ids --[[@as any[] ]]) do
         local ok, err = register_item_fn(lst, id, spec)
@@ -532,6 +548,8 @@ end
 ---@param lst ctypes.TypeList
 ---@param id any
 ---@param spec any
+---@return boolean
+---@return string|boolean|nil err -- (get_params reports a vararg flag in the same slot)
 local register_decl_item = function (lst, id, spec)
     local ok, name, ret_pointer, idxs = get_name(id.decl)
     if not ok then
@@ -581,6 +599,7 @@ end
 ---@param lst ctypes.TypeList
 ---@param ids any
 ---@param spec any
+---@return boolean
 local register_decls = function (lst, ids, spec)
     return register_many(register_decl_item, lst, ids, spec)
 end
@@ -589,6 +608,8 @@ end
 -- into one compatible with `register_decl`.
 ---@param lst ctypes.TypeList
 ---@param item any
+---@return boolean
+---@return string|boolean|nil
 local function register_function(lst, item)
     local id = {
         decl = {
@@ -636,23 +657,29 @@ local register_typedef_item = typed("TypeList, table, table -> boolean, string?"
 
 ---@param lst ctypes.TypeList
 ---@param item any
+---@return boolean
 local register_typedefs = function (lst, item)
     return register_many(register_typedef_item, lst, item.ids, item.spec)
 end
 
 ---@param lst ctypes.TypeList
 ---@param item any
+---@return ctypes.CType
+---@return string
 local function register_structunion(lst, item)
     return get_structunion(lst, item.spec)
 end
 
 ---@param lst ctypes.TypeList
 ---@param item any
+---@return ctypes.CType
+---@return string
 local function register_enum(lst, item)
     return get_enum(lst, item.spec)
 end
 
 ---@param array any
+---@return table<any, boolean>
 local function to_set(array)
     ---@type table<any, boolean>
     local set = {}

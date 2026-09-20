@@ -215,6 +215,7 @@ end
 
 ---@param buf string[]?
 ---@param txt string
+---@return string[]
 local function add(buf, txt)
     if not buf then
         buf = {}
@@ -226,6 +227,7 @@ end
 ---@type fun(fd: file*): LineList
 cpp.initial_processing = typed("file* -> LineList",
     ---@param fd file*
+    ---@return { nr: integer, line: string }[]
     function(fd)
     ---@type string[]?
     local backslash_buf
@@ -343,6 +345,9 @@ cpp.tokenize = typed("string -> table",
 ---@param filename string
 ---@param mode string?
 ---@param is_next boolean?
+---@return string?
+---@return file*?
+---@return string?
 local function find_file(ctx, filename, mode, is_next)
     ---@type string[]
     local paths = {}
@@ -379,6 +384,7 @@ end
 ---@type fun(tokens: string[]): Exp?
 local parse_expression = typed("{string} -> Exp?",
     ---@param tokens string[]
+    ---@return Exp?
     function(tokens)
         local text = table.concat(tokens, " ")
         ---@type Exp?, string?, any, any, string?
@@ -473,6 +479,8 @@ local consume_parentheses = typed("{string}, number, LineList, number -> {{strin
     ---@param start integer
     ---@param linelist LineList
     ---@param cur integer
+    ---@return string[][]
+    ---@return integer
     function(tokens, start, linelist, cur)
     ---@type string[][]
     local args = {}
@@ -557,6 +565,7 @@ end
 ---@type fun(tokens: string[]): string
 local stringify = typed("{string} -> string",
     ---@param tokens string[]
+    ---@return string
     function(tokens)
         return '"'..table.concat(tokens, " "):gsub("\"", "\\")..'"'
     end)
@@ -587,6 +596,7 @@ local valid_noloop = typed("table, string, number -> boolean",
     ---@param noloop table<string, integer>
     ---@param token string
     ---@param n integer
+    ---@return boolean
     function(noloop, token, n)
         return noloop[token] == nil or noloop[token] < n
     end)
@@ -720,6 +730,7 @@ end)
 local run_expression = typed("Ctx, {string} -> boolean",
     ---@param ctx Ctx
     ---@param tks string[]
+    ---@return boolean
     function(ctx, tks)
         local exp = parse_expression(tks)
         return eval_exp(ctx, exp --[[@as Exp]]) ~= 0
@@ -730,6 +741,8 @@ cpp.parse_file = typed("string, file*?, Ctx? -> Ctx?, string?",
     ---@param filename string
     ---@param fd file*?
     ---@param ctx Ctx?
+    ---@return Ctx?
+    ---@return string?
     function(filename, fd, ctx)
     if not ctx then
         ctx = {
@@ -875,6 +888,8 @@ cpp.parse_context = typed("string, file*?, Ctx? -> Ctx?, string?",
     ---@param context string
     ---@param _ file*?
     ---@param ctx Ctx?
+    ---@return Ctx?
+    ---@return string?
     function(context, _, ctx)
     if not ctx then
         ctx = {
@@ -1004,6 +1019,7 @@ end)
 cpp.expand_macro = typed("string, table -> string",
     ---@param macro string
     ---@param define_set table<string, Token?>
+    ---@return string
     function(macro, define_set)
         ---@type Ctx
         local ctx = typed.table("Ctx", setmetatable({

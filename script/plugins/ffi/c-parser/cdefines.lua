@@ -66,6 +66,7 @@ local get_type_of_exp
 get_type_of_exp = typed("Exp, TypeList -> {string}?",
     ---@param exp Exp
     ---@param lst ctypes.TypeList
+    ---@return table|string[]|nil
     function(exp, lst)
     if type(exp[1]) == "string" and exp[2] == nil then
         local val = exp[1] --[[@as string]]

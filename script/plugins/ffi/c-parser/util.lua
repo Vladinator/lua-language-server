@@ -14,6 +14,7 @@ local function tableLenEqual(t, len)
 end
 
 ---@param ast any
+---@return boolean
 local function isSingleNode(ast)
     if type(ast) ~= 'table' then
         return false

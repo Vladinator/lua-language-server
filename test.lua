@@ -90,6 +90,7 @@ local function testAll()
     test 'other'
     test 'fuzz_doc'
     test 'editor_sim'
+    test 'suggest_returns'
 end
 
 local files = require "files"
@@ -107,7 +108,8 @@ local function main()
     --log.print = true
 
     -- the editor_sim dev harness diagnoses the repository itself
-    local simulateEditor = TARGET_TEST_NAME and ('editor_sim'):match(TARGET_TEST_NAME)
+    local simulateEditor = TARGET_TEST_NAME
+        and (('editor_sim'):match(TARGET_TEST_NAME) or ('suggest_returns'):match(TARGET_TEST_NAME))
     TESTROOT = ROOT:string() .. (simulateEditor and '/' or '/test_root/')
     TESTROOTURI = furi.encode(TESTROOT)
     TESTURI = furi.encode(TESTROOT .. 'unittest.lua')

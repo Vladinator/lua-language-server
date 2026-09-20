@@ -125,7 +125,9 @@ function mt:collectLocal()
         self.assignMap[self.source] = true
     end
 
-    for _, set in ipairs(variable.sets) do
+    ---@type parser.object[]
+    local sets = variable.sets
+    for _, set in ipairs(sets) do
         self.assigns[#self.assigns+1] = set
         self.assignMap[set] = true
         self:collectCare(set)
@@ -134,7 +136,9 @@ function mt:collectLocal()
         end
     end
 
-    for _, get in ipairs(variable.gets) do
+    ---@type parser.object[]
+    local gets = variable.gets
+    for _, get in ipairs(gets) do
         self:collectCare(get)
         self.getMap[get] = true
         if get.finish > finishPos then
@@ -142,6 +146,7 @@ function mt:collectLocal()
         end
     end
 
+    ---@type parser.object[]
     local casts = self:getCasts()
     for _, cast in ipairs(casts) do
         if  cast.name[1] == self.name
@@ -176,6 +181,7 @@ function mt:collectGlobal()
         self.getMap[get] = true
     end
 
+    ---@type parser.object[]
     local casts = self:getCasts()
     for _, cast in ipairs(casts) do
         if cast.name[1] == self.name then

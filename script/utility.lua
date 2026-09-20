@@ -696,6 +696,7 @@ end
 ---@param keepNL? boolean # 保留换行符
 ---@return fun():string?, integer?
 function m.eachLine(text, keepNL)
+    ---@type integer
     local offset = 1
     local lineCount = 0
     ---@type string?

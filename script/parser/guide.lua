@@ -568,8 +568,10 @@ function m.getLocal(source, name, pos)
         end
         ---@type parser.object?
         local res
-        if block.locals then
-            for _, loc in ipairs(block.locals) do
+        ---@type parser.object[]?
+        local blockLocals = block.locals
+        if blockLocals then
+            for _, loc in ipairs(blockLocals) do
                 if  loc[1] == name
                 and loc.effect <= pos then
                     if not res or res.effect < loc.effect then

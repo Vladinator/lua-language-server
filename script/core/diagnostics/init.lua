@@ -15,13 +15,11 @@ local customPlugins = require 'core.diagnostics.custom-plugins'
 -- require('core.diagnostics.'..name) as normal further down, which Lua's
 -- require cache makes a no-op re-load.
 --
--- Deliberately NOT relied on to run before `define` above takes its
--- one-time snapshot of the registered diagnostics: `define` is reached
--- transitively from `require 'files'`, itself required from vm/node.lua,
--- so a self-registering diagnostic that needs `vm` cannot safely load
--- before that snapshot without risking a require cycle. getSeverity/
--- getStatus/buildDiagList below fall back to proto.diagnostic's live
--- registry instead, so registration order here doesn't matter.
+-- Registration order here does not matter: `define` is reached transitively
+-- from `require 'files'`, itself required from vm/node.lua, so a
+-- self-registering diagnostic that needs `vm` cannot safely load before
+-- `define`. `define.DiagnosticDefault*` are therefore live tables that
+-- proto.diagnostic's `register` fills in (see there), not a startup snapshot.
 --
 -- Anything non-standard or specialized enough that it shouldn't need a
 -- line added and removed here doesn't belong in this list at all --
@@ -130,9 +128,6 @@ end
 local function getSeverity(uri, name)
     local severity =   config.get(uri, 'Lua.diagnostics.severity')[name]
                     or define.DiagnosticDefaultSeverity[name]
-                    -- fallback for a diagnostic that self-registered after
-                    -- `define` took its one-time startup snapshot
-                    or (diagd.diagnosticDatas[name] and diagd.diagnosticDatas[name].severity)
     if severity:sub(-1) == '!' then
         return severity:sub(1, -2)
     end
@@ -163,7 +158,6 @@ end
 local function getStatus(uri, name)
     local status = config.get(uri, 'Lua.diagnostics.neededFileStatus')[name]
                 or define.DiagnosticDefaultNeededFileStatus[name]
-                or (diagd.diagnosticDatas[name] and diagd.diagnosticDatas[name].status)
     if status:sub(-1) == '!' then
         return status:sub(1, -2)
     end
@@ -196,8 +190,7 @@ end
 local function isEnabled(uri, name, ignoreFileOpenState)
     -- a name that is not a registered diagnostic (a typo, or half typed in an
     -- `expect-next-line` comment) can never fire; getStatus has no status for it
-    if not define.DiagnosticDefaultSeverity[name]
-    and not diagd.diagnosticDatas[name] then
+    if not define.DiagnosticDefaultSeverity[name] then
         return false
     end
     local disables = config.get(uri, 'Lua.diagnostics.disable')
@@ -271,42 +264,87 @@ end
 
 ---@type string[]?
 local diagList
+--- how many diagnostics `diagList` was built from
+local diagListSize = 0
 ---@type table<string, number>
 local diagCosts = {}
 ---@type table<string, integer>
 local diagCount = {}
+
+--- In which order the checks run on a file matters more than it looks: what a check compiles
+--- is cached, so a different first check can change what the following ones infer, and every
+--- order-dependent inference bug this project has hit showed up as "the CLI check and the
+--- editor disagree". `LLS_DIAG_ORDER` picks the order, for testing:
+---   (unset) | cost     cheapest measured first, ties by name (what runs by default)
+---   name               alphabetical
+---   reverse            reverse alphabetical
+---   shuffle:<seed>     a fixed pseudo-random permutation, the same for every file and process
+---   first:<name>       alphabetical, but with that diagnostic first (to bisect an order dependence)
+---@type string
+local ORDER_MODE = os.getenv('LLS_DIAG_ORDER') or 'cost'
+
+---@param names string[]
+---@param seed  integer
+local function shuffle(names, seed)
+    local state = seed
+    for i = #names, 2, -1 do
+        state = (state * 1103515245 + 12345) % 2147483648
+        local j = state % i + 1
+        names[i], names[j] = names[j], names[i]
+    end
+end
+
 ---@return string[]
 local function buildDiagList()
-    if not diagList then
-        diagList = {}
-        ---@type table<string, boolean>
-        local seen = {}
-        for name in pairs(define.DiagnosticDefaultSeverity) do
-            seen[name] = true
-            diagList[#diagList+1] = name
-        end
-        -- names registered after `define`'s one-time startup snapshot
-        -- (see the self-registering diagnostics note above)
+    local registered = 0
+    for _ in pairs(diagd.diagnosticDatas) do
+        registered = registered + 1
+    end
+    if not diagList or diagListSize ~= registered then
+        ---@type string[]
+        local names = {}
         for name in pairs(diagd.diagnosticDatas) do
-            if not seen[name] then
-                diagList[#diagList+1] = name
+            -- `unfulfilled-expect` reads what every other diagnostic suppressed, so it
+            -- always runs last (see the tail of the exported function)
+            if name ~= 'unfulfilled-expect' then
+                names[#names+1] = name
             end
         end
-    end
-    -- `unfulfilled-expect` reads what every other diagnostic suppressed, so it
-    -- always runs last (see the tail of the exported function)
-    table.sort(diagList, function (a, b)
-        local time1 = (diagCosts[a] or 0) / (diagCount[a] or 1)
-        local time2 = (diagCosts[b] or 0) / (diagCount[b] or 1)
-        return time1 < time2
-    end)
-    for i = #diagList, 1, -1 do
-        if diagList[i] == 'unfulfilled-expect' then
-            table.remove(diagList, i)
+        table.sort(names)   -- pairs() order is arbitrary: start from a defined one
+        local shuffleSeed = ORDER_MODE:match('^shuffle:(%d+)$')
+        if shuffleSeed then
+            shuffle(names, tonumber(shuffleSeed) --[[@as integer]])
+        elseif ORDER_MODE:match('^first:') then
+            local first = ORDER_MODE:sub(#'first:' + 1)
+            for k, name in ipairs(names) do
+                if name == first then
+                    table.remove(names, k)
+                    table.insert(names, 1, name)
+                    break
+                end
+            end
+        elseif ORDER_MODE == 'reverse' then
+            for a = 1, #names // 2 do
+                local b = #names - a + 1
+                names[a], names[b] = names[b], names[a]
+            end
         end
+        diagList     = names
+        diagListSize = registered
+    end
+    if ORDER_MODE == 'cost' then
+        table.sort(diagList, function (a, b)
+            local time1 = (diagCosts[a] or 0) / (diagCount[a] or 1)
+            local time2 = (diagCosts[b] or 0) / (diagCount[b] or 1)
+            if time1 ~= time2 then
+                return time1 < time2
+            end
+            return a < b
+        end)
     end
     return diagList
 end
+diagd.getRunOrder = buildDiagList
 
 ---@async
 ---@param uri uri

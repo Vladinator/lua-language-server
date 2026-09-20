@@ -1595,7 +1595,9 @@ end
 ---@return boolean
 local function isUnresolved(node)
     for _, c in ipairs(node) do
+        -- a `variable` / `local` entry is only the marker of the thing itself, not a type
         if  c.type ~= 'variable'
+        and c.type ~= 'local'
         and not (c.type == 'global' and c.cate == 'type' and c.name == 'unknown') then
             return false
         end
@@ -3095,7 +3097,9 @@ local function compileFresh(source, pass)
             parent.dependsOn = dep --[[@as integer]]
         end
     elseif #frame.tainted > 0 then
-        for _, t in ipairs(frame.tainted) do
+        ---@type any[]
+        local tainted = frame.tainted
+        for _, t in ipairs(tainted) do
             -- skip anything that has been recompiled or is open again since
             if taintedBy[t] == frame and not compiling[t]
             and (pass == 1 or not tostring(t.type):find('^doc%.')) then

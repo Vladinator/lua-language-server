@@ -5,6 +5,7 @@ local util = require 'utility'
 ---@field diagnosticGroups table<string, table<string, boolean>>
 ---@field _errNames? table<string, true>
 ---@field isEnabled fun(uri: uri, name: string, ignoreFileOpenState?: boolean): boolean set by core.diagnostics; whether a diagnostic runs for a file under the current config
+---@field getRunOrder fun(): string[] set by core.diagnostics; the diagnostics in the order they run on a file (`unfulfilled-expect`, which always runs last, not included)
 local m = {}
 
 ---@alias DiagnosticSeverity
@@ -46,6 +47,19 @@ local m = {}
 m.diagnosticDatas  = {}
 m.diagnosticGroups = {}
 
+-- The default severity / status per diagnostic and per group. They are LIVE tables that
+-- `register` fills in, and the getters below hand out those very tables: diagnostics register
+-- themselves from their own files, some after proto.define (which keeps a reference to
+-- them) has loaded, so a copy taken at load time would miss them.
+---@type table<string, DiagnosticSeverity>
+local defaultSeverity = {}
+---@type table<string, DiagnosticNeededFileStatus>
+local defaultStatus = {}
+---@type table<string, string>
+local groupSeverity = {}
+---@type table<string, string>
+local groupStatus = {}
+
 ---@param names string[]
 ---@return fun(info: proto.diagnostic.info)
 function m.register(names)
@@ -57,52 +71,40 @@ function m.register(names)
                 status      = info.status,
                 description = info.description,
             }
+            defaultSeverity[name] = info.severity
+            defaultStatus[name]   = info.status
             if not m.diagnosticGroups[info.group] then
                 m.diagnosticGroups[info.group] = {}
             end
             m.diagnosticGroups[info.group][name] = true
+            groupSeverity[info.group] = 'Fallback'
+            groupStatus[info.group]   = 'Fallback'
         end
     end
 end
 
+--- The live table of default severities (see above): do not modify it.
 ---@return table<string, DiagnosticSeverity>
 function m.getDefaultSeverity()
-    ---@type table<string, DiagnosticSeverity>
-    local severity = {}
-    for name, info in pairs(m.diagnosticDatas) do
-        severity[name] = info.severity
-    end
-    return severity
+    return defaultSeverity
 end
 
+--- The live table of default file statuses: do not modify it.
 ---@return table<string, DiagnosticNeededFileStatus>
 function m.getDefaultStatus()
-    ---@type table<string, DiagnosticNeededFileStatus>
-    local status = {}
-    for name, info in pairs(m.diagnosticDatas) do
-        status[name] = info.status
-    end
-    return status
+    return defaultStatus
 end
 
+--- The live table of group severities (all 'Fallback'): do not modify it.
 ---@return table<string, string>
 function m.getGroupSeverity()
-    ---@type table<string, string>
-    local group = {}
-    for name in pairs(m.diagnosticGroups) do
-        group[name] = 'Fallback'
-    end
-    return group
+    return groupSeverity
 end
 
+--- The live table of group file statuses (all 'Fallback'): do not modify it.
 ---@return table<string, string>
 function m.getGroupStatus()
-    ---@type table<string, string>
-    local group = {}
-    for name in pairs(m.diagnosticGroups) do
-        group[name] = 'Fallback'
-    end
-    return group
+    return groupStatus
 end
 
 ---@param name string

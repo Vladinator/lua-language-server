@@ -45,8 +45,7 @@ for dir in (os.getenv('SIM_DIRS') or '/script/'):gmatch('[^,]+') do
 end
 for uri in files.eachFile() do
     local path = furi.decode(uri):gsub('[\\]', '/')
-    if not path:find('/script/plugins/', 1, true)
-    and not path:find('/script/meta/', 1, true) then
+    if not path:find('/script/meta/', 1, true) then
         for _, dir in ipairs(dirs) do
             if path:find(dir, 1, true) then
                 uris[#uris+1] = uri

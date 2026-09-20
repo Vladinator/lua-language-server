@@ -79,8 +79,9 @@ local function checkInIf(state, source, text, position)
         return true
     end
     -- 检查每个子模块
-    for _, block in ipairs(source) do
-        ---@cast block parser.object
+    ---@type parser.object[]
+    local blocks = source
+    for _, block in ipairs(blocks) do
         for i = 1, #block.keyword, 2 do
             local start  = block.keyword[i]
             local finish = block.keyword[i+1]

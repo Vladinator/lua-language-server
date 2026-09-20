@@ -231,6 +231,7 @@ cpp.initial_processing = typed("file* -> LineList",
     local backslash_buf
     ---@type string[]?
     local buf
+    ---@type string
     local state = "any"
     ---@type {nr: integer, line: string}[]
     local output = {}

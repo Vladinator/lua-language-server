@@ -4,6 +4,7 @@ local ssub  = string.sub
 ---@param text string
 ---@return { [integer]: integer, size: integer }
 return function (text)
+    ---@type integer
     local current = 1
     ---@type { [integer]: integer, size: integer }
     local lines = {}

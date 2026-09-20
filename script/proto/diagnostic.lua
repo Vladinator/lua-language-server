@@ -1,7 +1,7 @@
 local util = require 'utility'
 
 ---@class proto.diagnostic
----@field diagnosticDatas  table<string, {severity: DiagnosticSeverity, status: DiagnosticNeededFileStatus, description?: string}>
+---@field diagnosticDatas  table<string, {severity: DiagnosticSeverity, status: DiagnosticNeededFileStatus, description?: string, reads?: string[]}>
 ---@field diagnosticGroups table<string, table<string, boolean>>
 ---@field _errNames? table<string, true>
 ---@field isEnabled fun(uri: uri, name: string, ignoreFileOpenState?: boolean): boolean set by core.diagnostics; whether a diagnostic runs for a file under the current config
@@ -43,6 +43,7 @@ local m = {}
 ---@field status   DiagnosticNeededFileStatus
 ---@field group    string
 ---@field description? string English text for the settings docs/schema (`config.diagnostics.<name>`); each plugin carries its own so deleting it removes everything
+---@field reads? string[] settings the diagnostic reads beyond its own severity / status, for example `Lua.diagnostics.globals`. When one of them changes, a workspace diagnosis runs this diagnostic again (the ones the server knows about are listed in provider/diagnostic.lua); leave it out and the diagnostic keeps its old results until the next full pass
 
 m.diagnosticDatas  = {}
 m.diagnosticGroups = {}
@@ -70,6 +71,7 @@ function m.register(names)
                 severity    = info.severity,
                 status      = info.status,
                 description = info.description,
+                reads       = info.reads,
             }
             defaultSeverity[name] = info.severity
             defaultStatus[name]   = info.status

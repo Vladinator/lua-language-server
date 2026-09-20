@@ -2,8 +2,8 @@
 
 A plugin is a Lua file that changes how the server reads your code: it can rewrite the text before
 it is parsed, edit the syntax tree after, help `require` find a file, or give a function parameter
-a type. (Plugins that add new **diagnostics** are a separate system, see
-`Lua.diagnostics.pluginsDir` in [config.md](config.md).)
+a type. (Plugins that add new **diagnostics** are a separate system: see
+[diagnostic-plugin.md](diagnostic-plugin.md) and `Lua.diagnostics.pluginsDir` in [config.md](config.md).)
 
 ```jsonc
 {

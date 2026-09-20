@@ -283,6 +283,21 @@ do
     assert(not names['undefined-global'])
 end
 
+-- a plugin diagnostic that says which settings it reads is run again for them, and only for the
+-- settings the server can narrow down (anything else is still all of them)
+do
+    local diagd = require 'proto.diagnostic'
+    diagd.diagnosticDatas['fixture-reader'] = {
+        severity = 'Hint', status = 'Any', reads = { 'Lua.diagnostics.globals', 'Lua.diagnostics.enable' },
+    }
+    local names = assert(diag.getAffectedDiagnostics('Lua.diagnostics.globals', { 'a' }, {}))
+    assert(names['fixture-reader'] and names['undefined-global'])
+    assert(diag.getAffectedDiagnostics('Lua.diagnostics.enable', false, true) == nil, 'not narrowed by a plugin')
+    names = assert(diag.getAffectedDiagnostics('Lua.diagnostics.severity', { a = 'Error' }, {}))
+    assert(not names['fixture-reader'], 'a setting it did not name')
+    diagd.diagnosticDatas['fixture-reader'] = nil
+end
+
 -- what a scope still has to diagnose
 do
     diag.pending = {}

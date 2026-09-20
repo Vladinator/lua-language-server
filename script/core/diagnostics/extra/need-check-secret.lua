@@ -6,9 +6,10 @@
 -- core file references "secret" at all, and none of this plugin's own
 -- functions are exposed on the shared `vm`/`docTags` tables under a
 -- secret-specific name -- everything they need to plug into is a
--- generic, string-keyed registry, so deleting this file (and its one
--- line in core/diagnostics/init.lua's eager-load list) removes the
--- feature completely, and no other diagnostic is affected.
+-- generic, string-keyed registry, so deleting this file removes the
+-- feature completely (core/diagnostics/custom-plugins.lua finds the
+-- files in this folder by itself: no line to remove anywhere), and no
+-- other diagnostic is affected. Its tests are next to it.
 
 local files           = require 'files'
 local guide           = require 'parser.guide'

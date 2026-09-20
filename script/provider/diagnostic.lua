@@ -993,6 +993,14 @@ function m.getAffectedDiagnostics(key, value, oldValue)
             end
         end
     end
+    -- the diagnostics of plugins that say they read this setting (`reads` of their registration)
+    if names then
+        for name, data in pairs(diagd.diagnosticDatas) do
+            if data.reads and util.arrayHas(data.reads, key) then
+                names[name] = true
+            end
+        end
+    end
     -- `unfulfilled-expect` needs the outcome of every other diagnostic
     if names and names['unfulfilled-expect'] then
         return nil

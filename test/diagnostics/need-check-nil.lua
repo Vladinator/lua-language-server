@@ -335,3 +335,102 @@ local function f(t)
     print(#t.list)
 end
 ]]
+
+-- `while true`: the loop is left by its `break`s, so what the variable is after it is what it is
+-- at each `break` (not what it was when the loop was entered)
+TEST [[
+---@type integer[]?
+local l
+while true do
+    l = l or {}
+    if #l > 3 then
+        break
+    end
+    l[#l+1] = 1
+end
+S = #l
+]]
+
+TEST [[
+---@type string?
+local x
+while true do
+    x = 'a'
+    if math.random() > 0.5 then
+        break
+    end
+end
+S = #x
+]]
+
+-- ... but it stays a finding when a `break` can be reached before the assignment,
+TEST [[
+---@type string?
+local x
+while true do
+    if math.random() > 0.5 then
+        break
+    end
+    x = 'a'
+end
+S = #<!x!>
+]]
+
+-- when the variable is nil at one of the `break`s,
+TEST [[
+---@type string?
+local x = 'a'
+while true do
+    x = 'b'
+    if math.random() > 0.5 then
+        x = nil
+        break
+    end
+end
+S = #<!x!>
+]]
+
+TEST [[
+---@type string?
+local x
+while true do
+    x = 'a'
+    if math.random() > 0.5 then
+        break
+    end
+    x = nil
+    if math.random() > 0.5 then
+        break
+    end
+    x = 'b'
+end
+S = #<!x!>
+]]
+
+-- when a `goto` may jump over the assignment,
+TEST [[
+---@type string?
+local x
+while true do
+    x = 'a'
+    if math.random() > 0.5 then
+        goto continue
+    end
+    x = nil
+    if math.random() > 0.5 then
+        break
+    end
+    ::continue::
+end
+S = #<!x!>
+]]
+
+-- and with a condition that can be false
+TEST [[
+---@type integer[]?
+local l
+while math.random() > 0.5 do
+    l = l or {}
+end
+S = #<!l!>
+]]

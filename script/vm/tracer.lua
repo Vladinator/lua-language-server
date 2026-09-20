@@ -36,6 +36,8 @@ vm.registerCallNarrowing {
 ---@field mark      table<parser.object, true>
 ---@field casts     parser.object[]
 ---@field nodes     table<parser.object, vm.node|false>
+---@field trackBreaks table<parser.object, true>   loops with a constant true condition, left only by their `break`s
+---@field breakNodes  table<parser.object, vm.node[]>  the node the variable has at each `break` reached so far
 ---@field main      parser.object
 ---@field uri       uri
 ---@field castIndex integer?
@@ -81,6 +83,21 @@ function mt:collectAssign(obj)
     end
 end
 
+--- A loop condition that is always true: the loop is left by its `break`s, or never.
+---@param filter parser.object?
+---@return boolean
+local function isConstantTrue(filter)
+    if not filter then
+        return false
+    end
+    if filter.type == 'boolean' then
+        return filter[1] == true
+    end
+    return filter.type == 'integer'
+        or filter.type == 'number'
+        or filter.type == 'string'
+end
+
 ---@param obj parser.object
 function mt:collectCare(obj)
     while true do
@@ -94,6 +111,15 @@ function mt:collectCare(obj)
             return
         end
         self.careMap[obj] = true
+
+        -- what the variable is after `while true do ... end` is what it is at the `break`s, so
+        -- the walks have to go through them
+        if obj.type == 'while' and obj.breaks and isConstantTrue(obj.filter) then
+            self.trackBreaks[obj] = true
+            for _, brk in ipairs(obj.breaks) do
+                self:collectCare(brk)
+            end
+        end
 
         if self.fastCalc then
             if obj.type == 'if'
@@ -230,6 +256,62 @@ function mt:getLastAssign(start, finish)
         ::CONTINUE::
     end
     return lastAssign
+end
+
+--- The node the variable has after `while true do ... end`: the union of what it is at each of
+--- the `break`s. Only when that does not depend on how the loop was entered or came around: the
+--- loop's own block assigns the variable before the first `break`, and nothing can `goto` past
+--- that assignment. Otherwise `nil`, and the caller keeps the approximation (entry merged with
+--- the end of the body).
+---@param loop parser.object
+---@return vm.node?
+function mt:getBreakExit(loop)
+    local breaks = loop.breaks
+    if not breaks then
+        return
+    end
+    ---@type parser.object[]
+    local assigns = {}
+    for _, assign in ipairs(self.assigns) do
+        if assign.type ~= 'variable' then
+            ---@cast assign parser.object
+            if assign.start >= loop.start and assign.finish <= loop.finish then
+                assigns[#assigns+1] = assign
+            end
+        end
+    end
+    -- (the breaks are in source order)
+    local firstBreak = breaks[1].start
+    local guarded = false
+    for _, assign in ipairs(assigns) do
+        if assign.parent == loop and assign.finish < firstBreak then
+            guarded = true
+            break
+        end
+    end
+    if not guarded then
+        return
+    end
+    local hasGoto = false
+    guide.eachSourceType(loop, 'goto', function ()
+        hasGoto = true
+    end)
+    if hasGoto then
+        return
+    end
+    -- every walk that can reach a `break` has to have run
+    for _, assign in ipairs(assigns) do
+        self:getNode(assign)
+    end
+    local nodes = self.breakNodes[loop]
+    if not nodes or #nodes ~= #breaks then
+        return
+    end
+    local exit = nodes[1]:copy()
+    for i = 2, #nodes do
+        exit:merge(nodes[i])
+    end
+    return exit
 end
 
 ---@param pos integer
@@ -546,6 +628,35 @@ local lookIntoChild = util.switch()
         end
         return topNode, outNode
     end)
+    : case 'break'
+    ---@param tracer   vm.tracer
+    ---@param action   parser.object
+    ---@param topNode  vm.node
+    ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
+    : call(function (tracer, action, topNode, outNode)
+        ---@type parser.object?
+        local loop = action.parent
+        while loop
+        and loop.type ~= 'while'
+        and loop.type ~= 'loop'
+        and loop.type ~= 'in'
+        and loop.type ~= 'for'
+        and loop.type ~= 'repeat'
+        and loop.type ~= 'function' do
+            loop = loop.parent
+        end
+        if loop and tracer.trackBreaks[loop] then
+            local nodes = tracer.breakNodes[loop]
+            if not nodes then
+                nodes = {}
+                tracer.breakNodes[loop] = nodes
+            end
+            nodes[#nodes+1] = topNode:copy()
+        end
+        return topNode, outNode
+    end)
     : case 'while'
     ---@param tracer   vm.tracer
     ---@param action   parser.object
@@ -571,6 +682,9 @@ local lookIntoChild = util.switch()
             local actionNode = tracer.nodes[action]
             if actionNode then
                 topNode = mainNode:merge(actionNode)
+            end
+            if tracer.trackBreaks[action] then
+                topNode = tracer:getBreakExit(action) or topNode
             end
         end
         if action.filter then
@@ -1155,6 +1269,8 @@ local function createTracer(mode, source, name)
         mark      = {},
         casts     = {},
         nodes     = {},
+        trackBreaks = {},
+        breakNodes  = {},
         main      = main,
         uri       = guide.getUri(main),
     }, mt)

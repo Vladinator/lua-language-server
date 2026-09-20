@@ -20,7 +20,19 @@ local features = {
     highlight   = require 'core.highlight',
     typedef     = require 'core.type-definition',
     implement   = require 'core.implementation',
-    completion  = require 'core.completion'.completion,
+    -- the request, then the second step the editor does for the items it shows (a few: every
+    -- item would multiply the time of the whole run)
+    ---@async
+    completion  = function (uri, pos)
+        local completion = require 'core.completion'
+        local items = completion.completion(uri, pos) or {}
+        for i = 1, math.min(#items, 3) do
+            local id = items[i].id
+            if id then
+                completion.resolve(id)
+            end
+        end
+    end,
     rename      = require 'core.rename'.prepareRename,
     -- the rename itself, with a new name, not only its preparation
     ---@async
@@ -434,6 +446,95 @@ for _, text in ipairs(cases) do
         files.remove(TESTURI)
     end
 end
+
+-- What a user plugin (`Lua.runtime.plugin`) can hand back is arbitrary: the server must survive it.
+-- Every hook gets a rotating set of odd results (wrong types, broken diffs, errors) while the
+-- same cases are read by the features again.
+local scope = require 'workspace.scope'
+
+---@type (fun(text: string): any)[]
+local oddTexts = {
+    function () return nil end,
+    function () return '' end,
+    function (text) return text:sub(1, #text // 2) end,
+    function (text) return text .. '\n---@class' end,
+    function () return 42 end,
+    function () return true end,
+    function () return {} end,
+    function () return { { start = 1, finish = 0, text = '' } } end,
+    function (text) return { { start = 0, finish = #text + 50, text = 'x' } } end,
+    function () return { { start = 3, finish = 1, text = 'x' } } end,
+    function () return { { start = 1, finish = 2, text = 5 } } end,
+    function () return { 'not a diff', 7 } end,
+    function () return { { start = 1, finish = 2, text = 'a' }, { start = 2, finish = 3, text = 'b' } } end,
+    function () error('plugin failure') end,
+    function () return string.char(0, 255, 254) end,
+}
+---@type (fun(uri: uri, ast: any): any)[]
+local oddTrees = {
+    function () return nil end,
+    function () return 'not a tree' end,
+    function () return 42 end,
+    function (_, ast) return ast end,
+    function () error('plugin failure') end,
+}
+---@type (fun(): any)[]
+local oddRequires = {
+    function () return nil end,
+    function () return 'a string' end,
+    function () return {} end,
+    function () return { 'file:///nowhere.lua' } end,
+    function () return { TESTURI } end,
+    function () error('plugin failure') end,
+}
+---@type (fun(next: function, func: any, source: any): any)[]
+local oddParams = {
+    function () return nil end,
+    function () return true end,
+    function () return false end,
+    function () return 'x' end,
+    function (next, func, source) return next(func, source) end,
+    function () error('plugin failure') end,
+}
+
+local client   = require 'client'
+local oldShow  = client.showMessage
+local oldError = log.error
+client.showMessage = function () end
+log.error = function () end
+local pluginCases = 0
+for i, text in ipairs(cases) do
+    if i % 10 == 0 then
+        pluginCases = pluginCases + 1
+        local n = pluginCases
+        text = text .. '\nlocal m = require "a.b"\nlocal function f(p, q) return p.x + q end\nm.y()\n'
+        local interface = {
+            OnSetText      = oddTexts[n % #oddTexts + 1],
+            OnTransformAst = oddTrees[n % #oddTrees + 1],
+            ResolveRequire = oddRequires[n % #oddRequires + 1],
+            VM             = { OnCompileFunctionParam = oddParams[n % #oddParams + 1] },
+        }
+        local scp = scope.getScope(TESTURI)
+        scp:set('pluginInterfaces', { interface })
+        files.setText(TESTURI, text)
+        local state = files.getState(TESTURI)
+        local shown = state and state.lua or text
+        try('plugin/semantic-tokens', text, semantic, TESTURI, 0, #shown)
+        try('plugin/document-symbol', text, symbols, TESTURI)
+        try('plugin/diagnostics', text, diagnostics, TESTURI, false, function () end)
+        try('plugin/formatting', text, formatting, TESTURI, {})
+        for off = 1, #shown + 1, 17 do
+            local pos = state and guide.offsetToPosition(state, off) or off
+            for name, fn in pairs(features) do
+                try('plugin/' .. name, text, fn, TESTURI, pos)
+            end
+        end
+        files.remove(TESTURI)
+        scp:set('pluginInterfaces', nil)
+    end
+end
+client.showMessage = oldShow
+log.error = oldError
 
 ---@type string[]
 local keys = {}

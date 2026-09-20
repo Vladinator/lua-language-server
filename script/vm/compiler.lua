@@ -1671,17 +1671,7 @@ local function compileLocal(source)
     end
     if source.parent.type == 'funcargs' and not hasMarkDoc and not hasMarkParam then
         local func = source.parent.parent
-        local interfaces = plugin.getPluginInterfaces(guide.getUri(source))
-        local hasDocArg = false
-        if interfaces then
-            for _, interface in ipairs(interfaces) do
-                local hook = interface.VM and interface.VM.OnCompileFunctionParam
-                if hook then
-                    hasDocArg = hook(compileFunctionParam, func, source) and true or false
-                    if hasDocArg then break end
-                end
-            end
-        end
+        local hasDocArg = plugin.compileFunctionParam(guide.getUri(source), compileFunctionParam, func, source)
         if not hasDocArg and not compileFunctionParam(func, source) then
             vm.setNode(source, vm.declareGlobal('type', 'any'))
         end

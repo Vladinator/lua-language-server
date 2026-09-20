@@ -115,6 +115,30 @@ function m.getPluginInterfaces(uri)
     return scope.getScope(uri):get('pluginInterfaces') --[[@as plugin.interface[]? ]]
 end
 
+--- Asks the `VM.OnCompileFunctionParam` hooks, in order, whether one takes the type of a
+--- function parameter over. A hook that fails is reported like any other plugin failure and
+--- counts as not answering.
+---@param uri    uri
+---@param next   plugin.compileParam the default: what the server does for the parameter
+---@param func   parser.object
+---@param source parser.object
+---@return boolean
+function m.compileFunctionParam(uri, next, func, source)
+    for _, interface in ipairs(m.getPluginInterfaces(uri) or {}) do
+        local vmHooks = interface.VM
+        local hook = type(vmHooks) == 'table' and vmHooks.OnCompileFunctionParam
+        if type(hook) == 'function' then
+            local suc, res = xpcall(hook, onError, next, func, source)
+            if not suc then
+                m.showError(paths[interface], res)
+            elseif res then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 --- `Lua.runtime.pluginArgs` is either the arguments for every plugin (an array) or a table keyed
 --- by a part of the plugin path.
 ---@param args any

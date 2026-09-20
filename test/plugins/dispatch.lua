@@ -94,6 +94,29 @@ end)
 assert(#messages == 1)
 assert(messages[1]:find('boom', 1, true))
 
+-- the parameter hook: a failing plugin does not stop the ones after it, or the compile
+-- (a plugin is arbitrary Lua, its `VM` can be anything)
+---@type any
+local notATable = 'not a table'
+withPlugins({
+    { VM = { OnCompileFunctionParam = function () error('boom', 0) end } },
+    { VM = {} },
+    { VM = notATable },
+    { VM = { OnCompileFunctionParam = function () return true end } },
+}, function ()
+    local function default() return false end
+    local answered = collectMessages(function ()
+        assert(plugin.compileFunctionParam(TESTURI, default, {}, {}) == true)
+    end)
+    assert(#answered <= 1)
+end)
+
+withPlugins({
+    { VM = { OnCompileFunctionParam = function () return false end } },
+}, function ()
+    assert(plugin.compileFunctionParam(TESTURI, function () return false end, {}, {}) == false)
+end)
+
 -- what the file machinery does with the results
 ---@param interfaces plugin.interface[]
 ---@param text string

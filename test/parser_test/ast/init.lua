@@ -157,7 +157,7 @@ local function test(type)
             local docs = assert(ast.docs)
             for _, doc in ipairs(docs) do
                 doc.bindGroup = nil
-                ---@diagnostic disable-next-line: inject-field, no-unknown -- test-only: clears a legacy field that no longer exists on the type
+                ---@diagnostic expect-next-line: no-unknown -- test-only: clears a legacy field that no longer exists on the type
                 doc.bindSources = nil
             end
             docs.groups = nil

@@ -13,7 +13,6 @@ local originEditText = client.editText
 ---@type any
 local EditResult
 
----@diagnostic disable-next-line: duplicate-set-field
 client.editText = function (uri, edits)
     EditResult = edits[1]
 end

@@ -9,7 +9,6 @@ local util     = require 'utility'
 if not ROOT then
     local fs  = require 'bee.filesystem'
     local sys = require 'bee.sys'
-    ---@diagnostic disable-next-line: lowercase-global, inject-field, undefined-global
     ROOT = fs.path(sys.exe_path():parent_path():parent_path():string())
 end
 require 'core.diagnostics'

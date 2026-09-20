@@ -7,7 +7,7 @@ rawset(_G, 'TEST', true)
 function TEST(script)
     local clock = os.clock()
     local state = parser.compile(script, 'Lua', 'Lua 5.4')
-    ---@diagnostic disable-next-line: inject-field -- test-only timing instrumentation, not a real parser.state field
+    ---@diagnostic expect-next-line: inject-field -- test-only timing instrumentation, not a real parser.state field
     state.compileClock = os.clock() - clock
     return state
 end

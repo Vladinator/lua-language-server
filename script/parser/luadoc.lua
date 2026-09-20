@@ -405,10 +405,9 @@ local function parseTable(parent)
                 nextToken()
                 needCloseParen = true
             end
-            ---@diagnostic expect-next-line: assign-type-mismatch
-            field.name = parseName('doc.field.name', field)
+            local nameNode = parseName('doc.field.name', field)
                     or   parseIndexField(field)
-            if not field.name then
+            if not nameNode then
                 pushWarning {
                     type   = 'LUADOC_MISS_FIELD_NAME',
                     start  = getFinish(),
@@ -416,6 +415,7 @@ local function parseTable(parent)
                 }
                 break
             end
+            field.name = nameNode
             if not field.start then
                 field.start = field.name.start
             end
@@ -427,7 +427,6 @@ local function parseTable(parent)
             if not nextSymbolOrError(':') then
                 break
             end
-            ---@diagnostic expect-next-line: assign-type-mismatch
             field.extends = parseType(field)
             if not field.extends then
                 break
@@ -504,7 +503,6 @@ local function parseTuple(parent)
                 }
             }
             index          = index + 1
-            ---@diagnostic expect-next-line: assign-type-mismatch
             field.extends  = parseType(field)
             if not field.extends then
                 break
@@ -611,10 +609,9 @@ local function  parseTypeUnitFunction(parent)
             type   = 'doc.type.arg',
             parent = typeUnit,
         }
-        ---@diagnostic expect-next-line: assign-type-mismatch
-        arg.name = parseName('doc.type.arg.name', arg)
+        local nameNode = parseName('doc.type.arg.name', arg)
                 or parseDots('doc.type.arg.name', arg)
-        if not arg.name then
+        if not nameNode then
             pushWarning {
                 type   = 'LUADOC_MISS_ARG_NAME',
                 start  = getFinish(),
@@ -622,6 +619,7 @@ local function  parseTypeUnitFunction(parent)
             }
             break
         end
+        arg.name = nameNode
         if not arg.start then
             arg.start = arg.name.start
         end
@@ -632,7 +630,6 @@ local function  parseTypeUnitFunction(parent)
         arg.finish = getFinish()
         if checkToken('symbol', ':', 1) then
             nextToken()
-            ---@diagnostic expect-next-line: assign-type-mismatch
             arg.extends = parseType(arg)
         end
         arg.finish = getFinish()
@@ -1185,9 +1182,8 @@ local docSwitch = util.switch()
             calls     = {},
         }
         result.docAttr = parseDocAttr(result)
-        ---@diagnostic expect-next-line: assign-type-mismatch
-        result.class = parseName('doc.class.name', result)
-        if not result.class then
+        local classNode = parseName('doc.class.name', result)
+        if not classNode then
             pushWarning {
                 type   = 'LUADOC_MISS_CLASS_NAME',
                 start  = getFinish(),
@@ -1195,6 +1191,7 @@ local docSwitch = util.switch()
             }
             return nil
         end
+        result.class = classNode
         result.start  = getStart()
         result.finish = getFinish()
         ---@diagnostic expect-next-line: assign-type-mismatch
@@ -1258,9 +1255,8 @@ local docSwitch = util.switch()
             type   = 'doc.alias',
         }
         result.docAttr = parseDocAttr(result)
-        ---@diagnostic expect-next-line: assign-type-mismatch
-        result.alias = parseName('doc.alias.name', result)
-        if not result.alias then
+        local aliasNode = parseName('doc.alias.name', result)
+        if not aliasNode then
             pushWarning {
                 type   = 'LUADOC_MISS_ALIAS_NAME',
                 start  = getFinish(),
@@ -1268,10 +1264,10 @@ local docSwitch = util.switch()
             }
             return nil
         end
+        result.alias = aliasNode
         result.start  = getStart()
         ---@diagnostic expect-next-line: assign-type-mismatch
         result.signs  = parseSigns(result)
-        ---@diagnostic expect-next-line: assign-type-mismatch
         result.extends = parseType(result)
         if not result.extends then
             pushWarning {
@@ -1290,10 +1286,9 @@ local docSwitch = util.switch()
         local result = {
             type   = 'doc.param',
         }
-        ---@diagnostic expect-next-line: assign-type-mismatch
-        result.param = parseName('doc.param.name', result)
+        local paramNode = parseName('doc.param.name', result)
                     or parseDots('doc.param.name', result)
-        if not result.param then
+        if not paramNode then
             pushWarning {
                 type   = 'LUADOC_MISS_PARAM_NAME',
                 start  = getFinish(),
@@ -1301,13 +1296,13 @@ local docSwitch = util.switch()
             }
             return nil
         end
+        result.param = paramNode
         if checkToken('symbol', '?', 1) then
             nextToken()
             result.optional = true
         end
         result.start  = result.param.start
         result.finish = getFinish()
-        ---@diagnostic expect-next-line: assign-type-mismatch
         result.extends = parseType(result)
         if not result.extends then
             pushWarning {
@@ -1424,7 +1419,6 @@ local docSwitch = util.switch()
             nextToken()
             result.optional = true
         end
-        ---@diagnostic expect-next-line: assign-type-mismatch
         result.extends = parseType(result)
         if not result.extends then
             pushWarning {
@@ -1465,7 +1459,6 @@ local docSwitch = util.switch()
             end
             if checkToken('symbol', ':', 1) then
                 nextToken()
-                ---@diagnostic expect-next-line: assign-type-mismatch
                 object.extends = parseType(object)
             end
             object.finish = getFinish()
@@ -1485,9 +1478,8 @@ local docSwitch = util.switch()
         local result = {
             type = 'doc.vararg',
         }
-        ---@diagnostic expect-next-line: assign-type-mismatch
-        result.vararg = parseType(result)
-        if not result.vararg then
+        local varargNode = parseType(result)
+        if not varargNode then
             pushWarning {
                 type   = 'LUADOC_MISS_VARARG_TYPE',
                 start  = getFinish(),
@@ -1495,6 +1487,7 @@ local docSwitch = util.switch()
             }
             return
         end
+        result.vararg = varargNode
         result.start = result.vararg.start
         result.finish = result.vararg.finish
         return result
@@ -1515,11 +1508,11 @@ local docSwitch = util.switch()
         local result = {
             type = 'doc.overload',
         }
-        ---@diagnostic expect-next-line: assign-type-mismatch
-        result.overload = parseFunction(result)
-        if not result.overload then
+        local overloadNode = parseFunction(result)
+        if not overloadNode then
             return nil
         end
+        result.overload = overloadNode
         result.overload.parent = result
         result.start = result.overload.start
         result.finish = result.overload.finish
@@ -1601,9 +1594,8 @@ local docSwitch = util.switch()
         local result = {
             type     = 'doc.see',
         }
-        ---@diagnostic expect-next-line: assign-type-mismatch
-        result.name = parseName('doc.see.name', result)
-        if not result.name then
+        local nameNode = parseName('doc.see.name', result)
+        if not nameNode then
             pushWarning {
                 type  = 'LUADOC_MISS_SEE_NAME',
                 start  = getFinish(),
@@ -1611,6 +1603,7 @@ local docSwitch = util.switch()
             }
             return nil
         end
+        result.name = nameNode
         result.start  = result.name.start
         result.finish = result.name.finish
         return result
@@ -1771,7 +1764,6 @@ local docSwitch = util.switch()
                 nextToken()
                 block.finish = getFinish()
             else
-                ---@diagnostic expect-next-line: assign-type-mismatch
                 block.extends = parseType(block)
                 if block.extends then
                     block.start  = block.start or block.extends.start

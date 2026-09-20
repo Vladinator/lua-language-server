@@ -501,8 +501,9 @@ PLUGIN_RUNTIME_ERROR             =
 An error occurred in the plugin, please report it to the plugin author.
 Please check the details in the output or log.
 Plugin path: {}
+Error: {}
 ]]
-PLUGIN_TRUST_LOAD                =
+PLUGIN_TRUST_LOAD               =
 [[
 The current settings try to load the plugin at this location:{}
 

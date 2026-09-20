@@ -57,3 +57,16 @@ TestPlugin [[
         end
     end)
 end)
+
+-- a plugin whose `VM` table lacks the hook is skipped, not called
+TestPlugin [[
+    local function t(a)
+        a.components:test()
+    end
+]]({ { VM = {} }, myplugin }, function (state)
+    guide.eachSourceType(state.ast, 'local', function (src)
+        if guide.getKeyName(src) == 'a' then
+            assert(not vm.isUnknown(vm.compileNode(src)))
+        end
+    end)
+end)

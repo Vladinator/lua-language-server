@@ -1671,13 +1671,13 @@ local function compileLocal(source)
     end
     if source.parent.type == 'funcargs' and not hasMarkDoc and not hasMarkParam then
         local func = source.parent.parent
-        ---@type table[]?
         local interfaces = plugin.getPluginInterfaces(guide.getUri(source))
         local hasDocArg = false
         if interfaces then
             for _, interface in ipairs(interfaces) do
-                if interface.VM then
-                    hasDocArg = interface.VM.OnCompileFunctionParam(compileFunctionParam, func, source) --[[@as boolean]]
+                local hook = interface.VM and interface.VM.OnCompileFunctionParam
+                if hook then
+                    hasDocArg = hook(compileFunctionParam, func, source) and true or false
                     if hasDocArg then break end
                 end
             end

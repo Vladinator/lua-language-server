@@ -652,7 +652,9 @@ local function pluginOnTransformAst(uri, state)
     if not suc then
         return state
     end
-    state.ast = result or state.ast
+    if type(result) == 'table' then
+        state.ast = result --[[@as parser.object]]
+    end
     return state
 end
 

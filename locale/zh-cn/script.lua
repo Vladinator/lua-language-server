@@ -647,6 +647,7 @@ PLUGIN_RUNTIME_ERROR             =
 插件发生错误，请汇报给插件作者。
 请在输出或日志中查看详细信息。
 插件路径：{}
+错误：{}
 ]]
 PLUGIN_TRUST_LOAD                =
 [[

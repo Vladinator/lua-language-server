@@ -34,7 +34,7 @@
 --     default. Same self-contained-file contract, but since it can
 --     point anywhere on disk, loading from it goes through the same
 --     trust-prompt flow as plugin.lua's existing Lua.runtime.plugin
---     (same load/xpcall shape, same trusted-paths file) rather than
+--     (plugin-trust.lua: the same trusted-paths file) rather than
 --     introducing a second pattern for "run arbitrary Lua from a
 --     configured path".
 
@@ -44,6 +44,7 @@ local client = require 'client'
 local lang   = require 'language'
 local await  = require 'await'
 local ws     = require 'workspace'
+local trust  = require 'plugin-trust'
 local diag   = require 'proto.diagnostic'
 local fs     = require 'bee.filesystem'
 
@@ -84,40 +85,6 @@ local function showError(dirPath, err)
     end
     hasShowedError[dirPath] = true
     client.showMessage('Error', lang.script('DIAG_PLUGIN_RUNTIME_ERROR', dirPath, err))
-end
-
----@async
----@param dirPath string
----@return boolean
-local function checkTrustLoad(dirPath)
-    if TRUST_ALL_PLUGINS then
-        return true
-    end
-    if client.getOption('trustByClient') then
-        return true
-    end
-    local filePath = LOGPATH .. '/trusted'
-    local trusted = util.loadFile(filePath)
-    ---@type string[]
-    local lines = {}
-    if trusted then
-        for line in util.eachLine(trusted) do
-            lines[#lines+1] = line
-            if line == dirPath then
-                return true
-            end
-        end
-    end
-    local _, index = client.awaitRequestMessage('Warning', lang.script('DIAG_PLUGIN_TRUST_LOAD', dirPath), {
-        lang.script('PLUGIN_TRUST_YES'),
-        lang.script('PLUGIN_TRUST_NO'),
-    })
-    if not index then
-        return false
-    end
-    lines[#lines+1] = dirPath
-    util.saveFile(filePath, table.concat(lines, '\n'))
-    return true
 end
 
 --- Loads every `.lua` file directly inside `dirPath` (already confirmed
@@ -216,7 +183,7 @@ ws.watch(function (ev, uri) ---@async
         if not fs.exists(dir) or not fs.is_directory(dir) then
             return
         end
-        if not checkTrustLoad(dirPath) then
+        if not trust.check(dirPath, 'DIAG_PLUGIN_TRUST_LOAD') then
             return
         end
         loadDirectoryFiles(dirPath)

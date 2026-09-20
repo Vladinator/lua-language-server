@@ -647,6 +647,7 @@ PLUGIN_RUNTIME_ERROR             =
 Ocorreu um erro no plugin, envie o erro ao autor do plugin.
 Por favor, verifique os detalhes na saída ou log.
 Caminho do plugin: {}
+Erro: {}
 ]]
 PLUGIN_TRUST_LOAD                =
 [[

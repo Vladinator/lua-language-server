@@ -20,19 +20,33 @@ local features = {
     highlight   = require 'core.highlight',
     typedef     = require 'core.type-definition',
     implement   = require 'core.implementation',
-    -- the request, then the second step the editor does for the items it shows (a few: every
-    -- item would multiply the time of the whole run)
+    -- the request, then the second step the editor does for the items it shows: the first two
+    -- and two spread over the rest (every item would multiply the time of the whole run by six;
+    -- the ones the editor resolves are the ones the user moves to, anywhere in the list)
     ---@async
-    completion  = function (uri, pos)
-        local completion = require 'core.completion'
-        local items = completion.completion(uri, pos) or {}
-        for i = 1, math.min(#items, 3) do
-            local id = items[i].id
-            if id then
-                completion.resolve(id)
+    completion  = (function ()
+        local state = 12345
+        ---@async
+        return function (uri, pos)
+            local completion = require 'core.completion'
+            local items = completion.completion(uri, pos) or {}
+            ---@async
+            ---@param item any
+            local function resolve(item)
+                if item.id then
+                    completion.resolve(item.id)
+                end
+            end
+            for i = 1, math.min(#items, 2) do
+                resolve(items[i])
+            end
+            for _ = 1, math.min(#items - 2, 2) do
+                state = (state * 1103515245 + 12345) % 2147483648
+                local index = 3 + state % (#items - 2)
+                resolve(items[index])
             end
         end
-    end,
+    end)(),
     rename      = require 'core.rename'.prepareRename,
     -- the rename itself, with a new name, not only its preparation
     ---@async

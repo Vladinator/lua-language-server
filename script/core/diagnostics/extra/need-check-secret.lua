@@ -265,6 +265,8 @@ vm.registerCallNarrowing {
     ---@param action parser.object
     ---@param topNode vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     narrow = function (tracer, action, topNode, outNode)
         if not (action.args and action.args[1] and tracer.getMap[action.args[1]]) then
             return topNode, outNode

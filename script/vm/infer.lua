@@ -54,12 +54,14 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     : case 'integer'
     ---@param source parser.object
     ---@param _infer vm.infer
+    ---@return string
     : call(function (source, _infer)
         return source.type
     end)
     : case 'number'
     ---@param source parser.object
     ---@param _infer vm.infer
+    ---@return string
     : call(function (source, _infer)
         return source.type
     end)
@@ -67,6 +69,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     ---@param source parser.object
     ---@param infer vm.infer
     ---@param uri uri
+    ---@return string
     : call(function (source, infer, uri)
         local docs = source.bindDocs
         if docs then
@@ -87,6 +90,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     : case 'function'
     ---@param source parser.object
     ---@param infer vm.infer
+    ---@return string
     : call(function (source, infer)
         local parent = source.parent
         if guide.isAssign(parent) then
@@ -107,6 +111,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     : case 'global'
     ---@param source vm.global
     ---@param infer vm.infer
+    ---@return string?
     : call(function (source, infer)
         if source.cate == 'type' then
             if not guide.isBasicType(source.name) then
@@ -119,6 +124,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     ---@param source parser.object
     ---@param infer vm.infer
     ---@param uri uri
+    ---@return string
     : call(function (source, infer, uri)
         ---@type string[]
         local buf = {}
@@ -131,6 +137,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     ---@param source parser.object
     ---@param _infer vm.infer
     ---@param uri uri
+    ---@return string
     : call(function (source, _infer, uri)
         if source.signs then
             ---@type string[]
@@ -147,6 +154,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     ---@param source vm.generic
     ---@param _infer vm.infer
     ---@param uri uri
+    ---@return string
     : call(function (source, _infer, uri)
         return vm.getInfer(source.proto):view(uri)
     end)
@@ -154,6 +162,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     ---@param source parser.object
     ---@param _infer vm.infer
     ---@param uri uri
+    ---@return string
     : call(function (source, _infer, uri)
         local resolved = vm.getGenericResolved(source)
         if resolved then
@@ -169,6 +178,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     ---@param source parser.object
     ---@param infer vm.infer
     ---@param uri uri
+    ---@return string
     : call(function (source, infer, uri)
         infer._hasClass = true
         local view = vm.getInfer(source.node):view(uri)
@@ -181,6 +191,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     ---@param source parser.object
     ---@param infer vm.infer
     ---@param uri uri
+    ---@return string
     : call(function (source, infer, uri)
         infer._hasClass = true
         ---@type string[]
@@ -209,6 +220,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     ---@param source parser.object
     ---@param infer vm.infer
     ---@param uri uri
+    ---@return string?
     : call(function (source, infer, uri)
         if #source.fields == 0 then
             infer._hasTable = true
@@ -240,6 +252,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     : case 'doc.type.string'
     ---@param source parser.object
     ---@param _infer vm.infer
+    ---@return string
     : call(function (source, _infer)
         return util.viewString(source[1], source[2])
     end)
@@ -247,12 +260,14 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     : case 'doc.type.boolean'
     ---@param source parser.object
     ---@param _infer vm.infer
+    ---@return string
     : call(function (source, _infer)
         return ('%q'):format(source[1])
     end)
     : case 'doc.type.code'
     ---@param source parser.object
     ---@param _infer vm.infer
+    ---@return string
     : call(function (source, _infer)
         return ('`%s`'):format(source[1])
     end)
@@ -260,6 +275,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     ---@param source parser.object
     ---@param infer vm.infer
     ---@param uri uri
+    ---@return string
     : call(function (source, infer, uri)
         infer._hasDocFunction = true
         ---@type string[]
@@ -313,6 +329,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
     ---@param source parser.object
     ---@param _infer vm.infer
     ---@param uri uri
+    ---@return string?
     : call(function (source, _infer, uri)
         return vm.viewKey(source, uri)
     end)
@@ -431,6 +448,7 @@ function mt:hasType(uri, tp)
 end
 
 ---@param uri uri
+---@return boolean
 function mt:hasUnknown(uri)
     self:_computeViews(uri)
     return not next(self.views)
@@ -438,6 +456,7 @@ function mt:hasUnknown(uri)
 end
 
 ---@param uri uri
+---@return boolean
 function mt:hasAny(uri)
     self:_computeViews(uri)
     return self.views['any'] == true
@@ -562,6 +581,8 @@ function mt:view(uri, default)
 end
 
 ---@param uri uri
+---@return fun(views: table<string, boolean>, view?: string): string?, boolean
+---@return table<string, boolean>
 function mt:eachView(uri)
     self:_computeViews(uri)
     return next, self.views

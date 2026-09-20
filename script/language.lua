@@ -52,6 +52,7 @@ local function formatAsArray(str, ...)
     local index = 0
     local args = {...}
     ---@param pat string
+    ---@return string
     return str:gsub('%{(.-)%}', function (pat)
         ---@type any, any
         local id, fmt
@@ -76,6 +77,7 @@ local function formatAsTable(str, ...)
     ---@type any
     local args = ...
     ---@param pat string
+    ---@return string?
     return str:gsub('%{(.-)%}', function (pat)
         ---@type any, any
         local id, fmt
@@ -158,6 +160,7 @@ local m = setmetatable({
 }, {
     ---@param self any
     ---@param name string
+    ---@return table|table<string, any>
     __index = function (self, name)
         local tbl = loadLang(name, self.id)
         local selfMap = self --[[@as table<any, any>]]

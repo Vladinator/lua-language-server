@@ -28,6 +28,7 @@ end
 
 ---@param source parser.object
 ---@param sub core.document-symbol.sub
+---@return string
 local function buildName(source, sub)
     if source.type == 'setmethod'
     or source.type == 'getmethod' then
@@ -54,6 +55,7 @@ local function buildName(source, sub)
 end
 
 ---@param func parser.object
+---@return string
 local function buildFunctionParams(func)
     if not func.args then
         return ''
@@ -76,6 +78,7 @@ end
 
 ---@param tbl parser.object
 ---@param sub core.document-symbol.sub
+---@return string
 local function buildTable(tbl, sub)
     ---@type string[]
     local buf = {}
@@ -102,6 +105,7 @@ end
 
 ---@param tbl parser.object
 ---@param sub core.document-symbol.sub
+---@return string
 local function buildArray(tbl, sub)
     ---@type string[]
     local buf = {}
@@ -444,10 +448,12 @@ end
 
 ---@async
 ---@param symbols core.document-symbol.symbol[]
+---@return core.document-symbol.symbol[]?
 local function packSymbols(symbols)
     await.delay()
     ---@param a core.document-symbol.symbol
     ---@param b core.document-symbol.symbol
+    ---@return boolean
     table.sort(symbols, function (a, b)
         local o1 = a.valueRange and a.valueRange[1] or a.selectionRange[1]
         local o2 = b.valueRange and b.valueRange[1] or b.selectionRange[1]

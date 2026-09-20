@@ -480,6 +480,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         if tracer.getMap[action] then
             setReadNode(tracer, action, topNode)
@@ -498,6 +500,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         if action.type == 'loop' then
             tracer:lookIntoChild(action.init, topNode)
@@ -524,6 +528,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.exps, topNode)
         if action[1] then
@@ -544,6 +550,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         ---@type vm.node, vm.node
         local blockNode, mainNode
@@ -578,6 +586,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         ---@type boolean?
         local hasElse
@@ -632,6 +642,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.node, topNode)
         tracer:lookIntoChild(action.field, topNode)
@@ -649,6 +661,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.node, topNode)
         tracer:lookIntoChild(action.method, topNode)
@@ -666,6 +680,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.node, topNode)
         tracer:lookIntoChild(action.index, topNode)
@@ -684,6 +700,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.node, topNode)
         tracer:lookIntoChild(action.value, topNode)
@@ -697,6 +715,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.value, topNode)
         return topNode, outNode
@@ -706,6 +726,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.node, topNode)
         tracer:lookIntoChild(action.index, topNode)
@@ -717,6 +739,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.index, topNode)
         tracer:lookIntoChild(action.value, topNode)
@@ -727,6 +751,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.value, topNode)
         -- special treat for `local tp = type(x)`
@@ -759,6 +785,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         for _, ret in ipairs(action) do
             tracer:lookIntoChild(ret, topNode:copy())
@@ -770,6 +798,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.vararg, topNode)
         return topNode, outNode
@@ -779,6 +809,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         tracer:lookIntoBlock(action, action.bstart, topNode:copy())
         return topNode, outNode
@@ -788,6 +820,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node
     : call(function (tracer, action, topNode, outNode)
         topNode, outNode = tracer:lookIntoChild(action.exp, topNode, outNode)
         return topNode, outNode
@@ -797,6 +831,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         topNode, outNode = vm.runCallNarrowing(tracer, action, topNode, outNode)
         tracer:lookIntoChild(action.node, topNode)
@@ -808,6 +844,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         if not action[1] or not action[2] then
             tracer:lookIntoChild(action[1], topNode)
@@ -856,6 +894,8 @@ local lookIntoChild = util.switch()
     ---@param action   parser.object
     ---@param topNode  vm.node
     ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
     : call(function (tracer, action, topNode, outNode)
         if not action[1] then
             tracer:lookIntoChild(action[1], topNode)

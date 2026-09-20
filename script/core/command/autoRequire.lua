@@ -7,6 +7,7 @@ local guide  = require 'parser.guide'
 
 ---@param state parser.state
 ---@param pos integer
+---@return boolean
 local function inComment(state, pos)
     for _, comm in ipairs(state.comms) do
         if comm.start <= pos and comm.finish >= pos then
@@ -80,6 +81,7 @@ end
 ---@async
 ---@param uri uri
 ---@param visiblePaths require-manager.visibleResult[]
+---@return string?
 local function askAutoRequire(uri, visiblePaths)
     ---@type string[]
     local selects = {}

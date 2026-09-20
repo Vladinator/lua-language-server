@@ -164,6 +164,7 @@ end
 ---@param uri?  uri
 ---@param title string # 标题
 ---@param delay number # 至少经过这么久之后才会显示出来
+---@return progress
 function m.create(uri, title, delay)
     local token = nextToken()
     local prog = setmetatable({

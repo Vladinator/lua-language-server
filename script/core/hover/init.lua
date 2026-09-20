@@ -11,6 +11,8 @@ local wssymbol   = require 'core.workspace-symbol'
 ---@async
 ---@param source parser.object
 ---@param level integer
+---@return markdown
+---@return integer
 local function getHover(source, level)
     local md        = markdown()
     ---@type table<parser.object, boolean>
@@ -145,6 +147,9 @@ local accept = {
 ---@param uri uri
 ---@param position integer
 ---@param level integer
+---@return markdown?
+---@return parser.object?
+---@return integer?
 local function getHoverByUri(uri, position, level)
     local ast = files.getState(uri)
     if not ast then

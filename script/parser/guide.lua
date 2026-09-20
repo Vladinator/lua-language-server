@@ -613,6 +613,7 @@ end
 --- 获取指定区块中可见的标签
 ---@param block parser.object
 ---@param name string
+---@return parser.object?
 function m.getLabel(block, name)
     local current = m.getBlock(block)
     for _ = 1, 10000 do

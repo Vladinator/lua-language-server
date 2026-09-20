@@ -14,6 +14,7 @@ local subprocess = require 'bee.subprocess'
 local export = {}
 
 ---@param threadId integer
+---@return string
 local function logFileForThread(threadId)
     return LOGPATH .. '/check-partial-' .. threadId .. '.json'
 end

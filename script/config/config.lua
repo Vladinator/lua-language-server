@@ -56,6 +56,7 @@ end
 ---@param scp   scope
 ---@param key   string
 ---@param value any
+---@return boolean
 function m.setByScope(scp, key, value)
     local unit = template[key]
     if not unit then
@@ -76,6 +77,7 @@ end
 ---@param uri?   uri
 ---@param key   string
 ---@param value any
+---@return boolean
 function m.set(uri, key, value)
     local unit = template[key]
     assert(unit, 'unknown key: ' .. key)

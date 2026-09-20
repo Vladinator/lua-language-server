@@ -104,6 +104,7 @@ local function checkHasDef(checkFunc, source, pushResult)
 end
 
 ---@param source parser.object
+---@return boolean
 function vm.hasDef(source)
     ---@type table<parser.object, boolean>
     local mark = {}

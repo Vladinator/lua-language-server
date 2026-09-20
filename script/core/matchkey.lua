@@ -6,6 +6,7 @@ end
 
 ---@param input string
 ---@param other string
+---@return boolean
 local function isValidFirstChar(input, other)
     local first = input:sub(1, 1):upper()
     if first == other:sub(1, 1):upper() then
@@ -36,6 +37,7 @@ end
 
 ---@param input string
 ---@param other string
+---@return boolean
 local function isAlmostSame(input, other)
     local lMe = input:lower()
     local lOther = other:lower()

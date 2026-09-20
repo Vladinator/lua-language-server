@@ -107,6 +107,7 @@ end)
 ---@alias brave.param.compile.options parser.state.options
 
 ---@param param brave.param.compile
+---@return table
 brave.on('compile', function (param)
     local parser = require 'parser'
     local clock = os.clock()

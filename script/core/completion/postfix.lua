@@ -27,6 +27,7 @@ local function register(key)
 end
 
 ---@param source parser.object
+---@return boolean
 local function hasNonFieldInNode(source)
     local block = guide.getParentBlock(source)
     while source ~= block do
@@ -398,6 +399,7 @@ end
 ---@param state parser.state
 ---@param position integer
 ---@param results table[]
+---@return boolean
 return function (state, position, results)
     if guide.isInString(state.ast, position) then
         return false

@@ -253,6 +253,7 @@ end
 ---@param source parser.object
 ---@param obj docUnion
 ---@param has_seen table<parser.object|vm.global|vm.generic, true>?
+---@return docUnion[]
 export.makeDocObject['funcargs'] = function(source, obj, has_seen)
     ---@cast source parser.object[]
     ---@type docUnion[]
@@ -319,6 +320,7 @@ end
 ---@param source vm.global
 ---@param obj docUnion
 ---@param has_seen table<parser.object|vm.global|vm.generic, true>?
+---@return boolean?
 export.makeDocObject['type'] = function(source, obj, has_seen)
     if export.makeDocObject['variable'](source, obj, has_seen) == false then
         return false
@@ -341,6 +343,7 @@ end
 ---@param source vm.global
 ---@param obj docUnion
 ---@param has_seen table<parser.object|vm.global|vm.generic, true>?
+---@return boolean?
 export.makeDocObject['variable'] = function(source, obj, has_seen)
     obj.defines = {}
     for _, set in ipairs(source:getSets(ws.rootUri)) do

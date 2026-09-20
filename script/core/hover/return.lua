@@ -22,6 +22,7 @@ local function getReturnDocs(source)
 end
 
 ---@param source parser.object
+---@return string?
 local function asFunction(source)
     local _, _, num = vm.countReturnsOfFunction(source)
     if num == 0 then
@@ -56,6 +57,7 @@ local function asFunction(source)
 end
 
 ---@param source parser.object
+---@return string?
 local function asDocFunction(source)
     if not source.returns or #source.returns == 0 then
         return nil
@@ -81,6 +83,7 @@ local function asDocFunction(source)
 end
 
 ---@param source parser.object
+---@return string?
 return function (source)
     if source.type == 'function' then
         return asFunction(source)

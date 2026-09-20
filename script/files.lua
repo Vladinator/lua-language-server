@@ -776,6 +776,7 @@ function m.diffedOffsetBack(state, offset)
 end
 
 ---@param state parser.state
+---@return boolean
 function m.hasDiffed(state)
     return state.diffInfo ~= nil
 end

@@ -126,6 +126,7 @@ end)
 
 m.register 'initialize' {
     ---@param params any
+    ---@return table
     function(params)
         client.init(params)
 
@@ -157,6 +158,7 @@ m.register 'initialize' {
 m.register 'initialized'{
     ---@async
     ---@param params any
+    ---@return boolean
     function (params)
         local _ <close> = progress.create(workspace.getFirstScope().uri, lang.script.WINDOW_INITIALIZING, 0.5)
         --- 传递`.luarc.doc.json`文件所在的文件夹路径
@@ -376,6 +378,7 @@ m.register 'textDocument/hover' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return table?
     function (params)
         ---@type provider.textDocumentItem
         local doc    = params.textDocument
@@ -420,6 +423,7 @@ m.register 'textDocument/hover' {
 
 ---@param state  parser.state
 ---@param result core.reference.result[]
+---@return table[]
 local function convertDefinitionResult(state, result)
     ---@type table[]
     local response = {}
@@ -461,6 +465,7 @@ m.register 'textDocument/definition' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         ---@type provider.textDocumentItem
         local doc    = params.textDocument
@@ -489,6 +494,7 @@ m.register 'textDocument/typeDefinition' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         ---@type provider.textDocumentItem
         local doc    = params.textDocument
@@ -517,6 +523,7 @@ m.register 'textDocument/implementation' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         ---@type provider.textDocumentItem
         local doc    = params.textDocument
@@ -545,6 +552,7 @@ m.register 'textDocument/references' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         ---@type provider.textDocumentItem
         local doc    = params.textDocument
@@ -583,6 +591,7 @@ m.register 'textDocument/documentHighlight' {
     },
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         local core = require 'core.highlight'
         ---@type provider.textDocumentItem
@@ -658,6 +667,7 @@ m.register 'textDocument/rename' {
 m.register 'textDocument/prepareRename' {
     abortByFileUpdate = true,
     ---@param params any
+    ---@return table?
     function (params)
         local core = require 'core.rename'
         ---@type provider.textDocumentItem
@@ -682,6 +692,7 @@ m.register 'textDocument/prepareRename' {
 m.register 'textDocument/completion' {
     ---@async
     ---@param params any
+    ---@return table?
     function (params)
         ---@type provider.textDocumentItem
         local doc  = params.textDocument
@@ -806,6 +817,7 @@ m.register 'textDocument/completion' {
 m.register 'completionItem/resolve' {
     ---@async
     ---@param item provider.completionItem
+    ---@return provider.completionItem
     function (item)
         local core = require 'core.completion'
         if not item.data then
@@ -856,6 +868,7 @@ m.register 'textDocument/signatureHelp' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return table?
     function (params)
         ---@type provider.textDocumentItem
         local doc = params.textDocument
@@ -911,6 +924,7 @@ m.register 'textDocument/documentSymbol' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return core.document-symbol.symbol[]?
     function (params)
         ---@type provider.textDocumentItem
         local doc   = params.textDocument
@@ -975,6 +989,7 @@ m.register 'textDocument/codeAction' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return core.code-action.result[]?
     function (params)
         local core        = require 'core.code-action'
         ---@type provider.textDocumentItem
@@ -1028,6 +1043,7 @@ m.register 'textDocument/codeLens' {
     --abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         ---@type provider.textDocumentItem
         local doc = params.textDocument
@@ -1063,6 +1079,7 @@ m.register 'textDocument/codeLens' {
 m.register 'codeLens/resolve' {
     ---@async
     ---@param codeLen table
+    ---@return table
     function (codeLen)
         local core = require 'core.code-lens'
         local data = codeLen.data --[[@as { uri: uri, id: integer }]]
@@ -1126,6 +1143,7 @@ m.register 'workspace/symbol' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         local _ <close> = progress.create(workspace.getFirstScope().uri, lang.script.WINDOW_PROCESSING_WS_SYMBOL, 0.5)
         local core = require 'core.workspace-symbol'
@@ -1136,6 +1154,7 @@ m.register 'workspace/symbol' {
         end
 
         ---@param symbol core.workspace-symbol.result
+        ---@return table?
         local function convert(symbol)
             local uri = guide.getUri(symbol.source)
             local state = files.getState(uri)
@@ -1197,6 +1216,7 @@ client.event(function (ev)
                 abortByFileUpdate = true,
                 ---@async
                 ---@param params any
+                ---@return table
                 function (params)
                     log.debug('textDocument/semanticTokens/full')
                     ---@type provider.textDocumentItem
@@ -1229,6 +1249,7 @@ m.register 'textDocument/semanticTokens/range' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return table?
     function (params)
         log.debug('textDocument/semanticTokens/range')
         ---@type provider.textDocumentItem
@@ -1256,6 +1277,7 @@ m.register 'textDocument/foldingRange' {
     },
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         local core    = require 'core.folding'
         ---@type provider.textDocumentItem
@@ -1301,6 +1323,7 @@ m.register 'textDocument/documentColor' {
     },
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         local color = require 'core.color'
         ---@type provider.textDocumentItem
@@ -1329,6 +1352,7 @@ m.register 'textDocument/documentColor' {
 
 m.register 'textDocument/colorPresentation' {
     ---@param params any
+    ---@return table
     function (params)
         local color = (require 'core.color').colorToText(params.color)
         return {{label = color}}
@@ -1383,6 +1407,7 @@ m.register 'textDocument/formatting' {
     },
     ---@async
     ---@param params any
+    ---@return table[]?
     function(params)
         ---@type provider.textDocumentItem
         local doc = params.textDocument
@@ -1425,6 +1450,7 @@ m.register 'textDocument/rangeFormatting' {
     },
     ---@async
     ---@param params any
+    ---@return table[]?
     function(params)
         ---@type provider.textDocumentItem
         local doc = params.textDocument
@@ -1471,6 +1497,7 @@ m.register 'textDocument/onTypeFormatting' {
     abortByFileUpdate = true,
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         ---@type provider.textDocumentItem
         local doc    = params.textDocument
@@ -1514,6 +1541,7 @@ m.register '$/cancelRequest' {
 m.register '$/requestHint' {
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         ---@type provider.textDocumentItem
         local doc  = params.textDocument
@@ -1550,6 +1578,7 @@ m.register 'textDocument/inlayHint' {
     },
     ---@async
     ---@param params any
+    ---@return table[]?
     function (params)
         ---@type provider.textDocumentItem
         local doc  = params.textDocument
@@ -1619,6 +1648,7 @@ m.register 'textDocument/diagnostic' {
     },
     ---@async
     ---@param params any
+    ---@return table
     function (params)
         ---@type provider.textDocumentItem
         local doc = params.textDocument
@@ -1661,6 +1691,7 @@ m.register 'workspace/diagnostic' {
     --},
     ---@async
     ---@param params any
+    ---@return table
     function (params)
         local core = require 'provider.diagnostic'
         ---@type uri[]
@@ -1670,6 +1701,7 @@ m.register 'workspace/diagnostic' {
         end
         core.clearCacheExcept(excepts)
         ---@param result provider.diagnostic.pullResult
+        ---@return table
         local function convertItem(result)
             if result.unchanged then
                 return {
@@ -1737,6 +1769,7 @@ m.register '$/api/report' {
 m.register '$/psi/view' {
     ---@async
     ---@param params any
+    ---@return table?
     function (params)
         local uri = files.getRealUri(params.uri)
         workspace.awaitReady(uri)
@@ -1753,6 +1786,7 @@ m.register '$/psi/view' {
 m.register '$/psi/select' {
     ---@async
     ---@param params any
+    ---@return table?
     function(params)
         local uri = files.getRealUri(params.uri)
         workspace.awaitReady(uri)

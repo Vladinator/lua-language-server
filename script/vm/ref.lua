@@ -318,6 +318,7 @@ end
 ---@async
 ---@param source parser.object
 ---@param fileNotify? fun(uri: uri): boolean
+---@return parser.object[]
 function vm.getRefs(source, fileNotify)
     ---@type parser.object[]
     local results = {}

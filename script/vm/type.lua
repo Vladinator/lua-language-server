@@ -655,6 +655,7 @@ function vm.isSubType(uri, child, parent, mark, errs)
 end
 
 ---@param node string|vm.node|vm.object
+---@return boolean
 function vm.isUnknown(node)
     if type(node) == 'string' then
         return node == 'unknown'

@@ -15,6 +15,7 @@ local wssymbol = require 'core.workspace-symbol'
 ---@param mode string
 ---@param literal string
 ---@param uri uri
+---@return markdown?
 local function collectRequire(mode, literal, uri)
     ---@type uri[]?
     local result
@@ -51,6 +52,7 @@ end
 
 ---@param source parser.object
 ---@param literal string
+---@return markdown?
 local function asStringInRequire(source, literal)
     local parent = source.parent
     if parent and parent.type == 'callargs' then
@@ -70,6 +72,7 @@ end
 
 ---@param source parser.object
 ---@param literal string
+---@return markdown?
 local function asStringView(source, literal)
     -- 内部包含转义符？
     if not source[2] then
@@ -93,6 +96,7 @@ local function asStringView(source, literal)
 end
 
 ---@param source parser.object
+---@return markdown?
 local function asString(source)
     local literal = guide.getLiteral(source)
     if type(literal) ~= 'string' then
@@ -133,6 +137,7 @@ local function normalizeComment(comment, suri)
 end
 
 ---@param source parser.object
+---@return string?
 local function getBindComment(source)
     local uri = guide.getUri(source)
     -- normalizeComment can return nil, but `lines[#lines+1] = nil` is then a
@@ -159,6 +164,7 @@ end
 
 ---@async
 ---@param see parser.object
+---@return string
 local function packSee(see)
     local name = see.name[1]
     ---@type string[]
@@ -210,6 +216,7 @@ end
 
 ---@async
 ---@param source parser.object
+---@return string?
 local function lookUpDocComments(source)
     local docGroup = source.bindDocs
     if not docGroup then
@@ -252,6 +259,7 @@ local function lookUpDocComments(source)
 end
 
 ---@param source parser.object
+---@return string?
 local function tryDocClassComment(source)
     for _, def in ipairs(vm.getDefs(source)) do
         if def.type == 'doc.class'
@@ -266,6 +274,7 @@ local function tryDocClassComment(source)
 end
 
 ---@param source parser.object
+---@return markdown?
 local function tryDocModule(source)
     if not source.module then
         return
@@ -276,6 +285,7 @@ end
 ---@param docType parser.object?
 ---@param name string
 ---@param uri uri
+---@return string?
 local function buildEnumChunk(docType, name, uri)
     if not docType then
         return nil
@@ -331,6 +341,7 @@ end
 
 ---@param source parser.object
 ---@param docGroup parser.object[]
+---@return string?
 local function getBindEnums(source, docGroup)
     if source.type ~= 'function' then
         return
@@ -376,6 +387,7 @@ local function getBindEnums(source, docGroup)
 end
 
 ---@param source parser.object
+---@return string?
 local function tryDocFieldComment(source)
     if source.type ~= 'doc.field' then
         return
@@ -390,6 +402,7 @@ end
 
 ---@param source parser.object
 ---@param raw boolean?
+---@return markdown?
 local function getFunctionCommentMarkdown(source, raw)
     local docGroup = source.bindDocs
     if not docGroup then
@@ -454,6 +467,7 @@ end
 ---@async
 ---@param source parser.object
 ---@param raw boolean?
+---@return string?
 local function tryDocComment(source, raw)
     local md = markdown()
     if source.value and source.value.type == 'function' then
@@ -483,6 +497,7 @@ end
 ---@async
 ---@param source parser.object
 ---@param raw boolean?
+---@return string?
 local function tryDocOverloadToComment(source, raw)
     if source.type ~= 'doc.type.function' then
         return
@@ -499,6 +514,7 @@ local function tryDocOverloadToComment(source, raw)
 end
 
 ---@param source parser.object
+---@return string?
 local function tyrDocParamComment(source)
     if source.type == 'setlocal'
     or source.type == 'getlocal' then
@@ -525,6 +541,7 @@ local function tyrDocParamComment(source)
 end
 
 ---@param source parser.object
+---@return string?
 local function tryDocEnum(source)
     if source.type ~= 'doc.enum' then
         return
@@ -588,6 +605,7 @@ end
 ---@async
 ---@param source parser.object
 ---@param raw boolean?
+---@return markdown|string|nil
 return function (source, raw)
     if source.type == 'string' then
         return asString(source)

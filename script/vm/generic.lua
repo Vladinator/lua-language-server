@@ -233,6 +233,7 @@ function vm.getGenericResolved(source)
 end
 
 ---@param source table
+---@return boolean
 function vm.isGenericUnsolved(source)
     if source.type == 'doc.generic.name' and not source._resolved then
         return true

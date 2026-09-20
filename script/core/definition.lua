@@ -12,6 +12,7 @@ local function sortResults(results)
     -- 先按照顺序排序
     ---@param a core.reference.result
     ---@param b core.reference.result
+    ---@return boolean
     table.sort(results, function (a, b)
         local u1 = guide.getUri(a.target)
         local u2 = guide.getUri(b.target)

@@ -353,6 +353,7 @@ function mt:resolve(uri, args)
     end
 
     ---@param genericNames table<string, true>
+    ---@return boolean
     local function isAllResolved(genericNames)
         for n in pairs(genericNames) do
             if not resolved[n] then

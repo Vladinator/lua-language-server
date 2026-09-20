@@ -5,6 +5,7 @@ local vm       = require 'vm'
 local buildName
 
 ---@param source parser.object
+---@return string?
 local function asLocal(source)
     local name = guide.getKeyName(source)
     if not source.attrs then
@@ -21,6 +22,7 @@ end
 
 ---@param source parser.object
 ---@param oop boolean?
+---@return string
 local function asField(source, oop)
     ---@type string?
     local class

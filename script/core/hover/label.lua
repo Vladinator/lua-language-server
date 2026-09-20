@@ -11,6 +11,7 @@ local guide       = require 'parser.guide'
 
 ---@param source parser.object
 ---@param oop boolean?
+---@return string
 local function asFunction(source, oop)
     local name  = buildName(source, oop)
     local args  = buildArgs(source)
@@ -30,6 +31,7 @@ local function asFunction(source, oop)
 end
 
 ---@param source parser.object
+---@return string?
 local function asDocTypeName(source)
     local defs = vm.getDefs(source)
     for _, doc in ipairs(defs) do
@@ -49,6 +51,8 @@ end
 ---@param source parser.object
 ---@param title string
 ---@param level integer
+---@return string
+---@return integer?
 local function asValue(source, title, level)
     local name    = buildName(source, false) or ''
     local ifr     = vm.getInfer(source)
@@ -83,6 +87,7 @@ end
 ---@async
 ---@param source parser.object
 ---@param level integer
+---@return string
 local function asLocal(source, level)
     ---@type parser.object
     local node
@@ -107,6 +112,8 @@ end
 ---@async
 ---@param source parser.object
 ---@param level integer
+---@return string
+---@return integer?
 local function asGlobal(source, level)
     if source.declare and source[1] == '*' then
         return '(global) any', 0
@@ -146,6 +153,7 @@ end
 ---@async
 ---@param source parser.object
 ---@param level integer
+---@return string
 local function asField(source, level)
     if isGlobalField(source) then
         return asGlobal(source, level)
@@ -154,6 +162,7 @@ local function asField(source, level)
 end
 
 ---@param source parser.object
+---@return string
 local function asDocFieldName(source)
     local name = vm.viewKey(source, guide.getUri(source)) or '?'
     ---@type parser.object?
@@ -174,6 +183,7 @@ local function asDocFieldName(source)
 end
 
 ---@param source parser.object
+---@return string
 local function asString(source)
     local str = source[1]
     if type(str) ~= 'string' then
@@ -189,6 +199,7 @@ local function asString(source)
 end
 
 ---@param n number
+---@return string
 local function formatNumber(n)
     local str = ('%.10f'):format(n)
     str = str:gsub('%.?0*$', '')
@@ -196,6 +207,7 @@ local function formatNumber(n)
 end
 
 ---@param source parser.object
+---@return string?
 local function asNumber(source)
     if not config.get(guide.getUri(source), 'Lua.hover.viewNumber') then
         return nil
@@ -220,6 +232,7 @@ end
 ---@param source parser.object
 ---@param oop boolean?
 ---@param level integer
+---@return string?
 return function (source, oop, level)
     if     source.type == 'function'
     or     source.type == 'doc.type.function' then

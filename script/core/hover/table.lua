@@ -7,6 +7,7 @@ local guide    = require 'parser.guide'
 ---@param keys string[]
 ---@param nodeMap table<string, vm.node>
 ---@param reachMax integer
+---@return string
 local function buildAsHash(uri, keys, nodeMap, reachMax)
     ---@type string[]
     local lines = {}
@@ -47,6 +48,7 @@ end
 ---@param keys string[]
 ---@param nodeMap table<string, vm.node>
 ---@param reachMax integer
+---@return string
 local function buildAsConst(uri, keys, nodeMap, reachMax)
     ---@type table<string, string?>
     local literalMap = {}
@@ -55,6 +57,7 @@ local function buildAsConst(uri, keys, nodeMap, reachMax)
     end
     ---@param a string
     ---@param b string
+    ---@return boolean
     table.sort(keys, function (a, b)
         return tonumber(literalMap[a]) < tonumber(literalMap[b])
     end)
@@ -123,6 +126,7 @@ local function getVisibleKeyMap(source, fields)
     end
     ---@param a string
     ---@param b string
+    ---@return boolean
     table.sort(keys, function (a, b)
         if a == b then
             return false
@@ -153,6 +157,7 @@ end
 ---@param uri uri
 ---@param fields parser.object[]
 ---@param keyMap table<string, boolean>
+---@return table<string, vm.node>
 local function getNodeMap(uri, fields, keyMap)
     ---@type table<string, vm.node>
     local nodeMap = {}

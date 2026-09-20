@@ -177,6 +177,7 @@ end
 ---@param path     string
 ---@param callback async fun(path: string)
 ---@param hook? async fun(ev: string, ...)
+---@return string[]
 ---@async
 function mt:scan(path, callback, hook)
     ---@type string[]

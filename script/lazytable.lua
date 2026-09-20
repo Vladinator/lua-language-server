@@ -69,6 +69,7 @@ local function formatKey(k)
 end
 
 ---@param v string|number|boolean
+---@return string
 local function formatValue(v)
     return sformat('%q', v)
 end
@@ -178,6 +179,7 @@ function mt:bind(writter, reader)
 end
 
 ---@param t table
+---@return lazytable.builder
 function mt:exclude(t)
     self.excludes[t] = true
     return self
@@ -197,6 +199,7 @@ function mt:entry()
     local infoMap = setmt({}, {
         __mode = 'v',
         ---@param map table<table, lazytable.info>
+        ---@return { [1]: table<any, any>, [2]: integer, [3]: table<any, any>? }?
         __index = function (map, t)
             local id   = idMap[t]
             local code = codeMap[id]
@@ -318,6 +321,7 @@ function mt:entry()
     setmt(instMap, {
         __mode  = 'v',
         ---@param map table<integer, table>
+        ---@return table
         __index = function (map, id)
             local inst  = {}
             idMap[inst] = id

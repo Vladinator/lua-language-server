@@ -58,6 +58,7 @@ end
 --- 创建一个任务
 ---@param callback async fun()
 ---@param ... any
+---@return boolean
 function m.call(callback, ...)
     local co = coroutine.create(callback)
     ---@type table<function, true>
@@ -89,6 +90,7 @@ end
 ---@async
 ---@param callback async fun(...): any
 ---@param ... any
+---@return any ...
 function m.await(callback, ...)
     if not coroutine.isyieldable() then
         return callback(...)
@@ -147,6 +149,7 @@ end
 --- 休眠一段时间
 ---@param time number
 ---@async
+---@return any ...
 function m.sleep(time)
     if not coroutine.isyieldable() then
         if m.errorHandle then

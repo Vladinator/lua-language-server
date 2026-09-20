@@ -153,6 +153,7 @@ local leftSwitch = util.switch()
     : case 'field'
     : case 'method'
     ---@param source parser.object
+    ---@return parser.object?
     : call(function (source)
         return getLoc(source.parent)
     end)
@@ -163,17 +164,20 @@ local leftSwitch = util.switch()
     : case 'getindex'
     : case 'setindex'
     ---@param source parser.object
+    ---@return parser.object?
     : call(function (source)
         return getLoc(source.node)
     end)
     : case 'getlocal'
     ---@param source parser.object
+    ---@return parser.object
     : call(function (source)
         return source.node
     end)
     : case 'local'
     : case 'self'
     ---@param source parser.object
+    ---@return parser.object
     : call(function (source)
         return source
     end)
@@ -210,6 +214,7 @@ function mt:getFieldName()
 end
 
 ---@param key?   string
+---@return parser.object[]
 function mt:getSets(key)
     if not key then
         return self.sets

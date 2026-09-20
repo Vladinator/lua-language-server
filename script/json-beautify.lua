@@ -66,6 +66,7 @@ function encode_map.string(v)
 end
 
 ---@param t table
+---@return string
 function encode_map.table(t)
     local first_val = next(t)
     if first_val == nil then

@@ -182,6 +182,7 @@ end
 
 ---@param parent parser.object
 ---@param field parser.object
+---@return boolean
 function vm.isVisible(parent, field)
     local visible = vm.getVisibleType(field)
     if visible == 'public' then

@@ -48,6 +48,7 @@ function m.getKeyName(source)
 end
 
 ---@param source parser.object?
+---@return string?
 function m.getKeyType(source)
     if not source then
         return nil

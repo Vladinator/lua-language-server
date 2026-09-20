@@ -184,6 +184,7 @@ function m.logMessage(type, ...)
 end
 
 ---@param path string
+---@return fun() unwatch
 function m.watchFiles(path)
     path = path:gsub('\\', '/')
                :gsub('[%[%]%{%}%*%?]', '\\%1')
@@ -472,6 +473,7 @@ end
 
 ---@param uri uri?
 ---@param finalChanges config.change[]
+---@return boolean
 local function tryModifyClient(uri, finalChanges)
     if #finalChanges == 0 then
         return false

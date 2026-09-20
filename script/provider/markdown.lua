@@ -22,6 +22,7 @@ mt._splitLine = false
 local function processSymbolReferences(txt)
 	---@param linkText string
 	---@param symbol string
+	---@return string?
 	local function replacer(linkText, symbol)
 		local source ---@type parser.object?
 

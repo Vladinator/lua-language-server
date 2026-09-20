@@ -83,6 +83,7 @@ end
 
 ---@async
 ---@param scp scope
+---@return boolean
 local function checkTrustLoad(scp)
 	if TRUST_ALL_PLUGINS then
 		return true

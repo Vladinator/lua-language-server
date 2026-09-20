@@ -405,6 +405,7 @@ end
 ---@param codes   any[]
 ---@param fileDir fs.path
 ---@param uri     uri
+---@return boolean?
 function m.build_single(codes, fileDir, uri)
     local texts = m.compileCodes(codes)
     if not texts then

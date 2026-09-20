@@ -791,6 +791,7 @@ function m.sort(tbl, sorter, ...)
     local sorters = { sorter, ... }
     ---@param a any
     ---@param b any
+    ---@return boolean
     tableSort(tbl, function (a, b)
         for _, f in ipairs(sorters) do
             local res = f(a, b)
@@ -1010,6 +1011,7 @@ function m.multiTable(max, default)
             mts[i] = { __index =
                 ---@param t table<any, any>
                 ---@param k any
+                ---@return table
                 function (t, k)
                     local v = setmetatable({}, mts[i + 1])
                     t[k] = v
@@ -1030,6 +1032,7 @@ function m.multiTable(max, default)
             mts[i] = { __index =
                 ---@param t table<any, any>
                 ---@param k any
+                ---@return table
                 function (t, k)
                     local v = {}
                     t[k] = v
@@ -1265,6 +1268,7 @@ function m.sortK(arr, k, sorter)
     if not sorter then
         ---@param a any
         ---@param b any
+        ---@return boolean
         sorter = function (a, b)
             return a < b
         end
@@ -1320,9 +1324,12 @@ function m.enableFormatString()
     local mt = getmetatable('')
     ---@param str  string
     ---@param args table<any, any>
+    ---@return string
+    ---@return integer count  -- `str:gsub` returns the number of replacements too, and `return str:gsub(...)` passes it on
     mt.__mod = function (str, args)
         local count = 0
         ---@param key string
+        ---@return string
         return str:gsub('%b{}', function (key)
             ---@type string?, string?
             local k, fmt = key:match('^{(.-):(.+)}$')
@@ -1354,6 +1361,7 @@ function m.enableDividStringAsPath()
     local mt = getmetatable('')
     ---@param str  string
     ---@param path string
+    ---@return string
     mt.__div = function (str, path)
         assert(type(path) == 'string', 'Path must be a string')
         if str == '' then

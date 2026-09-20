@@ -276,6 +276,7 @@ local parseAction
 --- 生效条件：主开关 enableLuaJITExtensions（要求 version == 'LuaJIT'）开启，
 --- 或用户在 Lua.runtime.nonstandardSymbol 中单独启用了该项（不要求 version == 'LuaJIT'）。
 ---@param symbol string
+---@return boolean
 local function isLuaJITExt(symbol)
     return State.luaJITExtensions or State.options.nonstandardSymbol[symbol]
 end
@@ -1074,6 +1075,7 @@ end
 
 ---@param obj parser.object
 ---@param attrs? parser.object
+---@return parser.object
 local function createGlobalDeclare(obj, attrs)
     obj.type = 'setglobal'
     obj.declare = true
@@ -2348,6 +2350,7 @@ end
 ---@param node parser.object
 ---@param funcName boolean
 ---@param noMethod boolean? # 禁止方法调用后缀（三元 b 部分，对应 LuaJIT EXPR_F_NOCOLON）
+---@return parser.object
 local function parseSimple(node, funcName, noMethod)
     ---@type string|integer|nil
     local currentName
@@ -3399,6 +3402,7 @@ local function checkNeedParen(source, noMethod)
 end
 
 ---@param noMethod boolean? # 禁止方法调用后缀（三元 b 部分）
+---@return parser.object|table|nil
 local function parseExpUnit(noMethod)
     local token = TokenText[Index + 1]
     if token == '(' then
@@ -3499,6 +3503,8 @@ local function parseUnaryOP()
 end
 
 ---@param level number? # op level must greater than this level
+---@return table?
+---@return integer?
 local function parseBinaryOP(asAction, level)
     local token  = TokenText[Index + 1]
     local symbol = (BinarySymbol[token] and token)
@@ -3913,6 +3919,8 @@ end
 ---@param n1 parser.object
 ---@param parser fun(asAction?: boolean): parser.object?
 ---@param isLocal? boolean
+---@return parser.object
+---@return boolean?
 local function parseMultiVars(n1, parser, isLocal)
     local n2, nrest = parseVarTails(parser, isLocal)
     skipSpace()
@@ -3996,6 +4004,7 @@ local function parseMultiVars(n1, parser, isLocal)
 end
 
 ---@param exp parser.object
+---@return parser.object?
 local function compileExpAsAction(exp)
     pushActionIntoCurrentChunk(exp)
     if GetToSetMap[exp.type] then

@@ -102,6 +102,7 @@ local function getParams(func)
 end
 
 ---@param call parser.object
+---@return boolean
 local function hasLiteralArgInCall(call)
     if not call.args then
         return false
@@ -200,6 +201,7 @@ local function arrayIndex(uri, results, start, finish)
     ---@type table<parser.object, boolean>
     local mixedOrLargeTable = {}
     ---@param tbl parser.object
+    ---@return boolean
     local function isMixedOrLargeTable(tbl)
         if mixedOrLargeTable[tbl] ~= nil then
             return mixedOrLargeTable[tbl]

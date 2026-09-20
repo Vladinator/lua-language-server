@@ -1840,6 +1840,7 @@ local docSwitch = util.switch()
     end)
     : case 'source'
     ---@param doc string
+    ---@return parser.object?
     : call(function (doc)
         local fullSource = doc:sub(#'source' + 1)
         if not fullSource or fullSource == '' then
@@ -2071,6 +2072,7 @@ end
 
 ---@param text string?
 ---@param doc parser.object?
+---@return boolean|integer|nil
 local function isTailComment(text, doc)
     if not doc or not text then
         return false
@@ -2697,6 +2699,7 @@ local function luadoc(state)
         end
         ---@param a parser.object
         ---@param b parser.object
+        ---@return boolean
         table.sort(ast.docs, function (a, b)
             return a.start < b.start
         end)

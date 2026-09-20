@@ -35,6 +35,7 @@ end
 ---@param source parser.object local/global variable
 ---@param classname string
 ---@param group table?
+---@return boolean|parser.object|nil
 function _M.addClassDoc(ast, source, classname, group)
     return _M.addDoc(ast, source, "class", classname, group)
 end
@@ -45,6 +46,7 @@ end
 ---@param key string
 ---@param value string
 ---@param group? parser.object[]
+---@return boolean|parser.object|nil
 function _M.addDoc(ast, source, key, value, group)
     if source.type ~= 'local' and not guide.isGlobal(source) then
         return false
@@ -90,6 +92,7 @@ end
 ---@param ast parser.object
 ---@param typename string
 ---@param source parser.object
+---@return boolean|parser.object|nil
 function _M.addParamTypeDoc(ast, typename, source)
     if not guide.isParam(source) then
         return false

@@ -1410,6 +1410,7 @@ end
 
 ---@param func parser.object
 ---@param source parser.object
+---@return boolean?
 local function compileFunctionParam(func, source)
     ---@type integer?
     local aindex

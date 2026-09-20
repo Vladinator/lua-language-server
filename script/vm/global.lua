@@ -608,6 +608,7 @@ local function checkIsGlobalRegex(uri, key)
 end
 
 ---@param src parser.object
+---@return boolean
 local function checkIsUndefinedGlobal(src)
     if src.type ~= 'getglobal' then
         return false

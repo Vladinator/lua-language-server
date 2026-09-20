@@ -69,6 +69,7 @@ end
 ---@param source parser.object
 ---@param text string?
 ---@param position integer
+---@return boolean
 local function checkInIf(state, source, text, position)
     -- 检查 end
     local endB = guide.positionToOffset(state, source.finish)
@@ -97,6 +98,7 @@ end
 ---@param source parser.object
 ---@param text string?
 ---@param callback fun(start: integer, finish: integer)
+---@return boolean
 local function makeIf(state, source, text, callback)
     -- end
     local endB = guide.positionToOffset(state, source.finish)
@@ -155,6 +157,7 @@ local function findKeyWord(state, text, position, callback)
 end
 
 ---@param str string
+---@return boolean
 local function isRegion(str)
     if str:sub(1, #'region') == 'region'
     or str:sub(1, #'#region') == '#region' then
@@ -164,6 +167,7 @@ local function isRegion(str)
 end
 
 ---@param str string
+---@return boolean
 local function isEndRegion(str)
     if str:sub(1, #'endregion') == 'endregion'
     or str:sub(1, #'#endregion') == '#endregion' then
@@ -271,6 +275,7 @@ local accept = {
 }
 
 ---@param source parser.object
+---@return boolean
 local function isLiteralValue(source)
     if not guide.isLiteral(source) then
         return false

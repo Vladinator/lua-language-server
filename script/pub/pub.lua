@@ -245,6 +245,7 @@ end
 ---@param name string
 ---@param params any
 ---@param callback? function
+---@return boolean
 function m.task(name, params, callback)
     local info = {
         id       = counter(),
@@ -256,6 +257,7 @@ function m.task(name, params, callback)
 end
 
 ---@param brave pub.brave
+---@return boolean
 function m.reciveFromPad(brave)
     ---@type boolean, any, any
     local suc, name, result = brave.replyCh:pop()

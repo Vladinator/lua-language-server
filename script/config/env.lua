@@ -2,6 +2,7 @@
 
 ---Convert a string to boolean
 ---@param v string
+---@return boolean
 local function strToBool(v)
     return v == "true"
 end

@@ -118,6 +118,7 @@ end
 
 ---@param call parser.object
 ---@param src parser.object|vm.global
+---@return boolean
 local function isEventNotMatch(call, src)
     if not call.args or not src.args then
         return false

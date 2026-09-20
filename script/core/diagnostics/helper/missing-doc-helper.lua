@@ -2,6 +2,7 @@ local m = {}
 
 ---@param docs parser.object[]?
 ---@param param string|integer
+---@return boolean
 local function findParam(docs, param)
     if not docs then
         return false
@@ -20,6 +21,7 @@ end
 
 ---@param docs parser.object[]?
 ---@param index integer
+---@return boolean
 local function findReturn(docs, index)
     if not docs then
         return false

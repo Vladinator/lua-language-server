@@ -15,6 +15,7 @@ end
 
 ---@param results table<string, any>
 ---@param key? string
+---@return table
 local function proxy(results, key)
     return setmetatable({}, {
         __index = function (_, k)

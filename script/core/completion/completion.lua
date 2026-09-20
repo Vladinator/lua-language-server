@@ -76,6 +76,7 @@ local stacks = {}
 
 ---@param oldSource parser.object
 ---@param callback async fun(newSource: parser.object): vm.completion.resolved
+---@return integer
 local function stack(oldSource, callback)
     stackID = stackID + 1
     local uri = guide.getUri(oldSource)
@@ -351,6 +352,7 @@ end
 
 ---@async
 ---@param source parser.object
+---@return markdown
 local function buildDesc(source)
     local desc = markdown()
     local hover = getHover.get(source, 1)
@@ -1833,6 +1835,7 @@ end
 ---@param state    parser.state
 ---@param position integer
 ---@param results completion.results
+---@return nil
 local function trySymbol(state, position, results)
     local text = state.lua
     assert(text)
@@ -1896,6 +1899,7 @@ end
 ---@param tbl     parser.object
 ---@param fields  parser.object[]
 ---@param results completion.results
+---@return boolean?
 local function checkTableLiteralField(state, position, tbl, fields, results)
     local text = state.lua
     if not text then
@@ -1993,6 +1997,7 @@ end
 ---@param state    parser.state
 ---@param position integer
 ---@param results completion.results
+---@return boolean?
 local function tryTable(state, position, results)
     local tbl = findNearestTable(state, position)
     if not tbl then
@@ -2199,6 +2204,7 @@ end
 ---@param position integer
 ---@param source   parser.object
 ---@param results completion.results
+---@return boolean?
 local function tryluaDocBySource(state, position, source, results)
     if     source.type == 'doc.extends.name' then
         if source.parent and source.parent.type == 'doc.class' then

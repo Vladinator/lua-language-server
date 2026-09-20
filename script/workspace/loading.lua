@@ -33,6 +33,7 @@ function mt:update()
 end
 
 ---@param uri uri
+---@return boolean
 function mt:checkMaxPreload(uri)
     local max = config.get(uri, 'Lua.workspace.maxPreload')
     if self.preload <= max then

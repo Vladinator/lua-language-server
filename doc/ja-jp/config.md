@@ -289,6 +289,7 @@ Array<string>
 * ``"ambiguous-syntax"``: 曖昧な構文
 * ``"args-after-dots"``: `...` の後の引数
 * ``"assign-const-global"``: const グローバル変数への代入
+* ``"assign-readonly"``: Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
 * ``"assign-type-mismatch"``: 値の型が代入先の型と一致しない代入の診断を有効にします。
 * ``"await-in-sync"``: 同期関数内で非同期関数を呼び出す場合の診断を有効にします。
 * ``"block-after-else"``: `else` の後のブロック
@@ -612,6 +613,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -753,6 +755,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -865,6 +868,10 @@ object<string, string>
     演算子優先順位のあいまいさ診断を有効にします。例: `num or 0 + 1` には `(num or 0) + 1` を推奨します。
     */
     "ambiguity-1": "Any",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Opened",
     /*
     値の型が代入先の型と一致しない代入の診断を有効にします。
     */
@@ -1196,6 +1203,10 @@ object<string, string>
     演算子優先順位のあいまいさ診断を有効にします。例: `num or 0 + 1` には `(num or 0) + 1` を推奨します。
     */
     "ambiguity-1": "Warning",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Warning",
     /*
     値の型が代入先の型と一致しない代入の診断を有効にします。
     */

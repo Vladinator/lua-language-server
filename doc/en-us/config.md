@@ -289,6 +289,7 @@ Array<string>
 * ``"ambiguous-syntax"``: Ambiguous syntax
 * ``"args-after-dots"``: Arguments after `...`
 * ``"assign-const-global"``: Assigning to a const global variable
+* ``"assign-readonly"``: Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
 * ``"assign-type-mismatch"``: Enable diagnostics for assignments in which the value's type does not match the type of the assigned variable.
 * ``"await-in-sync"``: Enable diagnostics for calls of asynchronous functions within a synchronous function.
 * ``"block-after-else"``: Block after `else`
@@ -612,6 +613,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -753,6 +755,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -865,6 +868,10 @@ object<string, string>
     Enable ambiguous operator precedence diagnostics. For example, the `num or 0 + 1` expression will be suggested `(num or 0) + 1` instead.
     */
     "ambiguity-1": "Any",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Opened",
     /*
     Enable diagnostics for assignments in which the value's type does not match the type of the assigned variable.
     */
@@ -1196,6 +1203,10 @@ object<string, string>
     Enable ambiguous operator precedence diagnostics. For example, the `num or 0 + 1` expression will be suggested `(num or 0) + 1` instead.
     */
     "ambiguity-1": "Warning",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Warning",
     /*
     Enable diagnostics for assignments in which the value's type does not match the type of the assigned variable.
     */

@@ -289,6 +289,7 @@ Array<string>
 * ``"ambiguous-syntax"``: 存在歧義的語法
 * ``"args-after-dots"``: `...` 之後的參數
 * ``"assign-const-global"``: 對 const 全域變數賦值
+* ``"assign-readonly"``: Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
 * ``"assign-type-mismatch"``: 賦值類型與變數類型不符合
 * ``"await-in-sync"``: 同步函式中呼叫非同步函式
 * ``"block-after-else"``: `else` 之後的程式碼區塊
@@ -612,6 +613,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -753,6 +755,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -865,6 +868,10 @@ object<string, string>
     優先順序歧義，如： `num or 0 + 1` ，推測使用者的實際期望為 `(num or 0) + 1`
     */
     "ambiguity-1": "Any",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Opened",
     /*
     賦值類型與變數類型不符合
     */
@@ -1195,6 +1202,10 @@ object<string, string>
     優先順序歧義，如： `num or 0 + 1` ，推測使用者的實際期望為 `(num or 0) + 1`
     */
     "ambiguity-1": "Warning",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Warning",
     /*
     賦值類型與變數類型不符合
     */

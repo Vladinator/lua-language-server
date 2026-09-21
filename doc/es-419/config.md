@@ -289,6 +289,7 @@ Array<string>
 * ``"ambiguous-syntax"``: Sintaxis ambigua
 * ``"args-after-dots"``: Argumentos después de `...`
 * ``"assign-const-global"``: Asignando a una variable global const
+* ``"assign-readonly"``: Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
 * ``"assign-type-mismatch"``: Habilita el diagnóstico para asignaciones en las cuales el valor del tipo no calza con el tipo de la variable siendo asignada.
 * ``"await-in-sync"``: Habilita el diagnóstico para llamadas a funciones asíncronas dentro de una función síncrona.
 * ``"block-after-else"``: Bloque después de `else`
@@ -612,6 +613,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -753,6 +755,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -865,6 +868,10 @@ object<string, string>
     Habilita el diagnóstico de precedencia de operadores ambiguos. Por ejemplo, ante la expresión `num or 0 + 1` se sugerirrá `(num or 0) + 1`.
     */
     "ambiguity-1": "Any",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Opened",
     /*
     Habilita el diagnóstico para asignaciones en las cuales el valor del tipo no calza con el tipo de la variable siendo asignada.
     */
@@ -1196,6 +1203,10 @@ object<string, string>
     Habilita el diagnóstico de precedencia de operadores ambiguos. Por ejemplo, ante la expresión `num or 0 + 1` se sugerirrá `(num or 0) + 1`.
     */
     "ambiguity-1": "Warning",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Warning",
     /*
     Habilita el diagnóstico para asignaciones en las cuales el valor del tipo no calza con el tipo de la variable siendo asignada.
     */

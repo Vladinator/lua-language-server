@@ -289,6 +289,7 @@ Array<string>
 * ``"ambiguous-syntax"``: Sintaxe ambígua
 * ``"args-after-dots"``: Argumentos após `...`
 * ``"assign-const-global"``: Atribuindo a uma variável global const
+* ``"assign-readonly"``: Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
 * ``"assign-type-mismatch"``: Habilita diagnóstico para atribuições em que o tipo do valor não corresponde ao tipo da variável alvo.
 * ``"await-in-sync"``: Habilita diagnóstico para chamadas de funções assíncronas dentro de uma função síncrona.
 * ``"block-after-else"``: Bloco após `else`
@@ -612,6 +613,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -753,6 +755,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -865,6 +868,10 @@ object<string, string>
     Ambiguidade de precedência, por exemplo `num or 0 + 1`; supõe-se que o esperado seja `(num or 0) + 1`
     */
     "ambiguity-1": "Any",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Opened",
     /*
     Habilita diagnóstico para atribuições em que o tipo do valor não corresponde ao tipo da variável alvo.
     */
@@ -1196,6 +1203,10 @@ object<string, string>
     Ambiguidade de precedência, por exemplo `num or 0 + 1`; supõe-se que o esperado seja `(num or 0) + 1`
     */
     "ambiguity-1": "Warning",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Warning",
     /*
     Habilita diagnóstico para atribuições em que o tipo do valor não corresponde ao tipo da variável alvo.
     */

@@ -289,6 +289,7 @@ Array<string>
 * ``"ambiguous-syntax"``: 存在歧义的语法
 * ``"args-after-dots"``: `...` 之后的参数
 * ``"assign-const-global"``: 给 const 全局变量赋值
+* ``"assign-readonly"``: Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
 * ``"assign-type-mismatch"``: 值类型与赋值变量类型不匹配
 * ``"await-in-sync"``: 同步函数中异步函数调用
 * ``"block-after-else"``: `else` 之后的代码块
@@ -612,6 +613,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -753,6 +755,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * assign-readonly
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
@@ -865,6 +868,10 @@ object<string, string>
     优先级歧义，如：`num or 0 + 1`，推测用户的实际期望为 `(num or 0) + 1` 
     */
     "ambiguity-1": "Any",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Opened",
     /*
     值类型与赋值变量类型不匹配
     */
@@ -1195,6 +1202,10 @@ object<string, string>
     优先级歧义，如：`num or 0 + 1`，推测用户的实际期望为 `(num or 0) + 1` 
     */
     "ambiguity-1": "Warning",
+    /*
+    Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.
+    */
+    "assign-readonly": "Warning",
     /*
     值类型与赋值变量类型不匹配
     */

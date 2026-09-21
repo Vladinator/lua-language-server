@@ -535,6 +535,11 @@ function vm.isSubType(uri, child, parent, mark, errs)
         return nil
     end
 
+    -- nothing has the type `never` but `never` (a table would pass as a class without fields)
+    if parentName == 'never' and childName ~= 'never' then
+        return false
+    end
+
     if childName == parentName then
         if not checkValue(parent, child, mark, errs) then
             return false

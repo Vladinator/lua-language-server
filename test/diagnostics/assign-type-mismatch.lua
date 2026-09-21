@@ -549,3 +549,36 @@ local function area(s)
     end
 end
 ]]
+
+-- the exhaustiveness check for a union of table types written inline
+TEST [[
+---@alias Shape { kind: 'circle', r: number } | { kind: 'square', side: number } | { kind: 'tri', base: number }
+
+---@param s Shape
+local function area(s)
+    if s.kind == 'circle' then
+        return 1
+    elseif s.kind == 'square' then
+        return 2
+    else
+        ---@type never
+        local <!_missing!> = s
+    end
+end
+]]
+
+TEST [[
+---@alias Shape { kind: 'circle', r: number } | { kind: 'square', side: number }
+
+---@param s Shape
+local function area(s)
+    if s.kind == 'circle' then
+        return 1
+    elseif s.kind == 'square' then
+        return 2
+    else
+        ---@type never
+        local _all = s
+    end
+end
+]]

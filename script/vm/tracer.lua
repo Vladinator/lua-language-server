@@ -312,50 +312,81 @@ function mt:fastWardCasts(pos, node)
     return node
 end
 
---- Return types of source which have a field with the value of literal.
+--- How a type says its field `fieldName` relates to `literal`, for the discriminated unions
+--- (`{ kind: 'circle', r: number } | { kind: 'square', side: number }`, or classes with a
+--- `---@field kind 'circle'`):
+---   'match'  the field is declared with exactly that literal
+---   'union'  ... with that literal among others (`'a' | 'b'`): the type stays where the literal is one of them
+---   'other'  ... with other literals only
+---   nil      not decided by this field (missing, or declared with a type that is not a literal)
+--- The type is a class, or a table type written inline.
 --- @param uri uri
---- @param source parser.object
+--- @param obj vm.node.object
 --- @param fieldName string
 --- @param literal parser.object
---- @return [string, boolean][]?
-local function getNodeTypesWithLiteralField(uri, source, fieldName, literal)
-    local loc = vm.getVariable(source)
-    if not loc then
-        return
+--- @return 'match'|'union'|'other'|nil
+local function judgeByLiteralField(uri, obj, fieldName, literal)
+    ---@param types parser.object[]
+    ---@return 'match'|'union'|'other'|nil
+    local function judge(types)
+        local literals = 0
+        local hit      = false
+        for _, t in ipairs(types) do
+            if guide.isLiteral(t) and t[1] ~= nil then
+                literals = literals + 1
+                if t[1] == literal[1] then
+                    hit = true
+                end
+            end
+        end
+        if literals == 0 then
+            return nil
+        end
+        if not hit then
+            return 'other'
+        end
+        return #types > 1 and 'union' or 'match'
     end
 
-    -- Literal must has a value
-    if literal[1] == nil then
-        return
-    end
-
-    ---@type [string, boolean][]?
-    local tys
-
-    for _, c in ipairs(vm.compileNode(loc)) do
-        if c.cate == 'type' then
-            for _, set in ipairs(c:getSets(uri)) do
-                if set.type == 'doc.class' then
-                    for _, f in ipairs(set.fields) do
-                        -- (the parser drops a `---@field` without a type, so `extends` is always set here; the
-                        -- field is optional on parser.object because most node types have none)
-                        if f.field and f.field[1] == fieldName and f.extends then
-                            for _, t in ipairs(f.extends.types) do
-                                if guide.isLiteral(t) and t[1] ~= nil and t[1] == literal[1] then
-                                    tys = tys or {}
-                                    table.insert(tys, { set.class[1], #f.extends.types > 1 })
-                                    break
-                                end
-                            end
-                            break
+    if obj.type == 'doc.type.table' then
+        ---@cast obj parser.object
+        for _, f in ipairs(obj.fields or {}) do
+            local key = f.name
+            if key and key.type ~= 'doc.type' and key[1] == fieldName and f.extends then
+                return judge(f.extends.types)
+            end
+        end
+    elseif obj.type == 'global' and obj.cate == 'type' then
+        ---@cast obj vm.global
+        for _, set in ipairs(obj:getSets(uri)) do
+            if set.type == 'doc.class' then
+                for _, f in ipairs(set.fields) do
+                    -- (the parser drops a `---@field` without a type, so `extends` is always set here; the
+                    -- field is optional on parser.object because most node types have none)
+                    if f.field and f.field[1] == fieldName and f.extends then
+                        local verdict = judge(f.extends.types)
+                        if verdict then
+                            return verdict
                         end
                     end
                 end
             end
         end
     end
+    return nil
+end
 
-    return tys
+--- The types of `node` without one.
+---@param node vm.node
+---@param obj  vm.node.object
+local function removeType(node, obj)
+    if obj.type == 'global' and obj.cate == 'type' then
+        ---@cast obj vm.global
+        node:remove(obj.name)
+    else
+        ---@cast obj -vm.global
+        node:removeObject(obj)
+    end
 end
 
 vm.registerEqualityNarrowing {
@@ -386,35 +417,78 @@ vm.registerEqualityNarrowing {
 }
 
 vm.registerEqualityNarrowing {
-    -- if x.kind == 'literal' then (narrow by a class field declared with a literal type)
+    -- if x.kind == 'literal' then (narrow a union by a field that every member declares with a literal
+    -- type: classes, and table types written inline)
     match = function (tracer, handler, checker)
         return handler.type == 'getfield'
            and handler.node.type == 'getlocal'
     end,
     narrow = function (tracer, action, topNode, outNode, handler, checker)
-        ---@type [string, boolean][]?
-        local tys
-        if handler.field then
-            tys = getNodeTypesWithLiteralField(tracer.uri, handler.node, handler.field[1], checker)
+        if not handler.field
+        or checker[1] == nil
+        or not tracer.getMap[handler.node] then
+            return topNode, outNode
         end
-        -- TODO: handle more types
-        if tys and #tys == 1 then
-            -- If the type is in a union (e.g. 'lit' | foo), then the type
-            -- cannot be removed from the node.
-            local ty, tyInUnion = tys[1][1], tys[1][2]
-            topNode = topNode:copy()
-            if action.op.type == '==' then
-                topNode:narrow(tracer.uri, ty)
-                if not tyInUnion and outNode then
-                    outNode:remove(ty)
+        local fieldName = handler.field[1] --[[@as string]]
+        ---@type table<vm.node.object, 'match'|'union'|'other'|false>
+        local verdicts = {}
+        ---@param obj vm.node.object
+        ---@return 'match'|'union'|'other'|false
+        local function verdictOf(obj)
+            local verdict = verdicts[obj]
+            if verdict == nil then
+                verdict = judgeByLiteralField(tracer.uri, obj, fieldName, checker) or false
+                verdicts[obj] = verdict
+            end
+            return verdict
+        end
+        local anyMatch = false
+        for obj in topNode:eachObject() do
+            local verdict = verdictOf(obj)
+            if verdict == 'match' or verdict == 'union' then
+                anyMatch = true
+            end
+        end
+        if not anyMatch then
+            return topNode, outNode
+        end
+        -- the branch where the field is that literal: only the types that can have it
+        ---@param node vm.node
+        ---@return vm.node
+        local function keepMatching(node)
+            local result = node:copy()
+            for i = 1, #node do
+                local obj = node[i] --[[@as vm.node.object]]
+                local verdict = verdictOf(obj)
+                if verdict ~= 'match' and verdict ~= 'union' then
+                    removeType(result, obj)
                 end
-            else
-                if not tyInUnion then
-                    topNode:remove(ty)
+            end
+            result:removeOptional()
+            return result
+        end
+        -- the other branch: the types that have only that literal are gone (`'a' | 'b'` may still be `'b'`)
+        ---@param node vm.node
+        ---@return vm.node
+        local function dropMatching(node)
+            local result = node:copy()
+            for i = 1, #node do
+                local obj = node[i] --[[@as vm.node.object]]
+                if verdictOf(obj) == 'match' then
+                    removeType(result, obj)
                 end
-                if outNode then
-                    outNode:narrow(tracer.uri, ty)
-                end
+            end
+            return result
+        end
+        if action.op.type == '==' then
+            topNode = keepMatching(topNode)
+            if outNode then
+                outNode = dropMatching(outNode)
+            end
+        else
+            topNode = dropMatching(topNode)
+            if outNode then
+                outNode = keepMatching(outNode)
             end
         end
         return topNode, outNode

@@ -5329,3 +5329,92 @@ if not x then
 end
 print(<?x?>)
 ]]
+
+-- discriminated unions of table types written inline: the literal field says which one
+TEST "{ kind: 'circle', r: number }" [[
+---@alias Shape { kind: 'circle', r: number } | { kind: 'square', side: number } | { kind: 'tri', base: number }
+
+---@param s Shape
+local function f(s)
+    if s.kind == 'circle' then
+        print(<?s?>)
+    end
+end
+]]
+
+TEST "{ kind: 'square', side: number }|{ kind: 'tri', base: number }" [[
+---@alias Shape { kind: 'circle', r: number } | { kind: 'square', side: number } | { kind: 'tri', base: number }
+
+---@param s Shape
+local function f(s)
+    if s.kind == 'circle' then
+        return
+    end
+    print(<?s?>)
+end
+]]
+
+TEST "{ kind: 'tri', base: number }" [[
+---@alias Shape { kind: 'circle', r: number } | { kind: 'square', side: number } | { kind: 'tri', base: number }
+
+---@param s Shape
+local function f(s)
+    if s.kind == 'circle' then
+        return
+    elseif s.kind == 'square' then
+        return
+    else
+        print(<?s?>)
+    end
+end
+]]
+
+TEST "{ kind: 'square', side: number }" [[
+---@alias Shape { kind: 'circle', r: number } | { kind: 'square', side: number }
+
+---@param s Shape
+local function f(s)
+    if s.kind ~= 'circle' then
+        print(<?s?>)
+    end
+end
+]]
+
+-- a member that declares several literals stays where one of them is the one asked for
+TEST "{ kind: 'a'|'b', x: number }|{ kind: 'c', y: number }" [[
+---@alias T { kind: 'a'|'b', x: number } | { kind: 'c', y: number }
+
+---@param s T
+local function f(s)
+    if s.kind ~= 'a' then
+        print(<?s?>)
+    end
+end
+]]
+
+-- several classes with the same literal
+TEST 'A1|A2' [[
+---@class A1
+---@field kind 'a'
+---@class A2
+---@field kind 'a'
+---@class B
+---@field kind 'b'
+
+---@param s A1|A2|B
+local function f(s)
+    if s.kind == 'a' then
+        print(<?s?>)
+    end
+end
+]]
+
+-- no discriminant: nothing changes
+TEST '{ id: integer }|{ name: string }' [[
+---@param s { name: string } | { id: integer }
+local function f(s)
+    if s.name == 'x' then
+        print(<?s?>)
+    end
+end
+]]

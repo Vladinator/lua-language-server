@@ -396,6 +396,10 @@ Array<string>
 * ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: 赋值操作时，值的数量比被赋值的对象多
 * ``"return-type-mismatch"``: 返回值的类型与`@return`中声明的类型不匹配
+* ``"secret-argument"``: Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
+* ``"secret-field"``: Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
+* ``"secret-return"``: Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
+* ``"secret-variable"``: Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
 * ``"set-const"``: 给 const 常量赋值
 * ``"spell-check"``: 启用字符串拼写检查的诊断。
 * ``"trailing-space"``: 后置空格
@@ -406,7 +410,7 @@ Array<string>
 * ``"undefined-env-child"``: `_ENV` 被设置为了新的字面量表，但是试图获取的全局变量不再这张表中
 * ``"undefined-field"``: 引用变量的未定义字段
 * ``"undefined-global"``: 未定义的全局变量
-* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.
 * ``"unexpect-dots"``
 * ``"unexpect-efunc-name"``
 * ``"unexpect-gfunc-name"``
@@ -587,6 +591,10 @@ object<string, string>
     /*
     * need-check-secret
     * redundant-secret-unwrap
+    * secret-argument
+    * secret-field
+    * secret-return
+    * secret-variable
     * undefined-secret-name
     */
     "secret": "Fallback",
@@ -723,6 +731,10 @@ object<string, string>
     /*
     * need-check-secret
     * redundant-secret-unwrap
+    * secret-argument
+    * secret-field
+    * secret-return
+    * secret-variable
     * undefined-secret-name
     */
     "secret": "Fallback",
@@ -1035,6 +1047,22 @@ object<string, string>
     */
     "return-type-mismatch": "Opened",
     /*
+    Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
+    */
+    "secret-argument": "Opened",
+    /*
+    Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
+    */
+    "secret-field": "Opened",
+    /*
+    Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
+    */
+    "secret-return": "Opened",
+    /*
+    Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
+    */
+    "secret-variable": "Opened",
+    /*
     启用字符串拼写检查的诊断。
     */
     "spell-check": "None",
@@ -1071,7 +1099,7 @@ object<string, string>
     */
     "undefined-global": "Any",
     /*
-    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.
     */
     "undefined-secret-name": "Opened",
     /*
@@ -1345,6 +1373,22 @@ object<string, string>
     */
     "return-type-mismatch": "Warning",
     /*
+    Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
+    */
+    "secret-argument": "Warning",
+    /*
+    Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
+    */
+    "secret-field": "Warning",
+    /*
+    Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
+    */
+    "secret-return": "Warning",
+    /*
+    Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
+    */
+    "secret-variable": "Warning",
+    /*
     启用字符串拼写检查的诊断。
     */
     "spell-check": "Information",
@@ -1381,7 +1425,7 @@ object<string, string>
     */
     "undefined-global": "Warning",
     /*
-    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.
     */
     "undefined-secret-name": "Warning",
     /*

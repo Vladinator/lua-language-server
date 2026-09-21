@@ -396,6 +396,10 @@ Array<string>
 * ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: 代入時の余分な値の診断を有効にします。値の数が変数の数を超える場合に発生します。
 * ``"return-type-mismatch"``: 戻り値の型が注釈と一致しない場合の診断を有効にします。
+* ``"secret-argument"``: Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
+* ``"secret-field"``: Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
+* ``"secret-return"``: Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
+* ``"secret-variable"``: Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
 * ``"set-const"``: const 定数への代入
 * ``"spell-check"``: 文字列内のタイポ診断を有効にします。
 * ``"trailing-space"``: 行末の余分な空白の診断を有効にします。
@@ -406,7 +410,7 @@ Array<string>
 * ``"undefined-env-child"``: 未定義環境変数の診断を有効にします。`_ENV` を新しいリテラルテーブルに設定した結果、使用中のグローバルが存在しない場合に発生します。
 * ``"undefined-field"``: 未定義フィールドを参照する場合の診断を有効にします。
 * ``"undefined-global"``: 未定義のグローバル変数の診断を有効にします。
-* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.
 * ``"unexpect-dots"``
 * ``"unexpect-efunc-name"``
 * ``"unexpect-gfunc-name"``
@@ -587,6 +591,10 @@ object<string, string>
     /*
     * need-check-secret
     * redundant-secret-unwrap
+    * secret-argument
+    * secret-field
+    * secret-return
+    * secret-variable
     * undefined-secret-name
     */
     "secret": "Fallback",
@@ -723,6 +731,10 @@ object<string, string>
     /*
     * need-check-secret
     * redundant-secret-unwrap
+    * secret-argument
+    * secret-field
+    * secret-return
+    * secret-variable
     * undefined-secret-name
     */
     "secret": "Fallback",
@@ -1035,6 +1047,22 @@ object<string, string>
     */
     "return-type-mismatch": "Opened",
     /*
+    Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
+    */
+    "secret-argument": "Opened",
+    /*
+    Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
+    */
+    "secret-field": "Opened",
+    /*
+    Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
+    */
+    "secret-return": "Opened",
+    /*
+    Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
+    */
+    "secret-variable": "Opened",
+    /*
     文字列内のタイポ診断を有効にします。
     */
     "spell-check": "None",
@@ -1071,7 +1099,7 @@ object<string, string>
     */
     "undefined-global": "Any",
     /*
-    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.
     */
     "undefined-secret-name": "Opened",
     /*
@@ -1346,6 +1374,22 @@ object<string, string>
     */
     "return-type-mismatch": "Warning",
     /*
+    Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
+    */
+    "secret-argument": "Warning",
+    /*
+    Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
+    */
+    "secret-field": "Warning",
+    /*
+    Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
+    */
+    "secret-return": "Warning",
+    /*
+    Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
+    */
+    "secret-variable": "Warning",
+    /*
     文字列内のタイポ診断を有効にします。
     */
     "spell-check": "Information",
@@ -1382,7 +1426,7 @@ object<string, string>
     */
     "undefined-global": "Warning",
     /*
-    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.
     */
     "undefined-secret-name": "Warning",
     /*

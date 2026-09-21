@@ -396,6 +396,10 @@ Array<string>
 * ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: Enable the redundant values assigned diagnostics. It's raised during assignment operation, when the number of values is higher than the number of objects being assigned.
 * ``"return-type-mismatch"``: Enable diagnostics for return values whose type does not match the type declared in the corresponding return annotation.
+* ``"secret-argument"``: Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
+* ``"secret-field"``: Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
+* ``"secret-return"``: Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
+* ``"secret-variable"``: Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
 * ``"set-const"``: Assigning to a const constant
 * ``"spell-check"``: Enable diagnostics for typos in strings.
 * ``"trailing-space"``: Enable trailing space diagnostics.
@@ -406,7 +410,7 @@ Array<string>
 * ``"undefined-env-child"``: Enable undefined environment variable diagnostics. It's raised when `_ENV` table is set to a new literal table, but the used global variable is no longer present in the global environment.
 * ``"undefined-field"``: Enable diagnostics for cases in which an undefined field of a variable is read.
 * ``"undefined-global"``: Enable undefined global variable diagnostics.
-* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+* ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.
 * ``"unexpect-dots"``
 * ``"unexpect-efunc-name"``
 * ``"unexpect-gfunc-name"``
@@ -587,6 +591,10 @@ object<string, string>
     /*
     * need-check-secret
     * redundant-secret-unwrap
+    * secret-argument
+    * secret-field
+    * secret-return
+    * secret-variable
     * undefined-secret-name
     */
     "secret": "Fallback",
@@ -723,6 +731,10 @@ object<string, string>
     /*
     * need-check-secret
     * redundant-secret-unwrap
+    * secret-argument
+    * secret-field
+    * secret-return
+    * secret-variable
     * undefined-secret-name
     */
     "secret": "Fallback",
@@ -1035,6 +1047,22 @@ object<string, string>
     */
     "return-type-mismatch": "Opened",
     /*
+    Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
+    */
+    "secret-argument": "Opened",
+    /*
+    Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
+    */
+    "secret-field": "Opened",
+    /*
+    Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
+    */
+    "secret-return": "Opened",
+    /*
+    Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
+    */
+    "secret-variable": "Opened",
+    /*
     Enable diagnostics for typos in strings.
     */
     "spell-check": "None",
@@ -1071,7 +1099,7 @@ object<string, string>
     */
     "undefined-global": "Any",
     /*
-    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.
     */
     "undefined-secret-name": "Opened",
     /*
@@ -1346,6 +1374,22 @@ object<string, string>
     */
     "return-type-mismatch": "Warning",
     /*
+    Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
+    */
+    "secret-argument": "Warning",
+    /*
+    Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
+    */
+    "secret-field": "Warning",
+    /*
+    Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
+    */
+    "secret-return": "Warning",
+    /*
+    Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
+    */
+    "secret-variable": "Warning",
+    /*
     Enable diagnostics for typos in strings.
     */
     "spell-check": "Information",
@@ -1382,7 +1426,7 @@ object<string, string>
     */
     "undefined-global": "Warning",
     /*
-    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.
+    Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.
     */
     "undefined-secret-name": "Warning",
     /*

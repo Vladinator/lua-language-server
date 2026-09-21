@@ -129,7 +129,8 @@ function mt:collectCare(obj)
             end
             if obj.type == 'call' and obj.node then
                 if obj.node.special == 'assert'
-                or obj.node.special == 'type' then
+                or obj.node.special == 'type'
+                or vm.matchCallNarrowing(obj.node) then
                     self.fastCalc = false
                 end
             end

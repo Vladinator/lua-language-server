@@ -53,6 +53,7 @@ local type         = type
 ---@field enum                  parser.object
 ---@field vararg                parser.object
 ---@field param                 parser.object
+---@field negated?               true -- `doc.guard` / `doc.asserts`: the tag says `x is not T`
 ---@field overload              parser.object
 ---@field docParamMap           table<string, integer>
 ---@field upvalues              table<string, string[]>

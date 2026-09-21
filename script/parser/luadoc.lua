@@ -1963,6 +1963,30 @@ local function convertTokens(doc)
                     -- not a clean list (a description, a trailing comma): stay bare
                     Ci = savePoint
                 end
+            elseif docTags.isGuardTag(docType) then
+                -- `---@guard x is T` / `---@guard x is not T`
+                result.start = getStart()
+                local savePoint = Ci
+                local param = parseName(docType .. '.name', result)
+                if param and checkToken('name', 'is', 1) then
+                    nextToken()
+                    local negated = false
+                    if checkToken('name', 'not', 1) then
+                        nextToken()
+                        negated = true
+                    end
+                    local extends = parseType(result)
+                    if extends then
+                        result.param   = param
+                        result.negated = negated or nil
+                        result.extends = extends
+                        result.finish  = getFinish()
+                    else
+                        Ci = savePoint
+                    end
+                else
+                    Ci = savePoint
+                end
             end
             return result
         end

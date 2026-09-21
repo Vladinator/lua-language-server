@@ -327,6 +327,7 @@ Array<string>
 * ``"incomplete-signature-doc"``: Habilita el diagnóstico para anotaciones @param o @return incompletas para funciones.
 * ``"index-in-func-name"``: Índice en nombre de función
 * ``"inject-field"``: Inyectando un campo en un objeto
+* ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
 * ``"invisible"``: Habilita el diagnóstico para accesos a campos que son invisibles.
 * ``"jump-local-scope"``: Saltando a un ámbito de variable local
 * ``"keyword"``: Uso inadecuado de una palabra clave
@@ -573,6 +574,7 @@ object<string, string>
     * duplicate-doc-field
     * duplicate-doc-param
     * incomplete-signature-doc
+    * invalid-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -713,6 +715,7 @@ object<string, string>
     * duplicate-doc-field
     * duplicate-doc-param
     * incomplete-signature-doc
+    * invalid-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -954,6 +957,10 @@ object<string, string>
     Inyectando un campo en un objeto
     */
     "inject-field": "Opened",
+    /*
+    Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+    */
+    "invalid-guard": "Opened",
     /*
     Habilita el diagnóstico para accesos a campos que son invisibles.
     */
@@ -1281,6 +1288,10 @@ object<string, string>
     Inyectando un campo en un objeto
     */
     "inject-field": "Warning",
+    /*
+    Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+    */
+    "invalid-guard": "Warning",
     /*
     Habilita el diagnóstico para accesos a campos que son invisibles.
     */

@@ -3,6 +3,7 @@ local vm = require 'vm.vm'
 
 ---@class vm.callNarrowRule
 ---@field match  fun(calleeNode: parser.object): boolean
+---@field statement? boolean the rule also narrows what follows a call used as a statement (an assertion): the tracer then cannot skip the walk of a variable that is only passed to such calls. `match` of such a rule is asked while the tracer is built, so it must decide by name and compile nothing
 ---@field narrow fun(tracer: vm.tracer, action: parser.object, topNode: vm.node, outNode?: vm.node): vm.node, vm.node?
 
 ---@type vm.callNarrowRule[]
@@ -14,6 +15,19 @@ local callNarrowRules = {}
 ---@param rule vm.callNarrowRule
 function vm.registerCallNarrowing(rule)
     callNarrowRules[#callNarrowRules+1] = rule
+end
+
+--- Whether a rule that narrows after a call used as a statement (`statement`) matches this callee:
+--- what the tracer needs to know before it may skip the walk of a variable that is only passed to calls.
+---@param calleeNode parser.object
+---@return boolean
+function vm.matchCallNarrowing(calleeNode)
+    for _, rule in ipairs(callNarrowRules) do
+        if rule.statement and rule.match(calleeNode) then
+            return true
+        end
+    end
+    return false
 end
 
 ---@param tracer   vm.tracer

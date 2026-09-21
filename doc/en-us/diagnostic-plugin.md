@@ -104,6 +104,7 @@ A plugin can teach the parser new tags. These are registries the parser consults
 | --- | --- |
 | `registerMarkerTag(name, docType, description?)` | `---@name`, a bare tag: a node `{ type = docType }` |
 | `registerNameListTag(name, docType, description?)` | `---@name a, b`: also a list of names, as `node.names` (each `{ type = docType .. '.name' }`) |
+| `registerGuardTag(name, docType, description?)` | `---@name x is T` / `---@name x is not T`: a parameter name and a type, as `node.param` (a name node), `node.extends` (a `doc.type`) and `node.negated`; anything else leaves the tag bare |
 | `registerBindRule(docType, rule)` | which declaration the tag binds to: `rule(doc, source, isParam)` |
 | `registerFieldKeyword(keyword, resultField, description?)` | a word before a field name: `---@field name mykeyword string` sets `resultField` on the `doc.field` |
 | `registerTypeKeyword(keyword, resultField, description?)` | a word before a type item: `---@param x mykeyword string`; only when a type follows it |

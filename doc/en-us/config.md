@@ -327,6 +327,7 @@ Array<string>
 * ``"incomplete-signature-doc"``: Incomplete @param or @return annotations for functions.
 * ``"index-in-func-name"``: Index in a function name
 * ``"inject-field"``: Injecting a field into an object
+* ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
 * ``"invisible"``: Enable diagnostics for accesses to fields which are invisible.
 * ``"jump-local-scope"``: Jumping into a local variable scope
 * ``"keyword"``: Improper use of a keyword
@@ -573,6 +574,7 @@ object<string, string>
     * duplicate-doc-field
     * duplicate-doc-param
     * incomplete-signature-doc
+    * invalid-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -713,6 +715,7 @@ object<string, string>
     * duplicate-doc-field
     * duplicate-doc-param
     * incomplete-signature-doc
+    * invalid-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -954,6 +957,10 @@ object<string, string>
     Injecting a field into an object
     */
     "inject-field": "Opened",
+    /*
+    Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+    */
+    "invalid-guard": "Opened",
     /*
     Enable diagnostics for accesses to fields which are invisible.
     */
@@ -1281,6 +1288,10 @@ object<string, string>
     Injecting a field into an object
     */
     "inject-field": "Warning",
+    /*
+    Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+    */
+    "invalid-guard": "Warning",
     /*
     Enable diagnostics for accesses to fields which are invisible.
     */

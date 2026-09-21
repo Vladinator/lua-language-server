@@ -327,6 +327,7 @@ Array<string>
 * ``"incomplete-signature-doc"``: 関数の @param または @return 注釈が不完全な場合の診断。
 * ``"index-in-func-name"``: 関数名にインデックスが含まれる
 * ``"inject-field"``: オブジェクトへのフィールド注入
+* ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
 * ``"invisible"``: 不可視フィールドへのアクセス診断を有効にします。
 * ``"jump-local-scope"``: ローカル変数のスコープにジャンプ
 * ``"keyword"``: キーワードの不適切な使用
@@ -573,6 +574,7 @@ object<string, string>
     * duplicate-doc-field
     * duplicate-doc-param
     * incomplete-signature-doc
+    * invalid-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -713,6 +715,7 @@ object<string, string>
     * duplicate-doc-field
     * duplicate-doc-param
     * incomplete-signature-doc
+    * invalid-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -954,6 +957,10 @@ object<string, string>
     オブジェクトへのフィールド注入
     */
     "inject-field": "Opened",
+    /*
+    Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+    */
+    "invalid-guard": "Opened",
     /*
     不可視フィールドへのアクセス診断を有効にします。
     */
@@ -1281,6 +1288,10 @@ object<string, string>
     オブジェクトへのフィールド注入
     */
     "inject-field": "Warning",
+    /*
+    Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+    */
+    "invalid-guard": "Warning",
     /*
     不可視フィールドへのアクセス診断を有効にします。
     */

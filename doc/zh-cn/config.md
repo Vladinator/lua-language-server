@@ -327,6 +327,7 @@ Array<string>
 * ``"incomplete-signature-doc"``: `@param`或`@return`的注释不完整
 * ``"index-in-func-name"``: 函数名中包含索引
 * ``"inject-field"``: 向对象注入字段
+* ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
 * ``"invisible"``: 使用不可见的值
 * ``"jump-local-scope"``: 跳入局部变量作用域
 * ``"keyword"``: 关键字使用不当
@@ -573,6 +574,7 @@ object<string, string>
     * duplicate-doc-field
     * duplicate-doc-param
     * incomplete-signature-doc
+    * invalid-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -713,6 +715,7 @@ object<string, string>
     * duplicate-doc-field
     * duplicate-doc-param
     * incomplete-signature-doc
+    * invalid-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -954,6 +957,10 @@ object<string, string>
     向对象注入字段
     */
     "inject-field": "Opened",
+    /*
+    Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+    */
+    "invalid-guard": "Opened",
     /*
     使用不可见的值
     */
@@ -1280,6 +1287,10 @@ object<string, string>
     向对象注入字段
     */
     "inject-field": "Warning",
+    /*
+    Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+    */
+    "invalid-guard": "Warning",
     /*
     使用不可见的值
     */

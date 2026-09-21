@@ -116,6 +116,29 @@ function m.isNameListTag(docType)
 end
 
 ---@type table<string, true>
+local guardTags = {}
+
+--- A tag that says something about a parameter of the function it is bound to and a type:
+--- `---@mytag x is T` or `---@mytag x is not T`, produced as `{ type = docType, param = <name node>,
+--- negated = <true when `not`>, extends = <doc.type> }`. Anything that does not read like that leaves
+--- the tag bare (no `param`, no `extends`), so a plugin can report it.
+---@param name        string tag name after the `@`, e.g. 'guard'
+---@param docType     string produced node's `.type`, e.g. 'doc.guard'
+---@param description? string shown by completion (markdown)
+function m.registerGuardTag(name, docType, description)
+    m.registerMarkerTag(name, docType, description)
+    guardTags[docType] = true
+    -- so the tree walkers (hover, completion, references, undefined-doc-name...) reach both parts
+    guide.registerChildren(docType, {'param', 'extends'})
+end
+
+---@param docType string
+---@return boolean
+function m.isGuardTag(docType)
+    return guardTags[docType] == true
+end
+
+---@type table<string, true>
 local continuesAfterClassGroup = {}
 
 --- Register a doc type that, appearing right after a `@class`/`@field`/

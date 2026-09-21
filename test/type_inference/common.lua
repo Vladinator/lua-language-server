@@ -5281,3 +5281,51 @@ local myClass
 
 local <?result?> = myClass:pass(42)
 ]]
+
+-- `---@return never`: a call of a function that never returns leaves the branch like `error` does
+TEST 'string' [[
+---@return never
+local function fail() error('x') end
+
+---@type string?
+local x
+if not x then
+    fail()
+end
+print(<?x?>)
+]]
+
+TEST 'string' [[
+---@return never
+local function fail() error('x') end
+
+---@type string?
+local x
+local y = x or fail()
+print(<?y?>)
+]]
+
+TEST 'string' [[
+local M = {}
+
+---@return never
+function M:fail() error('x') end
+
+---@type string?
+local x
+if x == nil then
+    M:fail()
+end
+print(<?x?>)
+]]
+
+TEST 'string?' [[
+local function plain() print('x') end
+
+---@type string?
+local x
+if not x then
+    plain()
+end
+print(<?x?>)
+]]

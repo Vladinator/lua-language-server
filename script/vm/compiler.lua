@@ -2791,7 +2791,7 @@ local compilerSwitch = util.switch()
             vm.setNode(source, node3)
         else
             local node = node2:copy()
-            if not source[3].hasExit then
+            if not vm.isNeverExpr(source[3]) then
                 node:merge(node3)
             end
             vm.setNode(source, node)

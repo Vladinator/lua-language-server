@@ -677,7 +677,7 @@ local lookIntoChild = util.switch()
                 local neverReturn = subBlock.hasReturn
                                 or  subBlock.hasGoTo
                                 or  subBlock.hasBreak
-                                or  subBlock.hasExit
+                                or  vm.blockExits(subBlock)
                 if neverReturn then
                     mergedNode = true
                 else
@@ -1130,7 +1130,7 @@ function mt:hasGuardedInit(loop, assigns, firstBreak, lastBreak)
             if not operand or not self.getMap[operand] then
                 goto continue
             end
-            if block.hasReturn or block.hasBreak or block.hasGoTo or block.hasExit then
+            if block.hasReturn or block.hasBreak or block.hasGoTo or vm.blockExits(block) then
                 goto continue
             end
             local initialises = false

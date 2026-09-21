@@ -69,3 +69,30 @@ end
 
 print(1)
 ]]
+
+-- both branches end in a call of a `never` function
+TEST [[
+---@return never
+local function fail() error('x') end
+
+local function f(x)
+    if x then
+        fail()
+    else
+        fail()
+    end
+    <!print(1)!>
+end
+]]
+
+TEST [[
+---@return never
+local function fail() error('x') end
+
+local function f(x)
+    if x then
+        fail()
+    end
+    print(1)
+end
+]]

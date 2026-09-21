@@ -18,7 +18,7 @@ protoDiagnostic.register {
 ---@param block parser.object
 ---@return boolean
 local function hasReturn(block)
-    if block.hasReturn or block.hasExit then
+    if block.hasReturn or vm.blockExits(block) then
         return true
     end
     if block.type == 'if' then
@@ -67,6 +67,10 @@ return function (uri, callback)
         end
         await.delay()
         if vm.countReturnsOfSource(source) == 0 then
+            return
+        end
+        -- (`---@return never`: it does not return, and that is the annotation)
+        if vm.declaresNever(source) then
             return
         end
         if hasReturn(source) then

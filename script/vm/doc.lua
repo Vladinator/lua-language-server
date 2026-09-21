@@ -4,6 +4,7 @@ local guide  = require 'parser.guide'
 ---@class vm
 local vm     = require 'vm.vm'
 local config = require 'config'
+local scope  = require 'workspace.scope'
 
 ---@class parser.object
 ---@field package _castTargetHead? parser.object | vm.global | false
@@ -309,6 +310,201 @@ function vm.isNoDiscard(value, deep)
             if isNoDiscard(def) then
                 return true
             end
+        end
+    end
+    return false
+end
+
+-- `---@return never`: a function that does not return, because it always raises an error (`fail()`,
+-- `panic()`). A call of one ends the block it is in like `error(...)` does: no `missing-return` after
+-- it, `if not x then fail() end` leaves `x` non-nil, `x or fail()` is `x` without nil. The parser
+-- marks `error` and `os.exit` calls (`hasExit`) by their names; a function of the user is only known
+-- by its docs, so the callee is looked up: first by name (the names of the functions that declare it,
+-- worked out per file and per scope, cost nothing for a call of any other name), then by `vm.getDefs`.
+
+---@param doc parser.object
+---@return boolean
+local function isNeverReturn(doc)
+    if doc.type ~= 'doc.return' or not doc.returns then
+        return false
+    end
+    ---@type parser.object?
+    local first = doc.returns[1]
+    local types = first and first.types
+    if not types or #types ~= 1 then
+        return false
+    end
+    return types[1].type == 'doc.type.name' and types[1][1] == 'never'
+end
+
+--- Whether a function declares `---@return never` (the docs are bound to the function and to what it is
+--- assigned to).
+---@param func parser.object
+---@return boolean
+function vm.declaresNever(func)
+    ---@type parser.object[][]
+    local lists = { func.bindDocs or {} }
+    local parent = func.parent
+    if parent and parent.value == func and parent.bindDocs then
+        lists[2] = parent.bindDocs
+    end
+    for _, list in ipairs(lists) do
+        for _, doc in ipairs(list) do
+            if isNeverReturn(doc) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--- The name a function is known by: `local function f`, `function M.f`, `function M:f`, `M.f = function`.
+---@param source parser.object?
+---@return string?
+local function nameOfFunction(source)
+    if not source then
+        return nil
+    end
+    if source.type == 'function' then
+        source = source.parent
+        if not source then
+            return nil
+        end
+    end
+    local t = source.type
+    if t == 'local' or t == 'setlocal' or t == 'setglobal' then
+        return source[1] --[[@as string?]]
+    elseif t == 'setfield' or t == 'tablefield' then
+        return source.field and source.field[1] --[[@as string?]]
+    elseif t == 'setmethod' then
+        return source.method and source.method[1] --[[@as string?]]
+    end
+    return nil
+end
+
+---@param uri uri
+---@return table<string, true>|false
+local function getNeverNamesOfFile(uri)
+    local cache = files.getCache(uri)
+    if not cache then
+        return false
+    end
+    ---@type table<string, true>|false|nil
+    local names = cache['never.names']
+    if names ~= nil then
+        return names
+    end
+    ---@type table<string, true>
+    local found = {}
+    local state = files.getState(uri)
+    for _, doc in ipairs(state and state.ast.docs or {}) do
+        if isNeverReturn(doc) then
+            -- a name that cannot be found matches every callee (the price is only the lookup)
+            found[nameOfFunction(doc.bindSource) or '*'] = true
+        end
+    end
+    names = next(found) ~= nil and found
+    cache['never.names'] = names
+    return names
+end
+
+---@param uri uri
+---@return table<string, true>
+local function getNeverNames(uri)
+    local cache = vm.getCache('never.names') --[[@as table<string, table<string, true>>]]
+    local key   = scope.getScope(uri):getName()
+    local names = cache[key]
+    if names then
+        return names
+    end
+    ---@type table<string, true>
+    names = {}
+    for fileUri in files.eachFile(uri) do
+        local fileNames = getNeverNamesOfFile(fileUri)
+        if fileNames then
+            for name in pairs(fileNames) do
+                names[name] = true
+            end
+        end
+    end
+    cache[key] = names
+    return names
+end
+
+--- Is this call one that never returns: `error(...)`, `os.exit(...)` (marked by the parser) or a function
+--- that declares `---@return never`?
+---@param call parser.object
+---@return boolean
+function vm.isNeverCall(call)
+    if call.hasExit then
+        return true
+    end
+    ---@type parser.object?
+    local callee = call.node
+    if not callee then
+        return false
+    end
+    ---@type string?
+    local name
+    local t = callee.type
+    if t == 'getlocal' or t == 'getglobal' then
+        name = callee[1] --[[@as string?]]
+    elseif t == 'getfield' then
+        name = callee.field and callee.field[1] --[[@as string?]]
+    elseif t == 'getmethod' then
+        name = callee.method and callee.method[1] --[[@as string?]]
+    end
+    if not name then
+        return false
+    end
+    local names = getNeverNames(guide.getUri(call))
+    if not names[name] and not names['*'] then
+        return false
+    end
+    local cache = vm.getCache('never.calls') --[[@as table<parser.object, boolean>]]
+    local known = cache[call]
+    if known ~= nil then
+        return known
+    end
+    -- (marked first: the lookup compiles, and a call inside what it compiles asks again)
+    cache[call] = false
+    local result = false
+    for _, def in ipairs(vm.getDefs(callee)) do
+        ---@type parser.object?
+        local func = def.type == 'function' and def
+            or (def.value and def.value.type == 'function' and def.value)
+            or nil
+        if func and vm.declaresNever(func) then
+            result = true
+            break
+        end
+    end
+    cache[call] = result
+    return result
+end
+
+--- An expression that does not give a value because it never returns (`error(...)`, a `never` call).
+---@param exp parser.object
+---@return boolean
+function vm.isNeverExpr(exp)
+    return exp.hasExit == true or (exp.type == 'call' and vm.isNeverCall(exp))
+end
+
+--- Does the block end in a call that never returns? The parser marks `error` / `os.exit` calls in the
+--- blocks that can leave (`hasExit`); a call of a `never` function is found here.
+---@param block parser.object
+---@return boolean
+function vm.blockExits(block)
+    if block.hasExit then
+        return true
+    end
+    local t = block.type
+    if t ~= 'function' and t ~= 'ifblock' and t ~= 'elseifblock' and t ~= 'elseblock' then
+        return false
+    end
+    for _, action in ipairs(block) do
+        if action.type == 'call' and vm.isNeverCall(action) then
+            return true
         end
     end
     return false

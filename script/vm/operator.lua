@@ -264,7 +264,7 @@ vm.binarySwitch = util.switch()
             vm.setNode(source, node2)
         else
             local node = node1:copy():setTruthy()
-            if not source[2].hasExit then
+            if not vm.isNeverExpr(source[2]) then
                 node:merge(node2)
             end
             vm.setNode(source, node)
@@ -297,7 +297,7 @@ vm.binarySwitch = util.switch()
         elseif hasNil then
             -- a 可能为 nil → (a 去 nil) | b
             local node = node1:copy():removeOptional()
-            if not source[2].hasExit then
+            if not vm.isNeverExpr(source[2]) then
                 node:merge(node2)
             end
             vm.setNode(source, node)

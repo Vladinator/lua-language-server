@@ -174,3 +174,52 @@ function F(t)
 
 end
 ]]
+
+-- `---@return never`: a call of a function that never returns ends the function like `error` does,
+-- and the function itself is not asked for a return
+TEST [[
+---@return never
+local function fail(msg)
+    error(msg)
+end
+
+---@return integer
+local function f(x)
+    if x then
+        return 1
+    end
+    fail('no')
+end
+
+---@return integer
+local function g(x)
+    if x then
+        return 1
+    else
+        fail('no')
+    end
+end
+
+local M = {}
+
+---@return never
+function M.die() error('x') end
+
+---@return integer
+function M.h()
+    M.die()
+end
+]]
+
+-- an ordinary function is still asked for its return
+TEST [[
+---@return integer
+local function plain(msg)
+    return 1
+end
+
+---@return integer
+local function f(x)
+    plain('no')<!!>
+end
+]]

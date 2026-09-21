@@ -34,7 +34,7 @@ end
 ---@param block parser.object
 ---@return boolean
 local function hasReturn(block)
-    if block.hasReturn or block.hasExit then
+    if block.hasReturn or vm.blockExits(block) then
         return true
     end
     if block.type == 'if' then

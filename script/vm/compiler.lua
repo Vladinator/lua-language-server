@@ -3156,6 +3156,16 @@ local function compileFresh(source, pass)
         if ancestor then
             taintedBy[source] = ancestor
             ancestor.tainted[#ancestor.tainted+1] = source
+            -- what consumed the half-built node of this frame is only good as long as this frame
+            -- is: it goes with it, dropped when the ancestor is done
+            ---@type any[]
+            local tainted = frame.tainted
+            for _, t in ipairs(tainted) do
+                if taintedBy[t] == frame then
+                    taintedBy[t] = ancestor
+                    ancestor.tainted[#ancestor.tainted+1] = t
+                end
+            end
         end
         ---@type vm.compileFrame?
         local parent = frames[depth]

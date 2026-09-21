@@ -274,6 +274,22 @@ for i = 1, 10 do
 end
 print(a, b)
 ]==],
+    -- three assignments in a row: what depended on the half-built middle one (the last read) was
+    -- kept when that one was itself part of a bigger cycle
+    chained = [==[
+---@param str string
+local function f(str)
+    local pos = 1
+    while pos <= #str do
+        pos = pos + 1
+        if pos < #str then
+            pos = pos + 1
+            local byte2 = str:byte(pos, pos)
+            pos = pos + 1
+        end
+    end
+end
+]==],
     -- declared nil, assigned under a condition, then used
     guarded = [==[
 ---@param a boolean

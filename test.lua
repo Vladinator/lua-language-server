@@ -92,6 +92,7 @@ local function testAll()
     test 'other'
     test 'fuzz_doc'
     test 'editor_sim'
+    test 'order_diff'
     test 'suggest_returns'
     test 'diag_partial'
 end
@@ -112,7 +113,7 @@ local function main()
 
     -- the editor_sim dev harness diagnoses the repository itself
     local simulateEditor = TARGET_TEST_NAME
-        and (('editor_sim'):match(TARGET_TEST_NAME) or ('suggest_returns'):match(TARGET_TEST_NAME))
+        and (('editor_sim'):match(TARGET_TEST_NAME) or ('suggest_returns'):match(TARGET_TEST_NAME) or ('order_diff'):match(TARGET_TEST_NAME))
     TESTROOT = ROOT:string() .. (simulateEditor and '/' or '/test_root/')
     TESTROOTURI = furi.encode(TESTROOT)
     TESTURI = furi.encode(TESTROOT .. 'unittest.lua')

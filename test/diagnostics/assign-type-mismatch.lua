@@ -479,3 +479,73 @@ t.a = 1
 t.a = 2
 return t
 ]]
+
+-- `never` is the type of a value that cannot exist: assigning to it after a chain that handled every
+-- variant is the exhaustiveness check, and it reports the variant that is still possible
+TEST [[
+---@param x string|number|boolean
+local function f(x)
+    if type(x) == 'string' then
+        return 1
+    elseif type(x) == 'number' then
+        return 2
+    else
+        ---@type never
+        local <!_bad!> = x
+    end
+end
+]]
+
+TEST [[
+---@param x string|number
+local function f(x)
+    if type(x) == 'string' then
+        return 1
+    elseif type(x) == 'number' then
+        return 2
+    else
+        ---@type never
+        local _ok = x
+    end
+end
+]]
+
+TEST [[
+---@class Circle
+---@field kind 'circle'
+---@class Square
+---@field kind 'square'
+---@class Tri
+---@field kind 'tri'
+
+---@param s Circle|Square|Tri
+local function area(s)
+    if s.kind == 'circle' then
+        return 1
+    elseif s.kind == 'square' then
+        return 2
+    else
+        ---@type never
+        local <!_missing!> = s
+    end
+end
+]]
+
+TEST [[
+---@class Circle
+---@field kind 'circle'
+---@class Square
+---@field kind 'square'
+
+---@param s Circle|Square
+local function area(s)
+    if s.kind == 'circle' then
+        return 1
+    elseif s.kind == 'square' then
+        return 2
+    else
+        ---@type never
+        local _all = s
+    end
+end
+]]

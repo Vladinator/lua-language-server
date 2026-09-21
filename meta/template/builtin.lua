@@ -2,6 +2,7 @@
 
 ---@class unknown
 ---@class any
+---@class never
 ---@class nil
 ---@class boolean
 ---@class true: boolean

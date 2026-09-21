@@ -2377,6 +2377,40 @@ while x do
 end
 ]]
 
+-- a loop with a condition is also left through its `break`s, where the condition held: the
+-- variable was `unknown` (nothing) after `while x do break end`
+TEST 'integer' [[
+---@type integer
+local x
+
+while x do
+    break
+end
+print(<?x?>)
+]]
+
+TEST 'integer?' [[
+---@type integer?
+local x
+
+while x do
+    break
+end
+print(<?x?>)
+]]
+
+-- a loop without a `break` keeps what the condition says
+TEST 'integer' [[
+---@type integer
+local x
+
+local n = 0
+while n < 10 do
+    n = n + 1
+end
+print(<?x?>)
+]]
+
 TEST 'integer' [[
 ---@type fun():integer?
 local iter

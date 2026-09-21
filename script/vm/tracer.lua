@@ -114,7 +114,7 @@ function mt:collectCare(obj)
 
         -- what the variable is after `while true do ... end` is what it is at the `break`s, so
         -- the walks have to go through them
-        if obj.type == 'while' and obj.breaks and isConstantTrue(obj.filter) then
+        if obj.type == 'while' and obj.breaks then
             self.trackBreaks[obj] = true
             for _, brk in ipairs(obj.breaks) do
                 self:collectCare(brk)
@@ -627,7 +627,7 @@ local lookIntoChild = util.switch()
             if actionNode then
                 topNode = mainNode:merge(actionNode)
             end
-            if tracer.trackBreaks[action] then
+            if tracer.trackBreaks[action] and isConstantTrue(action.filter) then
                 topNode = tracer:getBreakExit(action, topNode) or topNode
             end
         end
@@ -637,6 +637,13 @@ local lookIntoChild = util.switch()
                 tracer.mark[src] = nil
             end)
             blockNode, topNode = tracer:lookIntoChild(action.filter, topNode:copy(), topNode:copy())
+            if tracer.trackBreaks[action] and not isConstantTrue(action.filter) then
+                -- a loop that has a condition is also left through its `break`s, in the state the
+                -- variable has there (`while x do break end`: `x` is not falsy after it)
+                for _, breakNode in ipairs(tracer.breakNodes[action] or {}) do
+                    topNode:merge(breakNode)
+                end
+            end
         end
         return topNode, outNode
     end)

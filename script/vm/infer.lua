@@ -244,7 +244,12 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
                     buf[#buf+1] = ('[%q]: '):format(key[1])
                 end
             end
-            buf[#buf+1] = vm.getInfer(field.extends):view(uri)
+            local fieldNode = vm.compileNode(field.extends)
+            if field.optional then
+                fieldNode = fieldNode:copy()
+                fieldNode:addOptional()
+            end
+            buf[#buf+1] = vm.getInfer(fieldNode):view(uri)
         end
         buf[#buf+1] = source.isTuple and ']' or ' }'
         return table.concat(buf)

@@ -2674,6 +2674,10 @@ local compilerSwitch = util.switch()
         end
         local fieldNode = vm.compileNode(source.extends)
         if source.optional then
+            -- (a copy: the node of the type is shared, and adding the `?` to it made the type
+            -- `text: string` or `text: string?` in a view depending on whether the field had been
+            -- compiled yet)
+            fieldNode = fieldNode:copy()
             fieldNode:addOptional()
         end
         vm.setNode(source, fieldNode)
@@ -2691,6 +2695,10 @@ local compilerSwitch = util.switch()
         end
         local fieldNode = vm.compileNode(source.extends)
         if source.optional then
+            -- (a copy: the node of the type is shared, and adding the `?` to it made the type
+            -- `text: string` or `text: string?` in a view depending on whether the field had been
+            -- compiled yet)
+            fieldNode = fieldNode:copy()
             fieldNode:addOptional()
         end
         vm.setNode(source, fieldNode)

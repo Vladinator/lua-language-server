@@ -1272,7 +1272,7 @@ function mt:calcNode(source)
         self.nodes[source] = node
         local parentBlock = guide.getParentBlock(source)
         if parentBlock then
-            self:lookIntoBlock(parentBlock, source.finish, node, source.type == 'setlocal' and source.effect or nil)
+            self:lookIntoBlock(parentBlock, source.finish, node, (source.type == 'setlocal' or source.type == 'setfield' or source.type == 'setindex') and source.effect or nil)
         end
         return
     end

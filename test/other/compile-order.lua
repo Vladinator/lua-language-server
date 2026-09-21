@@ -290,6 +290,29 @@ local function f(str)
     end
 end
 ]==],
+    -- `t.x = t.x or {}`: the read on the right is the field as it was BEFORE the assignment (`?` when
+    -- it is declared optional); the walk from the assignment used to visit its own statement
+    field_default = [==[
+---@class D
+---@field _hits? table<string, boolean>
+
+---@param doc D
+---@param name string
+local function f(doc, name)
+    doc._hits = doc._hits or {}
+    doc._hits[name] = true
+end
+]==],
+    -- a table type with optional fields, viewed before and after a read of one of them: the `?` was
+    -- added to the shared node of the field type when the field was compiled
+    optional_fields = [==[
+---@alias T { uri: string, text?: string, version?: integer }
+
+---@param doc T
+local function f(doc)
+    print(doc.text, doc.version, doc.uri)
+end
+]==],
     -- declared nil, assigned under a condition, then used
     guarded = [==[
 ---@param a boolean
@@ -322,7 +345,8 @@ local function loopSources(name, text)
     ---@type parser.object[]
     local list = {}
     guide.eachSource(state.ast, function (source)
-        if source.type == 'local' or source.type == 'getlocal' or source.type == 'setlocal' then
+        if source.type == 'local' or source.type == 'getlocal' or source.type == 'setlocal'
+        or source.type == 'getfield' or source.type == 'setfield' then
             list[#list+1] = source
         end
     end)

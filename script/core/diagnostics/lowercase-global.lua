@@ -11,6 +11,7 @@ protoDiagnostic.register {
     'lowercase-global',
 } {
     group    = 'global',
+    narrowSettings = { 'Lua.diagnostics.globals', 'Lua.diagnostics.globalsRegex' },
     severity = 'Information',
     status   = 'Any',
     description = 'Enable lowercase global variable definition diagnostics.',

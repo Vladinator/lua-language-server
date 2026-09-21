@@ -11,6 +11,7 @@ protoDiagnostic.register {
     'global-element',
 } {
     group    = 'conventions',
+    narrowSettings = { 'Lua.diagnostics.globals', 'Lua.diagnostics.globalsRegex' },
     severity = 'Warning',
     status   = 'None',
     description = 'Enable diagnostics to warn about global elements.',

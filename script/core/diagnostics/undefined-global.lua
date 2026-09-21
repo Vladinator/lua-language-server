@@ -17,6 +17,7 @@ protoDiagnostic.register {
     'undefined-global',
 } {
     group    = 'global',
+    narrowSettings = { 'Lua.diagnostics.globals', 'Lua.diagnostics.globalsRegex' },
     severity = 'Warning',
     status   = 'Any',
     description = 'Enable undefined global variable diagnostics.',

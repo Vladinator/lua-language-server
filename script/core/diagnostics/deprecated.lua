@@ -15,6 +15,7 @@ protoDiagnostic.register {
     'deprecated',
 } {
     group    = 'strict',
+    narrowSettings = { 'Lua.diagnostics.globals', 'Lua.diagnostics.globalsRegex' },
     severity = 'Warning',
     status   = 'Any',
     description = 'Enable diagnostics to highlight deprecated API.',

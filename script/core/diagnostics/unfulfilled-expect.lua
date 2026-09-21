@@ -13,6 +13,20 @@ protoDiagnostic.register {
     group    = 'luadoc',
     severity = 'Warning',
     status   = 'Any',
+    afterAll = true,
+    -- a file with `expect-*` comments is always diagnosed completely: what the other diagnostics
+    -- suppressed is recorded while they run
+    ---@param state parser.state
+    ---@return boolean
+    fullRunWhen = function (state)
+        for _, doc in ipairs(state.ast.docs or {}) do
+            if  doc.type == 'doc.diagnostic'
+            and (doc.mode == 'expect-next-line' or doc.mode == 'expect-line') then
+                return true
+            end
+        end
+        return false
+    end,
     description = 'Enable diagnostics for `---@diagnostic expect-next-line` / `expect-line` comments whose expected diagnostic did not occur, so a stale suppression cannot outlive the problem it hid.',
 }
 

@@ -12,6 +12,7 @@ protoDiagnostic.register {
     'unused-local',
 } {
     group    = 'unused',
+    narrowSettings = { 'Lua.diagnostics.unusedLocalExclude' },
     severity = 'Hint',
     status   = 'Opened',
     description = 'Enable unused local variable diagnostics.',

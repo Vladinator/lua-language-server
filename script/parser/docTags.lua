@@ -270,10 +270,10 @@ function m.eachAttribute(docType)
     end
 end
 
--- the attributes the core checkers read
+-- the attributes of the language the core checkers read (an attribute only one diagnostic reads is
+-- registered by that diagnostic's own file: `incremental` in missing-fields.lua)
 m.registerAttribute('doc.class', 'exact', 'Fields that are assigned to this class but not declared are reported (`inject-field`).')
 m.registerAttribute('doc.class', 'partial', 'The class may be declared again elsewhere; the declarations are merged and complete each other (`missing-fields`).')
-m.registerAttribute('doc.class', 'incremental', 'A table constructor `{}` for this class is not checked for missing fields, it is filled in step by step (`missing-fields`, fork extension).')
 m.registerAttribute('doc.alias', 'partial', 'The alias may be declared more than once; the declarations are merged (`duplicate-doc-alias`).')
 m.registerAttribute('doc.enum', 'key', 'The enum stands for the keys of the table, not its values.')
 

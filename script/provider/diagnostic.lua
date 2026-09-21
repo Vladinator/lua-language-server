@@ -375,15 +375,15 @@ local function isValid(uri)
     return true
 end
 
---- Whether the file has `---@diagnostic expect-next-line` / `expect-line` comments: the
---- `unfulfilled-expect` check reads what every other diagnostic suppressed, so such a file
---- always gets all of them.
+--- Whether the diagnostics of a file have to run all, not just `only` some: a diagnostic that
+--- runs `afterAll` needs the outcome of every other one, so a request for it, or a file that
+--- it says it must always see complete (`fullRunWhen`), gets all of them.
 ---@param state parser.state
+---@param only  table<string, true>
 ---@return boolean
-local function hasExpectDirective(state)
-    for _, doc in ipairs(state.ast.docs or {}) do
-        if  doc.type == 'doc.diagnostic'
-        and (doc.mode == 'expect-next-line' or doc.mode == 'expect-line') then
+local function needsFullRun(state, only)
+    for name, data in pairs(diagd.diagnosticDatas) do
+        if data.afterAll and (only[name] or (data.fullRunWhen and data.fullRunWhen(state))) then
             return true
         end
     end
@@ -410,8 +410,7 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState, only)
 
     if only
     and (not m.complete[uri]
-      or only['unfulfilled-expect']
-      or hasExpectDirective(state)) then
+      or needsFullRun(state, only)) then
         only = nil
     end
 
@@ -911,13 +910,10 @@ files.watch(function (ev, uri) ---@async
     end
 end)
 
---- The diagnostics that read these settings.
+--- The diagnostics that read a setting are listed by the diagnostics themselves (`reads` of their
+--- registration); these are the settings that are read by the pass and not by a diagnostic.
 ---@type table<string, string[]>
 local readers = {
-    ['Lua.diagnostics.globals']            = { 'undefined-global', 'deprecated', 'global-element', 'lowercase-global' },
-    ['Lua.diagnostics.globalsRegex']       = { 'undefined-global', 'deprecated', 'global-element', 'lowercase-global' },
-    ['Lua.diagnostics.unusedLocalExclude'] = { 'unused-local' },
-    ['Lua.spell.dict']                     = { 'spell-check' },
     -- read by the pass itself, when it sleeps between two checks
     ['Lua.diagnostics.workspaceRate']      = {},
 }
@@ -976,13 +972,21 @@ function m.getAffectedDiagnostics(key, value, oldValue)
         for _, name in ipairs(reading) do
             names[name] = true
         end
-    elseif key == 'Lua.diagnostics.disable'
-    or     key == 'Lua.diagnostics.severity'
-    or     key == 'Lua.diagnostics.neededFileStatus' then
+    end
+    -- the settings that belong to some diagnostics (`narrowSettings` of their registration)
+    for name, data in pairs(diagd.diagnosticDatas) do
+        if data.narrowSettings and util.arrayHas(data.narrowSettings, key) then
+            names = names or {}
+            names[name] = true
+        end
+    end
+    if not names and (key == 'Lua.diagnostics.disable'
+                    or key == 'Lua.diagnostics.severity'
+                    or key == 'Lua.diagnostics.neededFileStatus') then
         -- a list of names, or a map from names
         names = differences(value, oldValue)
-    elseif key == 'Lua.diagnostics.groupSeverity'
-    or     key == 'Lua.diagnostics.groupFileStatus' then
+    elseif not names and (key == 'Lua.diagnostics.groupSeverity'
+                       or key == 'Lua.diagnostics.groupFileStatus') then
         local groups = differences(value, oldValue)
         names = {}
         for name in pairs(diagd.diagnosticDatas) do
@@ -1001,9 +1005,14 @@ function m.getAffectedDiagnostics(key, value, oldValue)
             end
         end
     end
-    -- `unfulfilled-expect` needs the outcome of every other diagnostic
-    if names and names['unfulfilled-expect'] then
-        return nil
+    -- a diagnostic that runs after all the others needs the outcome of every one of them
+    if names then
+        for name in pairs(names) do
+            local data = diagd.diagnosticDatas[name]
+            if data and data.afterAll then
+                return nil
+            end
+        end
     end
     return names
 end

@@ -1,7 +1,7 @@
 local util = require 'utility'
 
 ---@class proto.diagnostic
----@field diagnosticDatas  table<string, {severity: DiagnosticSeverity, status: DiagnosticNeededFileStatus, description?: string, reads?: string[]}>
+---@field diagnosticDatas  table<string, {severity: DiagnosticSeverity, status: DiagnosticNeededFileStatus, description?: string, reads?: string[], narrowSettings?: string[], afterAll?: boolean, fullRunWhen?: fun(state: parser.state): boolean}>
 ---@field diagnosticGroups table<string, table<string, boolean>>
 ---@field _errNames? table<string, true>
 ---@field isEnabled fun(uri: uri, name: string, ignoreFileOpenState?: boolean): boolean set by core.diagnostics; whether a diagnostic runs for a file under the current config
@@ -44,6 +44,9 @@ local m = {}
 ---@field group    string
 ---@field description? string English text for the settings docs/schema (`config.diagnostics.<name>`); each plugin carries its own so deleting it removes everything
 ---@field reads? string[] settings the diagnostic reads beyond its own severity / status, for example `Lua.diagnostics.globals`. When one of them changes, a workspace diagnosis runs this diagnostic again (the ones the server knows about are listed in provider/diagnostic.lua); leave it out and the diagnostic keeps its old results until the next full pass
+---@field narrowSettings? string[] settings that ONLY diagnostics naming them read (`Lua.diagnostics.globals` is read by the global checks and nothing else): when one changes, a workspace diagnosis runs just those diagnostics again instead of all of them. List a setting others read too and their results go stale, so it is for settings that belong to the diagnostic
+---@field afterAll? boolean the diagnostic reads the outcome of all the others (`unfulfilled-expect` reports what the other diagnostics did with `---@diagnostic expect-*`): it runs after every other one on a file, and asking for it, or a change that concerns it, means all of them
+---@field fullRunWhen? fun(state: parser.state): boolean for an `afterAll` diagnostic: a file it returns true for is never diagnosed partially
 
 m.diagnosticDatas  = {}
 m.diagnosticGroups = {}
@@ -72,6 +75,9 @@ function m.register(names)
                 status      = info.status,
                 description = info.description,
                 reads       = info.reads,
+                narrowSettings = info.narrowSettings,
+                afterAll    = info.afterAll,
+                fullRunWhen = info.fullRunWhen,
             }
             defaultSeverity[name] = info.severity
             defaultStatus[name]   = info.status

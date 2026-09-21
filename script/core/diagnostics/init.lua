@@ -353,9 +353,9 @@ local function buildDiagList()
         ---@type string[]
         local names = {}
         for name in pairs(diagd.diagnosticDatas) do
-            -- `unfulfilled-expect` reads what every other diagnostic suppressed, so it
-            -- always runs last (see the tail of the exported function)
-            if name ~= 'unfulfilled-expect' then
+            -- a diagnostic that reads the outcome of all the others (`afterAll`) always runs
+            -- last (see the tail of the exported function)
+            if not diagd.diagnosticDatas[name].afterAll then
                 names[#names+1] = name
             end
         end
@@ -429,10 +429,20 @@ return function (uri, isScopeDiag, response, checked, ignoreFileOpenState, only)
     if only then
         return nil
     end
-    -- ran the whole list for this file: now report `expect-*` comments that
-    -- suppressed nothing
-    await.delay()
-    if check(uri, 'unfulfilled-expect', isScopeDiag, response, ignoreFileOpenState) and checked then
-        checked('unfulfilled-expect')
+    -- ran the whole list for this file: now the diagnostics that need the outcome of all
+    -- of it (`unfulfilled-expect`: `expect-*` comments that suppressed nothing)
+    ---@type string[]
+    local afterAll = {}
+    for name, data in pairs(diagd.diagnosticDatas) do
+        if data.afterAll then
+            afterAll[#afterAll+1] = name
+        end
+    end
+    table.sort(afterAll)
+    for _, name in ipairs(afterAll) do
+        await.delay()
+        if check(uri, name, isScopeDiag, response, ignoreFileOpenState) and checked then
+            checked(name)
+        end
     end
 end

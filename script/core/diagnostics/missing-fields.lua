@@ -3,6 +3,7 @@ local files           = require 'files'
 local guide           = require 'parser.guide'
 local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
+local docTags         = require 'parser.docTags'
 
 local MESSAGE = 'Missing required fields in type `%s`: %s'
 
@@ -19,6 +20,11 @@ protoDiagnostic.register {
     status   = 'Any',
     description = 'Missing fields',
 }
+
+-- `---@class (incremental) X`: a table constructor for the class is not checked for missing fields, it
+-- is filled in step by step. The attribute is this diagnostic's own (a fork extension), so it is
+-- registered here and not with the attributes of the language in parser/docTags.lua.
+docTags.registerAttribute('doc.class', 'incremental', 'A table constructor `{}` for this class is not checked for missing fields, it is filled in step by step (`missing-fields`).')
 
 --- The keys a table has to have to be a complete `def`: its fields that are neither optional nor
 --- nullable. Worked out once per class definition, not for every table constructor that is checked

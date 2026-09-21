@@ -73,8 +73,7 @@ completion of the name after `---@diagnostic disable:`, and the documentation of
 ## Settings the diagnostic reads
 
 When a `Lua.diagnostics.*` setting changes, the workspace diagnosis does not restart: it runs again just the
-diagnostics that read the setting. The server knows which built-in diagnostics read which setting; for a
-plugin, say it in the registration:
+diagnostics that read the setting. Each diagnostic says it in its own registration, built-in or plugin:
 
 ```lua
 protoDiagnostic.register { 'no-todo' } {
@@ -86,9 +85,16 @@ protoDiagnostic.register { 'no-todo' } {
 Without `reads`, a change of a setting your diagnostic reads is not seen until the next full pass
 (a save, by default). The diagnostic's own severity and status need no entry.
 
+`reads` is safe for any setting (a change the server cannot narrow down still runs everything). A
+diagnostic that owns a setting, one that nothing else reads (the built-in global checks and
+`Lua.diagnostics.globals`), can list it in `narrowSettings` instead: the change then runs just the
+diagnostics that list it, not all of them. Listing a setting other diagnostics read too leaves their results stale.
+
 `---@diagnostic expect-next-line` / `expect-line` comments work with plugin diagnostics like with
-any other (the `unfulfilled-expect` check reads what every diagnostic suppressed, so a file with such
-comments always gets all diagnostics).
+any other. A diagnostic that needs the outcome of all the others says `afterAll = true` in its
+registration (`unfulfilled-expect` does: it reports what the others did not suppress): it runs after the
+rest, and a request for it, or for a file it says it must always see complete (`fullRunWhen = function (state)
+... end`, for `unfulfilled-expect` a file with such comments), runs all the diagnostics.
 
 ## LuaDoc tags, keywords and attributes (`parser/docTags.lua`)
 

@@ -8,6 +8,7 @@ protoDiagnostic.register {
     'spell-check',
 } {
     group    = 'codestyle',
+    narrowSettings = { 'Lua.spell.dict' },
     severity = 'Information',
     status   = 'None',
     description = 'Enable diagnostics for typos in strings.',

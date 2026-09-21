@@ -14,6 +14,11 @@ TEST [[
 local a = 1
 ]]
 
+TEST [[
+---@nosecret a, <!oops!>
+local a, b = 1, 2
+]]
+
 -- all names found: fine
 TEST [[
 ---@secret b

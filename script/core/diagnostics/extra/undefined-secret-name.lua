@@ -1,4 +1,4 @@
--- Companion of need-check-secret.lua: `---@secret a, b` / `---@secret-unwrap a, b`
+-- Companion of need-check-secret.lua: `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b`
 -- must name locals of the statement the tag is bound to; a name that matches
 -- nothing (a typo, or a local that was renamed) silently does nothing, so report it.
 
@@ -14,7 +14,7 @@ protoDiagnostic.register {
     group    = 'secret',
     severity = 'Warning',
     status   = 'Opened',
-    description = 'Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` that is not a local of the statement the tag applies to.',
+    description = 'Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.',
 }
 
 ---@async
@@ -31,7 +31,7 @@ return function (uri, callback)
             return
         end
         for _, doc in ipairs(source.bindDocs) do
-            if (doc.type == 'doc.secret' or doc.type == 'doc.secret-unwrap') and doc.names then
+            if (doc.type == 'doc.secret' or doc.type == 'doc.secret-unwrap' or doc.type == 'doc.nosecret') and doc.names then
                 ---@type table<string, true>
                 local names = bound[doc] or {}
                 bound[doc] = names
@@ -41,7 +41,7 @@ return function (uri, callback)
     end)
 
     for _, doc in ipairs(state.ast.docs) do
-        if (doc.type == 'doc.secret' or doc.type == 'doc.secret-unwrap') and doc.names then
+        if (doc.type == 'doc.secret' or doc.type == 'doc.secret-unwrap' or doc.type == 'doc.nosecret') and doc.names then
             local locals = bound[doc] or {}
             for _, name in ipairs(doc.names) do
                 if not locals[name[1]] then

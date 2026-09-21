@@ -54,6 +54,8 @@ docTags.registerNameListTag('secret', 'doc.secret',
 docTags.registerNameListTag('secret-unwrap', 'doc.secret-unwrap',
     'Clears the secret flag a local would inherit from its value, e.g. from a call returning a secret.\n\n'
     ..'`---@secret-unwrap a, b` limits it to the named locals.')
+docTags.registerNameListTag('nosecret', 'doc.nosecret',
+    'The other way round from `@secret`: a function above which it stands must not return a secret value, a local it names (`---@nosecret a, b`, or all of the statement) must not hold one. Reported by `secret-return` / `secret-variable`.')
 docTags.registerMarkerTag('secret-check', 'doc.secret-check',
     'Marks a function that tells whether a value is secret: on the branch where it reports not secret, the value may be used.')
 docTags.registerMarkerTag('secret-access-check', 'doc.secret-access-check',
@@ -66,6 +68,9 @@ docTags.registerBindRule('doc.secret', function (doc, source, isParam)
     return not isParam
 end)
 docTags.registerBindRule('doc.secret-unwrap', function (doc, source, isParam)
+    return not isParam
+end)
+docTags.registerBindRule('doc.nosecret', function (doc, source, isParam)
     return not isParam
 end)
 docTags.registerBindRule('doc.secret-check', function (doc, source, isParam)

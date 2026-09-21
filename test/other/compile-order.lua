@@ -194,3 +194,157 @@ local rightView = vm.getInfer(rightAssign):view(TESTURI)
 assert(rightView == 'integer', ('expected `integer`, got `%s`'):format(rightView))
 
 files.remove(TESTURI)
+
+-- A variable that is assigned from itself in a loop (`n = n + 1`) must have the same type
+-- whichever of its reads is asked for first. Compiling the assignment reads `n`, whose walk
+-- gets back to the assignment, which is still being compiled: the walk used to go on from the
+-- half-built assignment and keep what it derived (the reads after it in the loop, the exit of
+-- the loop), and the walk that was compiling the assignment could not correct that, because a
+-- read is only visited once. `print(n)` came out `unknown` when it was asked for first, in every
+-- kind of loop; the editor showed it when another diagnostic happened to compile the field
+-- assignments of the file first (`nr = linenr` in `plugins/ffi/c-parser/cpp.lua`).
+--
+-- For every source that has a type the checks compile each one in a fresh state, alone and
+-- in reverse order, and compare with the types in source order.
+---@type table<string, string>
+local loops = {
+    for_count = [==[
+local n = 0
+for i = 1, 10 do
+    n = n + 1
+    print(n)
+end
+print(n)
+]==],
+    while_count = [==[
+local n = 0
+while n < 10 do
+    n = n + 1
+    print(n)
+end
+print(n)
+]==],
+    repeat_count = [==[
+local n = 0
+repeat
+    n = n + 1
+until n > 10
+print(n)
+]==],
+    nested = [==[
+local n = 0
+for i = 1, 10 do
+    for j = 1, 10 do
+        n = n + 1
+        print(n)
+    end
+    print(n)
+end
+print(n)
+]==],
+    concat = [==[
+local s = ''
+for i = 1, 10 do
+    s = s .. 'x'
+    print(s)
+end
+print(s)
+]==],
+    iterator = [==[
+---@param t string[]
+local function f(t)
+    local n = 0
+    local s = ''
+    for _, v in ipairs(t) do
+        n = n + 1
+        s = s .. v
+        print(n, s)
+    end
+    return n, s
+end
+]==],
+    -- two variables that feed each other: the walk of one gets to an assignment that is open
+    -- because of the other
+    mutual = [==[
+local a, b = 0, 0
+for i = 1, 10 do
+    a = b + 1
+    b = a + 1
+    print(a, b)
+end
+print(a, b)
+]==],
+    -- declared nil, assigned under a condition, then used
+    guarded = [==[
+---@param a boolean
+local function f(a)
+    local i = 1
+    while i < 10 do
+        local n = nil
+        if a then
+            n = i
+        end
+        if n then
+            print(n)
+        else
+            n = i
+        end
+        i = n + 1
+    end
+end
+]==],
+}
+
+---@param name string
+---@param text string
+---@return parser.object[]
+local function loopSources(name, text)
+    files.remove(TESTURI)
+    files.setText(TESTURI, text)
+    local state = files.getState(TESTURI)
+    assert(state, name)
+    ---@type parser.object[]
+    local list = {}
+    guide.eachSource(state.ast, function (source)
+        if source.type == 'local' or source.type == 'getlocal' or source.type == 'setlocal' then
+            list[#list+1] = source
+        end
+    end)
+    return list
+end
+
+---@type string[]
+local loopNames = {}
+for key in pairs(loops) do
+    ---@type string
+    local loopName = key
+    loopNames[#loopNames+1] = loopName
+end
+table.sort(loopNames)
+for k = 1, #loopNames do
+    local name = loopNames[k]
+    local text = loops[name]
+    ---@type string[]
+    local want = {}
+    for i, source in ipairs(loopSources(name, text)) do
+        want[i] = vm.getInfer(source):view(TESTURI)
+        assert(want[i] ~= 'unknown', ('%s: source %d is `unknown` in source order'):format(name, i))
+    end
+    -- each source alone, first
+    local count = #loopSources(name, text)
+    for i = 1, count do
+        local view = vm.getInfer(loopSources(name, text)[i]):view(TESTURI)
+        assert(view == want[i], ('%s: source %d asked first is `%s`, in source order `%s`'):format(name, i, view, want[i]))
+    end
+    -- reverse order
+    local list = loopSources(name, text)
+    for i = #list, 1, -1 do
+        vm.getInfer(list[i])
+    end
+    for i, source in ipairs(list) do
+        local view = vm.getInfer(source):view(TESTURI)
+        assert(view == want[i], ('%s: source %d in reverse order is `%s`, in source order `%s`'):format(name, i, view, want[i]))
+    end
+end
+
+files.remove(TESTURI)

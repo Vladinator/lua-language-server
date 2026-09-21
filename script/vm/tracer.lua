@@ -1241,7 +1241,11 @@ function mt:calcNode(source)
             return
         end
         if self.fastCalc then
-            self.nodes[source] = getAssignNode(lastAssign)
+            if vm.isCompiling(lastAssign) then
+                vm.walkSkipped(self)
+            else
+                self.nodes[source] = getAssignNode(lastAssign)
+            end
             return
         end
         self:calcNode(lastAssign)
@@ -1249,6 +1253,15 @@ function mt:calcNode(source)
     end
     if self.assignMap[source] then
         local node = getAssignNode(source)
+        -- An assignment that is still being compiled (`n = n + 1`: compiling it asked for the read
+        -- of `n` whose walk got here) only has its half-built node. Everything a walk derives from
+        -- that (the reads after the assignment, the exit of the loop around it) would be kept
+        -- for good, and be wrong: the request that is compiling the assignment walks on from it
+        -- again once it is done, but `mark` keeps that walk from visiting those reads a second time.
+        if vm.isCompiling(source) then
+            vm.walkSkipped(self)
+            return
+        end
         self.nodes[source] = node
         local parentBlock = guide.getParentBlock(source)
         if parentBlock then

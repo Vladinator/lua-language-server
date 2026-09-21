@@ -2957,6 +2957,7 @@ end
 ---@field dependsOn? integer          smallest stack index of an open ancestor this frame consumed
 ---@field tainted    any[]            completed nodes whose result consumed this frame's half-built node
 ---@field owner?     vm.tracer        set on a tracer-walk frame (see vm.beginWalk): the tracer
+---@field skipped?   boolean          walk frame: it stepped over an assignment that was still being compiled (vm.walkSkipped)
 
 ---@type vm.compileFrame[]
 local frames    = {}
@@ -3030,6 +3031,16 @@ local function popFrame(frame)
     local owner = frame.owner
     if owner then
         owner.walkFrame = nil
+        -- A walk that could not use an assignment because that was still being compiled
+        -- (vm.walkSkipped) has left the reads after it unresolved; what it consumed of the older
+        -- open compile, the compile that asked for the walk consumed too, and has to be dropped
+        -- with the rest.
+        local dep    = frame.dependsOn
+        local parent = frames[depth]
+        if frame.skipped and dep and parent and dep < parent.index
+        and (not parent.dependsOn or dep < parent.dependsOn) then
+            parent.dependsOn = dep
+        end
         ---@type any[]
         local tainted = frame.tainted
         for _, t in ipairs(tainted) do
@@ -3077,6 +3088,16 @@ function vm.beginWalk(owner)
     frames[depth]    = frame
     owner.walkFrame  = frame
     return frame
+end
+
+--- The running walk of `owner` stepped over an assignment whose compile is still open (its
+--- value asked for a read of the walked variable): the reads after it are not resolved.
+---@param owner vm.tracer
+function vm.walkSkipped(owner)
+    local frame = owner.walkFrame
+    if frame then
+        frame.skipped = true
+    end
 end
 
 --- A read that a running walk has not computed yet was asked for: what depends on the answer

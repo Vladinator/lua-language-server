@@ -241,7 +241,13 @@ vm.registerCallNarrowing {
         if not name then
             return false
         end
-        local names = getNames(guide.getUri(callee))
+        local uri = guide.getUri(callee)
+        -- (the file itself first: a file that is not part of a workspace is in no scope's list of files)
+        local own = getFileNames(uri)
+        if own and (own[name] or own['*']) then
+            return true
+        end
+        local names = getNames(uri)
         return names[name] == true or names['*'] == true
     end,
     ---@param tracer   vm.tracer

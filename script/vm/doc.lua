@@ -457,9 +457,14 @@ function vm.isNeverCall(call)
     if not name then
         return false
     end
-    local names = getNeverNames(guide.getUri(call))
-    if not names[name] and not names['*'] then
-        return false
+    local uri = guide.getUri(call)
+    -- (the file itself first: a file that is not part of a workspace is in no scope's list of files)
+    local own = getNeverNamesOfFile(uri)
+    if not (own and (own[name] or own['*'])) then
+        local names = getNeverNames(uri)
+        if not names[name] and not names['*'] then
+            return false
+        end
     end
     local cache = vm.getCache('never.calls') --[[@as table<parser.object, boolean>]]
     local known = cache[call]

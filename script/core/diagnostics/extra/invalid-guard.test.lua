@@ -280,3 +280,45 @@ local function Ok(v) return true end
 ---@return boolean
 function Ok2(self) return true end
 ]]
+
+-- a file that is not part of any workspace (VS Code with a single file open) is in no scope's list of
+-- files: its own guards have to be found all the same
+do
+    local looseUri = 'file:///outside-of-the-workspace/loose-guard.lua'
+    local looseText = [[
+---@guard v is string
+---@param v any
+---@return boolean
+local function IsString(v) return type(v) == 'string' end
+
+---@asserts v is table
+---@param v any
+local function AssertTable(v) end
+
+---@param x string|number
+---@param y any
+local function f(x, y)
+    if IsString(x) then
+        print(x)
+    end
+    AssertTable(y)
+    print(y)
+end
+]]
+    files.setText(looseUri, looseText)
+    local state = files.getState(looseUri)
+    assert(state)
+    ---@type string[]
+    local seen = {}
+    guide.eachSourceType(state.ast, 'getlocal', function (s)
+        local name = s[1] --[[@as string]]
+        if (name == 'x' or name == 'y') and s.parent and s.parent.type == 'callargs' then
+            seen[#seen+1] = vm.getInfer(s):view(looseUri)
+        end
+    end)
+    -- (the arguments of the guard calls are what they were declared: `any` and `string|number`; the ones
+    -- of `print` are what the guards made them)
+    local joined = ',' .. table.concat(seen, ',') .. ','
+    assert(joined:find(',string,', 1, true) and joined:find(',table,', 1, true), 'loose file: ' .. joined)
+    files.remove(looseUri)
+end

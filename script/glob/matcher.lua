@@ -177,6 +177,9 @@ end
 ---@param state glob.state
 ---@return any
 function mt:pattern(state)
+    if not state[1] then
+        return nil
+    end
     if state.root then
         local after = self:exp(state, 1)
         if after then

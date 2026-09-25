@@ -72,7 +72,7 @@ EChar               <-  'a' -> ea
                     /   ([0-9] [0-9]? [0-9]?) -> Char10
                     /   ('u{' {X16*} '}')    -> CharUtf8
 Symbol              <-  ({} {
-                            [:|,;<>()?+#{}*]
+                            [:|,;<>()?+#{}*=]
                         /   '[]'
                         /   '...'
                         /   '['
@@ -1460,6 +1460,13 @@ local docSwitch = util.switch()
             if checkToken('symbol', ':', 1) then
                 nextToken()
                 object.extends = parseType(object)
+            end
+            -- `---@generic T = string` (TypeScript's default type parameter): the type `resolve()`
+            -- falls back to when nothing infers `T` (an argument typed `T` was not given, or was `nil`).
+            -- Named `defaultType`, not `default`: that name is already a boolean on 'doc.resume' nodes.
+            if checkToken('symbol', '=', 1) then
+                nextToken()
+                object.defaultType = parseType(object)
             end
             object.finish = getFinish()
             ---@diagnostic expect-next-line: need-check-nil

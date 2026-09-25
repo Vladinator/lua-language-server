@@ -72,9 +72,10 @@ end
 ---@param args parser.object
 ---@return table<string, vm.node>?
 function mt:resolve(uri, args)
-    if not args then
-        return nil
-    end
+    -- `args` is `nil` for a call with no arguments at all (`f()`: the parser leaves `call.args` unset
+    -- rather than an empty table). That used to return `nil` here and skip everything below, including
+    -- the defaults pass -- a generic with `---@generic T = string` still came out unresolved for such a
+    -- call. Treated as zero arguments instead: nothing to match against, but a default still applies.
 
     ---@type table<string, vm.node>
     local resolved = {}
@@ -363,7 +364,7 @@ function mt:resolve(uri, args)
         return true
     end
 
-    for i, arg in ipairs(args) do
+    for i, arg in ipairs(args or {}) do
         local sign = self.signList[i]
         if not sign then
             break
@@ -373,6 +374,19 @@ function mt:resolve(uri, args)
         if not isAllResolved(genericNames) then
             local newArgNode = buildArgNode(argNode, sign, knownTypes)
             resolve(sign, newArgNode)
+        end
+    end
+
+    -- `---@generic T = string` (TypeScript's default type parameter): a generic that no argument
+    -- resolved (there was none typed `T`, or it was `nil`) falls back to its declared default instead
+    -- of staying unresolved (`unknown`). Not supported: a default that itself names another generic
+    -- (`---@generic T, U = T`) -- it compiles as an unresolved reference, same as not having a default.
+    for _, doc in ipairs(self.docGeneric) do
+        for _, object in ipairs(doc.generics) do
+            local name = object.generic and object.generic[1] --[[@as string?]]
+            if name and not resolved[name] and object.defaultType then
+                resolved[name] = vm.compileNode(object.defaultType)
+            end
         end
     end
 

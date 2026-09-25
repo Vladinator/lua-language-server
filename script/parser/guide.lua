@@ -34,6 +34,7 @@ local type         = type
 ---@field method?                parser.object
 ---@field index?                 parser.object
 ---@field extends?              parser.object[]|parser.object
+---@field defaultType?          parser.object -- `doc.generic.object`: `---@generic T = string`, the type used when nothing infers `T` (`default` is taken: a boolean on 'doc.resume' nodes)
 ---@field types                 parser.object[]
 ---@field fields                parser.object[]
 ---@field tkey                  parser.object
@@ -187,7 +188,7 @@ local childMap = {
     ['doc.return']         = {'#returns', 'comment'},
     ['doc.field']          = {'field', 'extends', 'comment'},
     ['doc.generic']        = {'#generics', 'comment'},
-    ['doc.generic.object'] = {'generic', 'extends', 'comment'},
+    ['doc.generic.object'] = {'generic', 'extends', 'defaultType', 'comment'},
     ['doc.vararg']         = {'vararg', 'comment'},
     ['doc.type.array']     = {'node'},
     ['doc.type.function']  = {'#args', '#returns', '#signs', 'comment'},

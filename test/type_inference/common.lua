@@ -411,6 +411,54 @@ local function F(t) end
 local <?x?> = F()
 ]]
 
+-- `---@generic T = string` (TypeScript's default type parameter): the type `resolve()` falls back to
+-- when nothing infers `T` -- an unresolved generic is `unknown` (above) unless it has one
+TEST 'string' [[
+---@generic T = string
+---@param t T?
+---@return T
+local function F(t) end
+local <?x?> = F()
+]]
+
+-- an argument still infers over the default
+TEST 'integer' [[
+---@generic T = string
+---@param t T?
+---@return T
+local function F(t) end
+local <?x?> = F(1)
+]]
+
+-- the default itself has to satisfy the constraint, but nothing checks that here (a decision, not an
+-- oversight: see the plugin's own note on best-effort scope)
+TEST 'integer' [[
+---@generic T: number = integer
+---@param t T?
+---@return T
+local function F(t) end
+local <?x?> = F()
+]]
+
+-- only the name it follows gets the default; an earlier name in the same tag without one stays `unknown`
+TEST 'unknown' [[
+---@generic K, V = string
+---@param k K?
+---@param v V?
+---@return K, V
+local function F(k, v) end
+local <?x?> = F()
+]]
+
+TEST 'string' [[
+---@generic K, V = string
+---@param k K?
+---@param v V?
+---@return K, V
+local function F(k, v) end
+local x, <?y?> = F()
+]]
+
 TEST 'unknown' [[
 local a, b
 function a()

@@ -621,6 +621,15 @@ local lookIntoChild = util.switch()
             end
         end
         if action.type == 'repeat' then
+            -- a read in the filter can already be marked from a walk that reached it before the
+            -- body's own reassignment was resolved (an argument of the same statement, compiled
+            -- first, forward-walks through the loop with only the entry type): visit it again
+            -- with the type the body actually leaves, now that `topNode` has it
+            if action.filter then
+                guide.eachSource(action.filter, function (src)
+                    tracer.mark[src] = nil
+                end)
+            end
             tracer:lookIntoChild(action.filter, topNode)
         end
         return topNode, outNode
@@ -1104,6 +1113,13 @@ function mt:lookIntoBlock(block, start, node, effect)
     end
     self.nodes[block] = node
     if block.type == 'repeat' then
+        -- see the same clear in the 'repeat'/'loop'/'for'/'do' case above: a read in the filter
+        -- can already be marked from an earlier, less complete visit
+        if block.filter then
+            guide.eachSource(block.filter, function (src)
+                self.mark[src] = nil
+            end)
+        end
         self:lookIntoChild(block.filter, node)
     end
     if block.type == 'do'

@@ -413,4 +413,45 @@ local child
 f(child)
 ]]
 
+-- `---@generic T: string` (a constraint): an argument that does not fit it is reported. `expandGenerics`
+-- expands `T` to its constraint (`generic.generic.extends`, the generic NAME use's back-reference to its
+-- declaration, set by `bindGeneric` in parser/luadoc.lua); no test exercised this path before.
+TEST [[
+---@generic T: string
+---@param x T
+---@return T
+local function f(x) return x end
+
+f(<!123!>)
+f('ok')
+]]
+
+-- an unconstrained generic still takes anything, as before
+TEST [[
+---@generic T
+---@param x T
+---@return T
+local function f(x) return x end
+
+f(123)
+f('ok')
+f(true)
+]]
+
+-- a generic constraint on a method
+TEST [[
+---@class Widget
+local Widget = {}
+
+---@generic T: string
+---@param x T
+function Widget:set(x) end
+
+---@type Widget
+local w
+
+w:set(<!123!>)
+w:set('ok')
+]]
+
 config.set(nil, 'Lua.type.checkTableShape', false)

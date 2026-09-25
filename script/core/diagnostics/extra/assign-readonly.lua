@@ -1,16 +1,24 @@
--- `---@field readonly name string` says a field is set once, when the object is built, and not changed
--- after that (TypeScript's `readonly`): assigning it (`obj.name = v`, `obj['name'] = v`) is reported on
--- the field. What is not an assignment after the fact:
---   * the table constructor that builds the object (`{ name = v }`);
---   * anything inside a function that builds objects by its name: `new`, `init`, `constructor`, `ctor`,
---     `__init`, `create`;
---   * an assignment to a local of the same function that this function made from a table constructor or
---     `setmetatable(...)` (`local o = setmetatable({}, C); o.name = v`).
--- Constructors in Lua come in many styles (metatables, factories, mixins), so this is deliberately
--- forgiving: a style that is not covered is silenced with `---@diagnostic disable-next-line: assign-readonly`.
+-- `readonly` (TypeScript's keyword) has two independent uses, both owned by this file:
 --
--- The `readonly` keyword belongs to this file and is registered here; nothing else knows about it.
--- Deleting the file removes the feature. Its tests are next to it.
+--   * `---@field readonly name string` -- the FIELD is set once, when the object is built, and not
+--     changed after that: assigning it (`obj.name = v`, `obj['name'] = v`) is reported on the field.
+--     What is not an assignment after the fact:
+--       - the table constructor that builds the object (`{ name = v }`);
+--       - anything inside a function that builds objects by its name: `new`, `init`, `constructor`,
+--         `ctor`, `__init`, `create`;
+--       - an assignment to a local of the same function that this function made from a table
+--         constructor or `setmetatable(...)` (`local o = setmetatable({}, C); o.name = v`).
+--     Constructors in Lua come in many styles (metatables, factories, mixins), so this is deliberately
+--     forgiving: a style that is not covered is silenced with
+--     `---@diagnostic disable-next-line: assign-readonly`.
+--   * `readonly T` as a type keyword (`---@param t readonly T`, `---@type readonly T`) -- the VALUE that
+--     reference points at must not be mutated through it: assigning one of its fields/indices, or
+--     passing it to a mutating stdlib call, is reported by the companion `mutate-readonly.lua`, which
+--     only reads the keyword.
+--
+-- Both keywords are registered here; nothing else knows about either. Deleting the file removes both
+-- features (and its companion, whose diagnostic does nothing once the keyword no longer exists). Its
+-- own tests are next to it.
 
 local files           = require 'files'
 local guide           = require 'parser.guide'
@@ -38,6 +46,12 @@ protoDiagnostic.register {
 
 docTags.registerFieldKeyword('readonly', 'readonly',
     'The field is set when the object is built and not changed after: `---@field readonly name string`.')
+
+-- `readonly` in front of a type item (`---@param t readonly T`, `---@type readonly T`): the value that
+-- slot holds must not be mutated through it. `mutate-readonly.lua` reports assigning one of its fields
+-- or passing it to a mutating stdlib call; nothing here reads it.
+docTags.registerTypeKeyword('readonly', 'readonly',
+    'The value this slot holds must not be mutated through it: `---@param t readonly T`, `---@type readonly T`. Assigning a field / index, or passing it to a mutating call (`table.insert`, ...), is reported by `mutate-readonly`.')
 
 --- Functions that build objects, by name.
 ---@type table<string, true>

@@ -379,6 +379,7 @@ Array<string>
 * ``"missing-return"``: 戻り注釈があるのにreturn文がない場合の診断を有効にします。
 * ``"missing-return-value"``: 戻り値を宣言しているのに値を返さないreturn文の診断を有効にします。
 * ``"multi-close"``: 多重 close 操作
+* ``"mutate-readonly"``: Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
 * ``"name-style-check"``: 名前スタイルの診断を有効にします。
 * ``"need-check-nil"``: 以前に`nil`または任意型が代入された変数を使用する際のnilチェック診断を有効にします。
 * ``"need-check-secret"``: Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
@@ -406,6 +407,7 @@ Array<string>
 * ``"spell-check"``: 文字列内のタイポ診断を有効にします。
 * ``"trailing-space"``: 行末の余分な空白の診断を有効にします。
 * ``"unbalanced-assignments"``: 多重代入で一部の変数が値を得られない場合の診断を有効にします（例: `local x,y = 1`）。
+* ``"unchecked-array-index"``: Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
 * ``"undefined-doc-class"``: 未定義クラスを参照するクラス注釈の診断を有効にします。
 * ``"undefined-doc-name"``: 未定義の型またはエイリアスを参照する注釈の診断を有効にします。
 * ``"undefined-doc-param"``: 関数定義に存在しないパラメータへの注釈の診断を有効にします。
@@ -618,9 +620,11 @@ object<string, string>
     * cast-local-type
     * cast-type-mismatch
     * inject-field
+    * mutate-readonly
     * need-check-nil
     * param-type-mismatch
     * return-type-mismatch
+    * unchecked-array-index
     * undefined-field
     */
     "type-check": "Fallback",
@@ -760,9 +764,11 @@ object<string, string>
     * cast-local-type
     * cast-type-mismatch
     * inject-field
+    * mutate-readonly
     * need-check-nil
     * param-type-mismatch
     * return-type-mismatch
+    * unchecked-array-index
     * undefined-field
     */
     "type-check": "Fallback",
@@ -1001,6 +1007,10 @@ object<string, string>
     */
     "missing-return-value": "Any",
     /*
+    Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
+    */
+    "mutate-readonly": "Opened",
+    /*
     名前スタイルの診断を有効にします。
     */
     "name-style-check": "None",
@@ -1088,6 +1098,10 @@ object<string, string>
     多重代入で一部の変数が値を得られない場合の診断を有効にします（例: `local x,y = 1`）。
     */
     "unbalanced-assignments": "Any",
+    /*
+    Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
+    */
+    "unchecked-array-index": "None",
     /*
     未定義クラスを参照するクラス注釈の診断を有効にします。
     */
@@ -1336,6 +1350,10 @@ object<string, string>
     */
     "missing-return-value": "Warning",
     /*
+    Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
+    */
+    "mutate-readonly": "Warning",
+    /*
     名前スタイルの診断を有効にします。
     */
     "name-style-check": "Warning",
@@ -1423,6 +1441,10 @@ object<string, string>
     多重代入で一部の変数が値を得られない場合の診断を有効にします（例: `local x,y = 1`）。
     */
     "unbalanced-assignments": "Warning",
+    /*
+    Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
+    */
+    "unchecked-array-index": "Warning",
     /*
     未定義クラスを参照するクラス注釈の診断を有効にします。
     */

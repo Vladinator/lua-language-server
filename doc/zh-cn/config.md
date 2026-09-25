@@ -379,6 +379,7 @@ Array<string>
 * ``"missing-return"``: 函数带有返回注释而无返回语句
 * ``"missing-return-value"``: 函数无值返回但函数使用`@return`标记了返回值
 * ``"multi-close"``: 多重 close 操作
+* ``"mutate-readonly"``: Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
 * ``"name-style-check"``: 变量的名称样式检查
 * ``"need-check-nil"``: 变量之前被赋值为`nil`或可选值(可能为 `nil`)
 * ``"need-check-secret"``: Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
@@ -406,6 +407,7 @@ Array<string>
 * ``"spell-check"``: 启用字符串拼写检查的诊断。
 * ``"trailing-space"``: 后置空格
 * ``"unbalanced-assignments"``: 多重赋值时没有赋值所有变量(如`local x,y = 1`)
+* ``"unchecked-array-index"``: Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
 * ``"undefined-doc-class"``: 在`@class`注解中引用未定义的类。
 * ``"undefined-doc-name"``: 在`@type`注解中引用未定义的类型或`@alias`
 * ``"undefined-doc-param"``: 函数声明中`@param`引用了未定义的参数
@@ -618,9 +620,11 @@ object<string, string>
     * cast-local-type
     * cast-type-mismatch
     * inject-field
+    * mutate-readonly
     * need-check-nil
     * param-type-mismatch
     * return-type-mismatch
+    * unchecked-array-index
     * undefined-field
     */
     "type-check": "Fallback",
@@ -760,9 +764,11 @@ object<string, string>
     * cast-local-type
     * cast-type-mismatch
     * inject-field
+    * mutate-readonly
     * need-check-nil
     * param-type-mismatch
     * return-type-mismatch
+    * unchecked-array-index
     * undefined-field
     */
     "type-check": "Fallback",
@@ -1001,6 +1007,10 @@ object<string, string>
     */
     "missing-return-value": "Any",
     /*
+    Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
+    */
+    "mutate-readonly": "Opened",
+    /*
     变量的名称样式检查
     */
     "name-style-check": "None",
@@ -1088,6 +1098,10 @@ object<string, string>
     多重赋值时没有赋值所有变量(如`local x,y = 1`)
     */
     "unbalanced-assignments": "Any",
+    /*
+    Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
+    */
+    "unchecked-array-index": "None",
     /*
     在`@class`注解中引用未定义的类。
     */
@@ -1335,6 +1349,10 @@ object<string, string>
     */
     "missing-return-value": "Warning",
     /*
+    Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
+    */
+    "mutate-readonly": "Warning",
+    /*
     变量的名称样式检查
     */
     "name-style-check": "Warning",
@@ -1422,6 +1440,10 @@ object<string, string>
     多重赋值时没有赋值所有变量(如`local x,y = 1`)
     */
     "unbalanced-assignments": "Warning",
+    /*
+    Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
+    */
+    "unchecked-array-index": "Warning",
     /*
     在`@class`注解中引用未定义的类。
     */

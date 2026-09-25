@@ -379,6 +379,7 @@ Array<string>
 * ``"missing-return"``: Habilita el diagnóstico para para funciones con anotaciones de retorno que no tienen la expresión `return …`.
 * ``"missing-return-value"``: Habilita el diagnóstico para expresiones `return …` sin valores aunque la función que la contiene declare retornos.
 * ``"multi-close"``: Múltiples operaciones close
+* ``"mutate-readonly"``: Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
 * ``"name-style-check"``: Habilita el diagnóstico para el estilo de nombres.
 * ``"need-check-nil"``: Habilita el diagnóstico para usos de variables si `nil` o un valor opcional (potencialmente `nil`) haya sido asignado a la variable anteriormente.
 * ``"need-check-secret"``: Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
@@ -406,6 +407,7 @@ Array<string>
 * ``"spell-check"``: Habilita el diagnóstico para errores tipográficos en strings.
 * ``"trailing-space"``: Habilita el diagnóstico de espacios al final de línea.
 * ``"unbalanced-assignments"``: Habilita el diagnóstico para asignaciones múltiplies si no todas las variables obtienen un valor (por ejemplo, `local x,y = 1`).
+* ``"unchecked-array-index"``: Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
 * ``"undefined-doc-class"``: Habilita el diagnóstico para las anotaciones de clase en las cuales una clase sin definir es referenciada.
 * ``"undefined-doc-name"``: Habilita el diagnóstico para anotaciones de tipo que referencian a un tipo o alias sin definir.
 * ``"undefined-doc-param"``: Habilita el diagnóstico para casos en que una anotación de parámetro es dado sin declarar el parámetro en la definición de la función.
@@ -618,9 +620,11 @@ object<string, string>
     * cast-local-type
     * cast-type-mismatch
     * inject-field
+    * mutate-readonly
     * need-check-nil
     * param-type-mismatch
     * return-type-mismatch
+    * unchecked-array-index
     * undefined-field
     */
     "type-check": "Fallback",
@@ -760,9 +764,11 @@ object<string, string>
     * cast-local-type
     * cast-type-mismatch
     * inject-field
+    * mutate-readonly
     * need-check-nil
     * param-type-mismatch
     * return-type-mismatch
+    * unchecked-array-index
     * undefined-field
     */
     "type-check": "Fallback",
@@ -1001,6 +1007,10 @@ object<string, string>
     */
     "missing-return-value": "Any",
     /*
+    Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
+    */
+    "mutate-readonly": "Opened",
+    /*
     Habilita el diagnóstico para el estilo de nombres.
     */
     "name-style-check": "None",
@@ -1088,6 +1098,10 @@ object<string, string>
     Habilita el diagnóstico para asignaciones múltiplies si no todas las variables obtienen un valor (por ejemplo, `local x,y = 1`).
     */
     "unbalanced-assignments": "Any",
+    /*
+    Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
+    */
+    "unchecked-array-index": "None",
     /*
     Habilita el diagnóstico para las anotaciones de clase en las cuales una clase sin definir es referenciada.
     */
@@ -1336,6 +1350,10 @@ object<string, string>
     */
     "missing-return-value": "Warning",
     /*
+    Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
+    */
+    "mutate-readonly": "Warning",
+    /*
     Habilita el diagnóstico para el estilo de nombres.
     */
     "name-style-check": "Warning",
@@ -1423,6 +1441,10 @@ object<string, string>
     Habilita el diagnóstico para asignaciones múltiplies si no todas las variables obtienen un valor (por ejemplo, `local x,y = 1`).
     */
     "unbalanced-assignments": "Warning",
+    /*
+    Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
+    */
+    "unchecked-array-index": "Warning",
     /*
     Habilita el diagnóstico para las anotaciones de clase en las cuales una clase sin definir es referenciada.
     */

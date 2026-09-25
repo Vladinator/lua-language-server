@@ -7,6 +7,7 @@
             "missing-global-doc",
             "missing-local-export-doc",
             "redefined-local",
+            "unchecked-array-index",
             "unused-local"
         ],
         "groupFileStatus": {

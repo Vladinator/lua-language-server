@@ -5,7 +5,8 @@
 --     What is not an assignment after the fact:
 --       - the table constructor that builds the object (`{ name = v }`);
 --       - anything inside a function that builds objects by its name: `new`, `init`, `constructor`,
---         `ctor`, `__init`, `create`;
+--         `ctor`, `__init`, `create` (the default list; `Lua.diagnostics.assignReadonlyBuilders`
+--         replaces it for a project with its own naming convention);
 --       - an assignment to a local of the same function that this function made from a table
 --         constructor or `setmetatable(...)` (`local o = setmetatable({}, C); o.name = v`).
 --     Constructors in Lua come in many styles (metatables, factories, mixins), so this is deliberately
@@ -27,6 +28,8 @@ local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
 local docTags         = require 'parser.docTags'
 local scope           = require 'workspace.scope'
+local config          = require 'config'
+local util            = require 'utility'
 
 --- The `readonly` keyword of `---@field readonly name T`: a bare keyword like `public` / `private`, so it
 --- reads as a keyword and not as a field called `readonly`. Written as ["readonly"] for that reason.
@@ -39,6 +42,7 @@ protoDiagnostic.register {
     'assign-readonly',
 } {
     group    = 'type-check',
+    narrowSettings = { 'Lua.diagnostics.assignReadonlyBuilders' },
     severity = 'Warning',
     status   = 'Opened',
     description = 'Enable diagnostics for assigning a field that is declared `readonly` (`---@field readonly name string`) outside the code that builds the object.',
@@ -53,16 +57,12 @@ docTags.registerFieldKeyword('readonly', 'readonly',
 docTags.registerTypeKeyword('readonly', 'readonly',
     'The value this slot holds must not be mutated through it: `---@param t readonly T`, `---@type readonly T`. Assigning a field / index, or passing it to a mutating call (`table.insert`, ...), is reported by `mutate-readonly`.')
 
---- Functions that build objects, by name.
----@type table<string, true>
-local BUILDERS = {
-    new         = true,
-    init        = true,
-    constructor = true,
-    ctor        = true,
-    __init      = true,
-    create      = true,
-}
+--- Functions that build objects, by name (`Lua.diagnostics.assignReadonlyBuilders`).
+---@param uri uri
+---@return table<string, true>
+local function getBuilders(uri)
+    return util.arrayToHash(config.get(uri, 'Lua.diagnostics.assignReadonlyBuilders'))
+end
 
 --- The names of the fields that some class declares `readonly`. Worked out once per scope until a file
 --- changes: most workspaces have none and then no assignment needs a second look.
@@ -135,15 +135,16 @@ end
 
 --- Is the assignment part of building the object?
 ---@param source parser.object setfield / setindex
+---@param builders table<string, true>
 ---@return boolean
-local function isBuilding(source)
+local function isBuilding(source, builders)
     ---@type parser.object?
     local func = guide.getParentFunction(source)
     if not func or func.type ~= 'function' then
         return false
     end
     local name = nameOf(func)
-    if name and BUILDERS[name] then
+    if name and builders[name] then
         return true
     end
     ---@type parser.object?
@@ -168,6 +169,7 @@ return function (uri, callback)
     if next(readonlyNames) == nil then
         return
     end
+    local builders = getBuilders(uri)
 
     ---@async
     guide.eachSourceTypes(state.ast, { 'setfield', 'setindex' }, function (source)
@@ -176,7 +178,7 @@ return function (uri, callback)
             return
         end
         await.delay()
-        if isBuilding(source) then
+        if isBuilding(source, builders) then
             return
         end
         for _, def in ipairs(vm.getDefs(source)) do

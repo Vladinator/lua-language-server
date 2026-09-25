@@ -272,6 +272,22 @@ boolean
 true
 ```
 
+# diagnostics.assignReadonlyBuilders
+
+**Missing description!!**
+
+## type
+
+```ts
+Array<string>
+```
+
+## default
+
+```jsonc
+["new","init","constructor","ctor","__init","create"]
+```
+
 # diagnostics.disable
 
 Diagnósticos desabilitados (use o código nos colchetes do hover).

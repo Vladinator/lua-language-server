@@ -272,6 +272,22 @@ boolean
 true
 ```
 
+# diagnostics.assignReadonlyBuilders
+
+**Missing description!!**
+
+## type
+
+```ts
+Array<string>
+```
+
+## default
+
+```jsonc
+["new","init","constructor","ctor","__init","create"]
+```
+
 # diagnostics.disable
 
 無効化する診断（ホバーの括弧内に表示されるコードを使用）。

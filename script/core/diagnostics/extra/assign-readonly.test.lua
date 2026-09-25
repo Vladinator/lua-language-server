@@ -1,5 +1,7 @@
 -- Lives next to assign-readonly.lua: it only runs if the plugin is there.
 
+local config = require 'config'
+
 -- an assignment after the object is built, by name and by a literal key
 TEST [[
 ---@class Config
@@ -112,3 +114,28 @@ local function reset(c)
     c.name = 'x'
 end
 ]]
+
+-- Lua.diagnostics.assignReadonlyBuilders replaces the default builder-name list: a project's own
+-- naming convention is recognized, and a name that was in the default list but not the replacement
+-- (here `new`) is no longer treated as building the object. The target is a parameter, not a local
+-- made from a constructor/setmetatable in the same function, so only the name check is exercised.
+config.set(nil, 'Lua.diagnostics.assignReadonlyBuilders', { 'build' })
+
+TEST [[
+---@class Config
+---@field readonly name string
+local Config = {}
+
+---@param c Config
+function Config.build(c, name)
+    c.name = name
+end
+
+---@param c Config
+function Config.new(c, name)
+    c.<!name!> = name
+end
+]]
+
+config.set(nil, 'Lua.diagnostics.assignReadonlyBuilders',
+{ 'new', 'init', 'constructor', 'ctor', '__init', 'create' })

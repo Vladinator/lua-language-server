@@ -272,6 +272,22 @@ boolean
 true
 ```
 
+# diagnostics.assignReadonlyBuilders
+
+**Missing description!!**
+
+## type
+
+```ts
+Array<string>
+```
+
+## default
+
+```jsonc
+["new","init","constructor","ctor","__init","create"]
+```
+
 # diagnostics.disable
 
 禁用的诊断（使用浮框括号内的代码）。

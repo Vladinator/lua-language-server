@@ -196,6 +196,8 @@ config.diagnostics.validScheme  =
 'Enable diagnostics for Lua files that use the following scheme.'
 config.diagnostics.unusedLocalExclude =
 'Do not diagnose `unused-local` when the variable name matches the following pattern.'
+config.diagnostics.assignReadonlyBuilders =
+'Function names that `assign-readonly` treats as building the object, so an assignment to a `readonly` field inside them is not reported (`new`, `init`, `constructor`, `ctor`, `__init`, `create` by default).'
 config.diagnostics.pluginsDir     =
 'Directory containing custom diagnostic plugin files (`.lua`). Blank by default -- disabled unless set. Each file must self-register (via `proto.diagnostic.register`) under a name matching its own filename, and return `function(uri, callback) ... end`, the same as a built-in diagnostic. Loading a plugin from here runs arbitrary Lua code, so you will be asked to trust the directory the first time it is loaded.'
 config.workspace.ignoreDir        =

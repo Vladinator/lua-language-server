@@ -384,6 +384,9 @@ local template = {
                                                 'Disable',
                                             },
     ['Lua.diagnostics.unusedLocalExclude']  = Type.Array(Type.String),
+    ['Lua.diagnostics.assignReadonlyBuilders'] = Type.Array(Type.String) >> {
+                                                'new', 'init', 'constructor', 'ctor', '__init', 'create',
+                                            },
     ['Lua.diagnostics.pluginsDir']          = Type.String >> '',
     ['Lua.workspace.ignoreDir']             = Type.Array(Type.String) >> {
                                                 '.vscode',

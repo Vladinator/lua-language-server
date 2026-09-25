@@ -272,6 +272,22 @@ boolean
 true
 ```
 
+# diagnostics.assignReadonlyBuilders
+
+Function names that `assign-readonly` treats as building the object, so an assignment to a `readonly` field inside them is not reported (`new`, `init`, `constructor`, `ctor`, `__init`, `create` by default).
+
+## type
+
+```ts
+Array<string>
+```
+
+## default
+
+```jsonc
+["new","init","constructor","ctor","__init","create"]
+```
+
 # diagnostics.disable
 
 Disabled diagnostic (Use code in hover brackets).

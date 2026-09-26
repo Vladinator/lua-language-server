@@ -1,24 +1,25 @@
-local await     = require 'await'
-local proto     = require 'proto.proto'
-local define    = require 'proto.define'
-local lang      = require 'language'
-local files     = require 'files'
-local config    = require 'config'
-local core      = require 'core.diagnostics'
-local util      = require 'utility'
-local ws        = require 'workspace'
-local progress  = require "progress"
-local client    = require 'client'
-local converter = require 'proto.converter'
-local loading   = require 'workspace.loading'
-local scope     = require 'workspace.scope'
-local time      = require 'bee.time'
-local ltable    = require 'linked-table'
-local furi      = require 'file-uri'
-local json      = require 'json'
-local fw        = require 'filewatch'
-local vm        = require 'vm.vm'
-local diagd     = require 'proto.diagnostic'
+local await        = require 'await'
+local proto        = require 'proto.proto'
+local define       = require 'proto.define'
+local lang         = require 'language'
+local files        = require 'files'
+local config       = require 'config'
+local core         = require 'core.diagnostics'
+local util         = require 'utility'
+local ws           = require 'workspace'
+local progress     = require "progress"
+local client       = require 'client'
+local converter    = require 'proto.converter'
+local loading      = require 'workspace.loading'
+local scope        = require 'workspace.scope'
+local time         = require 'bee.time'
+local ltable       = require 'linked-table'
+local furi         = require 'file-uri'
+local json         = require 'json'
+local fw           = require 'filewatch'
+local vm           = require 'vm.vm'
+local diagd        = require 'proto.diagnostic'
+local diagAffected = require 'workspace.diagnostic-affected'
 
 ---@alias diagnosticProvider.errRelated { uri?: uri, message?: string, start: integer, finish: integer }
 ---@alias diagnosticProvider.errInfo { version?: string[]|string, related?: diagnosticProvider.errRelated[] }
@@ -50,6 +51,10 @@ m.complete = {}
 ---@class diagnosticProvider.request
 ---@field all   boolean
 ---@field names table<string, true>
+---@field changedUris? table<uri, true>|false -- the files known to have changed since the request
+--- started; `false` (or absent) once any contributor didn't know its own changed file (a
+--- settings/editorconfig change, a workspace reload) -- from then on the request can no longer be
+--- narrowed by file and must diagnose the whole scope, since the untracked part could be anything.
 
 ---@type table<string, diagnosticProvider.request>
 m.pending = {}
@@ -58,13 +63,22 @@ m.pending = {}
 m.scopeRunning = {}
 
 --- Adds to what the scope has to diagnose.
----@param scpName string
----@param only?   table<string, true> nil: every diagnostic
-function m.addRequest(scpName, only)
+---@param scpName    string
+---@param only?      table<string, true> nil: every diagnostic
+---@param changedUri? uri the single file known to have changed; nil poisons file-narrowing for
+--- the whole pending request (see `diagnosticProvider.request.changedUris`)
+function m.addRequest(scpName, only, changedUri)
     local request = m.pending[scpName]
     if not request then
-        request = { all = false, names = {} }
+        request = { all = false, names = {}, changedUris = {} }
         m.pending[scpName] = request
+    end
+    if request.changedUris ~= false then
+        if changedUri then
+            request.changedUris[changedUri] = true
+        else
+            request.changedUris = false
+        end
     end
     if not only then
         request.all = true
@@ -88,10 +102,26 @@ end
 ---@param scpName string
 ---@param request diagnosticProvider.request
 function m.restoreRequest(scpName, request)
-    if request.all then
-        m.addRequest(scpName)
+    local pending = m.pending[scpName]
+    if not pending then
+        pending = { all = false, names = {}, changedUris = {} }
+        m.pending[scpName] = pending
     end
-    m.addRequest(scpName, request.names)
+    if request.all then
+        pending.all = true
+    end
+    for name in pairs(request.names) do
+        pending.names[name] = true
+    end
+    if pending.changedUris ~= false then
+        if not request.changedUris then
+            pending.changedUris = false
+        else
+            for uri in pairs(request.changedUris) do
+                pending.changedUris[uri] = true
+            end
+        end
+    end
 end
 m.scopeDiagCount = 0
 m.pauseCount = 0
@@ -584,7 +614,9 @@ function m.refreshScopeDiag(event, uri)
             return
         end
         await.sleep(math.max(delay, 0.2))
-        m.diagnosticsScope(uri)
+        -- `uri` is the file whose save/change triggered this: pass it on as the changed file so
+        -- the pass can be narrowed to what it could actually affect (see diagnosticsScope).
+        m.diagnosticsScope(uri, nil, nil, nil, uri)
     end)
 end
 
@@ -665,10 +697,14 @@ local function clearMemory(finished)
 end
 
 ---@async
----@param suri     uri
----@param callback async fun(uri: uri)
+---@param suri        uri
+---@param callback    async fun(uri: uri)
+---@param changedUris? table<uri, true>|false the files known to have changed since the last full
+--- pass; `nil`/`false` diagnoses every file in scope as before. A real, non-empty set narrows the
+--- pass to workspace.diagnostic-affected's safe over-approximation of what those changes could
+--- affect (never under-approximates: an uncertain case there falls back to every file too).
 ---@return boolean completed every file was diagnosed (not cancelled, by the user or by being replaced)
-function m.awaitDiagnosticsScope(suri, callback)
+function m.awaitDiagnosticsScope(suri, callback, changedUris)
     local scp = scope.getScope(suri)
     if scp.type == 'fallback' then
         return true
@@ -701,23 +737,41 @@ function m.awaitDiagnosticsScope(suri, callback)
         end)
     end)
     local uris = files.getAllUris(suri)
+    ---@type table<uri, true>?
+    local narrowed
+    if changedUris and changedUris ~= false then
+        ---@type uri[]
+        local list = {}
+        for changedUri in pairs(changedUris) do
+            list[#list+1] = changedUri
+        end
+        narrowed = diagAffected.getAffectedUris(suri, list)
+    end
     local sortedUris = ltable()
+    local total = 0
     for _, uri in ipairs(uris) do
-        if files.isOpen(uri) then
-            sortedUris:pushHead(uri)
-        else
-            sortedUris:pushTail(uri)
+        if not narrowed or narrowed[uri] then
+            total = total + 1
+            if files.isOpen(uri) then
+                sortedUris:pushHead(uri)
+            else
+                sortedUris:pushTail(uri)
+            end
         end
     end
-    log.info(('Diagnostics scope [%s], files count:[%d]'):format(scp:getName(), #uris))
+    if narrowed then
+        log.info(('Diagnostics scope [%s], files count:[%d] (narrowed from [%d])'):format(scp:getName(), total, #uris))
+    else
+        log.info(('Diagnostics scope [%s], files count:[%d]'):format(scp:getName(), total))
+    end
     local i = 0
     for uri in sortedUris:pairs() do
         while loading.count() > 0 do
             await.sleep(1.0)
         end
         i = (i + 1)
-        bar:setMessage(('%d/%d'):format(i, #uris))
-        bar:setPercentage(i / #uris * 100)
+        bar:setMessage(('%d/%d'):format(i, total))
+        bar:setPercentage(i / total * 100)
         callback(uri)
         await.delay()
         if cancelled then
@@ -760,7 +814,7 @@ function m.runScopeDiag(uri, ignoreFileOpenState)
         completed = false
         completed = m.awaitDiagnosticsScope(uri, function (fileUri)
             xpcall(m.doDiagnostic, log.error, fileUri, true, ignoreFileOpenState, only)
-        end)
+        end, request.changedUris)
         if not completed then
             return
         end
@@ -771,7 +825,11 @@ end
 ---@param force? boolean
 ---@param ignoreFileOpenState? boolean
 ---@param only? table<string, true> only these diagnostics have to run again (nil: all of them)
-function m.diagnosticsScope(uri, force, ignoreFileOpenState, only)
+---@param changedUri? uri the single file known to have changed, if any (see
+--- diagnosticProvider.request.changedUris); omit when the trigger isn't one specific file's text
+--- (a settings/editorconfig change, a workspace reload) -- omitting it forces the whole scope, so
+--- it must never be guessed.
+function m.diagnosticsScope(uri, force, ignoreFileOpenState, only, changedUri)
     if not ws.isReady(uri) then
         return
     end
@@ -784,7 +842,7 @@ function m.diagnosticsScope(uri, force, ignoreFileOpenState, only)
     end
     local scp = scope.getScope(uri)
     local name = scp:getName()
-    m.addRequest(name, only)
+    m.addRequest(name, only, changedUri)
     -- a pass that is running is not cancelled for a few diagnostics: it goes on, and then
     -- the next one does them (a client that writes settings while the workspace is being
     -- diagnosed would keep it from ever getting past the first files)

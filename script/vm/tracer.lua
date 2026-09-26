@@ -1431,18 +1431,13 @@ function mt:getFallbackFieldNode(source, variable)
 end
 
 ---@class vm.node
----@field package _tracer vm.tracer
+---@field package _tracer? vm.tracer
 
 ---@param mode tracer.mode
 ---@param source parser.object | vm.variable
 ---@param name string
 ---@return vm.tracer?
-local function createTracer(mode, source, name)
-    local node = vm.compileNode(source)
-    local tracer = node._tracer
-    if tracer then
-        return tracer
-    end
+local function buildTracer(mode, source, name)
     ---@type parser.object?
     local main
     if source.type == 'variable' then
@@ -1455,7 +1450,8 @@ local function createTracer(mode, source, name)
     if not main then
         return nil
     end
-    tracer = setmetatable({
+    ---@type vm.tracer
+    local tracer = setmetatable({
         source    = source,
         mode      = mode,
         name      = name,
@@ -1471,7 +1467,6 @@ local function createTracer(mode, source, name)
         main      = main,
         uri       = guide.getUri(main),
     }, mt)
-    node._tracer = tracer
 
     if tracer.mode == 'local' then
         tracer:collectLocal()
@@ -1479,6 +1474,24 @@ local function createTracer(mode, source, name)
         tracer:collectGlobal()
     end
 
+    return tracer
+end
+
+---@param mode tracer.mode
+---@param source parser.object | vm.variable
+---@param name string
+---@return vm.tracer?
+local function createTracer(mode, source, name)
+    local node = vm.compileNode(source)
+    local tracer = node._tracer
+    if tracer then
+        return tracer
+    end
+    tracer = buildTracer(mode, source, name)
+    if not tracer then
+        return nil
+    end
+    node._tracer = tracer
     return tracer
 end
 
@@ -1517,9 +1530,20 @@ function vm.traceNode(source)
             return nil
         end
         -- the walk of this tracer may already be running further down the stack (see
-        -- vm.beginWalk): then we are a nested request for a read it has not reached yet
+        -- vm.beginWalk): then we are a nested request for a read it has not reached yet.
+        -- Answering from the running tracer directly would store what this request derives
+        -- from its still-incomplete `nodes`/`mark` into that same, shared tracer, for good
+        -- (`n`, `i` reading each other: the walk of `n` asks for `i`, whose value reads `n`
+        -- again here). A disposable tracer answers this one nested request in isolation
+        -- instead -- nothing it computes is kept in the running tracer or cached on the
+        -- variable's node, so a later, non-nested request still gets a full, correct walk.
         local running = tracer.walkFrame
-        local walk <close> = not running and vm.beginWalk(tracer) or nil
+        local liveTracer = tracer
+        if running then
+            tracer = buildTracer(mode, base, name) or tracer
+        end
+        local disposable = tracer ~= liveTracer
+        local walk <close> = (not running or disposable) and vm.beginWalk(tracer) or nil
         local watch <close> = vm.watchCompileCycles()
         node = tracer:getNode(source)
         if not node and mode == 'local' then
@@ -1528,8 +1552,10 @@ function vm.traceNode(source)
         end
         -- whatever comes back from a walk that is still running is provisional: the reads it
         -- has not reached are empty, and the ones it has may still change (an assignment
-        -- further on decides them)
-        if running then
+        -- further on decides them). Only true when `buildTracer` above failed and this request
+        -- fell back to reading the live tracer directly; the disposable path answers in full
+        -- isolation and does not need the caller tainted on its account.
+        if running and not disposable then
             vm.consumeWalk(running)
         end
         local owner = vm.getNode(base)
@@ -1542,7 +1568,9 @@ function vm.traceNode(source)
             end
             break
         end
-        if owner._tracer == tracer then
+        -- a disposable tracer is never `owner._tracer`, so it would never match the retry-exit
+        -- check below and the loop would pointlessly redo the same disposable walk a second time
+        if disposable or owner._tracer == tracer then
             break
         end
     end

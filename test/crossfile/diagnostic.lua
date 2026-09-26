@@ -186,6 +186,24 @@ TEST {
     ]]}
 }
 
+-- A bare marker on a method definition (`setmethod`), cross-file.
+TEST {
+    code = 'invisible',
+    { path = 'a.lua', content = [[
+        ---@class C
+        local obj = {}
+
+        ---@package
+        function obj:method() end
+    ]]},
+    { path = 'b.lua', content = [[
+        ---@type C
+        local obj2
+
+        obj2:<!method!>()
+    ]]}
+}
+
 TEST {
     code = 'duplicate-doc-field',
     { path = 'a.lua', content = [[

@@ -63,29 +63,41 @@ local function getVisibleType(source)
 
     if type(fieldName) == 'string' then
         local uri = guide.getUri(source)
-        local regengine = config.get(uri, 'Lua.doc.regengine')
-        local match = regengine  == "glob" and globMatch or luaMatch
-        local privateNames = config.get(uri, 'Lua.doc.privateName')
-        if #privateNames > 0 and match(privateNames, fieldName) then
-            source._visibleType = 'private'
-            return 'private'
-        end
-
-        local protectedNames = config.get(uri, 'Lua.doc.protectedName')
-        if #protectedNames > 0 and match(protectedNames, fieldName) then
-            source._visibleType = 'protected'
-            return 'protected'
-        end
-
-        local packageNames = config.get(uri, 'Lua.doc.packageName')
-        if #packageNames > 0 and match(packageNames, fieldName) then
-            source._visibleType = 'package'
-            return 'package'
+        local configured = vm.matchConfiguredVisibility(uri, fieldName)
+        if configured then
+            source._visibleType = configured
+            return configured
         end
     end
 
     source._visibleType = 'public'
     return 'public'
+end
+
+--- Is `fieldName` matched by one of `Lua.doc.privateName`/`protectedName`/`packageName` for `uri`,
+--- independent of any actual definition -- a cheap, name-only check any caller can use before
+--- resolving definitions at all.
+---@param uri       uri
+---@param fieldName string
+---@return parser.visibleType?
+function vm.matchConfiguredVisibility(uri, fieldName)
+    local regengine = config.get(uri, 'Lua.doc.regengine')
+    local match = regengine == "glob" and globMatch or luaMatch
+    local privateNames = config.get(uri, 'Lua.doc.privateName')
+    if #privateNames > 0 and match(privateNames, fieldName) then
+        return 'private'
+    end
+
+    local protectedNames = config.get(uri, 'Lua.doc.protectedName')
+    if #protectedNames > 0 and match(protectedNames, fieldName) then
+        return 'protected'
+    end
+
+    local packageNames = config.get(uri, 'Lua.doc.packageName')
+    if #packageNames > 0 and match(packageNames, fieldName) then
+        return 'package'
+    end
+    return nil
 end
 
 ---@class vm.node

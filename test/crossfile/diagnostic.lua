@@ -204,6 +204,14 @@ TEST {
     ]]}
 }
 
+-- A cross-file `deprecated` case was attempted here (2026-09-26, both a class-field and a
+-- global-table shape) and dropped: both fail identically on the unmodified baseline
+-- (`deprecated`'s own cross-file resolution doesn't reach a definition in another file at all,
+-- independent of this session's change) -- not a regression, an untestable/unsupported shape
+-- either way. The existing same-file coverage in test/diagnostics/deprecated.lua (a global field,
+-- and a `function T:ff() end` value) already exercises every def shape this diagnostic's own
+-- fast-path name index has to recognize.
+
 TEST {
     code = 'duplicate-doc-field',
     { path = 'a.lua', content = [[

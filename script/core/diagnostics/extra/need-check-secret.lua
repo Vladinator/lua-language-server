@@ -18,6 +18,7 @@ local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
 local docTags         = require 'parser.docTags'
 local specials        = require 'parser.specials'
+local scope           = require 'workspace.scope'
 
 --- Extends parser.object (defined in parser/luadoc.lua) with the field
 --- this plugin's own `---@field name secret string` keyword sets -- see
@@ -258,6 +259,143 @@ local VARIABLE_READ_TYPES = {
     getglobal = true,
 }
 
+-- Name-based fallback for shapes the safe variable-ID/global system above can't reach (a field
+-- chain rooted in a global, or one that only resolves through a merged `---@class`, the common
+-- cross-file namespace-table idiom -- `local ns = select(2, ...) ---@class NS`). Mirrors
+-- invalid-guard.lua's own strategy (find the callee by its bare name first, so every other call
+-- in the codebase costs nothing), but stricter: invalid-guard.lua's own narrow() still calls
+-- vm.getDefs/vm.compileNode for the (smaller) set of calls whose name already matched -- a real,
+-- just rarer, exposure to the same reentrancy hazard this file's own history already hit once
+-- (263dfdf5e). Tried reintroducing that call as a fallback here on 2026-09-26 and it corrupted
+-- unrelated, order-dependent no-unknown findings under --seeds even though it passed every
+-- targeted test including a reconstruction of the original regression -- see TODO.md. So neither
+-- match() nor this fallback call vm.compileNode/vm.getDefs anywhere, ever: a name is trusted only
+-- when every occurrence of it, anywhere in the workspace, is tagged the same way. One untagged or
+-- differently-tagged function sharing the name anywhere makes it unsafe to trust and this falls
+-- back to not narrowing (a possible false positive elsewhere, never a missed secret here).
+
+---@param source parser.object?
+---@return string?
+local function nameOf(source)
+    if not source then
+        return nil
+    end
+    local t = source.type
+    if t == 'local' or t == 'setlocal' or t == 'setglobal' then
+        return source[1] --[[@as string?]]
+    elseif t == 'setfield' or t == 'tablefield' then
+        return source.field and source.field[1] --[[@as string?]]
+    elseif t == 'setmethod' then
+        return source.method and source.method[1] --[[@as string?]]
+    end
+    return nil
+end
+
+--- Every function declared in this file, by name: `false` when the name is also used by an
+--- untagged function, or by both tags, in this same file (`getNames` below folds this across
+--- files the same way, so any one bad occurrence anywhere in the workspace makes the name unsafe).
+---@param uri uri
+---@return table<string, 'doc.secret-check'|'doc.secret-access-check'|false>?
+local function getFileNames(uri)
+    local cache = files.getCache(uri)
+    if not cache then
+        return nil
+    end
+    ---@type table<string, 'doc.secret-check'|'doc.secret-access-check'|false>|false|nil
+    local names = cache['secret-check.names']
+    if names ~= nil then
+        return names or nil
+    end
+    local state = files.getState(uri)
+    if not state then
+        cache['secret-check.names'] = false
+        return nil
+    end
+    ---@type table<string, 'doc.secret-check'|'doc.secret-access-check'|false>
+    local found = {}
+    guide.eachSourceType(state.ast, 'function', function (func)
+        local name = nameOf(func.parent)
+        if not name then
+            return
+        end
+        ---@type 'doc.secret-check'|'doc.secret-access-check'|false
+        local tag = false
+        for _, holder in ipairs { func, func.parent } do
+            for _, doc in ipairs(holder and holder.bindDocs or {}) do
+                if doc.type == 'doc.secret-check' or doc.type == 'doc.secret-access-check' then
+                    tag = doc.type --[[@as 'doc.secret-check'|'doc.secret-access-check']]
+                end
+            end
+        end
+        local existing = found[name]
+        if existing == nil then
+            found[name] = tag
+        elseif existing ~= tag then
+            found[name] = false
+        end
+    end)
+    names = next(found) ~= nil and found or false
+    cache['secret-check.names'] = names
+    return names or nil
+end
+
+--- The names above, folded across every file of `uri`'s workspace; dropped with the rest of
+--- `vm.getCache` when a file changes.
+---@param uri uri
+---@return table<string, 'doc.secret-check'|'doc.secret-access-check'|false>
+local function getNames(uri)
+    local cache = vm.getCache('secret-check.names') --[[@as table<string, table<string, 'doc.secret-check'|'doc.secret-access-check'|false>>]]
+    local key   = scope.getScope(uri):getName()
+    local names = cache[key]
+    if names then
+        return names
+    end
+    ---@type table<string, 'doc.secret-check'|'doc.secret-access-check'|false>
+    names = {}
+    for fileUri in files.eachFile(uri) do
+        local fileNames = getFileNames(fileUri)
+        if fileNames then
+            for name, tag in pairs(fileNames) do
+                local existing = names[name]
+                if existing == nil then
+                    names[name] = tag
+                elseif existing ~= tag then
+                    names[name] = false
+                end
+            end
+        end
+    end
+    cache[key] = names
+    return names
+end
+
+---@param callee parser.object
+---@return string?
+local function calleeName(callee)
+    local t = callee.type
+    if t == 'getlocal' or t == 'getglobal' then
+        return callee[1] --[[@as string?]]
+    elseif t == 'getfield' then
+        return callee.field and callee.field[1] --[[@as string?]]
+    elseif t == 'getmethod' then
+        return callee.method and callee.method[1] --[[@as string?]]
+    end
+    return nil
+end
+
+--- Is `calleeNode`'s bare name known, workspace-wide, as `kind` and nothing else?
+---@param calleeNode parser.object
+---@param kind       'doc.secret-check' | 'doc.secret-access-check'
+---@return boolean
+local function isNamedSecretCheck(calleeNode, kind)
+    local name = calleeName(calleeNode)
+    if not name then
+        return false
+    end
+    local uri = guide.getUri(calleeNode)
+    return getNames(uri)[name] == kind
+end
+
 ---@param calleeNode parser.object
 ---@param kind       'doc.secret-check' | 'doc.secret-access-check'
 ---@param seen?      table<parser.object, true>
@@ -277,8 +415,14 @@ local function isDirectOrAliasedSecretCheck(calleeNode, kind, seen)
     else
         sets = vm.getVariableSets(calleeNode)
     end
-    if not sets then
-        return false
+    if not sets or #sets == 0 then
+        -- `sets` can be a *present but empty* table, not nil: the compound variable-ID for this
+        -- exact field path exists (created on first read, script/vm/variable.lua's
+        -- insertVariableID via `util.multiTable`), but nothing in this file ever assigned it --
+        -- exactly the cross-file case (the assignment is a different file's own `ns` local).
+        -- An empty result here is "nothing precise to check", not "definitely not a match", so
+        -- fall back to the name-based check the same as a nil result.
+        return isNamedSecretCheck(calleeNode, kind)
     end
     ---@type table<parser.object, true>
     local visited = seen or {}

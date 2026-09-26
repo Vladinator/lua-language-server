@@ -239,12 +239,35 @@ end
 -- calls vm.compileNode -- so both are safe to call here. What this
 -- doesn't (and safely can't) resolve: secrecy of a field/upvalue read
 -- whose own resolution would itself require a fresh vm.compileNode.
+--
+-- A field read (`ns.GameAPI.f`) is itself variable-ID tracked the same
+-- way a local is (script/vm/variable.lua's compileVariables has cases
+-- for getfield/setfield/getmethod/setmethod/getindex/setindex, building
+-- a compound ID off the parent's), so a local alias of a field
+-- (`local f = ns.GameAPI.f`) can be chased one more hop through the same
+-- safe primitives instead of stopping at the alias's own declaration:
+-- recurse into `set.value` when it is itself one of those variable-ID
+-- read types. `seen` guards a variable that (pathologically) aliases
+-- itself; ordinary code never nests this more than one or two hops deep.
+---@type table<string, true>
+local VARIABLE_READ_TYPES = {
+    getlocal  = true,
+    getfield  = true,
+    getmethod = true,
+    getindex  = true,
+    getglobal = true,
+}
+
 ---@param calleeNode parser.object
 ---@param kind       'doc.secret-check' | 'doc.secret-access-check'
+---@param seen?      table<parser.object, true>
 ---@return boolean
-local function isDirectOrAliasedSecretCheck(calleeNode, kind)
+local function isDirectOrAliasedSecretCheck(calleeNode, kind, seen)
     if hasSecretDoc(calleeNode, kind) then
         return true
+    end
+    if seen and seen[calleeNode] then
+        return false
     end
     ---@type parser.object[]|false|nil
     local sets
@@ -257,12 +280,21 @@ local function isDirectOrAliasedSecretCheck(calleeNode, kind)
     if not sets then
         return false
     end
+    ---@type table<parser.object, true>
+    local visited = seen or {}
+    visited[calleeNode] = true
     for _, set in ipairs(sets) do
         local target = set
         if set.value and set.value.type == 'function' then
             target = set.value
         end
         if hasSecretDoc(target, kind) then
+            return true
+        end
+        if  set.value
+        and set.value ~= calleeNode
+        and VARIABLE_READ_TYPES[set.value.type]
+        and isDirectOrAliasedSecretCheck(set.value, kind, visited) then
             return true
         end
     end

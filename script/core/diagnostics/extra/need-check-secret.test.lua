@@ -36,6 +36,31 @@ else
 end
 ]]
 
+-- a secret-check function reached through a field, then aliased to a local (`local chk =
+-- t.chk`): the alias's own declaration isn't a function literal, so isDirectOrAliasedSecretCheck
+-- has to chase one more hop through the field it was assigned from
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+local t = {}
+
+---@secret-check
+---@param v any
+---@return boolean
+function t.chk(v) return false end
+
+local chk = t.chk
+
+local x = f()
+if not chk(x) then
+    print(x + 5)
+else
+    print(<!x!> + 5)
+end
+]]
+
 TEST [[
 ---@secret
 ---@return boolean

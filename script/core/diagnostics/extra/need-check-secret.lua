@@ -274,34 +274,50 @@ local VARIABLE_READ_TYPES = {
 -- differently-tagged function sharing the name anywhere makes it unsafe to trust and this falls
 -- back to not narrowing (a possible false positive elsewhere, never a missed secret here).
 
+--- A bare global (`issecretvalue`) and a field of the same name (`ns.GameAPI.issecretvalue`) can
+--- never resolve to each other -- Lua's own syntax guarantees a field access is never a global
+--- lookup, whatever the bare word means elsewhere -- so they get separate namespaces here instead
+--- of being folded into one: a stock, untagged WoW API global sharing a name with a workspace's own
+--- tagged wrapper field must not poison the field's name (found from a real user report,
+--- 2026-09-26: `ns.GameAPI.issecretvalue`, its own body calling the real, untagged global
+--- `issecretvalue` it wraps). What genuinely stays ambiguous: two *different* fields (on unrelated
+--- tables) sharing a name, one tagged and one not -- there is no way to structurally tell those
+--- apart by name alone, so that case is still refused. A `local`/`self` declaration is never
+--- entered here at all: it is never what this fallback is trying to identify (a local is always
+--- resolved precisely by the safe variable-ID system within its own file; a same-named local in
+--- another file has no relationship to it whatsoever and must not be allowed to poison anything).
+---@alias secret.nameKind 'global'|'field'
+
 ---@param source parser.object?
----@return string?
+---@return string? name
+---@return secret.nameKind? kind
 local function nameOf(source)
     if not source then
         return nil
     end
     local t = source.type
-    if t == 'local' or t == 'setlocal' or t == 'setglobal' then
-        return source[1] --[[@as string?]]
+    if t == 'setglobal' then
+        return source[1] --[[@as string?]], 'global'
     elseif t == 'setfield' or t == 'tablefield' then
-        return source.field and source.field[1] --[[@as string?]]
+        return source.field and source.field[1] --[[@as string?]], 'field'
     elseif t == 'setmethod' then
-        return source.method and source.method[1] --[[@as string?]]
+        return source.method and source.method[1] --[[@as string?]], 'field'
     end
     return nil
 end
 
---- Every function declared in this file, by name: `false` when the name is also used by an
---- untagged function, or by both tags, in this same file (`getNames` below folds this across
---- files the same way, so any one bad occurrence anywhere in the workspace makes the name unsafe).
+--- Every function declared in this file, by kind and name: `false` when the name is also used by
+--- an untagged function (of the same kind), or by both tags, in this same file (`getNames` below
+--- folds this across files the same way, so any one bad occurrence anywhere in the workspace makes
+--- the name unsafe).
 ---@param uri uri
----@return table<string, 'doc.secret-check'|'doc.secret-access-check'|false>?
+---@return table<secret.nameKind, table<string, 'doc.secret-check'|'doc.secret-access-check'|false>>?
 local function getFileNames(uri)
     local cache = files.getCache(uri)
     if not cache then
         return nil
     end
-    ---@type table<string, 'doc.secret-check'|'doc.secret-access-check'|false>|false|nil
+    ---@type table<secret.nameKind, table<string, 'doc.secret-check'|'doc.secret-access-check'|false>>|false|nil
     local names = cache['secret-check.names']
     if names ~= nil then
         return names or nil
@@ -311,13 +327,15 @@ local function getFileNames(uri)
         cache['secret-check.names'] = false
         return nil
     end
-    ---@type table<string, 'doc.secret-check'|'doc.secret-access-check'|false>
-    local found = {}
+    ---@type table<secret.nameKind, table<string, 'doc.secret-check'|'doc.secret-access-check'|false>>
+    local found = { global = {}, field = {} }
+    local any = false
     guide.eachSourceType(state.ast, 'function', function (func)
-        local name = nameOf(func.parent)
-        if not name then
+        local name, kind = nameOf(func.parent)
+        if not name or not kind then
             return
         end
+        any = true
         ---@type 'doc.secret-check'|'doc.secret-access-check'|false
         local tag = false
         for _, holder in ipairs { func, func.parent } do
@@ -327,14 +345,15 @@ local function getFileNames(uri)
                 end
             end
         end
-        local existing = found[name]
+        local bucket  = found[kind]
+        local existing = bucket[name]
         if existing == nil then
-            found[name] = tag
+            bucket[name] = tag
         elseif existing ~= tag then
-            found[name] = false
+            bucket[name] = false
         end
     end)
-    names = next(found) ~= nil and found or false
+    names = any and found or false
     cache['secret-check.names'] = names
     return names or nil
 end
@@ -342,25 +361,28 @@ end
 --- The names above, folded across every file of `uri`'s workspace; dropped with the rest of
 --- `vm.getCache` when a file changes.
 ---@param uri uri
----@return table<string, 'doc.secret-check'|'doc.secret-access-check'|false>
+---@return table<secret.nameKind, table<string, 'doc.secret-check'|'doc.secret-access-check'|false>>
 local function getNames(uri)
-    local cache = vm.getCache('secret-check.names') --[[@as table<string, table<string, 'doc.secret-check'|'doc.secret-access-check'|false>>]]
+    local cache = vm.getCache('secret-check.names') --[[@as table<string, table<secret.nameKind, table<string, 'doc.secret-check'|'doc.secret-access-check'|false>>>]]
     local key   = scope.getScope(uri):getName()
     local names = cache[key]
     if names then
         return names
     end
-    ---@type table<string, 'doc.secret-check'|'doc.secret-access-check'|false>
-    names = {}
+    ---@type table<secret.nameKind, table<string, 'doc.secret-check'|'doc.secret-access-check'|false>>
+    names = { global = {}, field = {} }
     for fileUri in files.eachFile(uri) do
         local fileNames = getFileNames(fileUri)
         if fileNames then
-            for name, tag in pairs(fileNames) do
-                local existing = names[name]
-                if existing == nil then
-                    names[name] = tag
-                elseif existing ~= tag then
-                    names[name] = false
+            for kind, bucket in pairs(fileNames) do
+                local target = names[kind]
+                for name, tag in pairs(bucket) do
+                    local existing = target[name]
+                    if existing == nil then
+                        target[name] = tag
+                    elseif existing ~= tag then
+                        target[name] = false
+                    end
                 end
             end
         end
@@ -370,15 +392,18 @@ local function getNames(uri)
 end
 
 ---@param callee parser.object
----@return string?
+---@return string? name
+---@return secret.nameKind? kind
 local function calleeName(callee)
     local t = callee.type
-    if t == 'getlocal' or t == 'getglobal' then
-        return callee[1] --[[@as string?]]
+    if t == 'getglobal' then
+        return callee[1] --[[@as string?]], 'global'
     elseif t == 'getfield' then
-        return callee.field and callee.field[1] --[[@as string?]]
+        return callee.field and callee.field[1] --[[@as string?]], 'field'
     elseif t == 'getmethod' then
-        return callee.method and callee.method[1] --[[@as string?]]
+        return callee.method and callee.method[1] --[[@as string?]], 'field'
+    elseif t == 'getindex' then
+        return guide.getKeyName(callee), 'field'
     end
     return nil
 end
@@ -388,12 +413,12 @@ end
 ---@param kind       'doc.secret-check' | 'doc.secret-access-check'
 ---@return boolean
 local function isNamedSecretCheck(calleeNode, kind)
-    local name = calleeName(calleeNode)
-    if not name then
+    local name, nameKind = calleeName(calleeNode)
+    if not name or not nameKind then
         return false
     end
     local uri = guide.getUri(calleeNode)
-    return getNames(uri)[name] == kind
+    return getNames(uri)[nameKind][name] == kind
 end
 
 ---@param calleeNode parser.object

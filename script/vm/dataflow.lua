@@ -1,24 +1,31 @@
 ---@class vm
 local vm = require 'vm.vm'
 
---- Phase 2 of the tracer redesign (see `TRACER-REDESIGN.md`): a generic worklist fixpoint engine
+--- Phase 2/3 of the tracer redesign (see `TRACER-REDESIGN.md`): a generic worklist fixpoint engine
 --- over a `vm.cfg` (Phase 1). No real narrowing logic lives here -- `spec.transfer` is supplied by
---- the caller; Phase 2's own tests instantiate it with a toy lattice to prove the *iteration
---- itself* terminates and converges correctly (loop back-edges included) before Phase 3 plugs in
---- real `vm.node` states and the ported `lookIntoChild` case table as the real transfer function.
+--- the caller. Phase 2's own tests instantiate it with a toy lattice to prove the *iteration
+--- itself* terminates and converges correctly (loop back-edges included); Phase 3 plugs in real
+--- `vm.node` states and the ported `lookIntoChild` case table as the real transfer function.
 ---
---- Standard forward worklist dataflow: `stateIn[block]` is the join of every predecessor's
---- `stateOut`; `stateOut[block] = spec.transfer(block, stateIn[block])`. A block is only
---- re-processed (and its successors re-enqueued) when its own state actually changes, so this
---- terminates whenever `spec.join` is monotonic over a finite-height lattice (true of every
---- concrete state Phase 3+ will use: `vm.node`'s own type/flag universe is bounded per function).
+--- Standard forward worklist dataflow: `stateIn[block]` is the join of every predecessor's own
+--- output *along the specific edge reaching this block* (see `transfer`'s second return value
+--- below); a block is only re-processed (and its successors re-enqueued) when its own output
+--- actually changes, so this terminates whenever `spec.join` is monotonic over a finite-height
+--- lattice (true of every concrete state Phase 3+ will use: `vm.node`'s own type/flag universe is
+--- bounded per function).
 
 ---@class vm.dataflow.spec<S>
 ---@field bottom fun(): any        the lattice's bottom (least informative) value
 ---@field initial fun(): any       the state entering the CFG's own entry block
 ---@field join fun(a: any, b: any): any   must be monotonic: join(a, join(a, b)) == join(a, b)
 ---@field equal fun(a: any, b: any): boolean
----@field transfer fun(block: vm.cfg.block, stateIn: any): any
+---@field transfer fun(block: vm.cfg.block, stateIn: any): any, table<vm.cfg.edgeKind, any>?
+--- the second return value is optional: a block whose own `succs` carry different meanings per
+--- edge kind (a test block's 'true'/'false' edges, most notably -- see `vm.cfg.block.condition`)
+--- can supply a *different* output state per edge kind here, instead of the one `stateOut` every
+--- edge would otherwise inherit. An edge kind with no entry in this table (or when the whole
+--- table is omitted) falls back to the plain `stateOut` -- so a block with no branching-specific
+--- narrowing (the overwhelming majority) never needs to think about this at all.
 
 ---@class vm.dataflow.result
 ---@field stateIn  table<vm.cfg.block, any>
@@ -34,12 +41,17 @@ function vm.runDataflow(cfg, spec)
     local stateIn = {}
     ---@type table<vm.cfg.block, any>
     local stateOut = {}
+    ---@type table<vm.cfg.block, table<vm.cfg.edgeKind, any>>
+    local edgeOut = {}
     for _, block in ipairs(cfg.blocks) do
-        -- both tables are fully populated up front, never left with a nil hole: a lattice value
-        -- can legitimately be `false` (the boolean-reachability toy lattice the Phase 2 tests use
-        -- is exactly this), so "never set yet" has to be tracked some other way than truthiness
+        -- every table is fully populated up front, never left with a nil hole: a lattice value
+        -- can legitimately be `false` (the boolean-reachability toy lattice Phase 2's own tests
+        -- use is exactly this), so "never set yet" has to be tracked some other way than
+        -- truthiness (edgeOut[block] itself stays a real, if possibly empty, table for the same
+        -- reason -- "no override for this edge kind" is a missing *key*, not a falsy value)
         stateIn[block] = spec.bottom()
         stateOut[block] = spec.bottom()
+        edgeOut[block] = {}
     end
 
     ---@type table<vm.cfg.block, true>
@@ -60,14 +72,40 @@ function vm.runDataflow(cfg, spec)
             newIn = spec.join(newIn, spec.initial())
         end
         for _, pred in ipairs(block.preds) do
-            newIn = spec.join(newIn, stateOut[pred])
+            -- the state pred emits is whatever it published for *this specific edge's kind*
+            -- (edgeOut), falling back to its plain stateOut when it never overrode that kind
+            for _, edge in ipairs(pred.succs) do
+                if edge.to == block then
+                    local predOut = edgeOut[pred][edge.kind]
+                    if predOut == nil then
+                        predOut = stateOut[pred]
+                    end
+                    newIn = spec.join(newIn, predOut)
+                end
+            end
         end
 
         if not spec.equal(stateIn[block], newIn) then
             stateIn[block] = newIn
-            local newOut = spec.transfer(block, newIn)
-            if not spec.equal(stateOut[block], newOut) then
+            local newOut, edgeOverrides = spec.transfer(block, newIn)
+
+            local changed = not spec.equal(stateOut[block], newOut)
+            if edgeOverrides then
+                for kind, val in pairs(edgeOverrides) do
+                    local prevVal = edgeOut[block][kind]
+                    if prevVal == nil or not spec.equal(prevVal, val) then
+                        changed = true
+                    end
+                end
+            end
+
+            if changed then
                 stateOut[block] = newOut
+                if edgeOverrides then
+                    for kind, val in pairs(edgeOverrides) do
+                        edgeOut[block][kind] = val
+                    end
+                end
                 for _, edge in ipairs(block.succs) do
                     if not queued[edge.to] then
                         queued[edge.to] = true
@@ -79,6 +117,6 @@ function vm.runDataflow(cfg, spec)
     end
 
     -- a block never reached by the worklist at all (unreachable from entry) simply keeps the
-    -- bottom value both tables were pre-populated with above -- no hole to fill in here.
+    -- bottom value every table was pre-populated with above -- no hole to fill in here.
     return { stateIn = stateIn, stateOut = stateOut, iterations = iterations }
 end

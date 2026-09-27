@@ -28,10 +28,16 @@ local vm = require 'vm.vm'
 ---@field kind vm.cfg.edgeKind
 
 ---@class vm.cfg.block
----@field id    integer
----@field stmts parser.object[]
----@field succs vm.cfg.edge[]
----@field preds vm.cfg.block[]
+---@field id        integer
+---@field stmts     parser.object[]
+---@field succs     vm.cfg.edge[]
+---@field preds     vm.cfg.block[]
+---@field condition parser.object? the expression whose truthiness this block's own 'true'/'false'
+--- edges (if it has them) split on -- an `if`/`elseif`/`while`'s own `.filter`, or a `repeat`'s
+--- `.filter` (the `until` expression, on the block the body falls through to, note the *inverted*
+--- sense: `until`'s 'true' edge is the one that EXITS the loop, `elseif`/`if`/`while`'s 'true'
+--- edge is the one that ENTERS the body). Phase 1 (pure structure) never read this; Phase 3's
+--- dataflow transfer functions are what actually narrow along it.
 
 ---@class vm.cfg
 ---@field entry  vm.cfg.block
@@ -160,6 +166,9 @@ function Builder:walkIf(ifStmt, cur, ctx)
         local bodyEntry
         if subBlock.filter then
             bodyEntry = self:newBlock()
+            if testBlock then
+                testBlock.condition = subBlock.filter
+            end
             self:addEdge(testBlock, bodyEntry, 'true')
         else
             -- elseblock: unconditional, no separate test block -- its body starts right where the
@@ -201,6 +210,12 @@ end
 function Builder:walkLoop(stmt, cur, ctx, kind)
     local headerBlock = self:newBlock()
     self:addEdge(cur, headerBlock, 'normal')
+    if kind == 'while' then
+        -- numeric/generic for's own "more iterations remain" isn't a plain boolean expression
+        -- (it's driven by the loop variable against init/max, or the iterator call) -- deferred,
+        -- not tracked as a `.condition` yet; only `while`'s filter is a real narrowable condition
+        headerBlock.condition = stmt.filter
+    end
     local bodyEntry = self:newBlock()
     self:addEdge(headerBlock, bodyEntry, 'true')
     local exitBlock = self:newBlock()
@@ -233,8 +248,9 @@ function Builder:walkRepeat(stmt, cur, ctx)
 
     if bodyExit then
         -- the `until` condition is evaluated once per iteration, right after the body; treated
-        -- as belonging to the block the body falls through to, not a separate block of its own
-        -- (Phase 1 does not yet track individual expressions, only statement-level blocks)
+        -- as belonging to the block the body falls through to, not a separate block of its own.
+        -- Inverted sense vs if/while: here 'true' EXITS the loop (the until condition held).
+        bodyExit.condition = stmt.filter
         self:addEdge(bodyExit, exitBlock, 'true')
         self:addEdge(bodyExit, bodyEntry, 'loop-back')
     end

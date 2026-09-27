@@ -91,7 +91,7 @@ return function (uri, callback)
         local name
         for _, def in ipairs(vm.getDefs(source)) do
             if def.type == 'doc.field' and def.extends and def.extends.nosecret then
-                name = name or (def.field and def.field[1] --[[@as string?]])
+                name = name or (def.field and def.field[1])
             end
         end
         if name then

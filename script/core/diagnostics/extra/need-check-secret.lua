@@ -30,6 +30,7 @@ local scope           = require 'workspace.scope'
 ---@class parser.object
 ---@field ["secret"]? boolean
 ---@field ["nosecret"]? boolean -- the `nosecret` type keyword below: a slot that cannot take a secret value (checked by secret-argument.lua and secret-field.lua)
+---@field ["secretGuard"]? boolean -- the `secretguard` type keyword below: which parameter(s) of a @secret-check/@secret-access-check function actually narrow (read by guardedIndicesOf)
 ---@field ["secretUnwrapUsed"]? boolean -- on a `doc.secret-unwrap`: it cleared an inherited flag at least once
 
 local MESSAGE = 'Need check secret value.'
@@ -98,6 +99,13 @@ docTags.registerTypeKeyword('secret', 'secret',
 -- secret-field.lua report a secret that is passed or assigned to such a slot.
 docTags.registerTypeKeyword('nosecret', 'nosecret',
     'This slot cannot take a secret value: `---@param str nosecret string`, `---@field name nosecret string`. Passing or assigning one is reported by `secret-argument` / `secret-field`.')
+
+-- `secretguard` marks which parameter(s) of a `---@secret-check`/`---@secret-access-check`
+-- function the narrowing actually applies to (default: the first parameter, unchanged from
+-- before this existed). Several parameters may each carry it, narrowing all of them together
+-- on the same call -- the equivalent of a multi-value guard like `canaccessallvalues(a, b)`.
+docTags.registerTypeKeyword('secretguard', 'secretGuard',
+    'Marks the parameter a `---@secret-check`/`---@secret-access-check` function narrows: `---@param b secretguard any`. Default (no parameter marked): the first parameter. Mark several to narrow them together.')
 
 -- Recognize `next` as an iteration entry point, alongside the parser's
 -- own built-in pairs/ipairs, so `next(secretTable)` can be banned below.
@@ -470,6 +478,166 @@ local function isDirectOrAliasedSecretCheck(calleeNode, kind, seen)
     return false
 end
 
+--- Which parameter(s) of `funcNode` (a real `function` AST node) are marked `secretguard`, by
+--- position. No marked parameter means "the first one", the default before this existed.
+---@param funcNode parser.object
+---@return integer[]
+local function guardedIndicesOf(funcNode)
+    local args = funcNode.args
+    if not args then
+        return {1}
+    end
+    ---@type integer[]
+    local indices = {}
+    for i, param in ipairs(args) do
+        local docs = param.bindDocs
+        if docs then
+            for j = 1, #docs do
+                local doc = docs[j]
+                if  doc.type == 'doc.param'
+                and doc.param
+                and doc.param[1] == param[1]
+                and doc.extends
+                and doc.extends.secretGuard then
+                    indices[#indices+1] = i
+                end
+            end
+        end
+    end
+    if #indices == 0 then
+        indices[1] = 1
+    end
+    return indices
+end
+
+--- Same safe traversal as isDirectOrAliasedSecretCheck (never vm.compileNode/vm.getDefs, see its
+--- own comment above), but returns the resolved `function` AST node instead of a boolean, so
+--- guardedIndicesOf can read its actual parameter list. Returns nil for anything the safe
+--- primitives can't resolve to a real function node (the name-based fallback below covers that).
+---@param calleeNode parser.object
+---@param seen?      table<parser.object, true>
+---@return parser.object?
+local function resolveSecretCheckFunction(calleeNode, seen)
+    if calleeNode.type == 'function' then
+        return calleeNode
+    end
+    if seen and seen[calleeNode] then
+        return nil
+    end
+    ---@type parser.object[]|false|nil
+    local sets
+    if calleeNode.type == 'getglobal' then
+        local globalVar = vm.getGlobal('variable', calleeNode[1])
+        sets = globalVar and globalVar:getSets(guide.getUri(calleeNode))
+    else
+        sets = vm.getVariableSets(calleeNode)
+    end
+    if not sets or #sets == 0 then
+        return nil
+    end
+    ---@type table<parser.object, true>
+    local visited = seen or {}
+    visited[calleeNode] = true
+    for _, set in ipairs(sets) do
+        if set.value and set.value.type == 'function' then
+            return set.value
+        end
+        if  set.value
+        and set.value ~= calleeNode
+        and VARIABLE_READ_TYPES[set.value.type] then
+            local found = resolveSecretCheckFunction(set.value, visited)
+            if found then
+                return found
+            end
+        end
+    end
+    return nil
+end
+
+--- Guarded indices by name, workspace-wide -- the guardedIndicesOf counterpart to
+--- getFileNames/getNames above, kept as a fully separate cache so nothing here can affect
+--- match()'s own tag resolution. Only consulted when resolveSecretCheckFunction can't reach a
+--- real function node directly (the same shapes isNamedSecretCheck's name-based fallback covers).
+---@param uri uri
+---@return table<secret.nameKind, table<string, integer[]>>?
+local function getFileGuardIndices(uri)
+    local cache = files.getCache(uri)
+    if not cache then
+        return nil
+    end
+    ---@type table<secret.nameKind, table<string, integer[]>>|false|nil
+    local indices = cache['secret-check.guardIndices']
+    if indices ~= nil then
+        return indices or nil
+    end
+    local state = files.getState(uri)
+    if not state then
+        cache['secret-check.guardIndices'] = false
+        return nil
+    end
+    ---@type table<secret.nameKind, table<string, integer[]>>
+    local found = { global = {}, field = {} }
+    local any = false
+    guide.eachSourceType(state.ast, 'function', function (func)
+        local name, kind = nameOf(func.parent)
+        if not name or not kind then
+            return
+        end
+        any = true
+        found[kind][name] = guardedIndicesOf(func)
+    end)
+    indices = any and found or false
+    cache['secret-check.guardIndices'] = indices
+    return indices or nil
+end
+
+---@param uri uri
+---@return table<secret.nameKind, table<string, integer[]>>
+local function getGuardIndices(uri)
+    local cache = vm.getCache('secret-check.guardIndices') --[[@as table<string, table<secret.nameKind, table<string, integer[]>>>]]
+    local key = scope.getScope(uri):getName()
+    local indices = cache[key]
+    if indices then
+        return indices
+    end
+    ---@type table<secret.nameKind, table<string, integer[]>>
+    indices = { global = {}, field = {} }
+    for fileUri in files.eachFile(uri) do
+        local fileIndices = getFileGuardIndices(fileUri)
+        if fileIndices then
+            for kind, bucket in pairs(fileIndices) do
+                local target = indices[kind]
+                for name, idxList in pairs(bucket) do
+                    -- last file wins across a shared name; isNamedSecretCheck's own tag lookup
+                    -- (not this) is what decides whether the name is trusted at all
+                    target[name] = idxList
+                end
+            end
+        end
+    end
+    cache[key] = indices
+    return indices
+end
+
+--- Which argument position(s) a matched secret-check call narrows. Tries the safe direct/aliased
+--- resolution first (an exact function node to read `secretguard` params off of), then the same
+--- name-based fallback match() itself uses. Always returns at least `{1}`.
+---@param calleeNode parser.object
+---@return integer[]
+local function getGuardedIndices(calleeNode)
+    local funcNode = resolveSecretCheckFunction(calleeNode)
+    if funcNode then
+        return guardedIndicesOf(funcNode)
+    end
+    local name, kind = calleeName(calleeNode)
+    if not name or not kind then
+        return {1}
+    end
+    local uri = guide.getUri(calleeNode)
+    local idx = getGuardIndices(uri)[kind][name]
+    return idx or {1}
+end
+
 vm.registerCallNarrowing {
     match = function (calleeNode)
         return isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-check')
@@ -482,11 +650,24 @@ vm.registerCallNarrowing {
     ---@return vm.node
     ---@return vm.node?
     narrow = function (tracer, action, topNode, outNode)
-        if not (action.args and action.args[1] and tracer.getMap[action.args[1]]) then
+        if not action.args then
+            return topNode, outNode
+        end
+        -- the traced variable can be read at any guarded position, not just the first
+        -- argument (secretguard, see above); find the one that matches, if any
+        ---@type parser.object?
+        local value
+        for _, i in ipairs(getGuardedIndices(action.node)) do
+            local arg = action.args[i]
+            if arg and tracer.getMap[arg] then
+                value = arg
+                break
+            end
+        end
+        if not value then
             return topNode, outNode
         end
         local isAccessCheck = not isSecretCheck(action.node) and isSecretAccessCheck(action.node)
-        local value = action.args[1]
         tracer:lookIntoChild(value, topNode, outNode)
         if isAccessCheck then
             topNode = topNode:copy():clearFlag('secret')

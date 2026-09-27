@@ -36,6 +36,69 @@ else
 end
 ]]
 
+-- `secretguard` on a non-first parameter: the guard narrows whichever argument it marks, not
+-- just the first one (2026-09-27, closes the gap found comparing against wowlua-ls)
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-check
+---@param a any
+---@param b secretguard any
+local function chk2(a, b) return false end
+
+local x = f()
+local y = f()
+if not chk2(y, x) then
+    print(x + 5)
+else
+    print(<!x!> + 5)
+end
+]]
+
+-- without `secretguard` on either parameter, only the first still narrows -- the pre-existing,
+-- backward-compatible default
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-check
+---@param a any
+---@param b any
+local function chk2(a, b) return false end
+
+local x = f()
+local y = f()
+if not chk2(y, x) then
+    print(<!x!> + 5)
+end
+]]
+
+-- two parameters both marked `secretguard`: both narrow together on the same call, the
+-- equivalent of a multi-value guard like `canaccessallvalues(a, b)`
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-check
+---@param a secretguard any
+---@param b secretguard any
+local function chk3(a, b) return false end
+
+local x = f()
+local y = f()
+if not chk3(x, y) then
+    print(x + 5)
+    print(y + 5)
+else
+    print(<!x!> + 5)
+    print(<!y!> + 5)
+end
+]]
+
 -- a secret-check function reached through a field, then aliased to a local (`local chk =
 -- t.chk`): the alias's own declaration isn't a function literal, so isDirectOrAliasedSecretCheck
 -- has to chase one more hop through the field it was assigned from

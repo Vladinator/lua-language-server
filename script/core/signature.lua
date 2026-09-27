@@ -71,7 +71,11 @@ local function makeOneSignature(source, oop, index)
     local params = {}
     local i = 0
     ---@type integer?, string?
+    -- both captures come from the same match call: either both nil (no match) or both set
     local argStart, argLabel = label:match '()(%b())$'
+    -- not a redundant cast: suppressing just the need-check-nil here still leaves `converted`'s
+    -- whole `:sub()`/`:gsub()` chain inferring `unknown` (a genuine checker limitation resolving
+    -- a method chain off a `string?`), confirmed by tools/audit_casts.py's own validate.py rerun
     local converted = (argLabel --[[@as string]])
         : sub(2, -2)
         : gsub('%b<>', function (str)
@@ -94,7 +98,8 @@ local function makeOneSignature(source, oop, index)
     for start, finish in converted:gmatch '%s*()[^,]+()' do
         i = i + 1
         params[i] = {
-            label = {(start --[[@as integer]]) + (argStart --[[@as integer]]) - 1, (finish --[[@as integer]]) - 1 + (argStart --[[@as integer]])},
+            ---@diagnostic expect-next-line: need-check-nil
+            label = {start + argStart - 1, finish - 1 + argStart},
         }
     end
     -- 不定参数

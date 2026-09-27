@@ -297,11 +297,11 @@ local function nameOf(source)
     end
     local t = source.type
     if t == 'setglobal' then
-        return source[1] --[[@as string?]], 'global'
+        return source[1], 'global'
     elseif t == 'setfield' or t == 'tablefield' then
-        return source.field and source.field[1] --[[@as string?]], 'field'
+        return source.field and source.field[1], 'field'
     elseif t == 'setmethod' then
-        return source.method and source.method[1] --[[@as string?]], 'field'
+        return source.method and source.method[1], 'field'
     end
     return nil
 end
@@ -397,11 +397,11 @@ end
 local function calleeName(callee)
     local t = callee.type
     if t == 'getglobal' then
-        return callee[1] --[[@as string?]], 'global'
+        return callee[1], 'global'
     elseif t == 'getfield' then
-        return callee.field and callee.field[1] --[[@as string?]], 'field'
+        return callee.field and callee.field[1], 'field'
     elseif t == 'getmethod' then
-        return callee.method and callee.method[1] --[[@as string?]], 'field'
+        return callee.method and callee.method[1], 'field'
     elseif t == 'getindex' then
         return guide.getKeyName(callee), 'field'
     end

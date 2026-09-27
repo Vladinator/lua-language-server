@@ -469,7 +469,7 @@ do
     local function offered(script)
         local text, catched = catch(script, '?')
         files.setText(TESTURI, text)
-        local items = completion.completion(TESTURI, catched['?'][1][2] --[[@as integer]], nil) or {}
+        local items = completion.completion(TESTURI, catched['?'][1][2], nil) or {}
         ---@type table<string, integer>
         local labels = {}
         for _, item in ipairs(items) do

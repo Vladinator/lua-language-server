@@ -1084,11 +1084,22 @@ function mt:lookIntoChild(action, topNode, outNode)
     return topNode, outNode or topNode
 end
 
----@param block   parser.object
----@param start   integer
----@param node    vm.node
----@param effect? integer  when walking on from an assignment: its `effect`, to step over the statement itself
-function mt:lookIntoBlock(block, start, node, effect)
+---@param block       parser.object
+---@param start       integer
+---@param node        vm.node
+---@param effect?     integer  when walking on from an assignment: its `effect`, to step over the statement itself
+---@param viaShortcut? boolean  this call originates from mt:calcNode's own assignment-anchored
+--- shortcut (or mt:getFallbackFieldNode's, the same shape), not from a dedicated case handler's own
+--- internal per-body walk. Several case handlers ('do'/'loop'/'repeat'/'in'/'while'/'if') also call
+--- lookIntoBlock on their own block/clause for their own purposes and read `self.nodes[block]`
+--- straight back out afterward, expecting the plain, unmerged state at the end of that one body --
+--- the tail-recursion below (and any future per-block-type merge like it) must only fire for the
+--- shortcut's own fall-through, or it corrupts that internal read (confirmed 2026-09-27: extending
+--- the loop-narrowing merge to 'while' this way broke an unrelated 'loop' test; the 'if' handler has
+--- the identical shape and was never attempted for the same reason, TODO.md/SUMMARY-LOG). Propagated
+--- through this function's own tail-recursion so a chain that started as the shortcut stays tagged
+--- as it falls through several enclosing blocks.
+function mt:lookIntoBlock(block, start, node, effect, viaShortcut)
     self:resetCastsIndex(start)
     for _, action in ipairs(block) do
         if (action.effect or action.start) < start then
@@ -1137,15 +1148,67 @@ function mt:lookIntoBlock(block, start, node, effect)
         -- passes through a `break` at all, so a variable set only on a break-taking branch before
         -- this assignment came back `unknown` here. Merge in the break-exit state when it can be
         -- computed soundly (getBreakExit): this only ever adds information on top of the existing
-        -- approximation, never replaces it, since this loop shape can also exit normally.
-        if self.trackBreaks[block] then
+        -- approximation, never replaces it, since this loop shape can also exit normally. The merge
+        -- itself is gated on `viaShortcut` (see its doc comment); the *recursive call* into the
+        -- parent block below is not, matching this function's own pre-existing behavior for these
+        -- four types (every prior call, including a dedicated case handler's own internal walk of
+        -- its own body, already fell through to the parent this way -- only the merge is new).
+        if viaShortcut and self.trackBreaks[block] then
             local exitNode = self:getBreakExit(block, node)
             if exitNode then
                 node = node:copy():merge(exitNode)
                 self.nodes[block] = node
             end
         end
-        self:lookIntoBlock(block.parent, block.finish, node)
+        self:lookIntoBlock(block.parent, block.finish, node, nil, viaShortcut)
+        return
+    end
+    if block.type == 'while' and viaShortcut
+    and self.trackBreaks[block] and isConstantTrue(block.filter) then
+        -- 'while' has no pre-existing fall-through at all (it was never in the type list above):
+        -- both the merge *and* the recursive call must be fully gated on `viaShortcut`, not just the
+        -- merge -- confirmed the hard way (2026-09-27): gating only the merge still let the dedicated
+        -- 'while' case handler's own internal `lookIntoBlock(action, action.bstart, ...)` call (no
+        -- `viaShortcut` passed) reach the *recursive call* below and escape into its own enclosing
+        -- scope as a brand-new side effect that never happened before 'while' was added here,
+        -- breaking an unrelated test. Only calcNode's own shortcut chain may take this branch.
+        --
+        -- Restricted to a constant-true condition on purpose -- also confirmed the hard way: a
+        -- `while cond do ... end` with a real, non-constant condition has a second exit path this
+        -- shortcut-anchored walk never sees at all, the condition becoming false, which carries its
+        -- own narrowing entirely unrelated to whatever the body's last iteration left (`while x ==
+        -- nil do ... end` exits with `x` narrowed *non-nil*, the negation of the loop condition, not
+        -- whatever the body's own last assignment happened to leave it as). Carrying the body's own
+        -- end-of-iteration state out as "the state after the loop" is not an imprecise approximation
+        -- there, it is an outright wrong answer -- confirmed by a real regression
+        -- (`while x == nil do if x == nil then return end; x = nil end; print(x)`, `number` expected,
+        -- `nil` came back). `while true` has no such second exit path (the condition can never become
+        -- false), so it is the only shape this branch can soundly handle without also computing what
+        -- the condition's own negation narrows -- which the general fixpoint problem (TODO.md) would
+        -- need to solve properly for the general case.
+        local exitNode = self:getBreakExit(block, node)
+        if not exitNode then
+            -- `while true do ... end` only ever exits through a `break`, and here `getBreakExit`
+            -- could not establish what the break states are (an unguarded break, one whose value
+            -- can't be traced safely, ...) -- there is no "normal" completion to fall back on for
+            -- this shape (falling off the end of the body can't actually happen), so whatever
+            -- calcNode's own naive forward walk found (`node`, the state after the *last textual*
+            -- assignment) is not a valid exit state at all: nothing guarantees the break that actually
+            -- fires ever saw that assignment run. Confirmed by a real regression (an unguarded break
+            -- before the loop's only assignment, `while true do if cond then break end; x = 'a' end`,
+            -- expected to still report `x` as possibly nil -- this branch used to confidently carry
+            -- `x`'s narrowed, non-nilable state out of the loop regardless, silently losing the
+            -- report). Stop here instead of recursing with a value that cannot be trusted; the caller
+            -- falls back to whatever it would have without this branch existing at all.
+            return
+        end
+        -- `while true do ... end` only ever exits through a `break`: there is no "normal" exit to
+        -- merge with (falling off the end of the body can't actually happen), so the break states
+        -- are the whole answer, same as the dedicated case handler's own replace (not merge) for
+        -- this shape.
+        node = exitNode
+        self.nodes[block] = node
+        self:lookIntoBlock(block.parent, block.finish, node, nil, viaShortcut)
     end
 end
 
@@ -1404,7 +1467,7 @@ function mt:calcNode(source)
         self.nodes[source] = node
         local parentBlock = guide.getParentBlock(source)
         if parentBlock then
-            self:lookIntoBlock(parentBlock, source.finish, node, (source.type == 'setlocal' or source.type == 'setfield' or source.type == 'setindex') and source.effect or nil)
+            self:lookIntoBlock(parentBlock, source.finish, node, (source.type == 'setlocal' or source.type == 'setfield' or source.type == 'setindex') and source.effect or nil, true)
         end
         return
     end
@@ -1467,7 +1530,7 @@ function mt:getFallbackFieldNode(source, variable)
     if not parentBlock then
         return nil
     end
-    self:lookIntoBlock(parentBlock, variable.base.finish, initialNode:copy())
+    self:lookIntoBlock(parentBlock, variable.base.finish, initialNode:copy(), nil, true)
     return self.nodes[source] or nil
 end
 

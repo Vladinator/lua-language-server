@@ -2507,6 +2507,26 @@ end
 print(<?x?>)
 ]]
 
+-- the same shape, in a while true loop -- the dedicated case handler has its own, separate
+-- break-exit call (getBreakExit via isConstantTrue), so this exercises the calcNode-shortcut path
+-- specifically; unlike the for-loop case above, while true never has a normal exit to merge with,
+-- so this gets the precise answer (integer), not just the safe widening (integer|nil)
+TEST 'integer' [[
+local i = 0
+local x
+
+while true do
+    i = i + 1
+    if i == 1 then
+        x = 1
+        break
+    end
+    x = nil
+end
+
+print(<?x?>)
+]]
+
 -- the reverse: an assignment on a DIFFERENT, unrelated branch from the break must not be
 -- treated as guarding it (the break can be reached without that assignment ever running) --
 -- confirms the generalised guard check is still sound, not just permissive

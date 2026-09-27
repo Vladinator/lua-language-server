@@ -30,8 +30,11 @@ return function (uri, callback)
             return
         end
 
-        local funcNode = vm.compileNode(source.node)
-        local _, funcArgs = vm.countParamsOfNode(funcNode)
+        local _, funcArgs = vm.tryCheapCountParams(source.node)
+        if not funcArgs then
+            local funcNode = vm.compileNode(source.node)
+            _, funcArgs = vm.countParamsOfNode(funcNode)
+        end
 
         if callArgs <= funcArgs then
             return

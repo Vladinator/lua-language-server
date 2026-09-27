@@ -27,8 +27,11 @@ return function (uri, callback)
         await.delay()
         local _, callArgs = vm.countList(source.args)
 
-        local funcNode = vm.compileNode(source.node)
-        local funcArgs = vm.countParamsOfNode(funcNode)
+        local funcArgs = vm.tryCheapCountParams(source.node)
+        if not funcArgs then
+            local funcNode = vm.compileNode(source.node)
+            funcArgs = vm.countParamsOfNode(funcNode)
+        end
 
         if callArgs >= funcArgs then
             return

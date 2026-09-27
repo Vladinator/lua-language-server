@@ -122,6 +122,40 @@ function vm.countParamsOfSource(source)
     return min, max, def
 end
 
+--- A cheap, structural shortcut for `vm.countParamsOfNode(vm.compileNode(calleeNode))`'s most
+--- common case: a callee that is a single local/global with exactly one set, a plain `function`
+--- value, and no doc comments anywhere (no `---@overload`, no `---@param` widening, no generics).
+--- Its parameter count is then exactly what's written in its own argument list --
+--- `vm.countParamsOfFunction`'s no-doc branch already answers that without ever calling
+--- `vm.compileNode` (it only does for a documented param, to check nullability) -- so this skips
+--- the callee's full, general type resolution (return types, unions, generic instantiation, all
+--- irrelevant to a param count) for a shape common enough to matter: in this fork's own `script/`,
+--- a large fraction of `vm.compileNode(call.node)`'s cost on a call-heavy file comes from the
+--- engine's cyclic-compile bookkeeping (`taintedBy`/second-pass recompute) on plain, mutually
+--- recursive local/global function declarations -- exactly this shape.
+---@param calleeNode parser.object  the callee expression of a call (`call.node`)
+---@return integer? min
+---@return number?  max
+---@return integer? def
+function vm.tryCheapCountParams(calleeNode)
+    if calleeNode.type ~= 'getlocal' and calleeNode.type ~= 'getglobal' then
+        return nil
+    end
+    local sets = vm.getVariableSets(calleeNode)
+    if not sets or #sets ~= 1 then
+        return nil
+    end
+    local set = sets[1]
+    if set.bindDocs then
+        return nil
+    end
+    local value = set.value
+    if not value or value.type ~= 'function' or value.bindDocs then
+        return nil
+    end
+    return vm.countParamsOfFunction(value)
+end
+
 ---@param node vm.node
 ---@return integer min
 ---@return number  max

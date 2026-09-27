@@ -1219,7 +1219,12 @@ end
 ---@return boolean
 function mt:hasGuardedInit(loop, assigns, firstBreak, lastBreak)
     for _, stmt in ipairs(loop) do
-        if stmt.type ~= 'if' or stmt.finish >= firstBreak or #stmt ~= 1 then
+        -- A plain `else` (no condition of its own, so exactly 2 clauses) only ever runs when the
+        -- guard's condition was false -- i.e. the variable was already non-nil -- so it can't
+        -- undo the guarantee by being there; anything it assigns is still caught below by the
+        -- scan over every assignment in the loop, the same as any other statement.
+        if stmt.type ~= 'if' or stmt.finish >= firstBreak
+        or (#stmt ~= 1 and not (#stmt == 2 and not stmt[2].filter)) then
             goto continue
         end
         do

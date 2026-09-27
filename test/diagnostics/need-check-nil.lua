@@ -582,7 +582,7 @@ end
 S = #<!x!>
 ]]
 
--- (a guard with an else branch is not recognised: still reported, a limit and not a promise)
+-- a plain else that does not touch x cannot undo the guard's guarantee (fixed 2026-09-27)
 TEST [[
 ---@type integer[]?
 local x
@@ -590,6 +590,23 @@ while true do
     if not x then
         x = {}
     else
+        print(1)
+    end
+    if math.random() > 0.5 then
+        break
+    end
+end
+S = #x
+]]
+
+-- an elseif is a real extra condition, not a plain else -- still not recognised
+TEST [[
+---@type integer[]?
+local x
+while true do
+    if not x then
+        x = {}
+    elseif math.random() > 0.5 then
         print(1)
     end
     if math.random() > 0.5 then

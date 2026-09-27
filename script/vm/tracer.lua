@@ -1163,8 +1163,7 @@ function mt:lookIntoBlock(block, start, node, effect, viaShortcut)
         self:lookIntoBlock(block.parent, block.finish, node, nil, viaShortcut)
         return
     end
-    if block.type == 'while' and viaShortcut
-    and self.trackBreaks[block] and isConstantTrue(block.filter) then
+    if block.type == 'while' and viaShortcut then
         -- 'while' has no pre-existing fall-through at all (it was never in the type list above):
         -- both the merge *and* the recursive call must be fully gated on `viaShortcut`, not just the
         -- merge -- confirmed the hard way (2026-09-27): gating only the merge still let the dedicated
@@ -1173,42 +1172,62 @@ function mt:lookIntoBlock(block, start, node, effect, viaShortcut)
         -- scope as a brand-new side effect that never happened before 'while' was added here,
         -- breaking an unrelated test. Only calcNode's own shortcut chain may take this branch.
         --
-        -- Restricted to a constant-true condition on purpose -- also confirmed the hard way: a
-        -- `while cond do ... end` with a real, non-constant condition has a second exit path this
-        -- shortcut-anchored walk never sees at all, the condition becoming false, which carries its
-        -- own narrowing entirely unrelated to whatever the body's last iteration left (`while x ==
-        -- nil do ... end` exits with `x` narrowed *non-nil*, the negation of the loop condition, not
-        -- whatever the body's own last assignment happened to leave it as). Carrying the body's own
-        -- end-of-iteration state out as "the state after the loop" is not an imprecise approximation
-        -- there, it is an outright wrong answer -- confirmed by a real regression
-        -- (`while x == nil do if x == nil then return end; x = nil end; print(x)`, `number` expected,
-        -- `nil` came back). `while true` has no such second exit path (the condition can never become
-        -- false), so it is the only shape this branch can soundly handle without also computing what
-        -- the condition's own negation narrows -- which the general fixpoint problem (TODO.md) would
-        -- need to solve properly for the general case.
-        local exitNode = self:getBreakExit(block, node)
-        if not exitNode then
-            -- `while true do ... end` only ever exits through a `break`, and here `getBreakExit`
-            -- could not establish what the break states are (an unguarded break, one whose value
-            -- can't be traced safely, ...) -- there is no "normal" completion to fall back on for
-            -- this shape (falling off the end of the body can't actually happen), so whatever
-            -- calcNode's own naive forward walk found (`node`, the state after the *last textual*
-            -- assignment) is not a valid exit state at all: nothing guarantees the break that actually
-            -- fires ever saw that assignment run. Confirmed by a real regression (an unguarded break
-            -- before the loop's only assignment, `while true do if cond then break end; x = 'a' end`,
-            -- expected to still report `x` as possibly nil -- this branch used to confidently carry
-            -- `x`'s narrowed, non-nilable state out of the loop regardless, silently losing the
-            -- report). Stop here instead of recursing with a value that cannot be trusted; the caller
-            -- falls back to whatever it would have without this branch existing at all.
-            return
+        -- `self.trackBreaks[block]` is required for the constant-true branch (a `while true` loop's
+        -- *only* possible exit is a `break`, so without a `break` to track there is nothing this
+        -- branch could ever compute), but must NOT gate the non-constant branch below it: a `while
+        -- cond do ... end` loop can exit purely through its own condition, with no `break` statement
+        -- anywhere in it at all -- `self.trackBreaks[block]` would then never be set, and gating on it
+        -- silently skipped the whole extension for the common no-break case (found while writing this
+        -- extension's own regression tests: neither exercised the new code at all until this was
+        -- fixed).
+        if isConstantTrue(block.filter) and self.trackBreaks[block] then
+            local exitNode = self:getBreakExit(block, node)
+            if not exitNode then
+                -- `while true do ... end` only ever exits through a `break`, and here `getBreakExit`
+                -- could not establish what the break states are (an unguarded break, one whose value
+                -- can't be traced safely, ...) -- there is no "normal" completion to fall back on for
+                -- this shape (falling off the end of the body can't actually happen), so whatever
+                -- calcNode's own naive forward walk found (`node`, the state after the *last textual*
+                -- assignment) is not a valid exit state at all: nothing guarantees the break that
+                -- actually fires ever saw that assignment run. Confirmed by a real regression (an
+                -- unguarded break before the loop's only assignment, `while true do if cond then
+                -- break end; x = 'a' end`, expected to still report `x` as possibly nil -- this branch
+                -- used to confidently carry `x`'s narrowed, non-nilable state out of the loop
+                -- regardless, silently losing the report). Stop here instead of recursing with a value
+                -- that cannot be trusted; the caller falls back to whatever it would have without this
+                -- branch existing at all.
+                return
+            end
+            -- `while true do ... end` only ever exits through a `break`: there is no "normal" exit to
+            -- merge with (falling off the end of the body can't actually happen), so the break states
+            -- are the whole answer, same as the dedicated case handler's own replace (not merge) for
+            -- this shape.
+            node = exitNode
+            self.nodes[block] = node
+            self:lookIntoBlock(block.parent, block.finish, node, nil, viaShortcut)
         end
-        -- `while true do ... end` only ever exits through a `break`: there is no "normal" exit to
-        -- merge with (falling off the end of the body can't actually happen), so the break states
-        -- are the whole answer, same as the dedicated case handler's own replace (not merge) for
-        -- this shape.
-        node = exitNode
-        self.nodes[block] = node
-        self:lookIntoBlock(block.parent, block.finish, node, nil, viaShortcut)
+        -- `while cond do ... end` with a real, non-constant condition: tried and reverted
+        -- (2026-09-27) -- a real, confirmed regression, not just imprecision. Unlike constant-true,
+        -- this loop shape can also exit *normally*, through the condition becoming false, which
+        -- carries its own narrowing entirely unrelated to whatever the body's own last iteration left
+        -- (`while x == nil do ... end` exits with `x` narrowed *non-nil*, the negation of the loop
+        -- condition, not whatever the body's own last assignment happened to leave it as). Tried
+        -- re-evaluating the filter's own negation using `node` (this shortcut's only available state,
+        -- the body's end-of-one-iteration value) and only ever *merging* the result into `node` (never
+        -- replacing), the same "safe widening" discipline that worked for the do/loop/repeat/in fix --
+        -- but the merge itself is not safe here: `node` can be anchored on an assignment that is only
+        -- reachable *inside* the loop body, and a case where the loop body never runs at all (the
+        -- condition is false from the very first check) needs the state *entering* the whole `while`
+        -- statement to answer correctly, which this shortcut does not have. Confirmed by a real
+        -- regression: `while x == nil do if x == nil then return end; x = nil end; print(x)` was
+        -- already resolved *correctly* (`number`) via a different path before this extension existed;
+        -- adding it made calcNode's shortcut newly "succeed" here and confidently assert `nil` instead
+        -- -- an active regression, not a missed improvement, because the loop's own inner guard makes
+        -- the body provably never complete a first iteration, and only the true entering state (not
+        -- anything this shortcut can derive by merging) captures that. This is the general fixpoint
+        -- problem (state at loop entry merged with the state that comes back around), not a
+        -- constructible-workaround gap -- ask before attempting again; a real fix needs the entering
+        -- state, not a cleverer merge.
     end
 end
 

@@ -2507,6 +2507,44 @@ end
 print(<?x?>)
 ]]
 
+-- a while loop with a real (non-constant) condition: exiting means the condition is false, so x is
+-- narrowed non-nil -- the correct answer here, resolved via a path other than calcNode's own
+-- assignment-anchored shortcut (a non-constant `while` extension there was tried and reverted, see
+-- vm/tracer.lua: the shortcut has no way to know the loop's own entering state, so a merge-only
+-- version could not recover this correctly and actively regressed the case below instead)
+TEST 'integer' [[
+---@type integer?
+local x
+
+while x == nil do
+    x = 1
+end
+
+print(<?x?>)
+]]
+
+-- guards the exact regression the reverted attempt above caused: this loop's own inner guard
+-- (`if x == nil then return end`, always true on the first statement of any iteration, since the
+-- loop condition just proved it) makes the body provably never complete an iteration -- print(x) is
+-- only reachable when x already started non-nil, skipping the loop entirely. The reverted extension
+-- anchored on the body's own (unreachable) `x = nil` and confidently asserted `nil` instead of
+-- `number` -- a real regression from a DIFFERENT, previously-correct resolution path, not just
+-- unrealized precision. Keep this passing without extending mt:lookIntoBlock's 'while' branch to
+-- non-constant conditions again without solving the general fixpoint problem first (TODO.md).
+TEST 'number' [[
+---@type number|nil
+local x
+while x == nil do
+    if x == nil then
+        return
+    end
+
+    x = nil
+end
+
+print(<?x?>)
+]]
+
 -- the same shape, in a while true loop -- the dedicated case handler has its own, separate
 -- break-exit call (getBreakExit via isConstantTrue), so this exercises the calcNode-shortcut path
 -- specifically; unlike the for-loop case above, while true never has a normal exit to merge with,

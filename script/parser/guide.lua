@@ -985,9 +985,9 @@ function m.offsetToPositionByLines(lines, offset)
         end
         local start = lines[row] - 1
         if start > offset then
-            right = row --[[@as integer]]
+            right = row
         else
-            left  = row --[[@as integer]]
+            left  = row
         end
     end
     local col = offset - lines[row] + 1

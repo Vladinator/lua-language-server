@@ -106,11 +106,11 @@ local function nameOf(func)
     end
     local t = parent.type
     if t == 'local' or t == 'setlocal' or t == 'setglobal' then
-        return parent[1] --[[@as string?]]
+        return parent[1]
     elseif t == 'setfield' or t == 'tablefield' then
-        return parent.field and parent.field[1] --[[@as string?]]
+        return parent.field and parent.field[1]
     elseif t == 'setmethod' then
-        return parent.method and parent.method[1] --[[@as string?]]
+        return parent.method and parent.method[1]
     end
     return nil
 end

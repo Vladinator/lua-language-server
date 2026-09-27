@@ -45,18 +45,33 @@ local function buildSingleVariableSpec(declNode, uri)
         return stmt.type == 'setlocal' and stmt.node == declNode
     end
 
+    ---@alias narrow.shape 'truthy'|'nileq'|false
+
     ---@param cond parser.object?
-    ---@return boolean isTarget, boolean inverted
+    ---@return narrow.shape shape, boolean inverted
     local function conditionShape(cond)
         if not cond then
             return false, false
         end
         if cond.type == 'getlocal' and cond.node == declNode then
-            return true, false
+            return 'truthy', false
         end
         if cond.type == 'unary' and cond.op and cond.op.type == 'not'
         and cond[1] and cond[1].type == 'getlocal' and cond[1].node == declNode then
-            return true, true
+            return 'truthy', true
+        end
+        if cond.type == 'binary' and cond.op
+        and (cond.op.type == '==' or cond.op.type == '~=') then
+            ---@type parser.object?, parser.object?
+            local varSide, otherSide
+            if cond[1] and cond[1].type == 'getlocal' and cond[1].node == declNode then
+                varSide, otherSide = cond[1], cond[2]
+            elseif cond[2] and cond[2].type == 'getlocal' and cond[2].node == declNode then
+                varSide, otherSide = cond[2], cond[1]
+            end
+            if varSide and otherSide and otherSide.type == 'nil' then
+                return 'nileq', cond.op.type == '~='
+            end
         end
         return false, false
     end
@@ -77,14 +92,26 @@ local function buildSingleVariableSpec(declNode, uri)
                 end
             end
         end
-        local isTarget, inverted = conditionShape(block.condition)
-        if isTarget then
+        local shape, inverted = conditionShape(block.condition)
+        if shape == 'truthy' then
             local truthy = state:copy():setTruthy()
             local falsy = state:copy():setFalsy()
             if inverted then
                 return state, { ['true'] = falsy, ['false'] = truthy }
             else
                 return state, { ['true'] = truthy, ['false'] = falsy }
+            end
+        elseif shape == 'nileq' then
+            -- `x == nil`: 'true' means x IS nil (a fresh nil-only node, regardless of what state
+            -- was); `x ~= nil` inverts which edge gets which. Either way 'not nil' is
+            -- state:removeOptional(), not setTruthy() -- `x == nil` cares specifically about nil,
+            -- not general falsiness (`x` could be `false` and still not equal `nil`).
+            local isNil = vm.createNode(vm.declareGlobal('type', 'nil'))
+            local notNil = state:copy():removeOptional()
+            if inverted then
+                return state, { ['true'] = notNil, ['false'] = isNil }
+            else
+                return state, { ['true'] = isNil, ['false'] = notNil }
             end
         end
         return state
@@ -218,6 +245,62 @@ local x
 while x do
     print(x)
 end
+]], { 'string' })
+
+-- if x == nil / if x ~= nil
+checkNarrowing([[
+---@type string?
+local x
+if x == nil then
+    print(x)
+end
+]], { 'nil' })
+
+checkNarrowing([[
+---@type string?
+local x
+if x ~= nil then
+    print(x)
+end
+]], { 'string' })
+
+-- the exact shape that broke the OLD engine's `while cond` extension attempt (2026-09-27,
+-- SUMMARY-LOG.md/TODO-ARCHIVE.md): a loop condition testing the tracked variable against nil,
+-- with a reassignment inside the body feeding back through the loop-back edge. The old engine's
+-- calcNode shortcut had no notion of "the state entering the whole loop" and broke a
+-- previously-correct answer trying to add one; this engine computes it directly, as a
+-- consequence of doing real per-point dataflow rather than a backward/forward hybrid walk -- the
+-- loop only exits when the header's own condition (x == nil) is false, i.e. x is not nil,
+-- regardless of what the loop body's own back-edge contributes to the entering state.
+checkNarrowing([[
+---@type string?
+local x
+while x == nil do
+    x = 'reset'
+end
+print(x)
+]], { 'string' })
+
+-- the *literal* original repro (SUMMARY-LOG.md, 2026-09-27): an inner guard makes the
+-- reassignment provably unreachable (entering the outer loop body already proves x == nil, so
+-- the inner `if x == nil` is always true, so `return` always fires first -- `x = nil` never
+-- runs). The old engine's reverted extension anchored on this unreachable code and broke a
+-- previously-correct answer. This engine needs no explicit reachability analysis for it: entering
+-- the inner true branch narrows state to a fresh nil-only node the same way the outer one did,
+-- and the inner FALSE branch (removeOptional on an already-nil-only node) becomes an EMPTY node
+-- -- which correctly represents "this path cannot happen" on its own, so the unreachable
+-- assignment contributes nothing back through the loop-back edge (merging an empty node into
+-- anything is a no-op). Reachability falls out of the value lattice itself, not a separate check.
+checkNarrowing([[
+---@type string?
+local x
+while x == nil do
+    if x == nil then
+        return
+    end
+    x = nil
+end
+print(x)
 ]], { 'string' })
 
 print('dataflow-narrowing: OK')

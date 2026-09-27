@@ -35,7 +35,7 @@ local function getHover(source, level)
     end
     if source.type == 'doc.attr.name' then
         local owner = source.parent and source.parent.parent
-        local desc = owner and docTags.getAttributeDescription(owner.type, source[1] --[[@as string]])
+        local desc = owner and docTags.getAttributeDescription(owner.type, source[1])
         if desc then
             md:add('md', ('`%s`'):format(source[1]))
             md:add('md', desc)

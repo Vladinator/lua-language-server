@@ -940,6 +940,38 @@ for k, <?v?> in pairs(t) do
 end
 ]]
 
+TEST '<A>' [[
+---@generic T: table, K, V
+---@param t T
+---@return fun(table: table<K, V>, index?: K):K, V
+---@return T
+---@return nil
+local function pairs(t) end
+
+---@generic A, B
+---@param t table<A, B>
+local function f(t)
+    for <?k?>, v in pairs(t) do
+    end
+end
+]]
+
+TEST '<A>' [[
+---@generic T: table, V
+---@param t T
+---@return fun(table: V[], i?: integer):integer, V
+---@return T
+---@return integer i
+local function ipairs(t) end
+
+---@generic A
+---@param arr A[]
+local function f(arr)
+    for _, <?v?> in ipairs(arr) do
+    end
+end
+]]
+
 TEST 'boolean' [[
 ---@generic T: table, V
 ---@param t T

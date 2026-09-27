@@ -114,9 +114,27 @@ function mt:resolve(uri, args)
                 end
             else
                 -- number -> T
+                local sawOnlyGeneric = true
                 for n in node:eachObject() do
                     if  n.type ~= 'doc.generic.name'
                     and n.type ~= 'generic' then
+                        sawOnlyGeneric = false
+                        if resolved[key] then
+                            resolved[key]:merge(n)
+                        else
+                            resolved[key] = vm.createNode(n)
+                        end
+                    end
+                end
+                -- Every candidate was itself an unresolved generic name (e.g. calling a
+                -- generic function like `pairs(t)` from inside another still-generic
+                -- function, where `t`'s own type parameter has not been bound to anything
+                -- concrete yet): bind to that generic name instead of leaving `key`
+                -- unresolved. `vm.cloneObject`/`vm.isResolvedToGeneric` already know how to
+                -- carry this "resolved to another generic" wrapper through instead of
+                -- collapsing it to `unknown` (see the generic-method V -> T case).
+                if not resolved[key] and sawOnlyGeneric then
+                    for n in node:eachObject() do
                         if resolved[key] then
                             resolved[key]:merge(n)
                         else

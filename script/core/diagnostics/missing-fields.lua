@@ -120,7 +120,7 @@ return function (uri, callback)
         for className, samedefs in pairs(sortedDefs) do
             ---@type string[]
             local missedKeys = {}
-            for _, def in ipairs(samedefs --[[@as parser.object[] ]]) do
+            for _, def in ipairs(samedefs) do
                 local required = getRequiredKeys(def, samedefs.isPartial)
                 if #required == 0 then
                     goto continue

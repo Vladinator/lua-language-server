@@ -2479,6 +2479,39 @@ end
 print(<?x?>)
 ]]
 
+TEST 'integer|nil' [[
+local x
+
+for i = 1, 10 do
+    if i == 1 then
+        x = 1
+        break
+    end
+    x = nil
+end
+
+print(<?x?>)
+]]
+
+-- the reverse: an assignment on a DIFFERENT, unrelated branch from the break must not be
+-- treated as guarding it (the break can be reached without that assignment ever running) --
+-- confirms the generalised guard check is still sound, not just permissive
+TEST 'integer?' [[
+---@type integer?
+local x
+
+for i = 1, 10 do
+    if i == 1 then
+        x = 1
+    end
+    if i == 2 then
+        break
+    end
+end
+
+print(<?x?>)
+]]
+
 -- a loop without a `break` keeps what the condition says
 TEST 'integer' [[
 ---@type integer

@@ -36,7 +36,7 @@ vm.registerCallNarrowing {
 ---@field mark      table<parser.object, true>
 ---@field casts     parser.object[]
 ---@field nodes     table<parser.object, vm.node|false>
----@field trackBreaks table<parser.object, true>   loops with a constant true condition, left only by their `break`s
+---@field trackBreaks table<parser.object, true>   loops (any shape) whose exit state getBreakExit can compute from their `break`s
 ---@field breakNodes  table<parser.object, vm.node[]>  the node the variable has at each `break` reached so far
 ---@field main      parser.object
 ---@field uri       uri
@@ -112,9 +112,14 @@ function mt:collectCare(obj)
         end
         self.careMap[obj] = true
 
-        -- what the variable is after `while true do ... end` is what it is at the `break`s, so
-        -- the walks have to go through them
-        if obj.type == 'while' and obj.breaks then
+        -- what the variable is at a loop's `break`s can matter for what it is right after the
+        -- loop too (see getBreakExit), so the walks have to go through them. The parser gives
+        -- `.breaks` to every loop shape (while/repeat/for/in/loop) alike, not just `while`.
+        if (obj.type == 'while'
+        or  obj.type == 'repeat'
+        or  obj.type == 'loop'
+        or  obj.type == 'in'
+        or  obj.type == 'for') and obj.breaks then
             self.trackBreaks[obj] = true
             for _, brk in ipairs(obj.breaks) do
                 self:collectCare(brk)
@@ -1126,6 +1131,20 @@ function mt:lookIntoBlock(block, start, node, effect)
     or block.type == 'loop'
     or block.type == 'in'
     or block.type == 'repeat' then
+        -- Falling out of the loop this way (an assignment inside it, forward-walked straight to
+        -- its end) only ever carries the "normal completion" state -- unlike the dedicated 'while'
+        -- case handler (which runs the loop's own full-body walk from its start), this path never
+        -- passes through a `break` at all, so a variable set only on a break-taking branch before
+        -- this assignment came back `unknown` here. Merge in the break-exit state when it can be
+        -- computed soundly (getBreakExit): this only ever adds information on top of the existing
+        -- approximation, never replaces it, since this loop shape can also exit normally.
+        if self.trackBreaks[block] then
+            local exitNode = self:getBreakExit(block, node)
+            if exitNode then
+                node = node:copy():merge(exitNode)
+                self.nodes[block] = node
+            end
+        end
         self:lookIntoBlock(block.parent, block.finish, node)
     end
 end
@@ -1246,11 +1265,17 @@ function mt:hasGuardedInit(loop, assigns, firstBreak, lastBreak)
     return false
 end
 
---- The node the variable has after `while true do ... end`. The loop is left only through its
---- `break`s, so it is what it is at each of them, when that does not depend on how the loop was
---- entered or came around: the loop's own block assigns the variable before the first `break`
---- (then it is the union of the nodes at the breaks), or makes it non-nil there (a guarded
---- initialisation: then it is what `approx`, entry merged with the end of the body, is without nil).
+--- The node the variable has at the loop's `break`s, when every `break` is "guarded": each one
+--- has an assignment that is guaranteed to have run on the same execution path leading to it
+--- (textually before it, and the break lies inside that assignment's own containing block, so no
+--- sibling branch can reach the break without also having passed through the assignment). This
+--- covers both the direct-statement shape (`while true do x = f(); if cond then break end end`,
+--- the assignment unconditional in the loop's own body) and an assignment nested with its break
+--- in the same conditional (`if cond then x = 1; break end`) -- not two assignments on unrelated
+--- branches (`if a then x = 1 end; if b then break end`, where the break can be reached without
+--- `x = 1` ever running). Used for `while true do ... end`, where this is the loop's only possible
+--- exit state (no other path leaves it), and merged into the approximation for a loop that can
+--- also exit normally.
 --- A `goto` only counts when it lands after the last `break`, inside the loop. Otherwise `nil`,
 --- and the caller keeps the approximation.
 ---@param loop   parser.object
@@ -1289,10 +1314,21 @@ function mt:getBreakExit(loop, approx)
     if not gotosAreSafe then
         return
     end
-    local guarded = false
-    for _, assign in ipairs(assigns) do
-        if assign.parent == loop and assign.finish < firstBreak then
-            guarded = true
+    local guarded = true
+    for _, brk in ipairs(breaks) do
+        local reached = false
+        for _, assign in ipairs(assigns) do
+            local scope = assign.parent
+            if  scope
+            and assign.finish < brk.start
+            and brk.start  >= scope.start
+            and brk.finish <= scope.finish then
+                reached = true
+                break
+            end
+        end
+        if not reached then
+            guarded = false
             break
         end
     end

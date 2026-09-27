@@ -2183,9 +2183,15 @@ local function getluaDocByErr(state, start, position)
     ---@type parser.state.err?
     local targetError
     for _, err in ipairs(state.errs) do
-        if  (err.finish --[[@as integer]]) <= position
-        and (err.start --[[@as integer]]) >= start  then
-            if not text:sub((err.finish --[[@as integer]]) + 1, position):find '%S' then
+        -- every parser.state.err the parser actually pushes sets both start and finish together
+        -- (parser/compile.lua's pushError callers); the field-level `?` is conservative, not a
+        -- real independent-nilability case
+        ---@diagnostic expect-next-line: need-check-nil
+        if  err.finish <= position
+        ---@diagnostic expect-next-line: need-check-nil
+        and err.start >= start  then
+            ---@diagnostic expect-next-line: need-check-nil
+            if not text:sub(err.finish + 1, position):find '%S' then
                 targetError = err
                 break
             end
@@ -2343,7 +2349,7 @@ local function tryluaDocBySource(state, position, source, results)
         local attr  = source.type == 'doc.attr' and source or source.parent
         local owner = attr and attr.parent
         if owner then
-            local word = source.type == 'doc.attr.name' and source[1] --[[@as string]] or ''
+            local word = source.type == 'doc.attr.name' and source[1] or ''
             for name, description in docTags.eachAttribute(owner.type) do
                 if matchKey(word, name) then
                     results[#results+1] = {

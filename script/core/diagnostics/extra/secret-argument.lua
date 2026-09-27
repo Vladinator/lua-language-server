@@ -30,7 +30,7 @@ local function getNoSecretName(param)
     if param.type == 'doc.type.arg' then
         local extends = param.extends
         if extends and extends.nosecret then
-            return param.name and param.name[1] --[[@as string?]]
+            return param.name and param.name[1]
         end
         return nil
     end
@@ -45,7 +45,7 @@ local function getNoSecretName(param)
         and doc.param[1] == param[1]
         and doc.extends
         and doc.extends.nosecret then
-            return param[1] --[[@as string?]]
+            return param[1]
         end
     end
     return nil

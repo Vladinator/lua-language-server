@@ -134,7 +134,7 @@ do
     ---@diagnostic disable: await-in-sync
     local text, catched = catch('---@param str nosec<??>\nlocal function f(str) end\n', '?')
     files.setText(TESTURI, text)
-    local items = completion.completion(TESTURI, catched['?'][1][2] --[[@as integer]], nil) or {}
+    local items = completion.completion(TESTURI, catched['?'][1][2], nil) or {}
     files.remove(TESTURI)
     local found = false
     for _, item in ipairs(items) do

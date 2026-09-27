@@ -468,8 +468,20 @@ function vm.getSign(source)
     or source.type == 'doc.type.array' then
         ---@type boolean?
         local hasGeneric
-        guide.eachSourceType(source, 'doc.generic.name', function (_)
-            hasGeneric = true
+        -- A cloned generic name (vm.cloneObject, e.g. a function's return type re-cloned after its
+        -- own generics were already resolved once) keeps `.type == 'doc.generic.name'` even though
+        -- it now carries `_resolved` -- counting it here builds a fresh, wrong sign from an
+        -- already-resolved shape (its own args are the resolved clones, not real generic params),
+        -- re-wrapping an already-concrete return in a 'generic' node that a later `:resolve()` with
+        -- unrelated args (the caller's own args, not the ones that produced this clone) can't
+        -- recover -- confirmed 2026-09-27: `vm.getReturnOfFunction`'s `doc.type.function` branch hit
+        -- this extracting a generic iterator's second return specifically (`fun(): K, V` called from
+        -- inside another generic function; `V`, the only one this exact call shape needed to extract
+        -- on its own, came back `unknown`).
+        guide.eachSourceType(source, 'doc.generic.name', function (src)
+            if not src._resolved then
+                hasGeneric = true
+            end
         end)
         if not hasGeneric then
             return nil

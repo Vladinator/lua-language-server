@@ -1737,6 +1737,24 @@ local function bindReturnOfFunction(source, mfunc, index, args)
         return
     end
 
+    -- A return type that is *itself* one generic name already resolved to another, still-open
+    -- generic (`mfunc` here is a clone from an earlier vm.cloneObject pass, e.g. a generic
+    -- iterator's own `fun(): K, V` closure after K/V were bound to an outer function's own A/B --
+    -- see vm.tryCheapCountParams's sibling investigation, "generic function's own type params"):
+    -- compiling it below would call vm.compileNode on the doc.generic.name clone, whose case
+    -- handler dereferences straight to `_resolved` (correct for "what type is this"), but that
+    -- loses the clone's own `_resolved` wrapper in the process -- the one thing this function's
+    -- own final step needs to tell "resolved to another generic" apart from "never resolved at
+    -- all". Catch it here, before compiling, while the wrapper is still intact.
+    if returnObject.type == 'doc.type' and returnObject.types and #returnObject.types == 1 then
+        local onlyType = returnObject.types[1]
+        if onlyType.type == 'doc.generic.name' and onlyType._resolved
+        and vm.isResolvedToGeneric(onlyType._resolved) then
+            vm.setNode(source, onlyType)
+            return
+        end
+    end
+
     local resolveArgs = args
     if source.func and source.func.type == 'getmethod' then
         local receiver = source.func.node

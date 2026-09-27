@@ -956,6 +956,20 @@ local function f(t)
 end
 ]]
 
+TEST '<B>' [[
+---@generic K, V
+---@param t table<K, V>
+---@return fun(): K, V
+local function myiter(t) end
+
+---@generic A, B
+---@param t table<A, B>
+local function f(t)
+    for k, <?v?> in myiter(t) do
+    end
+end
+]]
+
 TEST '<A>' [[
 ---@generic T: table, V
 ---@param t T

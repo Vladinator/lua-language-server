@@ -69,7 +69,7 @@ local function nameOf(source)
     end
     local t = source.type
     if t == 'local' or t == 'setlocal' or t == 'setglobal' then
-        return source[1] --[[@as string?]]
+        return source[1]
     elseif t == 'setfield' or t == 'tablefield' then
         return source.field and source.field[1] --[[@as string?]]
     elseif t == 'setmethod' then
@@ -134,11 +134,11 @@ end
 local function calleeName(callee)
     local t = callee.type
     if t == 'getlocal' or t == 'getglobal' then
-        return callee[1] --[[@as string?]]
+        return callee[1]
     elseif t == 'getfield' then
-        return callee.field and callee.field[1] --[[@as string?]]
+        return callee.field and callee.field[1]
     elseif t == 'getmethod' then
-        return callee.method and callee.method[1] --[[@as string?]]
+        return callee.method and callee.method[1]
     end
     return nil
 end

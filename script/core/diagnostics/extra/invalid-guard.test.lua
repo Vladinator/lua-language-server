@@ -311,7 +311,7 @@ end
     ---@type string[]
     local seen = {}
     guide.eachSourceType(state.ast, 'getlocal', function (s)
-        local name = s[1] --[[@as string]]
+        local name = s[1]
         if (name == 'x' or name == 'y') and s.parent and s.parent.type == 'callargs' then
             seen[#seen+1] = vm.getInfer(s):view(looseUri)
         end

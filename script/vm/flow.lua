@@ -778,7 +778,7 @@ local function evalCondition(state, expr)
             and left.node and left.node.special == 'type'
             and refKey(left.args and left.args[1]) then
                 -- if type(x) == 'string' then
-                local name = right[1] --[[@as string]]
+                local name = right[1]
                 local arg = left.args[1]
                 yes = narrowRef(state, arg, function (node) return node:copy():narrow(uri, name) end)
                 no  = narrowRef(state, arg, function (node) return node:copy():remove(name) end)
@@ -798,7 +798,7 @@ local function evalCondition(state, expr)
             if left.type == 'getfield' and left.field and refKey(left.node)
             and right[1] ~= nil and vm.getNodeName(right) then
                 -- if x.kind == 'literal' then: `x` is the member of a union that can have it
-                local fieldName = left.field[1] --[[@as string]]
+                local fieldName = left.field[1]
                 local checker = right
                 ---@type vm.node?
                 local base
@@ -1238,7 +1238,6 @@ function vm.buildFlowBody(main)
         for _, doc in ipairs(docs) do
             local head = vm.getCastTargetHead(doc)
             if head and head.type ~= 'global' then
-                ---@cast head parser.object
                 interesting[head] = true
             end
         end

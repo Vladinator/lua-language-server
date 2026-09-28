@@ -634,7 +634,7 @@ end
 function m.revertMap(t)
     ---@type table<any, any>
     local nt = {}
-    for k, v in pairs(t --[[@as table<any, any>]]) do
+    for k, v in pairs(t) do
         nt[v] = k
     end
     return nt
@@ -1222,7 +1222,7 @@ end
 function m.map(t, callback)
     ---@type any[]
     local nt = {}
-    for k, v in ipairs(t --[[@as any[] ]]) do
+    for k, v in ipairs(t) do
         nt[k] = callback(v, k)
     end
     return nt

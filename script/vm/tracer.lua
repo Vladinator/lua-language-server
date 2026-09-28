@@ -459,7 +459,7 @@ function vm.getLiteralFieldNarrowers(uri, topNode, fieldName, checker)
     local function keepMatching(node)
         local result = node:copy()
         for i = 1, #node do
-            local obj = node[i] --[[@as vm.node.object]]
+            local obj = node[i]
             local verdict = verdictOf(obj)
             if verdict ~= 'match' and verdict ~= 'union' then
                 removeType(result, obj)
@@ -474,7 +474,7 @@ function vm.getLiteralFieldNarrowers(uri, topNode, fieldName, checker)
     local function dropMatching(node)
         local result = node:copy()
         for i = 1, #node do
-            local obj = node[i] --[[@as vm.node.object]]
+            local obj = node[i]
             if verdictOf(obj) == 'match' then
                 removeType(result, obj)
             end
@@ -497,7 +497,7 @@ vm.registerEqualityNarrowing {
         or not tracer.getMap[handler.node] then
             return topNode, outNode
         end
-        local fieldName = handler.field[1] --[[@as string]]
+        local fieldName = handler.field[1]
         local keepMatching, dropMatching = vm.getLiteralFieldNarrowers(tracer.uri, topNode, fieldName, checker)
         if not keepMatching or not dropMatching then
             return topNode, outNode

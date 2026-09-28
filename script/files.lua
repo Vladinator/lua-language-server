@@ -653,7 +653,7 @@ local function pluginOnTransformAst(uri, state)
         return state
     end
     if type(result) == 'table' then
-        state.ast = result --[[@as parser.object]]
+        state.ast = result
     end
     return state
 end

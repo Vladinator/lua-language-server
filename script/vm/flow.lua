@@ -347,6 +347,7 @@ local castNode
 ---@param node vm.node
 ---@return vm.node
 local function withInsideCasts(ctx, item, read, node)
+    ---@type parser.object[]?
     local casts = item and ctx.castsInside[item]
     if not casts or read.type ~= 'getlocal' then
         return node
@@ -585,7 +586,14 @@ end
 local function narrowedState(state, key, before, after)
     -- (a node that had types and has none left: `while x do ... end` on an `integer`, false edge)
     if not hasTypes(after) and hasTypes(before) then
-        return false
+        if not before:isTyped() then
+            -- all the compiler knew of it was `nil` (`local x = known and unknownCall()`): what is
+            -- left when nil is taken away is not "nothing" but something it has no type for
+            after = after:copy()
+            after:merge(vm.declareGlobal('type', 'unknown'))
+        else
+            return false
+        end
     end
     local out = copyState(state)
     out[key] = after
@@ -765,10 +773,11 @@ local function evalCondition(state, expr)
                 local fieldName = left.field[1] --[[@as string]]
                 local checker = right
                 ---@type vm.node?
-                local base = refKey(left.node) and (function ()
-                    local key = refKey(left.node)
-                    return key and state[key] or staticNodeOf(left.node)
-                end)()
+                local base
+                local baseKey = refKey(left.node)
+                if baseKey then
+                    base = state[baseKey] or staticNodeOf(left.node)
+                end
                 if base then
                     local keepMatching, dropMatching = vm.getLiteralFieldNarrowers(uri, base, fieldName, checker)
                     if keepMatching and dropMatching then
@@ -909,16 +918,9 @@ vm.flowEnabled = os.getenv('LLS_FLOW') == '1' or os.getenv('LLS_FLOW_EVAL') == '
 --- Called by the compiler when a compile starts from an empty stack (nothing half built anywhere):
 --- the one safe moment to build the flow of the function the source is in. What a build compiles
 --- completes normally there; from inside another compile it would consume open, half-built nodes.
----@param source parser.object | vm.generic | vm.global | vm.variable
-function vm.prebuildFlow(source)
-    -- (only syntax nodes of code: not a vm.global / vm.variable, not a doc node)
-    if prebuilding or not source.start or source.type == 'global' or source.type == 'variable'
-    or source.type:sub(1, 4) == 'doc.' then
-        return
-    end
-    ---@cast source parser.object
-    local func = guide.getParentFunction(source) or guide.getRoot(source)
-    if not func or building[func] then
+---@param func parser.object
+local function prebuildOne(func)
+    if building[func] then
         return
     end
     if (func.finish - func.start) // 10000 > MAX_LINES then
@@ -940,6 +942,39 @@ function vm.prebuildFlow(source)
         failed[func] = true
     elseif not flow then
         failed[func] = true
+    end
+end
+
+---@type table<parser.object, table>
+local fileBuilt = setmetatable({}, { __mode = 'k' })
+
+---@param source parser.object | vm.generic | vm.global | vm.variable
+function vm.prebuildFlow(source)
+    -- (only syntax nodes of code: not a vm.global / vm.variable, not a doc node)
+    if prebuilding or not source.start or source.type == 'global' or source.type == 'variable'
+    or source.type:sub(1, 4) == 'doc.' then
+        return
+    end
+    ---@cast source parser.object
+    local root = guide.getRoot(source)
+    local func = guide.getParentFunction(source) or root
+    if not func then
+        return
+    end
+    prebuildOne(func)
+    -- The whole file, once: a read compiled from inside another compile (a callee, a return value)
+    -- finds its function's flow already built, instead of the old walk answering it.
+    if evalEnabled and root and fileBuilt[root] ~= vm.nodeCache then
+        fileBuilt[root] = vm.nodeCache
+        ---@type parser.object[]
+        local funcs = { root }
+        guide.eachSourceType(root, 'function', function (fn)
+            funcs[#funcs+1] = fn
+        end)
+        table.sort(funcs, function (a, b) return a.start < b.start end)
+        for _, fn in ipairs(funcs) do
+            prebuildOne(fn)
+        end
     end
 end
 

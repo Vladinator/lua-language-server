@@ -57,13 +57,57 @@ function vm.runDataflow(cfg, spec)
     ---@type table<vm.cfg.block, true>
     local queued = {}
     ---@type vm.cfg.block[]
-    local worklist = { cfg.entry }
+    -- Blocks come out in creation order (the order of the source, so a block is normally visited
+    -- after the blocks that flow into it): a min-heap on `block.id`. A plain stack revisits a loop
+    -- body once per change of anything downstream of it.
+    ---@type vm.cfg.block[]
+    local worklist = {}
+    ---@param block vm.cfg.block
+    local function push(block)
+        local i = #worklist + 1
+        worklist[i] = block
+        while i > 1 do
+            local parent = i // 2
+            if worklist[parent].id <= worklist[i].id then
+                break
+            end
+            worklist[parent], worklist[i] = worklist[i], worklist[parent]
+            i = parent
+        end
+    end
+    ---@return vm.cfg.block
+    local function pop()
+        local top = worklist[1]
+        local last = table.remove(worklist)
+        local size = #worklist
+        if size > 0 then
+            worklist[1] = last
+            local i = 1
+            while true do
+                local left, right = i * 2, i * 2 + 1
+                local smallest = i
+                if left <= size and worklist[left].id < worklist[smallest].id then
+                    smallest = left
+                end
+                if right <= size and worklist[right].id < worklist[smallest].id then
+                    smallest = right
+                end
+                if smallest == i then
+                    break
+                end
+                worklist[smallest], worklist[i] = worklist[i], worklist[smallest]
+                i = smallest
+            end
+        end
+        return top
+    end
+    push(cfg.entry)
     queued[cfg.entry] = true
 
     local iterations = 0
     while #worklist > 0 do
         ---@type vm.cfg.block
-        local block = table.remove(worklist)
+        local block = pop()
         queued[block] = nil
         iterations = iterations + 1
         -- a lattice of finite height converges in far fewer visits; hitting this means the
@@ -114,7 +158,7 @@ function vm.runDataflow(cfg, spec)
                 for _, edge in ipairs(block.succs) do
                     if not queued[edge.to] then
                         queued[edge.to] = true
-                        worklist[#worklist+1] = edge.to
+                        push(edge.to)
                     end
                 end
             end

@@ -1651,7 +1651,8 @@ local useFlow = vm.flowEnabled
 ---@return vm.node?
 function vm.traceNode(source)
     if vm.flowEvaluating then
-        return nil
+        -- a scratch evaluation of vm/eval.lua: the read is what it was seeded with (or static)
+        return vm.evalSeed(source)
     end
     if useFlow then
         local node = vm.traceNodeByFlow(source)

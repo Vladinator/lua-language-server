@@ -19,6 +19,9 @@ end)
 table.sort(paths)
 
 local total, same, differs, leaked, crashes = 0, 0, 0, 0, 0
+-- (this test compiles at an empty stack all the time: no flow builds for it)
+local savedHook = vm.beforeFreshCompile
+vm.beforeFreshCompile = nil
 local evalTime, ordinaryTime = 0, 0
 ---@type string[]
 local samples = {}
@@ -96,6 +99,7 @@ for _, path in ipairs(paths) do
         files.remove(uri)
     end
 end
+vm.beforeFreshCompile = savedHook
 print(('eval-scratch: %d assignments, same %d, differs %d, crashes %d, shared cache disturbed %d')
     :format(total, same, differs, crashes, leaked))
 print(('  time: ordinary compile %.2fs, scratch evaluation %.2fs'):format(ordinaryTime, evalTime))

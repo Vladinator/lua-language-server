@@ -13,10 +13,31 @@ local guide = require 'parser.guide'
 
 vm.flowEvaluating = false
 
+---@type table<parser.object, vm.node>?
+local activeSeeds
+
+--- The seed of a read during a scratch evaluation (a private copy), or nil.
+---@param read parser.object
+---@return vm.node?
+function vm.evalSeed(read)
+    local seed = activeSeeds and activeSeeds[read]
+    if seed then
+        return seed:copy()
+    end
+    return nil
+end
+
+---@type table<parser.object, parser.object[]>
+local readsCache = setmetatable({}, { __mode = 'k' })
+
 --- The reads (of a local, or a field of one) inside `source`, not inside a nested function.
 ---@param source parser.object
 ---@return parser.object[]
 function vm.eachReadIn(source)
+    local cached = readsCache[source]
+    if cached then
+        return cached
+    end
     local scope = guide.getParentFunction(source) or guide.getRoot(source)
     ---@type parser.object[]
     local reads = {}
@@ -30,31 +51,29 @@ function vm.eachReadIn(source)
             end
         end)
     end
+    readsCache[source] = reads
     return reads
 end
 
---- The function (or main chunk) whose statement is being evaluated, and the shared cache to
---- compile everything else into.
+--- The statement being evaluated (only what is inside it can depend on the seeds), and the shared
+--- cache to compile everything else into.
 ---@type parser.object?
-local home
+local evaluated
 ---@type table<any, vm.node>?
 local sharedCache
 
 ---@param source parser.object
 ---@return boolean
 local function isInside(source)
-    if not home then
-        return false
-    end
     ---@type parser.object?
-    local fn = source.type == 'function' and source or guide.getParentFunction(source)
-    while fn do
-        if fn == home then
+    local node = source
+    while node do
+        if node == evaluated then
             return true
         end
-        fn = guide.getParentFunction(fn)
+        node = node.parent
     end
-    return home.type == 'main' and guide.getRoot(source) == home
+    return false
 end
 
 --- Called by the compiler for a source that is not cached while a scratch evaluation runs. What is
@@ -84,30 +103,28 @@ end
 --- A private copy: safe to keep. Errors are propagated after the shared cache is restored.
 ---@param source parser.object
 ---@param seeds  table<parser.object, vm.node>
+---@param scope? parser.object what the seeded reads are inside of, when that is more than `source` (a loop variable: the loop)
 ---@return vm.node
-function vm.evalInState(source, seeds)
+function vm.evalInState(source, seeds, scope)
     local shared = vm.nodeCache
     ---@type table<any, vm.node>
     local scratch = setmetatable({}, { __index = shared })
     local wasEvaluating = vm.flowEvaluating
-    local wasHome, wasShared = home, sharedCache
-    home = guide.getParentFunction(source) or guide.getRoot(source)
+    local wasEvaluated, wasShared, wasSeeds = evaluated, sharedCache, activeSeeds
+    activeSeeds = seeds
+    evaluated = scope or source
     sharedCache = shared
     vm.nodeCache = scratch
     vm.flowEvaluating = true
     local ok, result = pcall(function ()
-        for read, node in pairs(seeds) do
-            -- (`x --[[@as T]]`: the compiler applies the cast to the read before anything else, so
-            -- it is the cast that is cached for the read, not the seed)
-            if not vm.bindAs(read) then
-                scratch[read] = node:copy()
-            end
-        end
+        -- (the seeds are not written into the scratch cache: a cached read would skip its compile,
+        -- and with it what follows the read there, such as matchCall narrowing the callee of a call.
+        -- The compiler asks `vm.evalSeed` instead, in the getlocal / getfield cases.)
         return vm.compileNode(source):copy()
     end)
     vm.nodeCache = shared
     vm.flowEvaluating = wasEvaluating
-    home, sharedCache = wasHome, wasShared
+    evaluated, sharedCache, activeSeeds = wasEvaluated, wasShared, wasSeeds
     if not ok then
         error(result, 0)
     end

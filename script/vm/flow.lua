@@ -30,6 +30,7 @@ local guide = require 'parser.guide'
 --- ran into compiles that were still open further down the stack.
 ---@class vm.flow.context
 ---@field castsAt     table<parser.object, parser.object[]>
+---@field castsInside table<parser.object, parser.object[]>  a statement / condition -> the casts written in the middle of it
 ---@field interesting table<vm.flow.key, true>
 ---@alias vm.flow.state table<vm.flow.key, vm.node>|false
 
@@ -134,21 +135,64 @@ local function staticNodeOf(expr)
     return expr.preTraceNode or node
 end
 
---- Set membership by the array itself: `vm.node:narrow` appends its fallback object without
---- registering it in the set index, so `node[obj]` alone can say "absent" for a present object.
----@param node vm.node
----@param obj  vm.node.object
----@return boolean
-local function hasObject(node, obj)
-    if node[obj] then
-        return true
+--- What makes two objects of a node "the same": the object itself, except for the literals the
+--- compiler makes up (`a == b` gives a `boolean` with `parent = source`): a new one for each
+--- compile of the same source, equal in everything that matters. Without this a loop that assigns
+--- from such an expression never settles (each pass adds one more equal-looking object).
+---@param obj vm.node.object
+---@return any
+local function objectKey(obj)
+    if type(obj) == 'table' and obj.start and obj.finish and obj.parent and obj.type ~= 'global' then
+        return ('%s@%s-%s#%s#%s'):format(tostring(obj.type), tostring(obj.start), tostring(obj.finish),
+            tostring(obj.parent), tostring(obj[1]))
     end
+    return obj
+end
+
+---@param node vm.node
+---@return table<any, true> keys
+---@return integer count
+local function keySet(node)
+    ---@type table<any, true>
+    local keys = {}
+    local count = 0
     for i = 1, #node do
-        if node[i] == obj then
-            return true
+        local key = objectKey(node[i])
+        if not keys[key] then
+            keys[key] = true
+            count = count + 1
         end
     end
-    return false
+    return keys, count
+end
+
+--- `node` without the objects that repeat an earlier one by `objectKey`; the node itself when there is none.
+---@param node vm.node
+---@return vm.node
+local function dedupe(node)
+    local _, count = keySet(node)
+    if count == #node then
+        return node
+    end
+    local out = vm.createNode()
+    ---@type table<any, true>
+    local seen = {}
+    for i = 1, #node do
+        local key = objectKey(node[i])
+        if not seen[key] then
+            seen[key] = true
+            out:merge(node[i])
+        end
+    end
+    if node.optional then
+        out:addOptional()
+    end
+    for name, value in pairs(node.flags or {}) do
+        if value == true then
+            out:setFlag(name)
+        end
+    end
+    return out
 end
 
 ---@param a vm.node
@@ -161,11 +205,13 @@ local function nodeEqual(a, b)
     if (a.optional == true) ~= (b.optional == true) then
         return false
     end
-    if #a ~= #b then
+    local aKeys, aCount = keySet(a)
+    local bKeys, bCount = keySet(b)
+    if aCount ~= bCount then
         return false
     end
-    for i = 1, #a do
-        if not hasObject(b, a[i]) then
+    for key in pairs(aKeys) do
+        if not bKeys[key] then
             return false
         end
     end
@@ -239,11 +285,7 @@ local function stateJoin(a, b)
         if not current then
             out[decl] = node
         elseif not nodeEqual(current, node) then
-            local merged = current:copy():merge(node)
-            if hasTypes(current) ~= hasTypes(node) then
-                merged:merge(vm.declareGlobal('type', 'unknown'))
-            end
-            out[decl] = merged
+            out[decl] = dedupe(current:copy():merge(node))
         end
     end
     for key in pairs(out) do
@@ -274,29 +316,106 @@ local evalEnabled = os.getenv('LLS_FLOW_EVAL') == '1'
 ---@type fun(expr: parser.object?): vm.flow.key?
 local refKey
 
+---@type fun(node: vm.node, doc: parser.object): vm.node
+local castNode
+
+--- What a read of a local is, when `---@cast` docs sit inside the item it is in, before it.
+---@param ctx  vm.flow.context
+---@param item parser.object?
+---@param read parser.object
+---@param node vm.node
+---@return vm.node
+local function withInsideCasts(ctx, item, read, node)
+    local casts = item and ctx.castsInside[item]
+    if not casts or read.type ~= 'getlocal' then
+        return node
+    end
+    for _, doc in ipairs(casts) do
+        if doc.finish <= read.start and vm.getCastTargetHead(doc) == read.node then
+            node = castNode(node, doc)
+        end
+    end
+    return node
+end
+
+--- The seeds for evaluating something made of `roots`: every read inside them that the flow
+--- tracks is answered from `state`; the reads it does not track keep the old walk's answer, and a
+--- field path it does not track is its static type.
+---@param roots parser.object[]
+---@param state table<vm.flow.key, vm.node>
+---@param ctx?  vm.flow.context
+---@param item? parser.object the statement the roots belong to (its inside casts apply)
+---@return table<parser.object, vm.node>
+local function seedsOf(roots, state, ctx, item)
+    ---@type table<parser.object, vm.node>
+    local seeds = {}
+    for _, root in ipairs(roots) do
+        for _, read in ipairs(vm.eachReadIn(root)) do
+            local key = refKey(read)
+            local node = key and state[key]
+            if node then
+                seeds[read] = ctx and withInsideCasts(ctx, item, read, node) or node
+            elseif read.type == 'getlocal' then
+                seeds[read] = vm.compileNode(read)
+            end
+        end
+    end
+    return seeds
+end
+
+--- What each evaluated source gave for which seeds, for the flow being built. A block's transfer
+--- function runs again whenever its input changes; evaluating again with the same seeds has to give
+--- the *same objects* (each compile makes fresh ones for `n + 1`), or the states never compare equal
+--- and a loop never settles.
+---@type table<parser.object, { seeds: table<parser.object, vm.node>, result: vm.node }>?
+local evalMemo
+
+---@param source parser.object
+---@param seeds  table<parser.object, vm.node>
+---@param scope? parser.object
+---@return vm.node
+local function evalMemoized(source, seeds, scope)
+    local memo = evalMemo and evalMemo[source]
+    if memo then
+        local same = true
+        for read, node in pairs(seeds) do
+            local before = memo.seeds[read]
+            if not before or not nodeEqual(before, node) then
+                same = false
+                break
+            end
+        end
+        if same then
+            for read in pairs(memo.seeds) do
+                if not seeds[read] then
+                    same = false
+                    break
+                end
+            end
+        end
+        if same then
+            return memo.result
+        end
+    end
+    local result = dedupe(vm.evalInState(source, seeds, scope))
+    if evalMemo then
+        evalMemo[source] = { seeds = seeds, result = result }
+    end
+    return result
+end
+
 ---@param stmt  parser.object
 ---@param state table<vm.flow.key, vm.node>
+---@param ctx   vm.flow.context
 ---@return vm.node
-local function assignNode(stmt, state)
+local function assignNode(stmt, state, ctx)
     if vm.isCompiling(stmt) then
         error(CYCLE, 0)
     end
     if evalEnabled and stmt.value then
         -- (option (b), TRACER-REDESIGN.md section 10) the right-hand side is compiled on a private
-        -- cache where the reads the flow tracks are answered from `state`; the reads it does not
-        -- track keep the old walk's answer, and a field path it does not track is its static type
-        ---@type table<parser.object, vm.node>
-        local seeds = {}
-        for _, read in ipairs(vm.eachReadIn(stmt.value)) do
-            local key = refKey(read)
-            local node = key and state[key]
-            if node then
-                seeds[read] = node
-            elseif read.type == 'getlocal' then
-                seeds[read] = vm.compileNode(read)
-            end
-        end
-        return vm.getAssignNode(stmt, vm.evalInState(stmt, seeds)):copy()
+        -- cache where the reads the flow tracks are answered from `state`
+        return vm.getAssignNode(stmt, evalMemoized(stmt, seedsOf({ stmt }, state, ctx, stmt))):copy()
     end
     return vm.getAssignNode(stmt):copy()
 end
@@ -307,6 +426,35 @@ local flow_evalCondition
 local addOperands
 ---@type fun(state: table<vm.flow.key, vm.node>, expr: parser.object?, fn: fun(node: vm.node): vm.node): vm.flow.state
 local flow_narrowRef
+
+--- `node` with the `---@cast` of `doc` applied (the way the old tracer's fastWardCasts does).
+---@param node vm.node
+---@param doc  parser.object
+---@return vm.node
+function castNode(node, doc)
+    local out = node:copy()
+    for _, cast in ipairs(doc.casts) do
+        if cast.mode == '+' then
+            if cast.optional then
+                out:addOptional()
+            end
+            if cast.extends then
+                out:merge(vm.compileNode(cast.extends))
+            end
+        elseif cast.mode == '-' then
+            if cast.optional then
+                out:removeOptional()
+            end
+            if cast.extends then
+                out:removeNode(vm.compileNode(cast.extends))
+            end
+        elseif cast.extends then
+            out:clear()
+            out:merge(vm.compileNode(cast.extends))
+        end
+    end
+    return out
+end
 
 --- Applies the `---@cast x ...` docs that sit right before an item (statement or condition), the
 --- way the old tracer's fastWardCasts does. Only plain local names are handled (`---@cast a.b` is a
@@ -320,28 +468,7 @@ local function applyCasts(state, casts)
             ---@cast decl parser.object
             local node = state[decl]
             if node then
-                node = node:copy()
-                for _, cast in ipairs(doc.casts) do
-                    if cast.mode == '+' then
-                        if cast.optional then
-                            node:addOptional()
-                        end
-                        if cast.extends then
-                            node:merge(vm.compileNode(cast.extends))
-                        end
-                    elseif cast.mode == '-' then
-                        if cast.optional then
-                            node:removeOptional()
-                        end
-                        if cast.extends then
-                            node:removeNode(vm.compileNode(cast.extends))
-                        end
-                    elseif cast.extends then
-                        node:clear()
-                        node:merge(vm.compileNode(cast.extends))
-                    end
-                end
-                state[decl] = node
+                state[decl] = castNode(node, doc)
             end
         end
     end
@@ -357,14 +484,14 @@ local function applyStmt(state, stmt, ctx)
     local t = stmt.type
     if t == 'local' then
         if ctx.interesting[stmt] then
-            state[stmt] = assignNode(stmt, state)
+            state[stmt] = assignNode(stmt, state, ctx)
         end
     elseif t == 'setlocal' then
         local decl = stmt.node
         if decl then
             killBelow(state, declKey(decl))
             if state[decl] then
-                state[decl] = assignNode(stmt, state)
+                state[decl] = assignNode(stmt, state, ctx)
             end
         end
     elseif t == 'setfield' or t == 'setindex' then
@@ -372,7 +499,7 @@ local function applyStmt(state, stmt, ctx)
         if key then
             killBelow(state, key)
             if ctx.interesting[key] then
-                state[key] = assignNode(stmt, state)
+                state[key] = assignNode(stmt, state, ctx)
             end
         end
     elseif t == 'call' and stmt.node and stmt.node.special == 'assert'
@@ -561,8 +688,13 @@ local function evalCondition(state, expr)
             local yes, no = state, state
             local uri = guide.getUri(expr)
             if refKey(left) and right.type == 'nil' then
-                yes = narrowRef(state, left, function ()
-                    return vm.createNode(vm.declareGlobal('type', 'nil'))
+                yes = narrowRef(state, left, function (node)
+                    local nilNode = vm.createNode(vm.declareGlobal('type', 'nil'))
+                    -- (a variable the compiler knows no type of is still anything: `unknown|nil`)
+                    if not hasTypes(node) then
+                        nilNode:merge(vm.declareGlobal('type', 'unknown'))
+                    end
+                    return nilNode
                 end)
                 no = narrowRef(state, left, function (node) return node:copy():removeOptional() end)
             elseif left.type == 'call' and right.type == 'string'
@@ -650,6 +782,8 @@ flow_narrowRef = narrowRef
 ---@field condBlock  table<parser.object, vm.cfg.block>   branch condition -> the block testing it
 ---@field exprBlock  table<parser.object, vm.cfg.block>   loop-header expression -> the block running it
 ---@field ctx        vm.flow.context
+---@field stmtIn     table<parser.object, table<vm.flow.key, vm.node>>  statement -> the state right before it
+---@field blockEnd   table<vm.cfg.block, table<vm.flow.key, vm.node>>   block -> the state after its statements
 local flow = {}
 flow.__index = flow
 
@@ -752,7 +886,7 @@ function vm.prebuildFlow(source)
     prebuilding = false
     if not ok then
         if flow ~= CYCLE then
-            log.error('flow analysis failed: ' .. tostring(flow))
+            log.error(('flow analysis failed at %s:%d: %s'):format(guide.getUri(func), func.start // 10000 + 1, tostring(flow)))
         end
         failed[func] = true
     elseif not flow then
@@ -815,6 +949,19 @@ end
 ---@param main parser.object a 'main' or 'function' node
 ---@return vm.flow
 function vm.buildFlowUnguarded(main)
+    local savedMemo = evalMemo
+    evalMemo = {}
+    local ok, result = pcall(vm.buildFlowBody, main)
+    evalMemo = savedMemo
+    if not ok then
+        error(result, 0)
+    end
+    return result
+end
+
+---@param main parser.object
+---@return vm.flow
+function vm.buildFlowBody(main)
     local cfg = vm.buildCFG(main)
 
     ---@type table<parser.object, vm.cfg.block>
@@ -854,7 +1001,11 @@ function vm.buildFlowUnguarded(main)
     table.sort(items, function (a, b) return a.start < b.start end)
     ---@type table<parser.object, parser.object[]>
     local castsAt = {}
-    for _, doc in ipairs(guide.getRoot(main).docs or {}) do
+    ---@type table<parser.object, parser.object[]>
+    local castsInside = {}
+    ---@type parser.object[]
+    local rootDocs = guide.getRoot(main).docs or {}
+    for _, doc in ipairs(rootDocs) do
         if doc.type == 'doc.cast' and doc.name and doc.start >= main.start and doc.finish <= main.finish then
             ---@type parser.object?, parser.object?
             local before, after
@@ -882,6 +1033,11 @@ function vm.buildFlowUnguarded(main)
             or (after.start >= before.start and after.finish <= before.finish)) then
                 castsAt[after] = castsAt[after] or {}
                 table.insert(castsAt[after], doc)
+            elseif before and before.finish > doc.finish then
+                -- written in the middle of a statement or condition, not before a part of it: it
+                -- holds for the reads of that item that come after it
+                castsInside[before] = castsInside[before] or {}
+                table.insert(castsInside[before], doc)
             end
         end
     end
@@ -973,8 +1129,51 @@ function vm.buildFlowUnguarded(main)
             end
         end
     end
+    if evalEnabled then
+        -- (option (b)) every local is tracked, so that no read of one needs the old walk; a field
+        -- path is tracked when something in the function assigns it or a condition names it
+        for _, block in ipairs(cfg.blocks) do
+            for _, stmt in ipairs(block.stmts) do
+                if stmt.type == 'setfield' or stmt.type == 'setindex' then
+                    local key = pathKey(stmt)
+                    if key then
+                        interesting[key] = true
+                    end
+                end
+            end
+        end
+        setmetatable(interesting, { __index = function (_, key)
+            return type(key) ~= 'string' or nil
+        end })
+    end
     ---@type vm.flow.context
-    local ctx = { castsAt = castsAt, interesting = interesting }
+    local ctx = { castsAt = castsAt, castsInside = castsInside, interesting = interesting }
+
+    -- The variables each `for` loop declares, by the block that evaluates the loop's expressions.
+    ---@type table<parser.object, true>
+    local loopVars = {}
+    ---@type table<vm.cfg.block, parser.object[]>
+    local loopsAt = {}
+    if evalEnabled then
+        for _, block in ipairs(cfg.blocks) do
+            ---@type table<parser.object, true>
+            local seen = {}
+            for _, expr in ipairs(block.exprs or {}) do
+                local loop = expr.parent
+                if loop and not seen[loop] then
+                    seen[loop] = true
+                    loopsAt[block] = loopsAt[block] or {}
+                    table.insert(loopsAt[block], loop)
+                    local vars = loop.type == 'in' and loop.keys or loop.loc
+                    if vars then
+                        for _, var in ipairs(vars.type and { vars } or vars) do
+                            loopVars[var] = true
+                        end
+                    end
+                end
+            end
+        end
+    end
 
     -- Locals that no block statement declares (a function's parameters, `for` loop variables) hold
     -- their compiled type from the start; nothing in this analysis reassigns them but `setlocal`.
@@ -988,7 +1187,11 @@ function vm.buildFlowUnguarded(main)
             -- A `for` variable's type comes from the iterator call, whose arguments are reads in
             -- this very function: seeding it means compiling, from inside this build, what asks
             -- this flow for those reads. The old walk answers reads of loop variables.
-            if loc.parent and (loc.parent.type == 'in' or loc.parent.type == 'loop') then
+            if not evalEnabled and loc.parent and (loc.parent.type == 'in' or loc.parent.type == 'loop') then
+                return
+            end
+            -- (option (b): a loop variable is assigned where the loop starts, see the transfer function)
+            if evalEnabled and loopVars[loc] then
                 return
             end
             if (guide.getParentFunction(loc) or main) ~= main then
@@ -1004,10 +1207,11 @@ function vm.buildFlowUnguarded(main)
     -- compiled type. Narrowing inside this function applies on top. Uses in functions nested
     -- in this one are seeded too, so that this flow can in turn answer for them.
     ---@type parser.object?
-    local parentFunction = guide.getParentFunction(main)
+    -- (a function written directly in the main chunk has the chunk as its parent)
+    local parentFunction = guide.getParentFunction(main) or (main.type ~= 'main' and guide.getRoot(main) or nil)
     ---@type table<vm.flow.key, vm.node>|false|nil
     local parentState
-    if parentFunction and next(interesting) ~= nil then
+    if parentFunction and (evalEnabled or next(interesting) ~= nil) then
         local parentFlow = vm.getFlow(parentFunction)
         parentState = parentFlow and parentFlow:stateAt(main) or false
         -- field paths the enclosing function has narrowed or assigned (`m.queue = {}` above the
@@ -1053,6 +1257,21 @@ function vm.buildFlowUnguarded(main)
             for _, expr in ipairs(block.exprs or {}) do
                 applyCasts(state, ctx.castsAt[expr])
             end
+            for _, loop in ipairs(loopsAt[block] or {}) do
+                -- option (b): what the loop's variables are, given the state where its expressions run
+                local vars = loop.type == 'in' and loop.keys or loop.loc
+                ---@type parser.object[]
+                local roots = {}
+                for _, expr in ipairs(block.exprs or {}) do
+                    if expr.parent == loop then
+                        roots[#roots+1] = expr
+                    end
+                end
+                local seeds = seedsOf(roots, state)
+                for _, var in ipairs(vars and (vars.type and { vars } or vars) or {}) do
+                    state[var] = evalMemoized(var, seeds, loop):copy()
+                end
+            end
             if block.condition then
                 applyCasts(state, ctx.castsAt[block.condition])
                 local yes, no = evalCondition(state, block.condition)
@@ -1064,13 +1283,38 @@ function vm.buildFlowUnguarded(main)
         end,
     }
 
+    local result = vm.runDataflow(cfg, spec)
+
+    -- The state before each statement and at the end of each block, from the settled block inputs,
+    -- so a query does not re-run a block's statements (each one is an evaluation).
+    ---@type table<parser.object, table<vm.flow.key, vm.node>>
+    local stmtIn = {}
+    ---@type table<vm.cfg.block, table<vm.flow.key, vm.node>>
+    local blockEnd = {}
+    local savedCasts = activeCasts
+    activeCasts = castsAt
+    for _, block in ipairs(cfg.blocks) do
+        local stateIn = result.stateIn[block]
+        if stateIn then
+            local state = copyState(stateIn)
+            for _, stmt in ipairs(block.stmts) do
+                stmtIn[stmt] = copyState(state)
+                applyStmt(state, stmt, ctx)
+            end
+            blockEnd[block] = state
+        end
+    end
+    activeCasts = savedCasts
+
     return setmetatable({
         cfg       = cfg,
-        result    = vm.runDataflow(cfg, spec),
+        result    = result,
         stmtBlock = stmtBlock,
         condBlock = condBlock,
         exprBlock = exprBlock,
         ctx       = ctx,
+        stmtIn    = stmtIn,
+        blockEnd  = blockEnd,
     }, flow)
 end
 
@@ -1085,10 +1329,28 @@ function flow:getNode(read)
     end
     local state = self:stateAt(read)
     local node = state and state[key]
+    if node and read.type == 'getlocal' then
+        node = withInsideCasts(self.ctx, self:itemOf(read), read, node)
+    end
     if not node and state and type(key) == 'string' and self.ctx.interesting[key] then
         return staticNodeOf(read)
     end
     return node
+end
+
+--- The statement or condition of this function that `node` is part of.
+---@param node parser.object
+---@return parser.object?
+function flow:itemOf(node)
+    ---@type parser.object?
+    local cursor = node
+    while cursor do
+        if self.stmtBlock[cursor] or self.condBlock[cursor] then
+            return cursor
+        end
+        cursor = cursor.parent
+    end
+    return nil
 end
 
 --- Every tracked local's node at the point where `node` (any expression or statement of this
@@ -1129,17 +1391,17 @@ function flow:stateAt(node)
     if not block then
         return nil
     end
-    local stateIn = self.result.stateIn[block]
-    if not stateIn then
+    ---@type table<vm.flow.key, vm.node>?
+    local cached
+    if owner then
+        cached = self.stmtIn[owner]
+    else
+        cached = self.blockEnd[block]
+    end
+    if not cached then
         return nil
     end
-    local state = copyState(stateIn)
-    for _, stmt in ipairs(block.stmts) do
-        if stmt == owner then
-            break
-        end
-        applyStmt(state, stmt, self.ctx)
-    end
+    local state = copyState(cached)
     if exprItem then
         for _, expr in ipairs(block.exprs or {}) do
             applyCasts(state, self.ctx.castsAt[expr])

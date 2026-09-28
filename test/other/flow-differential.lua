@@ -30,6 +30,7 @@ end)
 table.sort(paths)
 
 local total, matched, noAnswer, differs, upvalues, crashes = 0, 0, 0, 0, 0, 0
+local gaveUp = 0
 ---@type table<string, integer>
 local categories = {}
 ---@type string[]
@@ -114,7 +115,10 @@ for _, path in ipairs(paths) do
                 local clock = os.clock()
                 local ok, result = xpcall(vm.buildFlowUnguarded, debug.traceback, target)
                 newTime = newTime + (os.clock() - clock)
-                if not ok then
+                if not ok and tostring(result):find('compile cycle', 1, true) then
+                    -- (the flow gave up on this function: a cycle, or the build budget; the old walk answers it)
+                    gaveUp = gaveUp + 1
+                elseif not ok then
                     crashes = crashes + 1
                     print('CRASH: ' .. path .. ':' .. (target.start // 10000 + 1) .. ' :: ' .. tostring(result))
                 else
@@ -207,6 +211,7 @@ end
 print(('flow-differential: %d reads of locals across %d files'):format(total, #paths))
 print(('  match %d (%.1f%%), differs %d, no answer %d, upvalue %d, crashed functions %d')
     :format(matched, matched / math.max(total, 1) * 100, differs, noAnswer, upvalues, crashes))
+print(('  functions the flow gave up on (budget / cycle): %d'):format(gaveUp))
 print(('  time: old compileNode %.2fs, new flow %.2fs (build + query)'):format(oldTime, newTime))
 ---@type string[]
 local keys = {}

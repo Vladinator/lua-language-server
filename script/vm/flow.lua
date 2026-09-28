@@ -391,11 +391,31 @@ end
 ---@type table<parser.object, { seeds: table<parser.object, vm.node>, result: vm.node }>?
 local evalMemo
 
+--- A flow that takes more than this many steps (a block's transfer, a statement's evaluation) to
+--- build is dropped (the old walk answers that function): a generated data file or a huge function
+--- can make the analysis cost far more than it is worth. Steps, not seconds: the same code has to
+--- give the same answer on a slow and a fast machine.
+local BUDGET_STEPS = 40000
+--- ... and a function longer than this many lines is not tried at all.
+local MAX_LINES = 6000
+---@type integer?
+local stepsLeft
+
+local function checkBudget()
+    if stepsLeft then
+        stepsLeft = stepsLeft - 1
+        if stepsLeft < 0 then
+            error(CYCLE, 0)
+        end
+    end
+end
+
 ---@param source parser.object
 ---@param seeds  table<parser.object, vm.node>
 ---@param scope? parser.object
 ---@return vm.node
 local function evalMemoized(source, seeds, scope)
+    checkBudget()
     local memo = evalMemo and evalMemo[source]
     if memo then
         local same = true
@@ -841,6 +861,10 @@ function vm.getFlow(main)
         flowCache = setmetatable({}, { __mode = 'k' })
     end
     local cached = flowCache[main]
+    if not cached and (main.finish - main.start) // 10000 > MAX_LINES then
+        -- (too long to be worth it: see MAX_LINES; also asked for as the parent of a closure)
+        return nil
+    end
     if not cached then
         -- A build compiles statements, and one of them can be a compile that is still open further
         -- down the stack (compiling `for k in pairs(t)` asks for `t`, whose flow asks for `k`):
@@ -895,6 +919,10 @@ function vm.prebuildFlow(source)
     ---@cast source parser.object
     local func = guide.getParentFunction(source) or guide.getRoot(source)
     if not func or building[func] then
+        return
+    end
+    if (func.finish - func.start) // 10000 > MAX_LINES then
+        failed[func] = true
         return
     end
     if flowEpoch ~= vm.nodeCache then
@@ -970,10 +998,12 @@ end
 ---@param main parser.object a 'main' or 'function' node
 ---@return vm.flow
 function vm.buildFlowUnguarded(main)
-    local savedMemo = evalMemo
+    local savedMemo, savedSteps = evalMemo, stepsLeft
     evalMemo = {}
+    stepsLeft = stepsLeft or BUDGET_STEPS
     local ok, result = pcall(vm.buildFlowBody, main)
     evalMemo = savedMemo
+    stepsLeft = savedSteps
     if not ok then
         error(result, 0)
     end
@@ -1269,6 +1299,7 @@ function vm.buildFlowBody(main)
                 -- leaves nothing): nothing flows out of it on any edge any more
                 return false, { ['true'] = false, ['false'] = false }
             end
+            checkBudget()
             local savedCasts = activeCasts
             activeCasts = ctx.castsAt
             local state = copyState(stateIn)

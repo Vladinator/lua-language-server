@@ -79,3 +79,46 @@ function vm.runEqualityNarrowing(tracer, action, topNode, outNode, handler, chec
     end
     return topNode, outNode
 end
+
+--- The registry for the flow analysis (vm/flow.lua). A rule does not walk anything: it says which
+--- arguments of a call it narrows and how, and the flow applies that on the right edges. That is
+--- what makes a rule independent of how the analysis is built.
+---
+---@class vm.flow.narrowing
+---@field target     parser.object            the argument expression to narrow (a local or a field path; anything else is ignored)
+---@field whenTrue?  fun(node: vm.node, uri: uri): vm.node  its type where the call, used as a condition, is truthy
+---@field whenFalse? fun(node: vm.node, uri: uri): vm.node  ... where it is falsy
+---@field after?     fun(node: vm.node, uri: uri): vm.node  its type after the call used as a statement (an assertion)
+
+---@class vm.flowNarrowRule
+---@field match      fun(calleeNode: parser.object): boolean
+---@field narrowings fun(call: parser.object): vm.flow.narrowing[]
+
+---@type vm.flowNarrowRule[]
+local flowNarrowRules = {}
+
+--- Register a rule for the flow analysis: the counterpart of `registerCallNarrowing` for
+--- vm/flow.lua. Every matching rule contributes; their narrowings apply in registration order.
+---@param rule vm.flowNarrowRule
+function vm.registerFlowNarrowing(rule)
+    flowNarrowRules[#flowNarrowRules+1] = rule
+end
+
+---@param call parser.object
+---@return vm.flow.narrowing[]
+function vm.getFlowNarrowings(call)
+    ---@type vm.flow.narrowing[]
+    local result = {}
+    local callee = call.node
+    if not callee then
+        return result
+    end
+    for _, rule in ipairs(flowNarrowRules) do
+        if rule.match(callee) then
+            for _, narrowing in ipairs(rule.narrowings(call)) do
+                result[#result+1] = narrowing
+            end
+        end
+    end
+    return result
+end

@@ -229,6 +229,8 @@ end
 
 ---@type fun(state: vm.flow.state, expr: parser.object?): vm.flow.state, vm.flow.state
 local flow_evalCondition
+---@type fun(state: table<vm.flow.key, vm.node>, expr: parser.object?, fn: fun(node: vm.node): vm.node): vm.flow.state
+local flow_narrowRef
 
 --- Applies the `---@cast x ...` docs that sit right before an item (statement or condition), the
 --- way the old tracer's fastWardCasts does. Only plain local names are handled (`---@cast a.b` is a
@@ -300,6 +302,21 @@ local function applyStmt(state, stmt, castsAt)
         if yes then
             for decl, node in pairs(yes) do
                 state[decl] = node
+            end
+        end
+    end
+    if t == 'call' and stmt.node then
+        -- what a registered assertion (`---@asserts`) says holds after the call
+        local uri = guide.getUri(stmt)
+        for _, narrowing in ipairs(vm.getFlowNarrowings(stmt)) do
+            local after = narrowing.after
+            if after then
+                local narrowed = flow_narrowRef(state, narrowing.target, function (node) return after(node, uri) end)
+                if narrowed then
+                    for key, node in pairs(narrowed) do
+                        state[key] = node
+                    end
+                end
             end
         end
     end
@@ -396,6 +413,23 @@ local function evalCondition(state, expr)
         return narrowRef(state, expr, function (node) return node:copy():setTruthy() end),
                narrowRef(state, expr, function (node) return node:copy():setFalsy() end)
     end
+    if t == 'call' and expr.node then
+        -- a registered guard (`isString(x)`, a `---@guard` function, a secret check): the rules say
+        -- how each argument is narrowed where the call is truthy and where it is not
+        local uri = guide.getUri(expr)
+        ---@type vm.flow.state, vm.flow.state
+        local yes, no = state, state
+        for _, narrowing in ipairs(vm.getFlowNarrowings(expr)) do
+            local whenTrue, whenFalse = narrowing.whenTrue, narrowing.whenFalse
+            if whenTrue and yes then
+                yes = narrowRef(yes, narrowing.target, function (node) return whenTrue(node, uri) end)
+            end
+            if whenFalse and no then
+                no = narrowRef(no, narrowing.target, function (node) return whenFalse(node, uri) end)
+            end
+        end
+        return yes, no
+    end
     if t == 'unary' and expr.op and expr.op.type == 'not' then
         local yes, no = evalCondition(state, expr[1])
         return no, yes
@@ -446,6 +480,28 @@ local function evalCondition(state, expr)
                     end)
                 end
             end
+            if left.type == 'getfield' and left.field and refKey(left.node)
+            and right[1] ~= nil and vm.getNodeName(right) then
+                -- if x.kind == 'literal' then: `x` is the member of a union that can have it
+                local fieldName = left.field[1] --[[@as string]]
+                local checker = right
+                ---@type vm.node?
+                local base = refKey(left.node) and (function ()
+                    local key = refKey(left.node)
+                    return key and state[key] or staticNodeOf(left.node)
+                end)()
+                if base then
+                    local keepMatching, dropMatching = vm.getLiteralFieldNarrowers(uri, base, fieldName, checker)
+                    if keepMatching and dropMatching then
+                        if yes then
+                            yes = narrowRef(yes, left.node, keepMatching)
+                        end
+                        if no then
+                            no = narrowRef(no, left.node, dropMatching)
+                        end
+                    end
+                end
+            end
             if op == '~=' then
                 yes, no = no, yes
             end
@@ -456,6 +512,7 @@ local function evalCondition(state, expr)
 end
 
 flow_evalCondition = evalCondition
+flow_narrowRef = narrowRef
 
 ---@class vm.flow
 ---@field cfg        vm.cfg

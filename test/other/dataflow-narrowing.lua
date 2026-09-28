@@ -270,4 +270,45 @@ end
 print(x.y)
 ]], { 'string?', 'string' })
 
+-- the plugin-facing registry: a rule says which arguments a call narrows and how, and the flow applies
+-- it on the true / false edges of a condition, or after the call when it is a statement
+vm.registerFlowNarrowing {
+    match = function (callee)
+        return callee.type == 'getglobal' and (callee[1] == 'flowIsString' or callee[1] == 'flowAssertString')
+    end,
+    ---@param call parser.object
+    ---@return vm.flow.narrowing[]
+    narrowings = function (call)
+        local target = call.args and call.args[1]
+        if not target then
+            return {}
+        end
+        if call.node[1] == 'flowIsString' then
+            return { {
+                target    = target,
+                whenTrue  = function (node, uri) return node:copy():narrow(uri, 'string') end,
+                whenFalse = function (node) return node:copy():remove('string') end,
+            } }
+        end
+        return { { target = target, after = function (node, uri) return node:copy():narrow(uri, 'string') end } }
+    end,
+}
+
+checkNarrowing([[
+---@type string|number
+local x
+if flowIsString(x) then
+    print(x)
+else
+    print(x)
+end
+]], { 'string|number', 'string', 'number' })
+
+checkNarrowing([[
+---@type string|number
+local x
+flowAssertString(x)
+print(x)
+]], { 'string|number', 'string' })
+
 print('dataflow-narrowing: OK')

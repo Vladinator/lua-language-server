@@ -684,6 +684,38 @@ vm.registerCallNarrowing {
     end,
 }
 
+--- The same rule for the flow analysis (vm/flow.lua): every guarded argument is narrowed, not only
+--- the one the old tracer happened to be following.
+vm.registerFlowNarrowing {
+    match = function (calleeNode)
+        return isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-check')
+            or isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-access-check')
+    end,
+    ---@param call parser.object
+    ---@return vm.flow.narrowing[]
+    narrowings = function (call)
+        ---@type vm.flow.narrowing[]
+        local result = {}
+        if not call.args then
+            return result
+        end
+        local isAccessCheck = not isSecretCheck(call.node) and isSecretAccessCheck(call.node)
+        ---@type fun(node: vm.node): vm.node
+        local declassify = function (node) return node:copy():clearFlag('secret') end
+        for _, i in ipairs(getGuardedIndices(call.node)) do
+            local arg = call.args[i]
+            if arg then
+                if isAccessCheck then
+                    result[#result+1] = { target = arg, whenTrue = declassify }
+                else
+                    result[#result+1] = { target = arg, whenFalse = declassify }
+                end
+            end
+        end
+        return result
+    end,
+}
+
 -- Genesis: where secrecy first gets attached to a compiled node.
 
 for _, sourceType in ipairs { 'local', 'self' } do

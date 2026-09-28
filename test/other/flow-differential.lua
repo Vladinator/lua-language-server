@@ -18,7 +18,9 @@ local fsu   = require 'fs-utility'
 
 ---@type string[]
 local paths = {}
-fsu.scanDirectory(fs.path 'script', function (fullpath)
+-- FLOW_DIR=<dir>: scan another directory (`lua-tests` exercises the secret / guard rules)
+local scanDir = os.getenv('FLOW_DIR') or 'script'
+fsu.scanDirectory(fs.path(scanDir), function (fullpath)
     local s = fullpath:string()
     if s:sub(-4) == '.lua' and not s:find('[/\\]meta[/\\]') then
         paths[#paths+1] = s
@@ -36,6 +38,26 @@ local newTime, oldTime = 0, 0
 local ctxFilter = os.getenv('FLOW_CTX')
 -- FLOW_FIELDS=1 also compares reads of field paths (`a.b`, `a[1]`)
 local withFields = os.getenv('FLOW_FIELDS') == '1'
+
+--- The type as text, plus every flag set on the node (what the plugin rules under test change).
+---@param node vm.node
+---@param uri uri
+---@return string
+local function viewOf(node, uri)
+    local text = vm.getInfer(node):view(uri)
+    ---@type string[]
+    local flags = {}
+    for name, value in pairs(node.flags or {}) do
+        if value == true then
+            flags[#flags+1] = name
+        end
+    end
+    table.sort(flags)
+    for _, name in ipairs(flags) do
+        text = text .. '#' .. name
+    end
+    return text
+end
 
 ---@param read parser.object
 ---@return string
@@ -123,7 +145,7 @@ for _, path in ipairs(paths) do
                         if not okOld or not oldNode then
                             return
                         end
-                        local oldView = vm.getInfer(oldNode):view(uri)
+                        local oldView = viewOf(oldNode, uri)
                         if not newNode and read.type ~= 'getlocal' then
                             -- a path whose root is not a local (global, call result, ...): not tracked
                             local root = read
@@ -147,7 +169,7 @@ for _, path in ipairs(paths) do
                             end
                             return
                         end
-                        local newView = vm.getInfer(newNode):view(uri)
+                        local newView = viewOf(newNode, uri)
                         if newView == oldView then
                             matched = matched + 1
                         else

@@ -234,22 +234,26 @@ local function without(node, typeNode)
     return result
 end
 
+---@param callee parser.object
+---@return boolean
+local function matchesGuard(callee)
+    local name = calleeName(callee)
+    if not name then
+        return false
+    end
+    local uri = guide.getUri(callee)
+    -- (the file itself first: a file that is not part of a workspace is in no scope's list of files)
+    local own = getFileNames(uri)
+    if own and (own[name] or own['*']) then
+        return true
+    end
+    local names = getNames(uri)
+    return names[name] == true or names['*'] == true
+end
+
 vm.registerCallNarrowing {
     statement = true,
-    match = function (callee)
-        local name = calleeName(callee)
-        if not name then
-            return false
-        end
-        local uri = guide.getUri(callee)
-        -- (the file itself first: a file that is not part of a workspace is in no scope's list of files)
-        local own = getFileNames(uri)
-        if own and (own[name] or own['*']) then
-            return true
-        end
-        local names = getNames(uri)
-        return names[name] == true or names['*'] == true
-    end,
+    match = matchesGuard,
     ---@param tracer   vm.tracer
     ---@param action   parser.object call
     ---@param topNode  vm.node
@@ -287,6 +291,45 @@ vm.registerCallNarrowing {
             end
         end
         return topNode, outNode
+    end,
+}
+
+--- The same rule for the flow analysis (vm/flow.lua): a `---@guard` narrows its argument where the
+--- call is truthy and where it is not, a `---@asserts` what holds after the call.
+vm.registerFlowNarrowing {
+    match = matchesGuard,
+    ---@param call parser.object
+    ---@return vm.flow.narrowing[]
+    narrowings = function (call)
+        local callee = call.node
+        local args = call.args or {}
+        ---@type vm.flow.narrowing[]
+        local result = {}
+        for _, guard in ipairs(findGuards(callee)) do
+            ---@type parser.object?
+            local target = args[guard.index]
+            if target and target.type == 'self' and callee.type == 'getmethod' then
+                target = callee.node
+            end
+            if target then
+                local doc = guard.doc
+                local typeNode = vm.compileNode(doc.extends)
+                ---@type fun(node: vm.node, uri: uri): vm.node
+                local isType = function (node, uri) return narrowTo(uri, node, typeNode) end
+                ---@type fun(node: vm.node, uri: uri): vm.node
+                local isNotType = function (node) return without(node, typeNode) end
+                if doc.type == 'doc.guard' then
+                    if doc.negated then
+                        result[#result+1] = { target = target, whenTrue = isNotType, whenFalse = isType }
+                    else
+                        result[#result+1] = { target = target, whenTrue = isType, whenFalse = isNotType }
+                    end
+                elseif doc.type == 'doc.asserts' then
+                    result[#result+1] = { target = target, after = doc.negated and isNotType or isType }
+                end
+            end
+        end
+        return result
     end,
 }
 

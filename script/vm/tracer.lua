@@ -421,6 +421,69 @@ vm.registerEqualityNarrowing {
     end,
 }
 
+--- The two narrowings of `if x.kind == 'literal'` for the node `topNode` of `x`: keep the types
+--- that can have that literal in the field, and drop the ones that have only it. nil when the
+--- field does not tell the types of `topNode` apart at all.
+---@param uri       uri
+---@param topNode   vm.node
+---@param fieldName string
+---@param checker   parser.object the literal
+---@return (fun(node: vm.node): vm.node)? keepMatching
+---@return (fun(node: vm.node): vm.node)? dropMatching
+function vm.getLiteralFieldNarrowers(uri, topNode, fieldName, checker)
+    ---@type table<vm.node.object, 'match'|'union'|'other'|false>
+    local verdicts = {}
+    ---@param obj vm.node.object
+    ---@return 'match'|'union'|'other'|false
+    local function verdictOf(obj)
+        local verdict = verdicts[obj]
+        if verdict == nil then
+            verdict = judgeByLiteralField(uri, obj, fieldName, checker) or false
+            verdicts[obj] = verdict
+        end
+        return verdict
+    end
+    local anyMatch = false
+    for obj in topNode:eachObject() do
+        local verdict = verdictOf(obj)
+        if verdict == 'match' or verdict == 'union' then
+            anyMatch = true
+        end
+    end
+    if not anyMatch then
+        return nil, nil
+    end
+    -- the branch where the field is that literal: only the types that can have it
+    ---@param node vm.node
+    ---@return vm.node
+    local function keepMatching(node)
+        local result = node:copy()
+        for i = 1, #node do
+            local obj = node[i] --[[@as vm.node.object]]
+            local verdict = verdictOf(obj)
+            if verdict ~= 'match' and verdict ~= 'union' then
+                removeType(result, obj)
+            end
+        end
+        result:removeOptional()
+        return result
+    end
+    -- the other branch: the types that have only that literal are gone (`'a' | 'b'` may still be `'b'`)
+    ---@param node vm.node
+    ---@return vm.node
+    local function dropMatching(node)
+        local result = node:copy()
+        for i = 1, #node do
+            local obj = node[i] --[[@as vm.node.object]]
+            if verdictOf(obj) == 'match' then
+                removeType(result, obj)
+            end
+        end
+        return result
+    end
+    return keepMatching, dropMatching
+end
+
 vm.registerEqualityNarrowing {
     -- if x.kind == 'literal' then (narrow a union by a field that every member declares with a literal
     -- type: classes, and table types written inline)
@@ -435,55 +498,9 @@ vm.registerEqualityNarrowing {
             return topNode, outNode
         end
         local fieldName = handler.field[1] --[[@as string]]
-        ---@type table<vm.node.object, 'match'|'union'|'other'|false>
-        local verdicts = {}
-        ---@param obj vm.node.object
-        ---@return 'match'|'union'|'other'|false
-        local function verdictOf(obj)
-            local verdict = verdicts[obj]
-            if verdict == nil then
-                verdict = judgeByLiteralField(tracer.uri, obj, fieldName, checker) or false
-                verdicts[obj] = verdict
-            end
-            return verdict
-        end
-        local anyMatch = false
-        for obj in topNode:eachObject() do
-            local verdict = verdictOf(obj)
-            if verdict == 'match' or verdict == 'union' then
-                anyMatch = true
-            end
-        end
-        if not anyMatch then
+        local keepMatching, dropMatching = vm.getLiteralFieldNarrowers(tracer.uri, topNode, fieldName, checker)
+        if not keepMatching or not dropMatching then
             return topNode, outNode
-        end
-        -- the branch where the field is that literal: only the types that can have it
-        ---@param node vm.node
-        ---@return vm.node
-        local function keepMatching(node)
-            local result = node:copy()
-            for i = 1, #node do
-                local obj = node[i] --[[@as vm.node.object]]
-                local verdict = verdictOf(obj)
-                if verdict ~= 'match' and verdict ~= 'union' then
-                    removeType(result, obj)
-                end
-            end
-            result:removeOptional()
-            return result
-        end
-        -- the other branch: the types that have only that literal are gone (`'a' | 'b'` may still be `'b'`)
-        ---@param node vm.node
-        ---@return vm.node
-        local function dropMatching(node)
-            local result = node:copy()
-            for i = 1, #node do
-                local obj = node[i] --[[@as vm.node.object]]
-                if verdictOf(obj) == 'match' then
-                    removeType(result, obj)
-                end
-            end
-            return result
         end
         if action.op.type == '==' then
             topNode = keepMatching(topNode)

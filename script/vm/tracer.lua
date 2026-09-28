@@ -1648,6 +1648,9 @@ local useFlow = vm.flowEnabled
 ---@param source parser.object
 ---@return vm.node?
 function vm.traceNode(source)
+    if vm.flowEvaluating then
+        return nil
+    end
     if useFlow then
         local node = vm.traceNodeByFlow(source)
         if node then

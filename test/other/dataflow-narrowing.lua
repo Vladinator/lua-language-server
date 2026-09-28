@@ -39,9 +39,16 @@ local function checkNarrowing(script, expected)
     assert(#reads == #expected, ('expected %d reads, found %d'):format(#expected, #reads))
     for i, read in ipairs(reads) do
         local node = flow:getNode(read)
+        if expected[i] == '-' then
+            -- nothing narrows this variable: the flow tracks only what a condition, an assertion or
+            -- a cast names, and leaves the rest to the compiler
+            assert(node == nil, ('read %d: expected no answer'):format(i))
+            goto continue
+        end
         assert(node, ('read %d: no answer from the flow analysis'):format(i))
         local actual = vm.getInfer(node):view(TESTURI)
         assert(actual == expected[i], ('read %d: expected %q, got %q'):format(i, expected[i], actual))
+        ::continue::
     end
 end
 
@@ -71,12 +78,12 @@ local function checkPath(script, expected)
     end
 end
 
--- straight-line: no narrowing needed, just tracks the declared type through
+-- straight-line: nothing narrows `x`, so the flow has no answer and the compiler's type stands
 checkNarrowing([[
 ---@type string?
 local x
 print(x)
-]], { 'string?' })
+]], { '-' })
 
 -- if x then: truthy narrows string? to string inside, unnarrowed after
 checkNarrowing([[
@@ -256,7 +263,8 @@ x.y = 'a'
 print(x.y)
 x = {}
 print(x.y)
-]], { 'string', 'string?' })
+if x.y then end
+]], { 'string', 'string?', 'string?' })
 
 checkPath([[
 ---@class T
@@ -273,6 +281,7 @@ print(x.y)
 -- the plugin-facing registry: a rule says which arguments a call narrows and how, and the flow applies
 -- it on the true / false edges of a condition, or after the call when it is a statement
 vm.registerFlowNarrowing {
+    statement = true, -- (matches by name: it is asked about every call statement)
     match = function (callee)
         return callee.type == 'getglobal' and (callee[1] == 'flowIsString' or callee[1] == 'flowAssertString')
     end,

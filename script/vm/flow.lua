@@ -21,6 +21,16 @@ local guide = require 'parser.guide'
 --- chosen from data, not guessed.
 
 ---@alias vm.flow.key parser.object|string
+
+--- What a flow knows beyond its states: `castsAt`, the `---@cast` docs right before a statement or
+--- condition, and `interesting`, the locals and paths something in the function can narrow or
+--- assign a guarded value to. Only those are tracked: the rest is answered by nobody here (a read
+--- of an untouched variable is its compiled type, which is not this analysis's business), and so
+--- costs no compile at all -- compiling every parameter and local of a function up front is what
+--- ran into compiles that were still open further down the stack.
+---@class vm.flow.context
+---@field castsAt     table<parser.object, parser.object[]>
+---@field interesting table<vm.flow.key, true>
 ---@alias vm.flow.state table<vm.flow.key, vm.node>|false
 
 --- Tracked things are keyed by a local's declaration node, or, for a field path rooted at a local
@@ -29,6 +39,12 @@ local guide = require 'parser.guide'
 --- (otherwise its type is the static one, see `staticNodeOf`), so a join keeps a path only when
 --- both sides have it.
 local SEP = ''
+
+local blockScopes = {
+    ['main'] = true, ['function'] = true, ['ifblock'] = true, ['elseifblock'] = true,
+    ['elseblock'] = true, ['while'] = true, ['loop'] = true, ['in'] = true, ['repeat'] = true,
+    ['do'] = true,
+}
 
 ---@type table<parser.object, integer>
 local declIds = setmetatable({}, { __mode = 'k' })
@@ -90,12 +106,31 @@ local function killBelow(state, key)
     end
 end
 
+--- Raised (as an error value) when the flow needs the compiled node of something whose compile is
+--- still open further down the stack: that node is half built, a flow made from it would keep it
+--- for good. `vm.getFlow` catches it and the caller falls back to the old walk for the request.
+local CYCLE = setmetatable({}, { __tostring = function () return 'flow: compile cycle' end })
+
+---@param source parser.object
+---@return vm.node
+local function compileForFlow(source)
+    if vm.isCompiling(source) then
+        error(CYCLE, 0)
+    end
+    return vm.compileNode(source)
+end
+
 --- What a field read's type is before any narrowing: the compiler keeps it when it goes on to
 --- trace the read (`preTraceNode`), else the compiled node is already the static one.
 ---@param expr parser.object
 ---@return vm.node?
 local function staticNodeOf(expr)
-    local node = vm.compileNode(expr)
+    -- (set right before the compiler asks the tracer, and compiling `expr` again from inside that
+    -- request would just ask again)
+    if expr.preTraceNode then
+        return expr.preTraceNode
+    end
+    local node = compileForFlow(expr)
     return expr.preTraceNode or node
 end
 
@@ -176,6 +211,14 @@ local function stateEqual(a, b)
     return true
 end
 
+--- Does the node say anything about its type (a named or literal type, or nil)? The compiler's
+--- nodes of an untyped variable hold only the variable itself.
+---@param node vm.node
+---@return boolean
+local function hasTypes(node)
+    return node.optional == true or node:isTyped()
+end
+
 ---@param a vm.flow.state
 ---@param b vm.flow.state
 ---@return vm.flow.state
@@ -196,7 +239,11 @@ local function stateJoin(a, b)
         if not current then
             out[decl] = node
         elseif not nodeEqual(current, node) then
-            out[decl] = current:copy():merge(node)
+            local merged = current:copy():merge(node)
+            if hasTypes(current) ~= hasTypes(node) then
+                merged:merge(vm.declareGlobal('type', 'unknown'))
+            end
+            out[decl] = merged
         end
     end
     for key in pairs(out) do
@@ -224,11 +271,16 @@ end
 ---@param stmt parser.object
 ---@return vm.node
 local function assignNode(stmt)
+    if vm.isCompiling(stmt) then
+        error(CYCLE, 0)
+    end
     return vm.getAssignNode(stmt):copy()
 end
 
 ---@type fun(state: vm.flow.state, expr: parser.object?): vm.flow.state, vm.flow.state
 local flow_evalCondition
+---@type fun(expr: parser.object, items: parser.object[])
+local addOperands
 ---@type fun(state: table<vm.flow.key, vm.node>, expr: parser.object?, fn: fun(node: vm.node): vm.node): vm.flow.state
 local flow_narrowRef
 
@@ -275,12 +327,14 @@ end
 --- copy of the state entering the statement).
 ---@param state table<vm.flow.key, vm.node>
 ---@param stmt  parser.object
----@param castsAt table<parser.object, parser.object[]>
-local function applyStmt(state, stmt, castsAt)
-    applyCasts(state, castsAt[stmt])
+---@param ctx vm.flow.context
+local function applyStmt(state, stmt, ctx)
+    applyCasts(state, ctx.castsAt[stmt])
     local t = stmt.type
     if t == 'local' then
-        state[stmt] = assignNode(stmt)
+        if ctx.interesting[stmt] then
+            state[stmt] = assignNode(stmt)
+        end
     elseif t == 'setlocal' then
         local decl = stmt.node
         if decl then
@@ -293,7 +347,9 @@ local function applyStmt(state, stmt, castsAt)
         local key = pathKey(stmt)
         if key then
             killBelow(state, key)
-            state[key] = assignNode(stmt)
+            if ctx.interesting[key] then
+                state[key] = assignNode(stmt)
+            end
         end
     elseif t == 'call' and stmt.node and stmt.node.special == 'assert'
     and stmt.args and stmt.args[1] then
@@ -308,7 +364,7 @@ local function applyStmt(state, stmt, castsAt)
     if t == 'call' and stmt.node then
         -- what a registered assertion (`---@asserts`) says holds after the call
         local uri = guide.getUri(stmt)
-        for _, narrowing in ipairs(vm.getFlowNarrowings(stmt)) do
+        for _, narrowing in ipairs(vm.getFlowNarrowings(stmt, true)) do
             local after = narrowing.after
             if after then
                 local narrowed = flow_narrowRef(state, narrowing.target, function (node) return after(node, uri) end)
@@ -335,7 +391,8 @@ end
 ---@param after  vm.node
 ---@return vm.flow.state
 local function narrowedState(state, key, before, after)
-    if after:isEmpty() and not after:isOptional() and not before:isEmpty() then
+    -- (a node that had types and has none left: `while x do ... end` on an `integer`, false edge)
+    if not hasTypes(after) and hasTypes(before) then
         return false
     end
     local out = copyState(state)
@@ -394,6 +451,24 @@ end
 --- their operands (`a and b`: `b` is only evaluated where `a` held, the false state is the join of
 --- "`a` failed" and "`a` held, `b` failed"), so any nesting works without a special case. An
 --- expression this analysis does not understand narrows nothing: both edges get `state`.
+--- The `---@cast` docs of the flow being run (set around its transfer functions and queries).
+---@type table<parser.object, parser.object[]>
+local activeCasts = {}
+
+--- `state` with the casts written right before `operand` applied.
+---@param state   vm.flow.state
+---@param operand parser.object
+---@return vm.flow.state
+local function withCasts(state, operand)
+    local casts = activeCasts[operand]
+    if not state or not casts then
+        return state
+    end
+    local out = copyState(state)
+    applyCasts(out, casts)
+    return out
+end
+
 ---@param state vm.flow.state
 ---@param expr  parser.object?
 ---@return vm.flow.state trueState
@@ -408,6 +483,13 @@ local function evalCondition(state, expr)
     local t = expr.type
     if t == 'paren' then
         return evalCondition(state, expr.exp)
+    end
+    -- a constant condition has one way out (`while true do ... break ... end` is left by its breaks)
+    if t == 'nil' or (t == 'boolean' and expr[1] == false) then
+        return false, state
+    end
+    if t == 'number' or t == 'integer' or t == 'string' or (t == 'boolean' and expr[1] == true) then
+        return state, false
     end
     if refKey(expr) then
         return narrowRef(state, expr, function (node) return node:copy():setTruthy() end),
@@ -439,12 +521,12 @@ local function evalCondition(state, expr)
         local left, right = expr[1], expr[2]
         if op == 'and' then
             local leftYes, leftNo = evalCondition(state, left)
-            local rightYes, rightNo = evalCondition(leftYes, right)
+            local rightYes, rightNo = evalCondition(withCasts(leftYes, right), right)
             return rightYes, joinTwo(leftNo, rightNo)
         end
         if op == 'or' then
             local leftYes, leftNo = evalCondition(state, left)
-            local rightYes, rightNo = evalCondition(leftNo, right)
+            local rightYes, rightNo = evalCondition(withCasts(leftNo, right), right)
             return joinTwo(leftYes, rightYes), rightNo
         end
         if (op == '==' or op == '~=') and left and right then
@@ -512,6 +594,29 @@ local function evalCondition(state, expr)
 end
 
 flow_evalCondition = evalCondition
+
+--- The right operands of the `and` / `or` inside a condition, as items a `---@cast` can attach to.
+---@param expr  parser.object
+---@param items parser.object[]
+function addOperands(expr, items)
+    if expr.type == 'paren' then
+        if expr.exp then
+            addOperands(expr.exp, items)
+        end
+    elseif expr.type == 'unary' then
+        if expr[1] then
+            addOperands(expr[1], items)
+        end
+    elseif expr.type == 'binary' and expr.op and (expr.op.type == 'and' or expr.op.type == 'or') then
+        if expr[1] then
+            addOperands(expr[1], items)
+        end
+        if expr[2] then
+            items[#items+1] = expr[2]
+            addOperands(expr[2], items)
+        end
+    end
+end
 flow_narrowRef = narrowRef
 
 ---@class vm.flow
@@ -520,7 +625,7 @@ flow_narrowRef = narrowRef
 ---@field stmtBlock  table<parser.object, vm.cfg.block>   statement -> the block it sits in
 ---@field condBlock  table<parser.object, vm.cfg.block>   branch condition -> the block testing it
 ---@field exprBlock  table<parser.object, vm.cfg.block>   loop-header expression -> the block running it
----@field castsAt    table<parser.object, parser.object[]>  statement / condition -> the `---@cast` docs right before it
+---@field ctx        vm.flow.context
 local flow = {}
 flow.__index = flow
 
@@ -543,23 +648,96 @@ end
 
 ---@type table<parser.object, vm.flow>
 local flowCache = setmetatable({}, { __mode = 'k' })
+---@type table?
+local flowEpoch
 
 --- `vm.buildFlow`, remembered per function node (an enclosing function's flow answers for every
---- closure created in it).
+--- closure created in it). nil when the build met a compile cycle (see below).
 ---@param main parser.object
----@return vm.flow
+---@return vm.flow?
 function vm.getFlow(main)
+    -- a flow holds compiled nodes: it lives exactly as long as the node cache it was built from
+    if flowEpoch ~= vm.nodeCache then
+        flowEpoch = vm.nodeCache
+        flowCache = setmetatable({}, { __mode = 'k' })
+    end
     local cached = flowCache[main]
     if not cached then
-        cached = vm.buildFlow(main)
+        -- A build compiles statements, and one of them can be a compile that is still open further
+        -- down the stack (compiling `for k in pairs(t)` asks for `t`, whose flow asks for `k`):
+        -- what such a read returns is half built and must not be kept. The flow is then dropped,
+        -- and the caller falls back to the old walk for this one request.
+        local watch <close> = vm.watchCompileCycles()
+        local ok, built = pcall(vm.buildFlow, main)
+        if not ok then
+            if built == CYCLE then
+                return nil
+            end
+            error(built, 0)
+        end
+        if watch.hit then
+            return nil
+        end
+        cached = built
         flowCache[main] = cached
     end
     return cached
 end
 
+---@type table<parser.object, true>
+local building = setmetatable({}, { __mode = 'k' })
+
+--- The flow answer for `vm.traceNode(source)`, or nil when it has none (a global, a path not rooted
+--- at a local, an unreachable read, a read inside a function whose flow is being built right now:
+--- that one is asked by the flow's own compiles, and the old tracer answers it). Behind
+--- `LLS_FLOW=1` until the old tracer is retired; see TRACER-REDESIGN.md, Phase 6.
+---@param source parser.object
+---@return vm.node?
+function vm.traceNodeByFlow(source)
+    if source.type ~= 'getlocal' and refKey(source) == nil then
+        return nil
+    end
+    local func = guide.getParentFunction(source) or guide.getRoot(source)
+    -- Only a request that is not itself inside another compile may build a flow: a build compiles
+    -- statements, and doing that from deep inside an open compile met half-built nodes that stayed
+    -- (loop variables typed `unknown` for good). The price is that a read first compiled from
+    -- inside another compile is answered by the old walk, whatever the flow would say. Known
+    -- limitation of the hybrid, see TRACER-REDESIGN.md.
+    if building[func] or vm.compileDepth() > 1 then
+        return nil
+    end
+    local ok, result = pcall(function ()
+        local flow = vm.getFlow(func)
+        return flow and flow:getNode(source)
+    end)
+    if not ok then
+        if result ~= CYCLE then
+            log.error('flow analysis failed: ' .. tostring(result))
+        end
+        return nil
+    end
+    -- (an answer with no type in it is a half-built input, not a result: the old walk decides)
+    if not result or not hasTypes(result) then
+        return nil
+    end
+    return result:copy()
+end
+
 ---@param main parser.object a 'main' or 'function' node
 ---@return vm.flow
 function vm.buildFlow(main)
+    building[main] = true
+    local ok, result = pcall(vm.buildFlowUnguarded, main)
+    building[main] = nil
+    if not ok then
+        error(result, 0)
+    end
+    return result
+end
+
+---@param main parser.object a 'main' or 'function' node
+---@return vm.flow
+function vm.buildFlowUnguarded(main)
     local cfg = vm.buildCFG(main)
 
     ---@type table<parser.object, vm.cfg.block>
@@ -590,6 +768,7 @@ function vm.buildFlow(main)
         end
         if block.condition then
             items[#items+1] = block.condition
+            addOperands(block.condition, items)
         end
     end
     table.sort(items, function (a, b) return a.start < b.start end)
@@ -607,12 +786,106 @@ function vm.buildFlow(main)
                     break
                 end
             end
-            if after and not (before and before.finish > doc.finish) then
+            -- a cast ends with its block: what follows the block is not under it
+            ---@type parser.object?
+            local scope
+            guide.eachSourceContain(main, doc.start, function (src)
+                if blockScopes[src.type] and (not scope or src.start > scope.start) then
+                    scope = src
+                end
+            end)
+            if scope and after and after.start >= scope.finish then
+                after = nil
+            end
+            -- (inside a condition, the next item is an operand of it: `n and ---@cast n T` then the rest)
+            if after and (not before or before.finish <= doc.finish
+            or (after.start >= before.start and after.finish <= before.finish)) then
                 castsAt[after] = castsAt[after] or {}
                 table.insert(castsAt[after], doc)
             end
         end
     end
+
+    -- What is worth tracking: whatever a branch condition, an assertion-like call or a cast names.
+    ---@type table<vm.flow.key, true>
+    local interesting = {}
+    ---@param expr parser.object?
+    local function noteRef(expr)
+        local key = refKey(expr)
+        if key then
+            interesting[key] = true
+        end
+        -- (`x.kind == 'lit'` narrows `x` too, and a path starts from its root's compile)
+        if expr and (expr.type == 'getfield' or expr.type == 'getindex') then
+            noteRef(expr.node)
+        end
+    end
+    --- Mirrors what evalCondition can narrow: a reference tested for truthiness, against nil or a
+    --- literal, `type(ref)`, and the targets of registered guard calls.
+    ---@param expr parser.object?
+    local function noteCondition(expr)
+        if not expr then
+            return
+        end
+        local kind = expr.type
+        if kind == 'paren' then
+            noteCondition(expr.exp)
+        elseif kind == 'unary' then
+            noteCondition(expr[1])
+        elseif kind == 'binary' and expr.op then
+            local op = expr.op.type
+            if op == 'and' or op == 'or' then
+                noteCondition(expr[1])
+                noteCondition(expr[2])
+            elseif op == '==' or op == '~=' then
+                for i = 1, 2 do
+                    local side = expr[i]
+                    if side and side.type == 'call' and side.node and side.node.special == 'type' then
+                        noteRef(side.args and side.args[1])
+                    else
+                        noteRef(side)
+                    end
+                end
+            end
+        elseif kind == 'call' then
+            for _, narrowing in ipairs(vm.getFlowNarrowings(expr)) do
+                noteRef(narrowing.target)
+            end
+        else
+            noteRef(expr)
+        end
+    end
+    ---@param root parser.object
+    local function noteRefs(root)
+        -- (an assertion-like statement call: its narrowings, or `assert(cond)`)
+        if root.node and root.node.special == 'assert' then
+            noteCondition(root.args and root.args[1])
+        else
+            noteCondition(root)
+        end
+    end
+    for _, block in ipairs(cfg.blocks) do
+        if block.condition then
+            noteCondition(block.condition)
+        end
+        for _, stmt in ipairs(block.stmts) do
+            if stmt.type == 'call' and stmt.node
+            and (stmt.node.special == 'assert' or #vm.getFlowNarrowings(stmt, true) > 0) then
+                noteRefs(stmt)
+            end
+        end
+    end
+    for _, docs in pairs(castsAt) do
+        for _, doc in ipairs(docs) do
+            local head = vm.getCastTargetHead(doc)
+            if head and head.type ~= 'global' then
+                ---@cast head parser.object
+                interesting[head] = true
+            end
+        end
+    end
+    ---@type vm.flow.context
+    local ctx = { castsAt = castsAt, interesting = interesting }
 
     -- Locals that no block statement declares (a function's parameters, `for` loop variables) hold
     -- their compiled type from the start; nothing in this analysis reassigns them but `setlocal`.
@@ -620,13 +893,13 @@ function vm.buildFlow(main)
     local seeded = {}
     for _, declType in ipairs { 'local', 'self' } do
         guide.eachSourceType(main, declType, function (loc)
-            if stmtBlock[loc] then
+            if stmtBlock[loc] or not interesting[loc] then
                 return
             end
             if (guide.getParentFunction(loc) or main) ~= main then
                 return
             end
-            seeded[loc] = vm.compileNode(loc):copy()
+            seeded[loc] = compileForFlow(loc):copy()
         end)
     end
 
@@ -639,8 +912,9 @@ function vm.buildFlow(main)
     local parentFunction = guide.getParentFunction(main)
     ---@type table<vm.flow.key, vm.node>|false|nil
     local parentState
-    if parentFunction then
-        parentState = vm.getFlow(parentFunction):stateAt(main) or false
+    if parentFunction and next(interesting) ~= nil then
+        local parentFlow = vm.getFlow(parentFunction)
+        parentState = parentFlow and parentFlow:stateAt(main) or false
         -- field paths the enclosing function has narrowed or assigned (`m.queue = {}` above the
         -- closure) hold inside it too
         for key, node in pairs(parentState or {}) do
@@ -652,14 +926,14 @@ function vm.buildFlow(main)
     for _, readType in ipairs { 'getlocal', 'setlocal' } do
         guide.eachSourceType(main, readType, function (ref)
             local decl = ref.node
-            if not decl or seeded[decl] or stmtBlock[decl] then
+            if not decl or seeded[decl] or stmtBlock[decl] or not interesting[decl] then
                 return
             end
             if main.type == 'main' or isInside(decl, main) then
                 return
             end
             local outer = parentState and parentState[decl]
-            seeded[decl] = (outer or vm.compileNode(decl)):copy()
+            seeded[decl] = outer or compileForFlow(decl):copy()
         end)
     end
 
@@ -670,16 +944,24 @@ function vm.buildFlow(main)
         join    = stateJoin,
         equal   = stateEqual,
         transfer = function (block, stateIn)
-            ---@cast stateIn table<vm.flow.key, vm.node>
+            if not stateIn then
+                -- became unreachable after having been reached (a narrowing on the way here now
+                -- leaves nothing): nothing flows out of it on any edge any more
+                return false, { ['true'] = false, ['false'] = false }
+            end
+            local savedCasts = activeCasts
+            activeCasts = ctx.castsAt
             local state = copyState(stateIn)
             for _, stmt in ipairs(block.stmts) do
-                applyStmt(state, stmt, castsAt)
+                applyStmt(state, stmt, ctx)
             end
             if block.condition then
-                applyCasts(state, castsAt[block.condition])
+                applyCasts(state, ctx.castsAt[block.condition])
                 local yes, no = evalCondition(state, block.condition)
+                activeCasts = savedCasts
                 return state, { ['true'] = yes, ['false'] = no }
             end
+            activeCasts = savedCasts
             return state
         end,
     }
@@ -690,7 +972,7 @@ function vm.buildFlow(main)
         stmtBlock = stmtBlock,
         condBlock = condBlock,
         exprBlock = exprBlock,
-        castsAt   = castsAt,
+        ctx       = ctx,
     }, flow)
 end
 
@@ -705,7 +987,7 @@ function flow:getNode(read)
     end
     local state = self:stateAt(read)
     local node = state and state[key]
-    if not node and state and type(key) == 'string' then
+    if not node and state and type(key) == 'string' and self.ctx.interesting[key] then
         return staticNodeOf(read)
     end
     return node
@@ -757,21 +1039,29 @@ function flow:stateAt(node)
         if stmt == owner then
             break
         end
-        applyStmt(state, stmt, self.castsAt)
+        applyStmt(state, stmt, self.ctx)
     end
     if condition then
-        applyCasts(state, self.castsAt[condition])
+        applyCasts(state, self.ctx.castsAt[condition])
     elseif owner then
-        applyCasts(state, self.castsAt[owner])
+        applyCasts(state, self.ctx.castsAt[owner])
     end
     ---@type vm.flow.state
     local at = state
     for i = #guards, 1, -1 do
         local guard = guards[i]
+        local savedCasts = activeCasts
+        activeCasts = self.ctx.castsAt
         local yes, no = evalCondition(at, guard[1])
+        activeCasts = savedCasts
         at = guard.op.type == 'and' and yes or no
         if not at then
             return nil
+        end
+        local casts = self.ctx.castsAt[guard[2]]
+        if casts then
+            at = copyState(at)
+            applyCasts(at, casts)
         end
     end
     return at or nil

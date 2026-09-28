@@ -599,8 +599,23 @@ end
 S = #x
 ]]
 
--- an elseif is a real extra condition, not a plain else -- still not recognised
-TEST [[
+-- an elseif is a real extra condition, not a plain else -- still not recognised by the old walk;
+-- the flow analysis (LLS_FLOW=1) sees that every way through the `if` leaves `x` non-nil
+TEST (os.getenv('LLS_FLOW') == '1' and [[
+---@type integer[]?
+local x
+while true do
+    if not x then
+        x = {}
+    elseif math.random() > 0.5 then
+        print(1)
+    end
+    if math.random() > 0.5 then
+        break
+    end
+end
+S = #x
+]] or [[
 ---@type integer[]?
 local x
 while true do
@@ -614,7 +629,7 @@ while true do
     end
 end
 S = #<!x!>
-]]
+]])
 
 -- (something optional assigned after the last `break`: the guard comes before any `break` again)
 TEST [[

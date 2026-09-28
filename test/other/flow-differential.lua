@@ -111,7 +111,7 @@ for _, path in ipairs(paths) do
             end
             for _, target in ipairs(targets) do
                 local clock = os.clock()
-                local ok, result = pcall(vm.buildFlow, target)
+                local ok, result = xpcall(vm.buildFlowUnguarded, debug.traceback, target)
                 newTime = newTime + (os.clock() - clock)
                 if not ok then
                     crashes = crashes + 1

@@ -91,6 +91,7 @@ end
 ---@field after?     fun(node: vm.node, uri: uri): vm.node  its type after the call used as a statement (an assertion)
 
 ---@class vm.flowNarrowRule
+---@field statement? boolean the rule also narrows what follows a call used as a statement (`after`): it is then asked about every call statement of a function, so `match` must decide by name and compile nothing
 ---@field match      fun(calleeNode: parser.object): boolean
 ---@field narrowings fun(call: parser.object): vm.flow.narrowing[]
 
@@ -105,8 +106,9 @@ function vm.registerFlowNarrowing(rule)
 end
 
 ---@param call parser.object
+---@param statementOnly? boolean only the rules that narrow after a call statement (the cheap, name-only ones)
 ---@return vm.flow.narrowing[]
-function vm.getFlowNarrowings(call)
+function vm.getFlowNarrowings(call, statementOnly)
     ---@type vm.flow.narrowing[]
     local result = {}
     local callee = call.node
@@ -114,7 +116,7 @@ function vm.getFlowNarrowings(call)
         return result
     end
     for _, rule in ipairs(flowNarrowRules) do
-        if rule.match(callee) then
+        if (not statementOnly or rule.statement) and rule.match(callee) then
             for _, narrowing in ipairs(rule.narrowings(call)) do
                 result[#result+1] = narrowing
             end

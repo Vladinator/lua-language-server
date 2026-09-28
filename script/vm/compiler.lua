@@ -2996,6 +2996,12 @@ local compiling = {}
 ---@type table<any, vm.compileFrame>
 local taintedBy = {}
 
+--- How many compiles are open on the stack right now.
+---@return integer
+function vm.compileDepth()
+    return depth
+end
+
 --- Whether the compile of `source` is running right now (its cached node is still half built).
 ---@param source vm.node.object | vm.variable
 ---@return boolean

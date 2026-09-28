@@ -1642,9 +1642,18 @@ local function createTracer(mode, source, name)
     return tracer
 end
 
+--- `LLS_FLOW=1`: ask the flow analysis (vm/flow.lua) first; the old walk answers what it cannot.
+local useFlow = os.getenv('LLS_FLOW') == '1'
+
 ---@param source parser.object
 ---@return vm.node?
 function vm.traceNode(source)
+    if useFlow then
+        local node = vm.traceNodeByFlow(source)
+        if node then
+            return node
+        end
+    end
     ---@type tracer.mode?, (parser.object|vm.variable)?, string?
     local mode, base, name
     if vm.getGlobalNode(source) then

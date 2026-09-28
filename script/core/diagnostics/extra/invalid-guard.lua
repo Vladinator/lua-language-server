@@ -297,6 +297,7 @@ vm.registerCallNarrowing {
 --- The same rule for the flow analysis (vm/flow.lua): a `---@guard` narrows its argument where the
 --- call is truthy and where it is not, a `---@asserts` what holds after the call.
 vm.registerFlowNarrowing {
+    statement = true,
     match = matchesGuard,
     ---@param call parser.object
     ---@return vm.flow.narrowing[]

@@ -687,6 +687,59 @@ end
 ---@type table<parser.object, true>
 local building = setmetatable({}, { __mode = 'k' })
 
+---@type table<parser.object, true>
+local failed = setmetatable({}, { __mode = 'k' })
+local prebuilding = false
+
+--- The flow of `main` when it has been built (and is still valid), else nil.
+---@param main parser.object
+---@return vm.flow?
+local function peekFlow(main)
+    if flowEpoch ~= vm.nodeCache then
+        return nil
+    end
+    return flowCache[main]
+end
+
+vm.flowEnabled = os.getenv('LLS_FLOW') == '1'
+
+--- Called by the compiler when a compile starts from an empty stack (nothing half built anywhere):
+--- the one safe moment to build the flow of the function the source is in. What a build compiles
+--- completes normally there; from inside another compile it would consume open, half-built nodes.
+---@param source parser.object | vm.generic | vm.global | vm.variable
+function vm.prebuildFlow(source)
+    -- (only syntax nodes of code: not a vm.global / vm.variable, not a doc node)
+    if prebuilding or not source.start or source.type == 'global' or source.type == 'variable'
+    or source.type:sub(1, 4) == 'doc.' then
+        return
+    end
+    ---@cast source parser.object
+    local func = guide.getParentFunction(source) or guide.getRoot(source)
+    if not func or building[func] then
+        return
+    end
+    if flowEpoch ~= vm.nodeCache then
+        failed = setmetatable({}, { __mode = 'k' })
+    elseif flowCache[func] or failed[func] then
+        return
+    end
+    prebuilding = true
+    local ok, flow = pcall(vm.getFlow, func)
+    prebuilding = false
+    if not ok then
+        if flow ~= CYCLE then
+            log.error('flow analysis failed: ' .. tostring(flow))
+        end
+        failed[func] = true
+    elseif not flow then
+        failed[func] = true
+    end
+end
+
+if vm.flowEnabled then
+    vm.beforeFreshCompile = vm.prebuildFlow
+end
+
 --- The flow answer for `vm.traceNode(source)`, or nil when it has none (a global, a path not rooted
 --- at a local, an unreachable read, a read inside a function whose flow is being built right now:
 --- that one is asked by the flow's own compiles, and the old tracer answers it). Behind
@@ -698,16 +751,16 @@ function vm.traceNodeByFlow(source)
         return nil
     end
     local func = guide.getParentFunction(source) or guide.getRoot(source)
-    -- Only a request that is not itself inside another compile may build a flow: a build compiles
-    -- statements, and doing that from deep inside an open compile met half-built nodes that stayed
-    -- (loop variables typed `unknown` for good). The price is that a read first compiled from
-    -- inside another compile is answered by the old walk, whatever the flow would say. Known
-    -- limitation of the hybrid, see TRACER-REDESIGN.md.
-    if building[func] or vm.compileDepth() > 1 then
+    -- A request never builds a flow: a build compiles statements, and doing that from inside an
+    -- open compile met half-built nodes that stayed (loop variables typed `unknown` for good).
+    -- Flows are built by `vm.prebuildFlow`, before a compile that starts from nothing begins; a
+    -- read whose function has no flow yet (first asked for from inside another function's compile)
+    -- is answered by the old walk. Known limitation of the hybrid, see TRACER-REDESIGN.md.
+    if building[func] then
         return nil
     end
     local ok, result = pcall(function ()
-        local flow = vm.getFlow(func)
+        local flow = peekFlow(func)
         return flow and flow:getNode(source)
     end)
     if not ok then
@@ -769,6 +822,9 @@ function vm.buildFlowUnguarded(main)
         if block.condition then
             items[#items+1] = block.condition
             addOperands(block.condition, items)
+        end
+        for _, expr in ipairs(block.exprs or {}) do
+            items[#items+1] = expr
         end
     end
     table.sort(items, function (a, b) return a.start < b.start end)
@@ -875,6 +931,15 @@ function vm.buildFlowUnguarded(main)
             end
         end
     end
+    -- What a closure narrows of its upvalues has to be tracked here too: it starts from this
+    -- function's state at the point it is created.
+    for _, kind in ipairs { 'ifblock', 'elseifblock', 'while', 'repeat' } do
+        guide.eachSourceType(main, kind, function (node)
+            if node.filter and (guide.getParentFunction(node) or main) ~= main then
+                noteCondition(node.filter)
+            end
+        end)
+    end
     for _, docs in pairs(castsAt) do
         for _, doc in ipairs(docs) do
             local head = vm.getCastTargetHead(doc)
@@ -894,6 +959,12 @@ function vm.buildFlowUnguarded(main)
     for _, declType in ipairs { 'local', 'self' } do
         guide.eachSourceType(main, declType, function (loc)
             if stmtBlock[loc] or not interesting[loc] then
+                return
+            end
+            -- A `for` variable's type comes from the iterator call, whose arguments are reads in
+            -- this very function: seeding it means compiling, from inside this build, what asks
+            -- this flow for those reads. The old walk answers reads of loop variables.
+            if loc.parent and (loc.parent.type == 'in' or loc.parent.type == 'loop') then
                 return
             end
             if (guide.getParentFunction(loc) or main) ~= main then
@@ -955,6 +1026,9 @@ function vm.buildFlowUnguarded(main)
             for _, stmt in ipairs(block.stmts) do
                 applyStmt(state, stmt, ctx)
             end
+            for _, expr in ipairs(block.exprs or {}) do
+                applyCasts(state, ctx.castsAt[expr])
+            end
             if block.condition then
                 applyCasts(state, ctx.castsAt[block.condition])
                 local yes, no = evalCondition(state, block.condition)
@@ -998,8 +1072,8 @@ end
 ---@param node parser.object
 ---@return table<vm.flow.key, vm.node>?
 function flow:stateAt(node)
-    ---@type vm.cfg.block?, parser.object?, parser.object?
-    local block, owner, condition
+    ---@type vm.cfg.block?, parser.object?, parser.object?, parser.object?
+    local block, owner, condition, exprItem
     ---@type parser.object?
     local cursor = node
     -- the `and`/`or` nodes between the read and its statement or condition that it is the
@@ -1018,6 +1092,7 @@ function flow:stateAt(node)
         end
         if self.exprBlock[cursor] then
             block = self.exprBlock[cursor]
+            exprItem = cursor
             break
         end
         local parent = cursor.parent
@@ -1040,6 +1115,14 @@ function flow:stateAt(node)
             break
         end
         applyStmt(state, stmt, self.ctx)
+    end
+    if exprItem then
+        for _, expr in ipairs(block.exprs or {}) do
+            applyCasts(state, self.ctx.castsAt[expr])
+            if expr == exprItem then
+                break
+            end
+        end
     end
     if condition then
         applyCasts(state, self.ctx.castsAt[condition])

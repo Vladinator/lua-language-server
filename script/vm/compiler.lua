@@ -2996,6 +2996,11 @@ local compiling = {}
 ---@type table<any, vm.compileFrame>
 local taintedBy = {}
 
+--- Set (by vm/flow.lua, behind `LLS_FLOW=1`) to a function called when a compile starts from an
+--- empty stack, before any node of it is compiled.
+---@type (fun(source: parser.object | vm.generic | vm.global | vm.variable))?
+vm.beforeFreshCompile = nil
+
 --- How many compiles are open on the stack right now.
 ---@return integer
 function vm.compileDepth()
@@ -3257,6 +3262,15 @@ function vm.compileNode(source)
             end
         end
         return cache
+    end
+
+    if depth == 0 and vm.beforeFreshCompile then
+        vm.beforeFreshCompile(source)
+        -- (the build may have compiled this very source)
+        local built = vm.getNode(source)
+        if built ~= nil then
+            return built
+        end
     end
 
     return compileFresh(source, 1)

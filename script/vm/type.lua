@@ -105,7 +105,9 @@ local function checkParentEnum(parentName, child, uri, mark, errs)
         or childName == 'boolean'
         or childName == 'string' then
             for _, enum in ipairs(enums) do
-                for nd in vm.compileNode(enum):eachObject() do
+                ---@type vm.node
+                local enumNode = vm.compileNode(enum)
+                for nd in enumNode:eachObject() do
                     if childName == vm.getNodeName(nd) and nd[1] == child[1] then
                         return true
                     end
@@ -120,7 +122,9 @@ local function checkParentEnum(parentName, child, uri, mark, errs)
         elseif childName == 'function'
         or     childName == 'table' then
             for _, enum in ipairs(enums) do
-                for nd in vm.compileNode(enum):eachObject() do
+                ---@type vm.node
+                local enumNode = vm.compileNode(enum)
+                for nd in enumNode:eachObject() do
                     if child == nd then
                         return true
                     end

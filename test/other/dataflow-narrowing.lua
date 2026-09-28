@@ -350,4 +350,17 @@ end
     end)
 end
 
+-- a field path rooted at a global narrows and forgets the same way a local's does
+checkPath([[
+---@class T
+---@field y string?
+---@type T
+G = G
+
+if G.y then
+    print(G.y)
+end
+print(G.y)
+]], { 'string?', 'string', 'string?' })
+
 print('dataflow-narrowing: OK')

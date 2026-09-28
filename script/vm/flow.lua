@@ -20,7 +20,7 @@ local guide = require 'parser.guide'
 --- `test/other/flow-differential.lua` measures against the old tracer, so the next thing to port is
 --- chosen from data, not guessed.
 
----@alias vm.flow.key parser.object|string
+---@alias vm.flow.key parser.object|vm.global|string
 
 --- What a flow knows beyond its states: `castsAt`, the `---@cast` docs right before a statement or
 --- condition, and `interesting`, the locals and paths something in the function can narrow or
@@ -63,7 +63,18 @@ local function declKey(decl)
     return '#' .. id
 end
 
---- The path key of a field access rooted at a local, or nil (a global, a call, a dynamic key).
+--- Is `key` a field-path key (a `#N.name` string) or the per-file object of a plain global
+--- variable (`vm.getGlobalNode`)? Both use the "only kept when both sides have it / starts from
+--- the static type when untouched" rules that a local's own decl key does not need: a local is
+--- always seeded up front (see `seeded` in `vm.buildFlow`), these are not.
+---@param key vm.flow.key
+---@return boolean
+local function isPathLike(key)
+    return type(key) == 'string' or (type(key) == 'table' and key.type == 'global')
+end
+
+--- The path key of a field access rooted at a local or a plain global, or nil (a call, a dynamic
+--- key, or a field of something else this analysis does not root a path at).
 ---@param expr parser.object?
 ---@return string?
 local function pathKey(expr)
@@ -86,6 +97,12 @@ local function pathKey(expr)
             return nil
         end
         base = declKey(parent.node)
+    elseif parent and (parent.type == 'getglobal' or parent.type == 'setglobal') then
+        local globalVar = vm.getGlobalNode(parent)
+        if not globalVar then
+            return nil
+        end
+        base = declKey(globalVar --[[@as parser.object]])
     else
         base = pathKey(parent)
     end
@@ -289,7 +306,7 @@ local function stateJoin(a, b)
         end
     end
     for key in pairs(out) do
-        if type(key) == 'string' and (not a[key] or not b[key]) then
+        if isPathLike(key) and (not a[key] or not b[key]) then
             out[key] = nil
         end
     end
@@ -506,8 +523,8 @@ end
 local function applyCasts(state, casts)
     for _, doc in ipairs(casts or {}) do
         local decl = vm.getCastTargetHead(doc)
-        if decl and decl.type ~= 'global' and not doc.name[1]:find('.', 1, true) then
-            ---@cast decl parser.object
+        if decl and not doc.name[1]:find('.', 1, true) then
+            ---@cast decl parser.object|vm.global
             local node = state[decl]
             if node then
                 state[decl] = castNode(node, doc)
@@ -542,6 +559,14 @@ local function applyStmt(state, stmt, ctx)
             killBelow(state, key)
             if ctx.interesting[key] then
                 state[key] = assignNode(stmt, state, ctx)
+            end
+        end
+    elseif t == 'setglobal' then
+        local globalVar = vm.getGlobalNode(stmt)
+        if globalVar then
+            killBelow(state, declKey(globalVar --[[@as parser.object]]))
+            if ctx.interesting[globalVar] then
+                state[globalVar] = assignNode(stmt, state, ctx)
             end
         end
     elseif t == 'call' and stmt.node and stmt.node.special == 'assert'
@@ -614,6 +639,9 @@ function refKey(expr)
     if expr.type == 'getfield' or expr.type == 'getindex' then
         return pathKey(expr)
     end
+    if expr.type == 'getglobal' then
+        return vm.getGlobalNode(expr)
+    end
     return nil
 end
 
@@ -630,7 +658,7 @@ local function narrowRef(state, expr, fn)
     end
     ---@type vm.node?
     local current = state[key]
-    if not current and type(key) == 'string' then
+    if not current and isPathLike(key) then
         current = staticNodeOf(expr)
     end
     if not current then
@@ -1225,6 +1253,11 @@ function vm.buildFlowBody(main)
                     if key then
                         interesting[key] = true
                     end
+                elseif stmt.type == 'setglobal' then
+                    local globalVar = vm.getGlobalNode(stmt)
+                    if globalVar then
+                        interesting[globalVar] = true
+                    end
                 end
             end
         end
@@ -1303,7 +1336,7 @@ function vm.buildFlowBody(main)
         -- field paths the enclosing function has narrowed or assigned (`m.queue = {}` above the
         -- closure) hold inside it too
         for key, node in pairs(parentState or {}) do
-            if type(key) == 'string' then
+            if isPathLike(key) then
                 seeded[key] = node
             end
         end
@@ -1419,7 +1452,7 @@ function flow:getNode(read)
     if node and read.type == 'getlocal' then
         node = withInsideCasts(self.ctx, self:itemOf(read), read, node)
     end
-    if not node and state and type(key) == 'string' and self.ctx.interesting[key] then
+    if not node and state and isPathLike(key) and self.ctx.interesting[key] then
         return staticNodeOf(read)
     end
     return node

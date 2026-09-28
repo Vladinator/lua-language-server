@@ -12,6 +12,7 @@ local plugin     = require 'plugin'
 ---@class parser.object
 ---@field _compiledNodes        boolean
 ---@field _node                 vm.node
+---@field preTraceNode?          vm.node # a traced field read's node before narrowing (vm/flow.lua)
 ---@field cindex                integer
 ---@field func                  parser.object
 ---@field hideView              boolean
@@ -2200,6 +2201,8 @@ local compilerSwitch = util.switch()
             -- ever starting a field tracer at all.
             local staticNode = vm.getNode(source)
             if staticNode and (staticNode:hasFalsy() or vm.hasAnyPropagatingFlag(staticNode)) then
+                -- what vm/flow.lua starts a field path from (the node cache gets the traced one)
+                source.preTraceNode = staticNode
                 local tracedNode = vm.traceNode(source)
                 if tracedNode then
                     vm.setNode(source, tracedNode, true)

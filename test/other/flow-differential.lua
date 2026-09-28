@@ -34,6 +34,8 @@ local samples = {}
 local newTime, oldTime = 0, 0
 -- FLOW_CTX=<text>: only sample mismatches of categories containing it
 local ctxFilter = os.getenv('FLOW_CTX')
+-- FLOW_FIELDS=1 also compares reads of field paths (`a.b`, `a[1]`)
+local withFields = os.getenv('FLOW_FIELDS') == '1'
 
 ---@param read parser.object
 ---@return string
@@ -95,7 +97,8 @@ for _, path in ipairs(paths) do
                 else
                     ---@type vm.flow
                     local flow = result
-                    guide.eachSourceType(target, 'getlocal', function (read)
+                    ---@param read parser.object
+                    local function compare(read)
                         if (guide.getParentFunction(read) or main) ~= target then
                             return
                         end
@@ -121,6 +124,20 @@ for _, path in ipairs(paths) do
                             return
                         end
                         local oldView = vm.getInfer(oldNode):view(uri)
+                        if not newNode and read.type ~= 'getlocal' then
+                            -- a path whose root is not a local (global, call result, ...): not tracked
+                            local root = read
+                            while root.node and root.type ~= 'getlocal' do
+                                root = root.node
+                            end
+                            local kind = root.type == 'getglobal' and 'global' or root.type
+                            local key = 'untracked field path, root is ' .. kind
+                            categories[key] = (categories[key] or 0) + 1
+                            if kind == 'getlocal' and #samples < 40 and ctxFilter == 'no answer' then
+                                samples[#samples+1] = ('%s:%d  (local-rooted) old=%s'):format(path, read.start // 10000 + 1, oldView)
+                            end
+                            return
+                        end
                         if not newNode then
                             noAnswer = noAnswer + 1
                             local key = 'no answer, ' .. context(read)
@@ -136,6 +153,9 @@ for _, path in ipairs(paths) do
                         else
                             differs = differs + 1
                             local key = 'differs, ' .. context(read)
+                            if read.type ~= 'getlocal' then
+                                key = 'differs, FIELD read, ' .. context(read)
+                            end
                             if oldView:find('unknown', 1, true) then
                                 key = 'differs, old side has unknown (new is more precise)'
                             end
@@ -148,7 +168,12 @@ for _, path in ipairs(paths) do
                                     path, read.start // 10000 + 1, oldView, newView)
                             end
                         end
-                    end)
+                    end
+                    guide.eachSourceType(target, 'getlocal', compare)
+                    if withFields then
+                        guide.eachSourceType(target, 'getfield', compare)
+                        guide.eachSourceType(target, 'getindex', compare)
+                    end
                 end
             end
         end

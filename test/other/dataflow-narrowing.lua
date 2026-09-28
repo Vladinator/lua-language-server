@@ -45,6 +45,32 @@ local function checkNarrowing(script, expected)
     end
 end
 
+---@param script string a snippet with a table local `x`; every read of the field `x.y` (source
+--- order) is checked against `expected`
+---@param expected string[]
+local function checkPath(script, expected)
+    files.setText(TESTURI, script)
+    local state = files.getState(TESTURI)
+    assert(state)
+    local main = state.ast
+    ---@type parser.object[]
+    local reads = {}
+    guide.eachSourceType(main, 'getfield', function (read)
+        if guide.getKeyName(read) == 'y' then
+            reads[#reads+1] = read
+        end
+    end)
+    table.sort(reads, function (a, b) return a.start < b.start end)
+    local flow = vm.buildFlow(main)
+    assert(#reads == #expected, ('expected %d reads, found %d'):format(#expected, #reads))
+    for i, read in ipairs(reads) do
+        local node = flow:getNode(read)
+        assert(node, ('path read %d: no answer from the flow analysis'):format(i))
+        local actual = vm.getInfer(node):view(TESTURI)
+        assert(actual == expected[i], ('path read %d: expected %q, got %q'):format(i, expected[i], actual))
+    end
+end
+
 -- straight-line: no narrowing needed, just tracks the declared type through
 checkNarrowing([[
 ---@type string?
@@ -206,5 +232,42 @@ for _ = 1, 2 do
 end
 print(x)
 ]], { 'string', 'string' })
+
+-- field paths: a guard narrows `x.y`, an assignment sets it, and writing `x` (or a prefix) forgets it
+checkPath([[
+---@class T
+---@field y string?
+---@type T
+local x
+
+if x.y then
+    print(x.y)
+end
+print(x.y)
+]], { 'string?', 'string', 'string?' })
+
+checkPath([[
+---@class T
+---@field y string?
+---@type T
+local x
+
+x.y = 'a'
+print(x.y)
+x = {}
+print(x.y)
+]], { 'string', 'string?' })
+
+checkPath([[
+---@class T
+---@field y string?
+---@type T
+local x
+
+if not x.y then
+    x.y = 'a'
+end
+print(x.y)
+]], { 'string?', 'string' })
 
 print('dataflow-narrowing: OK')

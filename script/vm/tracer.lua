@@ -1290,6 +1290,13 @@ local function getAssignNode(source)
     return node
 end
 
+--- For vm/flow.lua, which has to agree with what the tracer takes an assignment to be.
+---@param source parser.object
+---@return vm.node
+function vm.getAssignNode(source)
+    return getAssignNode(source)
+end
+
 --- Whether the loop's block makes the variable non-nil before its first `break` on every path:
 --- `if not x then x = {} end` (or `x == nil`) as a statement of the block, the assignment in it a
 --- value that is never nil, and no assignment between it and the last `break` that could give nil

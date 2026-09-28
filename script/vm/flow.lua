@@ -20,7 +20,84 @@ local guide = require 'parser.guide'
 --- `test/other/flow-differential.lua` measures against the old tracer, so the next thing to port is
 --- chosen from data, not guessed.
 
----@alias vm.flow.state table<parser.object, vm.node>|false
+---@alias vm.flow.key parser.object|string
+---@alias vm.flow.state table<vm.flow.key, vm.node>|false
+
+--- Tracked things are keyed by a local's declaration node, or, for a field path rooted at a local
+--- (`a.b.c`, `a[1]`), by a string: the root's id and the keys, separated by SEP. A local is
+--- always present once declared; a path is present only while something narrowed or assigned it
+--- (otherwise its type is the static one, see `staticNodeOf`), so a join keeps a path only when
+--- both sides have it.
+local SEP = ''
+
+---@type table<parser.object, integer>
+local declIds = setmetatable({}, { __mode = 'k' })
+local nextDeclId = 0
+
+---@param decl parser.object
+---@return string
+local function declKey(decl)
+    local id = declIds[decl]
+    if not id then
+        nextDeclId = nextDeclId + 1
+        id = nextDeclId
+        declIds[decl] = id
+    end
+    return '#' .. id
+end
+
+--- The path key of a field access rooted at a local, or nil (a global, a call, a dynamic key).
+---@param expr parser.object?
+---@return string?
+local function pathKey(expr)
+    if not expr then
+        return nil
+    end
+    local t = expr.type
+    if t ~= 'getfield' and t ~= 'setfield' and t ~= 'getindex' and t ~= 'setindex' then
+        return nil
+    end
+    local name = guide.getKeyName(expr)
+    if name == nil then
+        return nil
+    end
+    local parent = expr.node
+    ---@type string?
+    local base
+    if parent and (parent.type == 'getlocal' or parent.type == 'setlocal') then
+        if not parent.node then
+            return nil
+        end
+        base = declKey(parent.node)
+    else
+        base = pathKey(parent)
+    end
+    if not base then
+        return nil
+    end
+    return base .. SEP .. type(name) .. tostring(name)
+end
+
+--- Everything tracked *below* `key` (its fields), for killing them when `key` is written.
+---@param state table<vm.flow.key, vm.node>
+---@param key   string
+local function killBelow(state, key)
+    local prefix = key .. SEP
+    for other in pairs(state) do
+        if type(other) == 'string' and other:sub(1, #prefix) == prefix then
+            state[other] = nil
+        end
+    end
+end
+
+--- What a field read's type is before any narrowing: the compiler keeps it when it goes on to
+--- trace the read (`preTraceNode`), else the compiled node is already the static one.
+---@param expr parser.object
+---@return vm.node?
+local function staticNodeOf(expr)
+    local node = vm.compileNode(expr)
+    return expr.preTraceNode or node
+end
 
 --- Set membership by the array itself: `vm.node:narrow` appends its fallback object without
 --- registering it in the set index, so `node[obj]` alone can say "absent" for a present object.
@@ -109,7 +186,7 @@ local function stateJoin(a, b)
     if not b then
         return a
     end
-    ---@type table<parser.object, vm.node>
+    ---@type table<vm.flow.key, vm.node>
     local out = {}
     for decl, node in pairs(a) do
         out[decl] = node
@@ -122,13 +199,18 @@ local function stateJoin(a, b)
             out[decl] = current:copy():merge(node)
         end
     end
+    for key in pairs(out) do
+        if type(key) == 'string' and (not a[key] or not b[key]) then
+            out[key] = nil
+        end
+    end
     return out
 end
 
----@param state table<parser.object, vm.node>
----@return table<parser.object, vm.node>
+---@param state table<vm.flow.key, vm.node>
+---@return table<vm.flow.key, vm.node>
 local function copyState(state)
-    ---@type table<parser.object, vm.node>
+    ---@type table<vm.flow.key, vm.node>
     local out = {}
     for decl, node in pairs(state) do
         out[decl] = node
@@ -136,14 +218,13 @@ local function copyState(state)
     return out
 end
 
---- The node of an assignment or declaration, the way vm/tracer.lua's own getAssignNode reads it:
---- the compile of the *statement itself*, not of its right-hand side (that would drop what the
---- compiler merges in from a declared `---@type`). The field-only tweak in tracer.lua's version
---- has no counterpart here, this only handles plain locals.
+--- The node of an assignment or declaration: what the old tracer's getAssignNode says (the
+--- compile of the *statement itself*, not of its right-hand side, which would drop what the
+--- compiler merges in from a declared `---@type`; a field write of a never-nil value is not nil).
 ---@param stmt parser.object
 ---@return vm.node
 local function assignNode(stmt)
-    return vm.compileNode(stmt):copy()
+    return vm.getAssignNode(stmt):copy()
 end
 
 ---@type fun(state: vm.flow.state, expr: parser.object?): vm.flow.state, vm.flow.state
@@ -152,7 +233,7 @@ local flow_evalCondition
 --- Applies the `---@cast x ...` docs that sit right before an item (statement or condition), the
 --- way the old tracer's fastWardCasts does. Only plain local names are handled (`---@cast a.b` is a
 --- field path, not a variable).
----@param state table<parser.object, vm.node>
+---@param state table<vm.flow.key, vm.node>
 ---@param casts parser.object[]?
 local function applyCasts(state, casts)
     for _, doc in ipairs(casts or {}) do
@@ -190,7 +271,7 @@ end
 
 --- Applies one statement's own effect to `state`, in place (`state` must already be a private
 --- copy of the state entering the statement).
----@param state table<parser.object, vm.node>
+---@param state table<vm.flow.key, vm.node>
 ---@param stmt  parser.object
 ---@param castsAt table<parser.object, parser.object[]>
 local function applyStmt(state, stmt, castsAt)
@@ -200,8 +281,17 @@ local function applyStmt(state, stmt, castsAt)
         state[stmt] = assignNode(stmt)
     elseif t == 'setlocal' then
         local decl = stmt.node
-        if decl and state[decl] then
-            state[decl] = assignNode(stmt)
+        if decl then
+            killBelow(state, declKey(decl))
+            if state[decl] then
+                state[decl] = assignNode(stmt)
+            end
+        end
+    elseif t == 'setfield' or t == 'setindex' then
+        local key = pathKey(stmt)
+        if key then
+            killBelow(state, key)
+            state[key] = assignNode(stmt)
         end
     elseif t == 'call' and stmt.node and stmt.node.special == 'assert'
     and stmt.args and stmt.args[1] then
@@ -222,32 +312,57 @@ end
 --- comes out of the value lattice itself instead of a separate pass. Only emptiness *produced by
 --- the narrowing* counts: a variable that was already empty before it (a type the compiler could
 --- not resolve) says nothing about reachability.
----@param state  table<parser.object, vm.node>
----@param decl   parser.object
+---@param state  table<vm.flow.key, vm.node>
+---@param key    vm.flow.key
 ---@param before vm.node
 ---@param after  vm.node
 ---@return vm.flow.state
-local function narrowedState(state, decl, before, after)
+local function narrowedState(state, key, before, after)
     if after:isEmpty() and not after:isOptional() and not before:isEmpty() then
         return false
     end
     local out = copyState(state)
-    out[decl] = after
+    out[key] = after
     return out
 end
 
---- Narrows the tracked local `decl` in `state` with `fn`; `state` itself when the local is not
---- tracked (an upvalue, a variable this analysis does not know).
----@param state table<parser.object, vm.node>
----@param decl  parser.object?
+--- What an expression refers to, when it is something this analysis tracks: a local (by its
+--- declaration node) or a field path rooted at a local (by its path string).
+---@param expr parser.object?
+---@return vm.flow.key?
+local function refKey(expr)
+    if not expr then
+        return nil
+    end
+    if expr.type == 'getlocal' then
+        return expr.node
+    end
+    if expr.type == 'getfield' or expr.type == 'getindex' then
+        return pathKey(expr)
+    end
+    return nil
+end
+
+--- Narrows what `expr` refers to in `state` with `fn`; `state` itself when it is nothing tracked.
+--- A path nothing has narrowed yet starts from its static type.
+---@param state table<vm.flow.key, vm.node>
+---@param expr  parser.object?
 ---@param fn    fun(node: vm.node): vm.node
 ---@return vm.flow.state
-local function narrowLocal(state, decl, fn)
-    local current = decl and state[decl]
-    if not decl or not current then
+local function narrowRef(state, expr, fn)
+    local key = refKey(expr)
+    if not expr or not key then
         return state
     end
-    return narrowedState(state, decl, current, fn(current))
+    ---@type vm.node?
+    local current = state[key]
+    if not current and type(key) == 'string' then
+        current = staticNodeOf(expr)
+    end
+    if not current then
+        return state
+    end
+    return narrowedState(state, key, current, fn(current))
 end
 
 ---@param a vm.flow.state
@@ -277,9 +392,9 @@ local function evalCondition(state, expr)
     if t == 'paren' then
         return evalCondition(state, expr.exp)
     end
-    if t == 'getlocal' then
-        return narrowLocal(state, expr.node, function (node) return node:copy():setTruthy() end),
-               narrowLocal(state, expr.node, function (node) return node:copy():setFalsy() end)
+    if refKey(expr) then
+        return narrowRef(state, expr, function (node) return node:copy():setTruthy() end),
+               narrowRef(state, expr, function (node) return node:copy():setFalsy() end)
     end
     if t == 'unary' and expr.op and expr.op.type == 'not' then
         local yes, no = evalCondition(state, expr[1])
@@ -305,26 +420,26 @@ local function evalCondition(state, expr)
             ---@type vm.flow.state, vm.flow.state
             local yes, no = state, state
             local uri = guide.getUri(expr)
-            if left.type == 'getlocal' and right.type == 'nil' then
-                yes = narrowLocal(state, left.node, function ()
+            if refKey(left) and right.type == 'nil' then
+                yes = narrowRef(state, left, function ()
                     return vm.createNode(vm.declareGlobal('type', 'nil'))
                 end)
-                no = narrowLocal(state, left.node, function (node) return node:copy():removeOptional() end)
+                no = narrowRef(state, left, function (node) return node:copy():removeOptional() end)
             elseif left.type == 'call' and right.type == 'string'
             and left.node and left.node.special == 'type'
-            and left.args and left.args[1] and left.args[1].type == 'getlocal' then
+            and refKey(left.args and left.args[1]) then
                 -- if type(x) == 'string' then
                 local name = right[1] --[[@as string]]
-                local decl = left.args[1].node
-                yes = narrowLocal(state, decl, function (node) return node:copy():narrow(uri, name) end)
-                no  = narrowLocal(state, decl, function (node) return node:copy():remove(name) end)
-            elseif left.type == 'getlocal' then
+                local arg = left.args[1]
+                yes = narrowRef(state, arg, function (node) return node:copy():narrow(uri, name) end)
+                no  = narrowRef(state, arg, function (node) return node:copy():remove(name) end)
+            elseif refKey(left) then
                 -- if x == 'literal' then (the checker is anything with a literal type name)
                 local name = vm.getNodeName(right)
                 if name then
                     local checkerNode = vm.compileNode(right)
-                    yes = narrowLocal(state, left.node, function (node) return node:copy():narrow(uri, name) end)
-                    no  = narrowLocal(state, left.node, function (node)
+                    yes = narrowRef(state, left, function (node) return node:copy():narrow(uri, name) end)
+                    no  = narrowRef(state, left, function (node)
                         local out = node:copy()
                         out:removeNode(checkerNode)
                         return out
@@ -444,7 +559,7 @@ function vm.buildFlow(main)
 
     -- Locals that no block statement declares (a function's parameters, `for` loop variables) hold
     -- their compiled type from the start; nothing in this analysis reassigns them but `setlocal`.
-    ---@type table<parser.object, vm.node>
+    ---@type table<vm.flow.key, vm.node>
     local seeded = {}
     for _, declType in ipairs { 'local', 'self' } do
         guide.eachSourceType(main, declType, function (loc)
@@ -465,8 +580,18 @@ function vm.buildFlow(main)
     -- in this one are seeded too, so that this flow can in turn answer for them.
     ---@type parser.object?
     local parentFunction = guide.getParentFunction(main)
-    ---@type table<parser.object, vm.node>|false|nil
+    ---@type table<vm.flow.key, vm.node>|false|nil
     local parentState
+    if parentFunction then
+        parentState = vm.getFlow(parentFunction):stateAt(main) or false
+        -- field paths the enclosing function has narrowed or assigned (`m.queue = {}` above the
+        -- closure) hold inside it too
+        for key, node in pairs(parentState or {}) do
+            if type(key) == 'string' then
+                seeded[key] = node
+            end
+        end
+    end
     for _, readType in ipairs { 'getlocal', 'setlocal' } do
         guide.eachSourceType(main, readType, function (ref)
             local decl = ref.node
@@ -475,9 +600,6 @@ function vm.buildFlow(main)
             end
             if main.type == 'main' or isInside(decl, main) then
                 return
-            end
-            if parentFunction and parentState == nil then
-                parentState = vm.getFlow(parentFunction):stateAt(main) or false
             end
             local outer = parentState and parentState[decl]
             seeded[decl] = (outer or vm.compileNode(decl)):copy()
@@ -491,7 +613,7 @@ function vm.buildFlow(main)
         join    = stateJoin,
         equal   = stateEqual,
         transfer = function (block, stateIn)
-            ---@cast stateIn table<parser.object, vm.node>
+            ---@cast stateIn table<vm.flow.key, vm.node>
             local state = copyState(stateIn)
             for _, stmt in ipairs(block.stmts) do
                 applyStmt(state, stmt, castsAt)
@@ -520,18 +642,22 @@ end
 ---@param read parser.object a `getlocal`
 ---@return vm.node?
 function flow:getNode(read)
-    local decl = read.node
-    if not decl then
+    local key = refKey(read)
+    if not key then
         return nil
     end
     local state = self:stateAt(read)
-    return state and state[decl]
+    local node = state and state[key]
+    if not node and state and type(key) == 'string' then
+        return staticNodeOf(read)
+    end
+    return node
 end
 
 --- Every tracked local's node at the point where `node` (any expression or statement of this
 --- function) is evaluated; nil when the analysis has no answer there.
 ---@param node parser.object
----@return table<parser.object, vm.node>?
+---@return table<vm.flow.key, vm.node>?
 function flow:stateAt(node)
     ---@type vm.cfg.block?, parser.object?, parser.object?
     local block, owner, condition

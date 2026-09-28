@@ -32,6 +32,8 @@ local categories = {}
 ---@type string[]
 local samples = {}
 local newTime, oldTime = 0, 0
+-- FLOW_CTX=<text>: only sample mismatches of categories containing it
+local ctxFilter = os.getenv('FLOW_CTX')
 
 ---@param read parser.object
 ---@return string
@@ -89,7 +91,7 @@ for _, path in ipairs(paths) do
                 newTime = newTime + (os.clock() - clock)
                 if not ok then
                     crashes = crashes + 1
-                    print('CRASH: ' .. path .. ' :: ' .. tostring(result))
+                    print('CRASH: ' .. path .. ':' .. (target.start // 10000 + 1) .. ' :: ' .. tostring(result))
                 else
                     ---@type vm.flow
                     local flow = result
@@ -135,7 +137,7 @@ for _, path in ipairs(paths) do
                             differs = differs + 1
                             local key = 'differs, ' .. context(read)
                             categories[key] = (categories[key] or 0) + 1
-                            if #samples < 40 then
+                            if #samples < 40 and (not ctxFilter or key:find(ctxFilter, 1, true)) then
                                 samples[#samples+1] = ('%s:%d  old=%s  new=%s'):format(
                                     path, read.start // 10000 + 1, oldView, newView)
                             end

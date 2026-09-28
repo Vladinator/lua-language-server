@@ -66,6 +66,11 @@ function vm.runDataflow(cfg, spec)
         local block = table.remove(worklist)
         queued[block] = nil
         iterations = iterations + 1
+        -- a lattice of finite height converges in far fewer visits; hitting this means the
+        -- spec's join/equal/transfer is not monotone: fail loudly instead of hanging the server
+        if iterations > 1000 + 200 * #cfg.blocks then
+            error('dataflow did not converge (non-monotone join/equal/transfer)')
+        end
 
         local newIn = spec.bottom()
         if block == cfg.entry then

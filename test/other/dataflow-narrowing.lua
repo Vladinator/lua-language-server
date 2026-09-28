@@ -2,11 +2,10 @@
 -- (vm/flow.lua), the real multi-variable flow analysis built on the CFG (Phase 1) and the
 -- worklist dataflow engine (Phase 2). Each case is one small snippet with a single tracked local
 -- `x` whose reads are checked against hand-computed expected types. Covers what vm/flow.lua
--- supports so far: declarations, reassignment, and narrowing of a *direct* reference to a local
--- used as a whole if/while condition (`x`, `not x`, `x == nil`, `x ~= nil`), including the exact
+-- supports so far: declarations, reassignment, `---@cast`, `assert(x)`, and narrowing of a local by
+-- an if/while condition (`x`, `not x`, `x == nil`, `x == 'lit'`, `type(x) == 'name'`, `and`/`or`), including the exact
 -- `while cond` shapes that broke the old tracer's reverted extension. Not covered yet (measured by
--- test/other/flow-differential.lua instead): calls such as assert(x)/type(x), and/or inside a
--- condition, field paths, globals, upvalues. Still standalone: not wired into vm.traceNode.
+-- test/other/flow-differential.lua instead): field paths, globals, upvalues. Still standalone: not wired into vm.traceNode.
 local files = require 'files'
 local guide = require 'parser.guide'
 local vm    = require 'vm'
@@ -147,5 +146,65 @@ while x == nil do
 end
 print(x)
 ]], { 'string?', 'nil', 'string' })
+
+-- `and` / `or` compose: the right operand only runs where the left one held (`and`) or failed
+-- (`or`), and what follows the whole condition is the join of the two ways out
+checkNarrowing([[
+---@type string?
+local x
+if x and #x > 0 then
+    print(x)
+end
+]], { 'string?', 'string', 'string' })
+
+checkNarrowing([[
+---@type string?
+local x
+if not x or #x == 0 then
+    return
+end
+print(x)
+]], { 'string?', 'string', 'string' })
+
+-- `assert(cond)` narrows what follows it
+checkNarrowing([[
+---@type string?
+local x
+assert(x)
+print(x)
+]], { 'string?', 'string' })
+
+-- `type(x) == 'name'`
+checkNarrowing([[
+---@type string|number
+local x
+if type(x) == 'string' then
+    print(x)
+else
+    print(x)
+end
+]], { 'string|number', 'string', 'number' })
+
+-- `---@cast x T` before a statement
+checkNarrowing([[
+---@type string?
+local x
+---@cast x string
+print(x)
+]], { 'string' })
+
+-- equality against a literal inside a loop: a non-converging fixpoint here once hung the walk
+-- (`vm.node:narrow` leaves its fallback object out of the set index, so a set-based equality
+-- said the state changed on every visit)
+checkNarrowing([[
+---@type string
+local x
+for _ = 1, 2 do
+    if x ~= 'public' then
+        return
+    end
+end
+print(x)
+]], { 'string', 'string' })
 
 print('dataflow-narrowing: OK')

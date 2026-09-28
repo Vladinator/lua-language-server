@@ -352,6 +352,39 @@ flow_evalCondition = evalCondition
 local flow = {}
 flow.__index = flow
 
+--- Is the local `decl` declared in `func` or in a function nested in it? (Not decided by range:
+--- `local function f` spans its own body, but `f` belongs to the enclosing function.)
+---@param decl parser.object
+---@param func parser.object
+---@return boolean
+local function isInside(decl, func)
+    ---@type parser.object?
+    local fn = guide.getParentFunction(decl)
+    while fn do
+        if fn == func then
+            return true
+        end
+        fn = guide.getParentFunction(fn)
+    end
+    return false
+end
+
+---@type table<parser.object, vm.flow>
+local flowCache = setmetatable({}, { __mode = 'k' })
+
+--- `vm.buildFlow`, remembered per function node (an enclosing function's flow answers for every
+--- closure created in it).
+---@param main parser.object
+---@return vm.flow
+function vm.getFlow(main)
+    local cached = flowCache[main]
+    if not cached then
+        cached = vm.buildFlow(main)
+        flowCache[main] = cached
+    end
+    return cached
+end
+
 ---@param main parser.object a 'main' or 'function' node
 ---@return vm.flow
 function vm.buildFlow(main)
@@ -425,6 +458,32 @@ function vm.buildFlow(main)
         end)
     end
 
+    -- An upvalue (declared outside this function) enters with the state its enclosing function
+    -- has at the point this function is created (narrowing that holds there holds inside: the
+    -- old tracer behaves the same way), or, without such an answer, with its declaration's
+    -- compiled type. Narrowing inside this function applies on top. Uses in functions nested
+    -- in this one are seeded too, so that this flow can in turn answer for them.
+    ---@type parser.object?
+    local parentFunction = guide.getParentFunction(main)
+    ---@type table<parser.object, vm.node>|false|nil
+    local parentState
+    for _, readType in ipairs { 'getlocal', 'setlocal' } do
+        guide.eachSourceType(main, readType, function (ref)
+            local decl = ref.node
+            if not decl or seeded[decl] or stmtBlock[decl] then
+                return
+            end
+            if main.type == 'main' or isInside(decl, main) then
+                return
+            end
+            if parentFunction and parentState == nil then
+                parentState = vm.getFlow(parentFunction):stateAt(main) or false
+            end
+            local outer = parentState and parentState[decl]
+            seeded[decl] = (outer or vm.compileNode(decl)):copy()
+        end)
+    end
+
     ---@type vm.dataflow.spec
     local spec = {
         bottom  = function () return false end,
@@ -465,10 +524,19 @@ function flow:getNode(read)
     if not decl then
         return nil
     end
+    local state = self:stateAt(read)
+    return state and state[decl]
+end
+
+--- Every tracked local's node at the point where `node` (any expression or statement of this
+--- function) is evaluated; nil when the analysis has no answer there.
+---@param node parser.object
+---@return table<parser.object, vm.node>?
+function flow:stateAt(node)
     ---@type vm.cfg.block?, parser.object?, parser.object?
     local block, owner, condition
     ---@type parser.object?
-    local cursor = read
+    local cursor = node
     -- the `and`/`or` nodes between the read and its statement or condition that it is the
     -- *right* operand of: it only runs where the left operand held (`and`) or failed (`or`)
     ---@type parser.object[]
@@ -523,5 +591,5 @@ function flow:getNode(read)
             return nil
         end
     end
-    return at[decl]
+    return at or nil
 end

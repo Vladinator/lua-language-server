@@ -103,9 +103,6 @@ for _, path in ipairs(paths) do
                         local decl = read.node
                         if decl and (guide.getParentFunction(decl) or main) ~= target then
                             upvalues = upvalues + 1
-                            categories['upvalue (declared in an enclosing function)'] =
-                                (categories['upvalue (declared in an enclosing function)'] or 0) + 1
-                            return
                         end
                         if castTouch[read.finish] then
                             -- `x --[[@as T]]` is applied by the compiler (vm.bindAs) before the
@@ -128,6 +125,9 @@ for _, path in ipairs(paths) do
                             noAnswer = noAnswer + 1
                             local key = 'no answer, ' .. context(read)
                             categories[key] = (categories[key] or 0) + 1
+                            if #samples < 40 and ctxFilter == 'no answer' then
+                                samples[#samples+1] = ('%s:%d  %s  old=%s'):format(path, read.start // 10000 + 1, tostring(read[1]), oldView)
+                            end
                             return
                         end
                         local newView = vm.getInfer(newNode):view(uri)
@@ -136,6 +136,12 @@ for _, path in ipairs(paths) do
                         else
                             differs = differs + 1
                             local key = 'differs, ' .. context(read)
+                            if oldView:find('unknown', 1, true) then
+                                key = 'differs, old side has unknown (new is more precise)'
+                            end
+                            if decl and (guide.getParentFunction(decl) or main) ~= target then
+                                key = 'differs, upvalue, ' .. context(read)
+                            end
                             categories[key] = (categories[key] or 0) + 1
                             if #samples < 40 and (not ctxFilter or key:find(ctxFilter, 1, true)) then
                                 samples[#samples+1] = ('%s:%d  old=%s  new=%s'):format(

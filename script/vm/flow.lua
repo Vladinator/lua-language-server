@@ -316,6 +316,27 @@ local evalEnabled = os.getenv('LLS_FLOW_EVAL') == '1'
 ---@type fun(expr: parser.object?): vm.flow.key?
 local refKey
 
+--- The variables a `for` declares: `in` has a `list` of them, a numeric loop a single local.
+---@param vars parser.object
+---@return parser.object[]
+local function varsOf(vars)
+    if vars.type == 'list' or not vars.type then
+        return vars
+    end
+    return { vars }
+end
+
+--- The `for` statement a loop-header expression belongs to (`in`'s expressions sit in a `list`).
+---@param expr parser.object
+---@return parser.object?
+local function loopOf(expr)
+    local parent = expr.parent
+    if parent and parent.type == 'list' then
+        parent = parent.parent
+    end
+    return parent
+end
+
 ---@type fun(node: vm.node, doc: parser.object): vm.node
 local castNode
 
@@ -1159,14 +1180,14 @@ function vm.buildFlowBody(main)
             ---@type table<parser.object, true>
             local seen = {}
             for _, expr in ipairs(block.exprs or {}) do
-                local loop = expr.parent
+                local loop = loopOf(expr)
                 if loop and not seen[loop] then
                     seen[loop] = true
                     loopsAt[block] = loopsAt[block] or {}
                     table.insert(loopsAt[block], loop)
                     local vars = loop.type == 'in' and loop.keys or loop.loc
                     if vars then
-                        for _, var in ipairs(vars.type and { vars } or vars) do
+                        for _, var in ipairs(varsOf(vars)) do
                             loopVars[var] = true
                         end
                     end
@@ -1263,12 +1284,12 @@ function vm.buildFlowBody(main)
                 ---@type parser.object[]
                 local roots = {}
                 for _, expr in ipairs(block.exprs or {}) do
-                    if expr.parent == loop then
+                    if loopOf(expr) == loop then
                         roots[#roots+1] = expr
                     end
                 end
                 local seeds = seedsOf(roots, state)
-                for _, var in ipairs(vars and (vars.type and { vars } or vars) or {}) do
+                for _, var in ipairs(vars and varsOf(vars) or {}) do
                     state[var] = evalMemoized(var, seeds, loop):copy()
                 end
             end

@@ -59,6 +59,10 @@ end
 --- cache to compile everything else into.
 ---@type parser.object?
 local evaluated
+--- `local s, e = f()`: `e`'s value is a `select` of a call that is not below `e` in the tree, and
+--- its reads are as much part of the statement as `s`'s.
+---@type parser.object?
+local evaluatedCall
 ---@type table<any, vm.node>?
 local sharedCache
 
@@ -68,7 +72,7 @@ local function isInside(source)
     ---@type parser.object?
     local node = source
     while node do
-        if node == evaluated then
+        if node == evaluated or (evaluatedCall and node == evaluatedCall) then
             return true
         end
         node = node.parent
@@ -110,9 +114,11 @@ function vm.evalInState(source, seeds, scope)
     ---@type table<any, vm.node>
     local scratch = setmetatable({}, { __index = shared })
     local wasEvaluating = vm.flowEvaluating
-    local wasEvaluated, wasShared, wasSeeds = evaluated, sharedCache, activeSeeds
+    local wasEvaluated, wasShared, wasSeeds, wasCall = evaluated, sharedCache, activeSeeds, evaluatedCall
     activeSeeds = seeds
     evaluated = scope or source
+    local value = source.value
+    evaluatedCall = value and value.type == 'select' and value.vararg or nil
     sharedCache = shared
     vm.nodeCache = scratch
     vm.flowEvaluating = true
@@ -124,7 +130,7 @@ function vm.evalInState(source, seeds, scope)
     end)
     vm.nodeCache = shared
     vm.flowEvaluating = wasEvaluating
-    evaluated, sharedCache, activeSeeds = wasEvaluated, wasShared, wasSeeds
+    evaluated, sharedCache, activeSeeds, evaluatedCall = wasEvaluated, wasShared, wasSeeds, wasCall
     if not ok then
         error(result, 0)
     end

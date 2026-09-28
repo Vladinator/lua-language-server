@@ -321,4 +321,33 @@ flowAssertString(x)
 print(x)
 ]], { 'string|number', 'string' })
 
+-- (LLS_FLOW_EVAL=1) a `for` variable's type is evaluated where the loop starts
+if os.getenv('LLS_FLOW_EVAL') == '1' then
+    files.setText(TESTURI, [[
+---@param t (string|number)[]
+local function f(t)
+    for _, x in ipairs(t) do
+        if type(x) == 'string' then
+            print(x)
+        end
+    end
+end
+]])
+    local loopState = files.getState(TESTURI)
+    assert(loopState)
+    guide.eachSourceType(loopState.ast, 'function', function (fn)
+        local flow = vm.buildFlow(fn)
+        ---@type string[]
+        local views = {}
+        guide.eachSourceType(fn, 'getlocal', function (read)
+            if read[1] == 'x' then
+                local node = flow:getNode(read)
+                views[#views+1] = node and vm.getInfer(node):view(TESTURI) or 'nil'
+            end
+        end)
+        table.sort(views)
+        assert(table.concat(views, ',') == 'string,string|number', 'for variable: ' .. table.concat(views, ','))
+    end)
+end
+
 print('dataflow-narrowing: OK')

@@ -32,6 +32,9 @@ local vm = require 'vm.vm'
 ---@field stmts     parser.object[]
 ---@field succs     vm.cfg.edge[]
 ---@field preds     vm.cfg.block[]
+---@field exprs     parser.object[]? expressions evaluated once in this block that are not
+--- statements of it: a `for` loop's `init`/`max`/`step` or generic-`for` `exps`, which run in
+--- the block *before* the loop header. Without this a read inside them belongs to no block
 ---@field condition parser.object? the expression whose truthiness this block's own 'true'/'false'
 --- edges (if it has them) split on -- an `if`/`elseif`/`while`'s own `.filter`, or a `repeat`'s
 --- `.filter` (the `until` expression, on the block the body falls through to, note the *inverted*
@@ -208,6 +211,19 @@ end
 --- into it in that case, which the reachability check in the construction test is expected to
 --- report -- see test/other/cfg-construction.lua)
 function Builder:walkLoop(stmt, cur, ctx, kind)
+    if kind == 'for' then
+        ---@type parser.object[]
+        local exprs = {}
+        if stmt.type == 'loop' then
+            exprs = { stmt.init, stmt.max, stmt.step }
+        elseif stmt.type == 'in' and stmt.exps then
+            exprs = stmt.exps
+        end
+        for _, expr in ipairs(exprs) do
+            cur.exprs = cur.exprs or {}
+            cur.exprs[#cur.exprs+1] = expr
+        end
+    end
     local headerBlock = self:newBlock()
     self:addEdge(cur, headerBlock, 'normal')
     if kind == 'while' then

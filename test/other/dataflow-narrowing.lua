@@ -1,155 +1,24 @@
--- Phase 3 of the tracer redesign (TRACER-REDESIGN.md), first slice: a real, working transfer
--- function for ONE tracked local variable, proving the CFG (Phase 1) + dataflow engine (Phase 2)
--- can produce correct narrowing answers -- not a full port of vm/tracer.lua's 28-case
--- lookIntoChild table yet (see the doc's own phase list for what's left). Covers: straight-line
--- assignment tracking within and across blocks, and if/while's most common real shape (truthy/
--- falsy narrowing of a DIRECT reference to the tracked variable used as the whole condition --
--- `if x then`, `while x do`, `if not x then`). Does NOT yet cover: comparisons (`if x == nil`),
--- calls (`assert(x)`), any narrowing family besides plain truthy/falsy, more than one tracked
--- variable at once, or vm.traceNode's own resolution -- this is a standalone experiment, still not
--- wired into anything live.
---
--- Node equality for convergence detection: vm.getInfer(node):view(uri) string comparison. A real
--- port needs a real structural equality on vm.node (open question, not solved here) -- this is a
--- pragmatic proxy sufficient to prove the mechanism works, not a production-ready answer.
+-- Phase 3 of the tracer redesign (TRACER-REDESIGN.md): regression tests for vm.buildFlow
+-- (vm/flow.lua), the real multi-variable flow analysis built on the CFG (Phase 1) and the
+-- worklist dataflow engine (Phase 2). Each case is one small snippet with a single tracked local
+-- `x` whose reads are checked against hand-computed expected types. Covers what vm/flow.lua
+-- supports so far: declarations, reassignment, and narrowing of a *direct* reference to a local
+-- used as a whole if/while condition (`x`, `not x`, `x == nil`, `x ~= nil`), including the exact
+-- `while cond` shapes that broke the old tracer's reverted extension. Not covered yet (measured by
+-- test/other/flow-differential.lua instead): calls such as assert(x)/type(x), and/or inside a
+-- condition, field paths, globals, upvalues. Still standalone: not wired into vm.traceNode.
 local files = require 'files'
 local guide = require 'parser.guide'
 local vm    = require 'vm'
 
----@param script string
----@return parser.object main
----@return uri uri
-local function getMain(script)
+---@param script string a snippet whose only local named `x` is the one to narrow; every read
+--- of `x` (in source order) is checked against `expected`
+---@param expected string[]
+local function checkNarrowing(script, expected)
     files.setText(TESTURI, script)
     local state = files.getState(TESTURI)
     assert(state)
-    return state.ast, TESTURI
-end
-
----@param declNode parser.object the tracked local's own 'local' declaration node
----@param uri      uri
----@return vm.dataflow.spec
-local function buildSingleVariableSpec(declNode, uri)
-    local function view(node)
-        return vm.getInfer(node):view(uri)
-    end
-    local function nodeEqual(a, b)
-        return view(a) == view(b)
-    end
-
-    local declaredNode = vm.compileNode(declNode)
-
-    ---@param stmt parser.object
-    ---@return boolean
-    local function assignsTarget(stmt)
-        return stmt.type == 'setlocal' and stmt.node == declNode
-    end
-
-    ---@alias narrow.shape 'truthy'|'nileq'|false
-
-    ---@param cond parser.object?
-    ---@return narrow.shape shape, boolean inverted
-    local function conditionShape(cond)
-        if not cond then
-            return false, false
-        end
-        if cond.type == 'getlocal' and cond.node == declNode then
-            return 'truthy', false
-        end
-        if cond.type == 'unary' and cond.op and cond.op.type == 'not'
-        and cond[1] and cond[1].type == 'getlocal' and cond[1].node == declNode then
-            return 'truthy', true
-        end
-        if cond.type == 'binary' and cond.op
-        and (cond.op.type == '==' or cond.op.type == '~=') then
-            ---@type parser.object?, parser.object?
-            local varSide, otherSide
-            if cond[1] and cond[1].type == 'getlocal' and cond[1].node == declNode then
-                varSide, otherSide = cond[1], cond[2]
-            elseif cond[2] and cond[2].type == 'getlocal' and cond[2].node == declNode then
-                varSide, otherSide = cond[2], cond[1]
-            end
-            if varSide and otherSide and otherSide.type == 'nil' then
-                return 'nileq', cond.op.type == '~='
-            end
-        end
-        return false, false
-    end
-
-    ---@param block vm.cfg.block
-    ---@param stateIn vm.node
-    ---@return vm.node, table<vm.cfg.edgeKind, vm.node>?
-    local function transfer(block, stateIn)
-        local state = stateIn
-        for _, stmt in ipairs(block.stmts) do
-            if stmt == declNode then
-                state = declaredNode:copy()
-            elseif assignsTarget(stmt) then
-                if stmt.value then
-                    state = vm.compileNode(stmt.value):copy()
-                else
-                    state = vm.createNode(vm.declareGlobal('type', 'nil'))
-                end
-            end
-        end
-        local shape, inverted = conditionShape(block.condition)
-        if shape == 'truthy' then
-            local truthy = state:copy():setTruthy()
-            local falsy = state:copy():setFalsy()
-            if inverted then
-                return state, { ['true'] = falsy, ['false'] = truthy }
-            else
-                return state, { ['true'] = truthy, ['false'] = falsy }
-            end
-        elseif shape == 'nileq' then
-            -- `x == nil`: 'true' means x IS nil (a fresh nil-only node, regardless of what state
-            -- was); `x ~= nil` inverts which edge gets which. Either way 'not nil' is
-            -- state:removeOptional(), not setTruthy() -- `x == nil` cares specifically about nil,
-            -- not general falsiness (`x` could be `false` and still not equal `nil`).
-            local isNil = vm.createNode(vm.declareGlobal('type', 'nil'))
-            local notNil = state:copy():removeOptional()
-            if inverted then
-                return state, { ['true'] = notNil, ['false'] = isNil }
-            else
-                return state, { ['true'] = isNil, ['false'] = notNil }
-            end
-        end
-        return state
-    end
-
-    ---@type vm.dataflow.spec
-    return {
-        bottom = function () return vm.createNode() end,
-        initial = function () return declaredNode:copy() end,
-        join = function (a, b) return a:copy():merge(b) end,
-        equal = nodeEqual,
-        transfer = transfer,
-    }
-end
-
----@param cfg vm.cfg
----@param declNode parser.object
----@return parser.object[] reads every getlocal reference to declNode found in the CFG's own blocks
-local function collectReads(cfg, declNode)
-    ---@type parser.object[]
-    local reads = {}
-    for _, block in ipairs(cfg.blocks) do
-        for _, stmt in ipairs(block.stmts) do
-            guide.eachSource(stmt, function (s)
-                if s.type == 'getlocal' and s.node == declNode then
-                    reads[#reads+1] = s
-                end
-            end)
-        end
-    end
-    return reads
-end
-
----@param script string a snippet whose only local named `x` is the one to narrow; every
---- `print(x)` call's own argument is checked against `expected`, in source order
----@param expected string[]
-local function checkNarrowing(script, expected)
-    local main, uri = getMain(script)
+    local main = state.ast
     ---@type parser.object?
     local declNode
     guide.eachSourceType(main, 'local', function (loc)
@@ -158,46 +27,22 @@ local function checkNarrowing(script, expected)
         end
     end)
     assert(declNode, 'no local named x found')
-    local cfg = vm.buildCFG(main)
-    local spec = buildSingleVariableSpec(declNode, uri)
-    local result = vm.runDataflow(cfg, spec)
-
-    -- for each read, find which block contains it and re-run the block's own straight-line part
-    -- of the transfer up to that exact statement (the dataflow result only has whole-block
-    -- stateIn/stateOut; a block can contain more than one statement involving x)
-    ---@type string[]
-    local actual = {}
-    local reads = collectReads(cfg, declNode)
-    for _, read in ipairs(reads) do
-        for _, block in ipairs(cfg.blocks) do
-            local found = false
-            local state = result.stateIn[block]
-            for _, stmt in ipairs(block.stmts) do
-                guide.eachSource(stmt, function (s)
-                    if s == read then
-                        found = true
-                    end
-                end)
-                if found then
-                    break
-                end
-                if stmt == declNode then
-                    state = vm.compileNode(declNode):copy()
-                elseif stmt.type == 'setlocal' and stmt.node == declNode then
-                    state = stmt.value and vm.compileNode(stmt.value):copy()
-                        or vm.createNode(vm.declareGlobal('type', 'nil'))
-                end
-            end
-            if found then
-                actual[#actual+1] = vm.getInfer(state):view(uri)
-                break
-            end
+    ---@type parser.object[]
+    local reads = {}
+    guide.eachSourceType(main, 'getlocal', function (read)
+        if read.node == declNode then
+            reads[#reads+1] = read
         end
-    end
+    end)
+    table.sort(reads, function (a, b) return a.start < b.start end)
 
-    assert(#actual == #expected, ('expected %d reads, found %d'):format(#expected, #actual))
-    for i, exp in ipairs(expected) do
-        assert(actual[i] == exp, ('read %d: expected %q, got %q'):format(i, exp, actual[i]))
+    local flow = vm.buildFlow(main)
+    assert(#reads == #expected, ('expected %d reads, found %d'):format(#expected, #reads))
+    for i, read in ipairs(reads) do
+        local node = flow:getNode(read)
+        assert(node, ('read %d: no answer from the flow analysis'):format(i))
+        local actual = vm.getInfer(node):view(TESTURI)
+        assert(actual == expected[i], ('read %d: expected %q, got %q'):format(i, expected[i], actual))
     end
 end
 
@@ -216,7 +61,7 @@ if x then
     print(x)
 end
 print(x)
-]], { 'string', 'string?' })
+]], { 'string?', 'string', 'string?' })
 
 -- if not x then ... end: falls through only when x was truthy
 checkNarrowing([[
@@ -225,7 +70,7 @@ local x
 if not x then
     print(x)
 end
-]], { 'nil' })
+]], { 'string?', 'nil' })
 
 -- an unconditional assignment before the if makes the if's own narrowing moot -- straight-line
 -- assignment tracking has to actually run for this to come out right
@@ -236,7 +81,7 @@ x = 'hi'
 if x then
     print(x)
 end
-]], { 'string' })
+]], { 'string', 'string' })
 
 -- while x do ... end: the body only runs while x is truthy
 checkNarrowing([[
@@ -245,7 +90,7 @@ local x
 while x do
     print(x)
 end
-]], { 'string' })
+]], { 'string?', 'string' })
 
 -- if x == nil / if x ~= nil
 checkNarrowing([[
@@ -254,7 +99,7 @@ local x
 if x == nil then
     print(x)
 end
-]], { 'nil' })
+]], { 'string?', 'nil' })
 
 checkNarrowing([[
 ---@type string?
@@ -262,7 +107,7 @@ local x
 if x ~= nil then
     print(x)
 end
-]], { 'string' })
+]], { 'string?', 'string' })
 
 -- the exact shape that broke the OLD engine's `while cond` extension attempt (2026-09-27,
 -- SUMMARY-LOG.md/TODO-ARCHIVE.md): a loop condition testing the tracked variable against nil,
@@ -279,7 +124,7 @@ while x == nil do
     x = 'reset'
 end
 print(x)
-]], { 'string' })
+]], { 'string?', 'string' })
 
 -- the *literal* original repro (SUMMARY-LOG.md, 2026-09-27): an inner guard makes the
 -- reassignment provably unreachable (entering the outer loop body already proves x == nil, so
@@ -301,6 +146,6 @@ while x == nil do
     x = nil
 end
 print(x)
-]], { 'string' })
+]], { 'string?', 'nil', 'string' })
 
 print('dataflow-narrowing: OK')

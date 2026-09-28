@@ -268,11 +268,35 @@ end
 --- The node of an assignment or declaration: what the old tracer's getAssignNode says (the
 --- compile of the *statement itself*, not of its right-hand side, which would drop what the
 --- compiler merges in from a declared `---@type`; a field write of a never-nil value is not nil).
----@param stmt parser.object
+--- (`LLS_FLOW_EVAL=1`, implies the flow itself) compute assignments on a private cache, see below
+local evalEnabled = os.getenv('LLS_FLOW_EVAL') == '1'
+
+---@type fun(expr: parser.object?): vm.flow.key?
+local refKey
+
+---@param stmt  parser.object
+---@param state table<vm.flow.key, vm.node>
 ---@return vm.node
-local function assignNode(stmt)
+local function assignNode(stmt, state)
     if vm.isCompiling(stmt) then
         error(CYCLE, 0)
+    end
+    if evalEnabled and stmt.value then
+        -- (option (b), TRACER-REDESIGN.md section 10) the right-hand side is compiled on a private
+        -- cache where the reads the flow tracks are answered from `state`; the reads it does not
+        -- track keep the old walk's answer, and a field path it does not track is its static type
+        ---@type table<parser.object, vm.node>
+        local seeds = {}
+        for _, read in ipairs(vm.eachReadIn(stmt.value)) do
+            local key = refKey(read)
+            local node = key and state[key]
+            if node then
+                seeds[read] = node
+            elseif read.type == 'getlocal' then
+                seeds[read] = vm.compileNode(read)
+            end
+        end
+        return vm.getAssignNode(stmt, vm.evalInState(stmt, seeds)):copy()
     end
     return vm.getAssignNode(stmt):copy()
 end
@@ -333,14 +357,14 @@ local function applyStmt(state, stmt, ctx)
     local t = stmt.type
     if t == 'local' then
         if ctx.interesting[stmt] then
-            state[stmt] = assignNode(stmt)
+            state[stmt] = assignNode(stmt, state)
         end
     elseif t == 'setlocal' then
         local decl = stmt.node
         if decl then
             killBelow(state, declKey(decl))
             if state[decl] then
-                state[decl] = assignNode(stmt)
+                state[decl] = assignNode(stmt, state)
             end
         end
     elseif t == 'setfield' or t == 'setindex' then
@@ -348,7 +372,7 @@ local function applyStmt(state, stmt, ctx)
         if key then
             killBelow(state, key)
             if ctx.interesting[key] then
-                state[key] = assignNode(stmt)
+                state[key] = assignNode(stmt, state)
             end
         end
     elseif t == 'call' and stmt.node and stmt.node.special == 'assert'
@@ -404,7 +428,7 @@ end
 --- declaration node) or a field path rooted at a local (by its path string).
 ---@param expr parser.object?
 ---@return vm.flow.key?
-local function refKey(expr)
+function refKey(expr)
     if not expr then
         return nil
     end
@@ -701,7 +725,7 @@ local function peekFlow(main)
     return flowCache[main]
 end
 
-vm.flowEnabled = os.getenv('LLS_FLOW') == '1'
+vm.flowEnabled = os.getenv('LLS_FLOW') == '1' or os.getenv('LLS_FLOW_EVAL') == '1'
 
 --- Called by the compiler when a compile starts from an empty stack (nothing half built anywhere):
 --- the one safe moment to build the flow of the function the source is in. What a build compiles

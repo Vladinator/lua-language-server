@@ -601,7 +601,7 @@ S = #x
 
 -- an elseif is a real extra condition, not a plain else -- still not recognised by the old walk;
 -- the flow analysis (LLS_FLOW=1) sees that every way through the `if` leaves `x` non-nil
-TEST (os.getenv('LLS_FLOW') == '1' and [[
+TEST ((os.getenv('LLS_FLOW') == '1' or os.getenv('LLS_FLOW_EVAL') == '1') and [[
 ---@type integer[]?
 local x
 while true do

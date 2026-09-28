@@ -3264,6 +3264,14 @@ function vm.compileNode(source)
         return cache
     end
 
+    if vm.flowEvaluating then
+        -- (a scratch evaluation of vm/eval.lua: what is outside the evaluated function compiles the ordinary way)
+        local outside = vm.compileOutsideScratch(source)
+        if outside then
+            return outside
+        end
+    end
+
     if depth == 0 and vm.beforeFreshCompile then
         vm.beforeFreshCompile(source)
         -- (the build may have compiled this very source)

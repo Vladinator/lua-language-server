@@ -2451,7 +2451,7 @@ end
 
 -- (left only through the `break`, where `x` is falsy: the flow analysis says `nil`, the old walk
 -- widens to the declared type)
-TEST (os.getenv('LLS_FLOW') == '1' and 'nil' or 'integer?') [[
+TEST ((os.getenv('LLS_FLOW') == '1' or os.getenv('LLS_FLOW_EVAL') == '1') and 'nil' or 'integer?') [[
 ---@type integer?
 local x
 

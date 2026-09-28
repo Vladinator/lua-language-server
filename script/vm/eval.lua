@@ -33,6 +33,53 @@ function vm.eachReadIn(source)
     return reads
 end
 
+--- The function (or main chunk) whose statement is being evaluated, and the shared cache to
+--- compile everything else into.
+---@type parser.object?
+local home
+---@type table<any, vm.node>?
+local sharedCache
+
+---@param source parser.object
+---@return boolean
+local function isInside(source)
+    if not home then
+        return false
+    end
+    ---@type parser.object?
+    local fn = source.type == 'function' and source or guide.getParentFunction(source)
+    while fn do
+        if fn == home then
+            return true
+        end
+        fn = guide.getParentFunction(fn)
+    end
+    return home.type == 'main' and guide.getRoot(source) == home
+end
+
+--- Called by the compiler for a source that is not cached while a scratch evaluation runs. What is
+--- outside the function of the evaluated statement (a callee, a class, a global, another file) does
+--- not depend on the seeded reads, and its compile needs the ordinary tracer: it is compiled the
+--- ordinary way, into the shared cache, and comes back from there. What is inside is compiled in the
+--- scratch cache (returns nil).
+---@param source parser.object | vm.generic | vm.global | vm.variable
+---@return vm.node?
+function vm.compileOutsideScratch(source)
+    if not sharedCache or (source.start and isInside(source --[[@as parser.object]])) then
+        return nil
+    end
+    local scratch = vm.nodeCache
+    vm.nodeCache = sharedCache
+    vm.flowEvaluating = false
+    local ok, result = pcall(vm.compileNode, source)
+    vm.nodeCache = scratch
+    vm.flowEvaluating = true
+    if not ok then
+        error(result, 0)
+    end
+    return result
+end
+
 --- The node `source` compiles to when `seeds` hold the answers of some of the reads inside it.
 --- A private copy: safe to keep. Errors are propagated after the shared cache is restored.
 ---@param source parser.object
@@ -40,18 +87,27 @@ end
 ---@return vm.node
 function vm.evalInState(source, seeds)
     local shared = vm.nodeCache
+    ---@type table<any, vm.node>
     local scratch = setmetatable({}, { __index = shared })
     local wasEvaluating = vm.flowEvaluating
+    local wasHome, wasShared = home, sharedCache
+    home = guide.getParentFunction(source) or guide.getRoot(source)
+    sharedCache = shared
     vm.nodeCache = scratch
     vm.flowEvaluating = true
     local ok, result = pcall(function ()
         for read, node in pairs(seeds) do
-            scratch[read] = node:copy()
+            -- (`x --[[@as T]]`: the compiler applies the cast to the read before anything else, so
+            -- it is the cast that is cached for the read, not the seed)
+            if not vm.bindAs(read) then
+                scratch[read] = node:copy()
+            end
         end
         return vm.compileNode(source):copy()
     end)
     vm.nodeCache = shared
     vm.flowEvaluating = wasEvaluating
+    home, sharedCache = wasHome, wasShared
     if not ok then
         error(result, 0)
     end

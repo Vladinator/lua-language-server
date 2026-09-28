@@ -19,6 +19,7 @@ end)
 table.sort(paths)
 
 local total, same, differs, leaked, crashes = 0, 0, 0, 0, 0
+local evalTime, ordinaryTime = 0, 0
 ---@type string[]
 local samples = {}
 for _, path in ipairs(paths) do
@@ -41,7 +42,9 @@ for _, path in ipairs(paths) do
             end
             for _, stmt in ipairs(stmts) do
                 total = total + 1
+                local c0 = os.clock()
                 local ordinary = vm.compileNode(stmt)
+                ordinaryTime = ordinaryTime + (os.clock() - c0)
                 local ordinaryView = vm.getInfer(ordinary):view(uri)
                 ---@type table<parser.object, vm.node>
                 local seeds = {}
@@ -57,7 +60,9 @@ for _, path in ipairs(paths) do
                         before = before + 1
                     end
                 end
+                local c1 = os.clock()
                 local okEval, node = pcall(vm.evalInState, stmt, seeds)
+                evalTime = evalTime + (os.clock() - c1)
                 if before then
                     local after = 0
                     for _ in pairs(vm.nodeCache) do
@@ -93,6 +98,7 @@ for _, path in ipairs(paths) do
 end
 print(('eval-scratch: %d assignments, same %d, differs %d, crashes %d, shared cache disturbed %d')
     :format(total, same, differs, crashes, leaked))
+print(('  time: ordinary compile %.2fs, scratch evaluation %.2fs'):format(ordinaryTime, evalTime))
 for _, s in ipairs(samples) do
     print('  sample: ' .. s)
 end

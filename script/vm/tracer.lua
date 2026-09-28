@@ -1293,9 +1293,10 @@ end
 --- otherwise `t.x = {}` (or `if not t.x then t.x = {} end`) never narrows
 --- `t.x` afterwards.
 ---@param source parser.object
+---@param compiled? vm.node the node of `source` when the caller already has it (vm/flow.lua evaluates it on a private cache)
 ---@return vm.node
-local function getAssignNode(source)
-    local node = vm.compileNode(source)
+local function getAssignNode(source, compiled)
+    local node = compiled or vm.compileNode(source)
     if  node:hasFalsy()
     and source.value
     and (source.type == 'setfield'
@@ -1309,9 +1310,10 @@ end
 
 --- For vm/flow.lua, which has to agree with what the tracer takes an assignment to be.
 ---@param source parser.object
+---@param compiled? vm.node
 ---@return vm.node
-function vm.getAssignNode(source)
-    return getAssignNode(source)
+function vm.getAssignNode(source, compiled)
+    return getAssignNode(source, compiled)
 end
 
 --- Whether the loop's block makes the variable non-nil before its first `break` on every path:

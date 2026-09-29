@@ -20,7 +20,7 @@ local fsu   = require 'fs-utility'
 local paths = {}
 -- FLOW_DIR=<dir>: scan another directory (`lua-tests` exercises the secret / guard rules)
 -- (LLS_FLOW_EVAL=1 evaluates every assignment: a small default keeps the suite short)
-local scanDir = os.getenv('FLOW_DIR') or (os.getenv('LLS_FLOW_EVAL') == '1' and 'script/vm' or 'script')
+local scanDir = os.getenv('FLOW_DIR') or (os.getenv('LLS_FLOW_EVAL') ~= '0' and 'script/vm' or 'script')
 fsu.scanDirectory(fs.path(scanDir), function (fullpath)
     local s = fullpath:string()
     if s:sub(-4) == '.lua' and not s:find('[/\\]meta[/\\]') then

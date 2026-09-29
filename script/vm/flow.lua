@@ -366,7 +366,11 @@ end
 --- compile of the *statement itself*, not of its right-hand side, which would drop what the
 --- compiler merges in from a declared `---@type`; a field write of a never-nil value is not nil).
 --- (`LLS_FLOW_EVAL=1`, implies the flow itself) compute assignments on a private cache, see below
-local evalEnabled = os.getenv('LLS_FLOW_EVAL') == '1'
+--- Default since TRACER-REDESIGN.md 10.15 (both B5 blockers fixed, validated clean workspace-wide
+--- and on 3 real corpora): on unless explicitly turned off with `LLS_FLOW_EVAL=0`, which also keeps
+--- the old `LLS_FLOW=1`-only (narrowing, no RHS eval) and default-off (`LLS_FLOW=0`, old tracer
+--- only) modes reachable for differential comparison -- see `vm.flowEnabled` below.
+local evalEnabled = os.getenv('LLS_FLOW_EVAL') ~= '0'
 
 ---@type fun(expr: parser.object?): vm.flow.key?
 local refKey
@@ -996,7 +1000,10 @@ local function peekFlow(main)
     return flowCache[main]
 end
 
-vm.flowEnabled = os.getenv('LLS_FLOW') == '1' or os.getenv('LLS_FLOW_EVAL') == '1'
+--- Default on (see `evalEnabled` above): true whenever eval is enabled (the default), or when
+--- `LLS_FLOW=1` selects the narrowing-only mode with eval explicitly turned off
+--- (`LLS_FLOW_EVAL=0 LLS_FLOW=1`). `LLS_FLOW_EVAL=0` alone (no `LLS_FLOW=1`) is the old tracer only.
+vm.flowEnabled = evalEnabled or os.getenv('LLS_FLOW') == '1'
 
 --- Called by the compiler on a source's first-ever compile (any depth, see the comment on
 --- `vm.beforeFreshCompile` in vm/compiler.lua) to build the flow of the function the source is in.

@@ -43,7 +43,7 @@ local function checkNarrowing(script, expected)
             -- nothing narrows this variable: the flow tracks only what a condition, an assertion or
             -- a cast names, and leaves the rest to the compiler
             -- (LLS_FLOW_EVAL=1 tracks every local, so it answers here too)
-            assert(node == nil or os.getenv('LLS_FLOW_EVAL') == '1', ('read %d: expected no answer'):format(i))
+            assert(node == nil or os.getenv('LLS_FLOW_EVAL') ~= '0', ('read %d: expected no answer'):format(i))
             goto continue
         end
         assert(node, ('read %d: no answer from the flow analysis'):format(i))
@@ -322,7 +322,7 @@ print(x)
 ]], { 'string|number', 'string' })
 
 -- (LLS_FLOW_EVAL=1) a `for` variable's type is evaluated where the loop starts
-if os.getenv('LLS_FLOW_EVAL') == '1' then
+if os.getenv('LLS_FLOW_EVAL') ~= '0' then
     files.setText(TESTURI, [[
 ---@param t (string|number)[]
 local function f(t)

@@ -998,9 +998,11 @@ end
 
 vm.flowEnabled = os.getenv('LLS_FLOW') == '1' or os.getenv('LLS_FLOW_EVAL') == '1'
 
---- Called by the compiler when a compile starts from an empty stack (nothing half built anywhere):
---- the one safe moment to build the flow of the function the source is in. What a build compiles
---- completes normally there; from inside another compile it would consume open, half-built nodes.
+--- Called by the compiler on a source's first-ever compile (any depth, see the comment on
+--- `vm.beforeFreshCompile` in vm/compiler.lua) to build the flow of the function the source is in.
+--- A build that would consume a node genuinely open on the current compile stack aborts through
+--- `vm.isCompiling`/`CYCLE` below instead (`prebuildOne`'s `pcall` treats that as a silent miss,
+--- not an error: the old tracer answers that read instead, same as any other flow-build failure).
 ---@param func parser.object
 local function prebuildOne(func)
     if building[func] then

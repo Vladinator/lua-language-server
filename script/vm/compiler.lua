@@ -2996,8 +2996,15 @@ local compiling = {}
 ---@type table<any, vm.compileFrame>
 local taintedBy = {}
 
---- Set (by vm/flow.lua, behind `LLS_FLOW=1`) to a function called when a compile starts from an
---- empty stack, before any node of it is compiled.
+--- Set (by vm/flow.lua, behind `LLS_FLOW=1`) to a function called on a source's first-ever
+--- compile, whether the stack is empty or this compile is nested inside another (a `require`d
+--- file compiled for the first time from inside its requirer). Not gated on `depth == 0`: a file
+--- first touched this way used to never get its flow prebuilt for the rest of the node-cache
+--- epoch, since the node cache short-circuits every later top-level touch of it too (see
+--- TRACER-REDESIGN.md 10.9). Safe to call from any depth: the callee (`vm.prebuildFlow`) dedupes
+--- per-function and per-file already, and a build that reaches a node genuinely open on the
+--- current stack aborts through the existing `vm.isCompiling`/`CYCLE` guard in vm/flow.lua,
+--- exactly as a same-depth build already could.
 ---@type (fun(source: parser.object | vm.generic | vm.global | vm.variable))?
 vm.beforeFreshCompile = nil
 
@@ -3272,7 +3279,7 @@ function vm.compileNode(source)
         end
     end
 
-    if depth == 0 and vm.beforeFreshCompile then
+    if vm.beforeFreshCompile then
         vm.beforeFreshCompile(source)
         -- (the build may have compiled this very source)
         local built = vm.getNode(source)

@@ -107,7 +107,7 @@ end
 ---@param uri uri
 ---@return invisible.workspaceNames
 local function getWorkspaceNames(uri)
-    local cache = vm.getCache('invisible.names') --[[@as table<string, invisible.workspaceNames>]]
+    local cache = vm.getCache('invisible.names')
     local key   = scope.getScope(uri):getName()
     local found = cache[key]
     if found then

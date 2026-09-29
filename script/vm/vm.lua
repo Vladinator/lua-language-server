@@ -102,6 +102,18 @@ function m.flushCache()
     m.cacheTracker[m.cache] = true
 end
 
+--- Every caller keys this shared cache by a fixed string literal, and the shape stored there is a
+--- convention that only the caller and this overload list know -- an ordinary `---@param`/`---@return`
+--- can't express that, so each caller's own name gets one overload here instead of a cast at the
+--- call site. Add an entry here (and keep it here, not at the call site) whenever a new fixed key
+--- is introduced.
+---@overload fun(name: 'deprecated.names'): table<string, deprecated.workspaceNames>
+---@overload fun(name: 'discard-returns.names'): table<string, discardReturns.workspaceNames>
+---@overload fun(name: 'invisible.names'): table<string, invisible.workspaceNames>
+---@overload fun(name: 'missing-fields.required.partial'|'missing-fields.required', weak: true): table<parser.object, (string|integer)[]>
+---@overload fun(name: 'never.names'): table<string, table<string, true>>
+---@overload fun(name: 'never.calls'): table<parser.object, boolean>
+---@overload fun(name: 'diagnostic-affected.index'): table<string, diagnostic-affected.workspaceIndex>
 ---@param name string
 ---@param weak? boolean
 ---@return table

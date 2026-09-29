@@ -93,7 +93,7 @@ end
 ---@param uri uri
 ---@return discardReturns.workspaceNames
 local function getWorkspaceNames(uri)
-    local cache = vm.getCache('discard-returns.names') --[[@as table<string, discardReturns.workspaceNames>]]
+    local cache = vm.getCache('discard-returns.names')
     local key   = scope.getScope(uri):getName()
     local found = cache[key]
     if found then

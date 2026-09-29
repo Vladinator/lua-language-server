@@ -118,7 +118,7 @@ end
 ---@param uri uri
 ---@return deprecated.workspaceNames
 local function getWorkspaceNames(uri)
-    local cache = vm.getCache('deprecated.names') --[[@as table<string, deprecated.workspaceNames>]]
+    local cache = vm.getCache('deprecated.names')
     local key   = scope.getScope(uri):getName()
     local found = cache[key]
     if found then

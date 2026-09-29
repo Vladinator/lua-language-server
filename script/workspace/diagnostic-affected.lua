@@ -99,7 +99,7 @@ end
 ---@param suri uri
 ---@return diagnostic-affected.workspaceIndex
 local function getWorkspaceIndex(suri)
-    local cache = vm.getCache('diagnostic-affected.index') --[[@as table<string, diagnostic-affected.workspaceIndex>]]
+    local cache = vm.getCache('diagnostic-affected.index')
     local key   = scope.getScope(suri):getName()
     ---@type diagnostic-affected.workspaceIndex
     local index = cache[key]

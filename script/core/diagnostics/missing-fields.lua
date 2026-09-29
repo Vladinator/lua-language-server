@@ -34,7 +34,7 @@ docTags.registerAttribute('doc.class', 'incremental', 'A table constructor `{}` 
 ---@param isPartial boolean?
 ---@return (string|integer)[]
 local function getRequiredKeys(def, isPartial)
-    local cache = vm.getCache(isPartial and 'missing-fields.required.partial' or 'missing-fields.required', true) --[[@as table<parser.object, (string|integer)[]>]]
+    local cache = vm.getCache(isPartial and 'missing-fields.required.partial' or 'missing-fields.required', true)
     local keys = cache[def]
     if keys then
         return keys

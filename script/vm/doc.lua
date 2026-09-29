@@ -411,7 +411,7 @@ end
 ---@param uri uri
 ---@return table<string, true>
 local function getNeverNames(uri)
-    local cache = vm.getCache('never.names') --[[@as table<string, table<string, true>>]]
+    local cache = vm.getCache('never.names')
     local key   = scope.getScope(uri):getName()
     local names = cache[key]
     if names then
@@ -466,7 +466,7 @@ function vm.isNeverCall(call)
             return false
         end
     end
-    local cache = vm.getCache('never.calls') --[[@as table<parser.object, boolean>]]
+    local cache = vm.getCache('never.calls')
     local known = cache[call]
     if known ~= nil then
         return known

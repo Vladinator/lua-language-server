@@ -98,14 +98,30 @@ end
 --- if every path through it diverges (return/break/goto/a `never` call)
 function Builder:walkBlock(stmtList, cur, ctx)
     for _, stmt in ipairs(stmtList) do
+        local t = stmt.type
+        if t == 'label' then
+            -- a label is a join point: whatever falls through from the statement before it, and
+            -- every goto that targets it, both land here -- give it its own block even when
+            -- nothing branches to it yet (most labels), so a later goto resolving to it always
+            -- has a real block to point at regardless of visit order. The one case handled here,
+            -- not in the dispatch below: `cur` can be nil (unreachable code before the label,
+            -- textually) since a `goto` elsewhere in the function can still target this label even
+            -- though nothing falls into it -- `addEdge` no-ops on a nil `from`, and processing of
+            -- the statements after it resumes normally from the label's own fresh block.
+            local labelBlock = self:newBlock()
+            self:addEdge(cur, labelBlock, 'normal')
+            ctx.labelBlocks[stmt] = labelBlock
+            labelBlock.stmts[#labelBlock.stmts+1] = stmt
+            cur = labelBlock
+            goto CONTINUE
+        end
         if not cur then
             -- unreachable code after a diverging statement: still real code (e.g. dead code after
             -- a `return`), but Phase 1 does not attach it to the graph -- nothing narrows it, and
             -- nothing should, since no execution reaches it. Revisit if a later phase needs these
             -- blocks to exist for some other reason (e.g. still reporting diagnostics on them).
-            break
+            goto CONTINUE
         end
-        local t = stmt.type
         if t == 'if' then
             cur = self:walkIf(stmt, cur, ctx)
         elseif t == 'while' then
@@ -124,16 +140,6 @@ function Builder:walkBlock(stmtList, cur, ctx)
             cur.stmts[#cur.stmts+1] = stmt
             ctx.pendingGotos[#ctx.pendingGotos+1] = { from = cur, gotoStmt = stmt }
             cur = nil
-        elseif t == 'label' then
-            -- a label is a join point: whatever falls through from the statement before it, and
-            -- every goto that targets it, both land here -- give it its own block even when
-            -- nothing branches to it yet (most labels), so a later goto resolving to it always
-            -- has a real block to point at regardless of visit order
-            local labelBlock = self:newBlock()
-            self:addEdge(cur, labelBlock, 'normal')
-            ctx.labelBlocks[stmt] = labelBlock
-            labelBlock.stmts[#labelBlock.stmts+1] = stmt
-            cur = labelBlock
         elseif t == 'return' then
             cur.stmts[#cur.stmts+1] = stmt
             self:addEdge(cur, ctx.exit, 'return')
@@ -151,6 +157,7 @@ function Builder:walkBlock(stmtList, cur, ctx)
                 cur = nil
             end
         end
+        ::CONTINUE::
     end
     return cur
 end

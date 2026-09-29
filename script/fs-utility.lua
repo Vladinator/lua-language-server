@@ -301,7 +301,7 @@ function dfs:saveFile(path, text)
     if type(dir[filename]) == 'table' then
         return false, '无法打开:' .. path
     end
-    (dir --[[@as table<any, any>]])[filename] = text
+    dir[filename] = text
     return true
 end
 
@@ -319,7 +319,7 @@ local function fsAbsolute(path, option)
     elseif type(path) == 'table' then
         return path
     end
-    local suc, res = pcall(fs.absolute, path --[[@as fs.path]])
+    local suc, res = pcall(fs.absolute, path)
     if not suc then
         option.err[#option.err+1] = res
         return nil
@@ -416,7 +416,7 @@ local function fsSave(path, text, option)
             option.err[#option.err+1] = '无法打开:' .. path:string()
             return false
         end
-        (dir --[[@as table<any, any>]])[filename] = text
+        dir[filename] = text
     else
         local suc, err = m.saveFile(path, text)
         if suc then

@@ -22,6 +22,16 @@ local guide = require 'parser.guide'
 
 ---@alias vm.flow.key parser.object|vm.global|string
 
+--- Marks one key's value in a state table as *proven impossible by narrowing* (`if x then` on an
+--- `x` whose type has no falsy member, taken on the false edge) without saying the whole state is
+--- unreachable: only that one variable's claim is unreliable (see TRACER-REDESIGN.md, "Blocker A" --
+--- a table<K,V> index read is typed non-optional by the checker even though it can be nil at
+--- runtime, so "this variable can't be here" is not sound the way "the CFG can't reach here" is).
+--- A join absorbs it (the other edge's real value wins); every place that reads a state value
+--- checks for it first and treats it as "no answer from this analysis", never as a real vm.node.
+--- `false` stays reserved for genuine block-level unreachability (no predecessor at all).
+local IMPOSSIBLE = setmetatable({}, { __tostring = function () return 'vm.flow: impossible' end })
+
 --- What a flow knows beyond its states: `castsAt`, the `---@cast` docs right before a statement or
 --- condition, and `interesting`, the locals and paths something in the function can narrow or
 --- assign a guarded value to. Only those are tracked: the rest is answered by nobody here (a read
@@ -183,22 +193,43 @@ local function keySet(node)
     return keys, count
 end
 
---- `node` without the objects that repeat an earlier one by `objectKey`; the node itself when there is none.
+--- Is `obj` the literal `nil` type -- redundant to keep as its own array member once `.optional`
+--- is also set (both mean "can be nil"; carrying both is how a join of an explicit nil-only node
+--- -- `evalCondition`'s `x == nil` true edge makes one -- with an ordinary `T?` produces the
+--- double `(T|nil)?` rendering instead of plain `T?`).
+---@param obj vm.node.object
+---@return boolean
+local function isNilObject(obj)
+    return obj.type == 'nil' or (obj.type == 'global' and obj.cate == 'type' and obj.name == 'nil')
+end
+
+--- `node` without the objects that repeat an earlier one by `objectKey`, and without a redundant
+--- explicit `nil` member once `.optional` is set; the node itself when neither applies.
 ---@param node vm.node
 ---@return vm.node
 local function dedupe(node)
     local _, count = keySet(node)
-    if count == #node then
+    local hasRedundantNil = false
+    if node.optional == true then
+        for i = 1, #node do
+            if isNilObject(node[i]) then
+                hasRedundantNil = true
+                break
+            end
+        end
+    end
+    if count == #node and not hasRedundantNil then
         return node
     end
     local out = vm.createNode()
     ---@type table<any, true>
     local seen = {}
     for i = 1, #node do
-        local key = objectKey(node[i])
-        if not seen[key] then
+        local obj = node[i]
+        local key = objectKey(obj)
+        if not seen[key] and not (node.optional == true and isNilObject(obj)) then
             seen[key] = true
-            out:merge(node[i])
+            out:merge(obj)
         end
     end
     if node.optional then
@@ -218,6 +249,9 @@ end
 local function nodeEqual(a, b)
     if a == b then
         return true
+    end
+    if a == IMPOSSIBLE or b == IMPOSSIBLE then
+        return false
     end
     if (a.optional == true) ~= (b.optional == true) then
         return false
@@ -299,7 +333,11 @@ local function stateJoin(a, b)
     end
     for decl, node in pairs(b) do
         local current = out[decl]
-        if not current then
+        if current == IMPOSSIBLE then
+            out[decl] = node
+        elseif node == IMPOSSIBLE then
+            -- (out[decl] already current)
+        elseif not current then
             out[decl] = node
         elseif not nodeEqual(current, node) then
             out[decl] = dedupe(current:copy():merge(node))
@@ -364,6 +402,9 @@ local castNode
 ---@param node vm.node
 ---@return vm.node
 local function withInsideCasts(ctx, item, read, node)
+    if node == IMPOSSIBLE then
+        return node
+    end
     ---@type parser.object[]?
     local casts = item and ctx.castsInside[item]
     if not casts or read.type ~= 'getlocal' then
@@ -392,6 +433,9 @@ local function seedsOf(roots, state, ctx, item)
         for _, read in ipairs(vm.eachReadIn(root)) do
             local key = refKey(read)
             local node = key and state[key]
+            if node == IMPOSSIBLE then
+                node = nil
+            end
             if node then
                 seeds[read] = ctx and withInsideCasts(ctx, item, read, node) or node
             elseif read.type == 'getlocal' then
@@ -526,7 +570,7 @@ local function applyCasts(state, casts)
         if decl and not doc.name[1]:find('.', 1, true) then
             ---@cast decl parser.object|vm.global
             local node = state[decl]
-            if node then
+            if node and node ~= IMPOSSIBLE then
                 state[decl] = castNode(node, doc)
             end
         end
@@ -617,7 +661,10 @@ local function narrowedState(state, key, before, after)
             after = after:copy()
             after:merge(vm.declareGlobal('type', 'unknown'))
         else
-            return false
+            -- proven impossible -- but only *this key's* claim, not the whole state (see IMPOSSIBLE)
+            local out = copyState(state)
+            out[key] = IMPOSSIBLE
+            return out
         end
     end
     local out = copyState(state)
@@ -658,6 +705,9 @@ local function narrowRef(state, expr, fn)
     end
     ---@type vm.node?
     local current = state[key]
+    if current == IMPOSSIBLE then
+        current = nil
+    end
     if not current and isPathLike(key) then
         current = staticNodeOf(expr)
     end
@@ -804,7 +854,12 @@ local function evalCondition(state, expr)
                 local base
                 local baseKey = refKey(left.node)
                 if baseKey then
-                    base = state[baseKey] or staticNodeOf(left.node)
+                    local tracked = state[baseKey]
+                    if tracked and tracked ~= IMPOSSIBLE then
+                        base = tracked
+                    else
+                        base = staticNodeOf(left.node)
+                    end
                 end
                 if base then
                     local keepMatching, dropMatching = vm.getLiteralFieldNarrowers(uri, base, fieldName, checker)
@@ -1448,7 +1503,9 @@ function flow:getNode(read)
     end
     local state = self:stateAt(read)
     local node = state and state[key]
-    if node and read.type == 'getlocal' then
+    if node == IMPOSSIBLE then
+        node = nil
+    elseif node and read.type == 'getlocal' then
         node = withInsideCasts(self.ctx, self:itemOf(read), read, node)
     end
     if not node and state and isPathLike(key) and self.ctx.interesting[key] then

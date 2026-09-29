@@ -1142,6 +1142,21 @@ function mt:lookIntoBlock(block, start, node, effect, viaShortcut)
         if action.finish > start and self.assignMap[action] then
             return
         end
+        -- A plain call can write any global it has access to (the callee's own body is not
+        -- walked): narrowing carried this far does not survive it, for statements *after* this
+        -- one -- the call's own arguments (just handled by lookIntoChild above) still see the
+        -- narrowing that was valid when they were evaluated, before the call itself ran. Locals
+        -- are unaffected -- an ordinary call cannot reassign one from outside. See TODO.md /
+        -- TRACER-REDESIGN.md 10.14/10.17.
+        if self.mode == 'global' and action.type == 'call' and action.node
+        and not (action.node.special == 'assert'
+             or  action.node.special == 'type'
+             or  vm.matchCallNarrowing(action.node)) then
+            local ok, staticNode = pcall(vm.compileNode, self.source)
+            if ok and staticNode then
+                node = staticNode:copy()
+            end
+        end
         ::CONTINUE::
     end
     self.nodes[block] = node

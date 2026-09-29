@@ -118,7 +118,7 @@ end
 ---@class dummyfs
 ---@operator div(string|fs.path|dummyfs): dummyfs
 ---@field files dummyfs.node
----@field type  string
+---@field type  'dummy'
 ---@field path  string
 local dfs = {}
 dfs.__index = dfs
@@ -334,10 +334,8 @@ local function fsIsDirectory(path)
         return false
     end
     if path.type == 'dummy' then
-        ---@cast path dummyfs
         return path:isDirectory()
     end
-    ---@cast path -dummyfs
     local status = fs.symlink_status(path):type()
     return status == 'directory'
 end
@@ -385,7 +383,6 @@ local function fsExists(path, option)
         return false
     end
     if path.type == 'dummy' then
-        ---@cast path dummyfs
         return path:exists()
     end
     local suc, res = pcall(fs.exists, path)
@@ -405,7 +402,6 @@ local function fsSave(path, text, option)
         return false
     end
     if path.type == 'dummy' then
-        ---@cast path dummyfs
         local dir = path:_open(-2)
         if not dir then
             option.err[#option.err+1] = '无法打开:' .. path:string()
@@ -422,7 +418,6 @@ local function fsSave(path, text, option)
         end
         (dir --[[@as table<any, any>]])[filename] = text
     else
-        ---@cast path fs.path
         local suc, err = m.saveFile(path, text)
         if suc then
             return true
@@ -440,7 +435,6 @@ local function fsLoad(path, option)
         return nil
     end
     if path.type == 'dummy' then
-        ---@cast path dummyfs
         local text = path:_open()
         if type(text) == 'string' then
             return text
@@ -449,7 +443,6 @@ local function fsLoad(path, option)
             return nil
         end
     else
-        ---@cast path -dummyfs
         local text, err = m.loadFile(path)
         if text then
             return text
@@ -469,7 +462,6 @@ local function fsCopy(source, target, option)
         return
     end
     if source.type == 'dummy' then
-        ---@cast source dummyfs
         local sourceText = source:_open()
         if not sourceText then
             option.err[#option.err+1] = '无法打开:' .. source:string()
@@ -477,7 +469,6 @@ local function fsCopy(source, target, option)
         end
         return fsSave(target, sourceText --[[@as string]], option)
     else
-        ---@cast source -dummyfs
         if target.type == 'dummy' then
             local sourceText, err = m.loadFile(source)
             if not sourceText then
@@ -583,7 +574,6 @@ local function fileSync(source, target, option)
         if isDir2 then
             local fileList = m.fileList()
             if type(target) == 'table' then
-                ---@cast target dummyfs
                 for filePath in target:listDirectory() do
                     fileList[filePath] = true
                 end
@@ -741,10 +731,8 @@ end
 ---@return fun(): fs.path|dummyfs|nil
 function m.listDirectory(dir)
     if dir.type == 'dummy' then
-        ---@cast dir dummyfs
         return dir:listDirectory()
     else
-        ---@cast dir fs.path
         return fs.pairs(dir)
     end
 end

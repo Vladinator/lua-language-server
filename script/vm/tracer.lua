@@ -196,6 +196,35 @@ function mt:collectLocal()
     end
 end
 
+--- `self.source`'s plain, un-narrowed type: what a read sees when nothing has narrowed it. For a
+--- global or a plain local, `vm.compileNode(self.source)` already gives this (a real parser.object
+--- or a plain, non-composite `vm.variable`, both handled by `compiler.lua`'s own `'variable'` case).
+--- A *composite* field-path `vm.variable` (`m.file`, from `vm.getVariable(source, key)`) is not: its
+--- `.base` is the same declaration as its root (`m`'s own), so `compiler.lua`'s `case 'variable'`
+--- (`variable == vm.getVariable(variable.base)`) never matches it and `vm.compileNode` silently
+--- returns an empty node (TRACER-REDESIGN.md 10.19/10.21). Its real static type is instead the union
+--- of every `set` site's own compiled type (`m.file = ioOpen(...)`, a real `setfield`/`setindex`
+--- parser.object that compiles correctly through the ordinary field-chain machinery) -- the same
+--- shape as a global's static type aggregating every `setglobal`.
+---@return vm.node?
+function mt:staticNode()
+    local variable = self.source
+    if variable.type ~= 'variable' or not variable:getParent() then
+        local ok, node = pcall(vm.compileNode, variable)
+        return ok and node or nil
+    end
+    ---@cast variable vm.variable
+    ---@type vm.node?
+    local out
+    for _, set in ipairs(variable.sets) do
+        local ok, node = pcall(vm.compileNode, set)
+        if ok and node then
+            out = out and out:copy():merge(node) or node:copy()
+        end
+    end
+    return out
+end
+
 --- Every distinct function whose body directly assigns this local -- the only functions that can
 --- possibly reassign it from outside its own straight-line code. Computed once per tracer.
 ---@return table<parser.object, true>
@@ -1242,8 +1271,8 @@ function mt:lookIntoBlock(block, start, node, effect, viaShortcut)
         and not (action.node.special == 'assert'
              or  action.node.special == 'type'
              or  vm.matchCallNarrowing(action.node)) then
-            local ok, staticNode = pcall(vm.compileNode, self.source)
-            if ok and staticNode then
+            local staticNode = self:staticNode()
+            if staticNode then
                 node = staticNode:copy()
             end
         end
@@ -1252,16 +1281,13 @@ function mt:lookIntoBlock(block, start, node, effect, viaShortcut)
         -- calling another local function that does, or by being handed a writer as a plain
         -- argument) -- unlike globals, the closed set of functions that could possibly reassign a
         -- local upvalue is known and enumerable (`mt:getWriterFunctions`), so this does not need the
-        -- blanket "any call" rule at all. Field paths (`m.file`) are excluded: `vm.compileNode` does
-        -- not return their real type (TRACER-REDESIGN.md 10.19), and their own narrowing already
-        -- works correctly without this. See TODO.md / TRACER-REDESIGN.md 10.20.
+        -- blanket "any call" rule at all. See TODO.md / TRACER-REDESIGN.md 10.14/10.20/10.21.
         if self.mode == 'local' and action.type == 'call' and action.node
         and not (action.node.special == 'assert' or action.node.special == 'type')
-        and not self.source:getParent()
         and next(self:getWriterFunctions()) ~= nil
         and self:callReachesWriter(action) then
-            local ok, staticNode = pcall(vm.compileNode, self.source)
-            if ok and staticNode then
+            local staticNode = self:staticNode()
+            if staticNode then
                 node = staticNode:copy()
             end
         end

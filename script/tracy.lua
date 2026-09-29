@@ -17,7 +17,7 @@ local function enable()
     -- (`originTracy = tracy`, `tracy = originTracy`) the editor compiles first, and so did the type
     -- of the global, which made `need-check-nil` appear on every `tracy.ZoneBeginN` in some orders)
 ---@diagnostic expect-next-line: lowercase-global
-    tracy = originTracy
+    tracy = originTracy --[[@as { ZoneBeginN: fun(info: any), ZoneEnd: fun() }]]
 end
 
 local function disable()

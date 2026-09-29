@@ -213,7 +213,6 @@ function mt:staticNode()
         local ok, node = pcall(vm.compileNode, variable)
         return ok and node or nil
     end
-    ---@cast variable vm.variable
     ---@type vm.node?
     local out
     for _, set in ipairs(variable.sets) do

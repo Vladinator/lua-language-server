@@ -373,11 +373,11 @@ local function nameOfFunction(source)
     end
     local t = source.type
     if t == 'local' or t == 'setlocal' or t == 'setglobal' then
-        return source[1] --[[@as string?]]
+        return source[1]
     elseif t == 'setfield' or t == 'tablefield' then
-        return source.field and source.field[1] --[[@as string?]]
+        return source.field and source.field[1]
     elseif t == 'setmethod' then
-        return source.method and source.method[1] --[[@as string?]]
+        return source.method and source.method[1]
     end
     return nil
 end
@@ -448,11 +448,11 @@ function vm.isNeverCall(call)
     local name
     local t = callee.type
     if t == 'getlocal' or t == 'getglobal' then
-        name = callee[1] --[[@as string?]]
+        name = callee[1]
     elseif t == 'getfield' then
-        name = callee.field and callee.field[1] --[[@as string?]]
+        name = callee.field and callee.field[1]
     elseif t == 'getmethod' then
-        name = callee.method and callee.method[1] --[[@as string?]]
+        name = callee.method and callee.method[1]
     end
     if not name then
         return false

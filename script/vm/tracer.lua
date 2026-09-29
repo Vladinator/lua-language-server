@@ -43,6 +43,8 @@ vm.registerCallNarrowing {
 ---@field castIndex integer?
 ---@field walkFrame? vm.compileFrame  set while a walk of this tracer is running (vm.beginWalk)
 ---@field fieldFallbackDone? boolean
+---@field writerFuncs? table<parser.object, true>  memoized mt:getWriterFunctions result
+---@field reaches?     table<parser.object, boolean>  memoized mt:reachesWriter result, by function
 local mt = {}
 mt.__index = mt
 mt.fastCalc    = true
@@ -192,6 +194,94 @@ function mt:collectLocal()
     if #self.casts > 0 then
         self.fastCalc = false
     end
+end
+
+--- Every distinct function whose body directly assigns this local -- the only functions that can
+--- possibly reassign it from outside its own straight-line code. Computed once per tracer.
+---@return table<parser.object, true>
+function mt:getWriterFunctions()
+    if self.writerFuncs then
+        return self.writerFuncs
+    end
+    local variable = self.source
+    local homeFunc = guide.getParentFunction(variable.base)
+    ---@type table<parser.object, true>
+    local writers = {}
+    for _, set in ipairs(variable.sets) do
+        local func = guide.getParentFunction(set)
+        -- a set in the variable's own home function is its ordinary straight-line code (including
+        -- a parameter's own binding, which resolves here too) -- already safe by construction, not
+        -- something a call could reach from outside
+        if func and func ~= homeFunc then
+            writers[func] = true
+        end
+    end
+    self.writerFuncs = writers
+    return writers
+end
+
+--- Whether `call`'s own callee or any argument is a local function that reaches a writer (directly
+--- via `reachesWriter`, or is one itself) -- a higher-order call (`pcall(writer)`, this file's own
+--- `try(callback)`) that is handed a writer function as a plain argument can invoke it just as
+--- directly as calling it itself.
+---@param call parser.object
+---@param seen table<parser.object, true>?
+---@return boolean
+function mt:callReachesWriter(call, seen)
+    local callee = call.node
+    if callee then
+        local calleeFunc = callee.type == 'getlocal' and vm.getObjectFunctionValue(callee.node)
+        if calleeFunc and self:reachesWriter(calleeFunc, seen) then
+            return true
+        end
+    end
+    for _, arg in ipairs(call.args or {}) do
+        if arg.type == 'getlocal' then
+            local argFunc = vm.getObjectFunctionValue(arg.node)
+            if argFunc and self:reachesWriter(argFunc, seen) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--- Whether `func` (a function literal) can reach one of this local's writer functions: is itself
+--- one, or calls one directly, or calls a local function that (transitively) does. Looks at every
+--- call textually inside `func` (nested closures included: a closure defined and also called from
+--- here is exactly as reachable as one called directly, and treating "defined here" as "maybe
+--- reachable from here" is a safe over-approximation, not a soundness hole). Memoized per tracer,
+--- cycle-guarded (`seen`) for local functions that call each other recursively.
+---@param func parser.object?
+---@param seen table<parser.object, true>?
+---@return boolean
+function mt:reachesWriter(func, seen)
+    if not func then
+        return false
+    end
+    if self:getWriterFunctions()[func] then
+        return true
+    end
+    self.reaches = self.reaches or {}
+    if self.reaches[func] ~= nil then
+        return self.reaches[func]
+    end
+    seen = seen or {}
+    if seen[func] then
+        return false
+    end
+    seen[func] = true
+    local found = false
+    guide.eachSourceType(func, 'call', function (call)
+        if found or call == func then
+            return
+        end
+        if self:callReachesWriter(call, seen) then
+            found = true
+        end
+    end)
+    self.reaches[func] = found
+    return found
 end
 
 function mt:collectGlobal()
@@ -1152,6 +1242,24 @@ function mt:lookIntoBlock(block, start, node, effect, viaShortcut)
         and not (action.node.special == 'assert'
              or  action.node.special == 'type'
              or  vm.matchCallNarrowing(action.node)) then
+            local ok, staticNode = pcall(vm.compileNode, self.source)
+            if ok and staticNode then
+                node = staticNode:copy()
+            end
+        end
+        -- A captured local (an upvalue some other function reassigns) invalidates the same way, but
+        -- only for a call that can actually *reach* one of its writer functions (directly, or by
+        -- calling another local function that does, or by being handed a writer as a plain
+        -- argument) -- unlike globals, the closed set of functions that could possibly reassign a
+        -- local upvalue is known and enumerable (`mt:getWriterFunctions`), so this does not need the
+        -- blanket "any call" rule at all. Field paths (`m.file`) are excluded: `vm.compileNode` does
+        -- not return their real type (TRACER-REDESIGN.md 10.19), and their own narrowing already
+        -- works correctly without this. See TODO.md / TRACER-REDESIGN.md 10.20.
+        if self.mode == 'local' and action.type == 'call' and action.node
+        and not (action.node.special == 'assert' or action.node.special == 'type')
+        and not self.source:getParent()
+        and next(self:getWriterFunctions()) ~= nil
+        and self:callReachesWriter(action) then
             local ok, staticNode = pcall(vm.compileNode, self.source)
             if ok and staticNode then
                 node = staticNode:copy()

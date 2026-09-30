@@ -793,6 +793,38 @@ end
 ---@param parent parser.object
 ---@param node parser.object
 ---@return parser.object?
+local function parseTypeUnitIndexedAccess(parent, node)
+    if not checkToken('symbol', '[', 1) then
+        return nil
+    end
+    nextToken()
+    local key = parseType(parent)
+    if not key then
+        pushWarning {
+            type   = 'LUADOC_MISS_TYPE_NAME',
+            start  = getFinish(),
+            finish = getFinish(),
+        }
+        return nil
+    end
+    nextSymbolOrError ']'
+    ---@type parser.object
+    local result = {
+        type   = 'doc.type.indexed',
+        start  = node.start,
+        finish = getFinish(),
+        node   = node,
+        key    = key,
+        parent = parent,
+    }
+    node.parent = result
+    key.parent  = result
+    return result
+end
+
+---@param parent parser.object
+---@param node parser.object
+---@return parser.object?
 local function parseTypeUnitSign(parent, node)
     if not checkToken('symbol', '<', 1) then
         return nil
@@ -1046,6 +1078,13 @@ function parseTypeUnit(parent)
     end
     while true do
         local newResult = parseTypeUnitArray(parent, result)
+        if not newResult then
+            break
+        end
+        result = newResult
+    end
+    while true do
+        local newResult = parseTypeUnitIndexedAccess(parent, result)
         if not newResult then
             break
         end

@@ -2686,6 +2686,47 @@ local compilerSwitch = util.switch()
             vm.setNode(source, vm.declareGlobal('type', 'string'))
         end
     end)
+    : case 'doc.type.indexed'
+    -- `T[K]` (TypeScript's indexed access type): the type of `T`'s field named by each literal key
+    -- in `K` (a plain string/integer/boolean literal, a union of them, or `keyof T` -- all resolve
+    -- to the same kind of literal-typed node either way), unioned together. A key this can't read a
+    -- literal from (a plain `string`, not `"x"`) contributes nothing; `T` with none of `K`'s keys as
+    -- fields leaves the result `unknown`, since there is no single sensible fallback the way
+    -- `keyof`'s `string` is.
+    ---@param source parser.object
+    : call(function (source)
+        local uri = guide.getUri(source)
+        local operandNode = vm.compileNode(source.node)
+        local keyNode = vm.compileNode(source.key)
+        local any = false
+        for opNode in operandNode:eachObject() do
+            if opNode.type == 'global' and opNode.cate == 'type' then
+                ---@cast opNode vm.global
+                for kn in keyNode:eachObject() do
+                    ---@type string|number|boolean?
+                    local literalKey
+                    if kn.type == 'doc.type.string'
+                    or kn.type == 'doc.type.integer'
+                    or kn.type == 'doc.type.boolean' then
+                        literalKey = kn[1]
+                    end
+                    if literalKey ~= nil then
+                        vm.getClassFields(uri, opNode, literalKey, function (field)
+                            if field.type == 'generic' then
+                                return
+                            end
+                            ---@cast field parser.object
+                            any = true
+                            vm.setNode(source, vm.compileNode(field))
+                        end)
+                    end
+                end
+            end
+        end
+        if not any then
+            vm.setNode(source, vm.declareGlobal('type', 'unknown'))
+        end
+    end)
     : case 'doc.type.sign'
     ---@param source parser.object
     : call(function (source)

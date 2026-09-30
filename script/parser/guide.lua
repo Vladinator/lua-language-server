@@ -30,6 +30,7 @@ local type         = type
 ---@field specials              parser.object[]
 ---@field labels                parser.object[]
 ---@field node                  parser.object
+---@field key                   parser.object -- `doc.type.indexed`'s own key type (`T[K]`'s `K`)
 ---@field field?                 parser.object
 ---@field method?                parser.object
 ---@field index?                 parser.object
@@ -192,6 +193,7 @@ local childMap = {
     ['doc.vararg']         = {'vararg', 'comment'},
     ['doc.type.array']     = {'node'},
     ['doc.type.keyof']     = {'node'},
+    ['doc.type.indexed']   = {'node', 'key'},
     ['doc.type.function']  = {'#args', '#returns', '#signs', 'comment'},
     ['doc.type.table']     = {'#fields', 'comment'},
     ['doc.type.literal']   = {'node'},

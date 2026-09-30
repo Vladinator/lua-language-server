@@ -38,6 +38,7 @@
 * `FIX` `--checklevel` really filters the diagnostics by level, and diagnostics that plugins register are known to the settings schema.
 * `FIX` Several crashes on malformed input: text that is not valid UTF-8 (semantic tokens, psi-view), `undefined-field` on an unfinished `x.`, `redundant-return-value` on an unbounded number of returns, `unfulfilled-expect` naming an unregistered diagnostic.
 * `NEW` `keyof T`, like TypeScript's `keyof`: the union of `T`'s own field-name literals (`---@class Point`/`---@field x number`/`---@field y number` makes `keyof Point` the type `"x"|"y"`), including fields inherited from a parent class. A `T` with no known class fields (`keyof integer`) is plain `string`, not empty.
+* `NEW` `T[K]`, like TypeScript's indexed access types: reads the type of `T`'s field(s) named by the literal key(s) in `K` (`Point['x']` is `number`; `Point[keyof Point]` is the union of every field's type). A key that isn't a literal, or names no field, leaves the result `unknown`.
 
 ## 3.19.1
 `2026-08-14`

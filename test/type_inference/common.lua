@@ -494,6 +494,52 @@ local function F(k)
 end
 ]]
 
+-- `T[K]` (TypeScript parity): a literal key reads that field's type directly.
+TEST 'number' [[
+---@class IndexedCommon.Point
+---@field x number
+---@field y string
+
+---@param v IndexedCommon.Point['x']
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+TEST 'string' [[
+---@class IndexedCommon.Point2
+---@field x number
+---@field y string
+
+---@param v IndexedCommon.Point2['y']
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+-- `T[keyof T]` reads every field's type, unioned (mirrors the same idiom in TypeScript)
+TEST 'string|number' [[
+---@class IndexedCommon.Point3
+---@field x number
+---@field y string
+
+---@param v IndexedCommon.Point3[keyof IndexedCommon.Point3]
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+-- a key with no matching field leaves the result `unknown` (no sensible fallback, unlike `keyof`)
+TEST 'unknown' [[
+---@class IndexedCommon.Point4
+---@field x number
+
+---@param v IndexedCommon.Point4['nope']
+local function F(v)
+    local <?y?> = v
+end
+]]
+
 TEST 'unknown' [[
 local a, b
 function a()

@@ -817,13 +817,17 @@ function vm.canCastType(uri, defNode, refNode, errs)
     if refInfer:hasAny(uri) then
         return true
     end
-    if defInfer:view(uri) == 'unknown' then
+    -- (fast path: on a table literal with thousands of trivial one-member-type entries, calling
+    -- `:view(uri)` here just to compare it against a literal string paid for the sort+concat a
+    -- real view string needs, for a boolean answer -- see TODO.md's assign-type-mismatch profiling
+    -- entry. `viewIfUnknownOrNil` reproduces exactly what `:view(uri) == 'unknown'`/`'nil'` would
+    -- answer without that cost; differentially validated against `:view()` itself, 0 disagreements
+    -- over the repo self-check and 3 real corpora, before landing here.)
+    local defFast = defInfer:viewIfUnknownOrNil(uri)
+    if defFast == 'unknown' or defFast == 'nil' then
         return true
     end
-    if refInfer:view(uri) == 'unknown' then
-        return true
-    end
-    if defInfer:view(uri) == 'nil' then
+    if refInfer:viewIfUnknownOrNil(uri) == 'unknown' then
         return true
     end
 

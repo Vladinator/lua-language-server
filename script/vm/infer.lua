@@ -467,6 +467,56 @@ function mt:hasAny(uri)
     return self.views['any'] == true
 end
 
+--- Whether `self:view(uri)` (called with no `default`, as `vm.canCastType` calls it) would return
+--- exactly `'unknown'` or exactly `'nil'`, without building/sorting/concatenating the view array
+--- `:view()` needs for its general string output -- only their two early-exit checks care about
+--- this, and on a large table literal (thousands of `tableindex`/`tablefield` entries, each with a
+--- trivial one-member type) the sort+concat is pure overhead paid per entry for a boolean answer.
+--- Faithfully reproduces every branch of `:view()` that can produce one of those two strings,
+--- including `self.views['any']`'s own early return, `_eraseAlias`'s effect on `self._drop`, and
+--- the optional-wrapping-parens logic that turns what would otherwise read `unknown`/`nil` into
+--- `(unknown)?`/`nil?` -- so this can disagree with a naive `hasUnknown()`/`hasType(uri, 'nil')`
+--- substitution on an optional single-member `unknown`/`nil` node, which is exactly why this
+--- exists instead of just calling those two methods. Differentially validated against `:view()`
+--- itself before use in `vm.canCastType` (see the commit message / TODO.md for the corpus run).
+---@param uri uri
+---@return 'unknown'|'nil'|nil
+function mt:viewIfUnknownOrNil(uri)
+    self:_computeViews(uri)
+    if self.views['any'] then
+        return nil
+    end
+    if self._hasClass then
+        self:_eraseAlias(uri)
+    end
+    ---@type string?
+    local only
+    local count = 0
+    for view in pairs(self.views) do
+        if not self._drop[view] then
+            count = count + 1
+            if count > 1 then
+                return nil
+            end
+            only = view
+        end
+    end
+    local optional = self.node:isOptional()
+    if count == 0 then
+        return optional and 'nil' or 'unknown'
+    end
+    -- a single view that isn't empty only still reads as the bare name when not optional (an
+    -- optional single view gets `?`/`(...)?` appended in `:view()`, never the bare name)
+    if optional then
+        return nil
+    end
+    if only == 'unknown' or only == 'nil' then
+        ---@cast only 'unknown'|'nil'
+        return only
+    end
+    return nil
+end
+
 ---@param uri uri
 ---@return boolean
 function mt:hasClass(uri)

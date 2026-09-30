@@ -765,9 +765,12 @@ end
 --- remembering for `if theLocal then` to alias (see `boolCondExpr`, `hasBoolCond`): registering
 --- every `local x = <anything>` would defeat the point of `hasBoolCond`, which exists to keep the
 --- reentrant-read protection in `vm.traceNodeByFlow` off functions that do not need it.
----@param expr parser.object
+---@param expr parser.object?
 ---@return boolean
 local function isAliasableCond(expr)
+    if not expr then
+        return false
+    end
     local t = expr.type
     if t == 'paren' then
         return isAliasableCond(expr.exp)

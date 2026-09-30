@@ -131,6 +131,9 @@ return function (uri, callback)
         if name == '...' or name == '_' or name == 'self' then
             return
         end
+        if vm.isUtilityTypeName(name) then
+            return
+        end
         if isClassGenericParam(source, name, uri) then
             return
         end

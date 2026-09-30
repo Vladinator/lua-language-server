@@ -39,6 +39,7 @@
 * `FIX` Several crashes on malformed input: text that is not valid UTF-8 (semantic tokens, psi-view), `undefined-field` on an unfinished `x.`, `redundant-return-value` on an unbounded number of returns, `unfulfilled-expect` naming an unregistered diagnostic.
 * `NEW` `keyof T`, like TypeScript's `keyof`: the union of `T`'s own field-name literals (`---@class Point`/`---@field x number`/`---@field y number` makes `keyof Point` the type `"x"|"y"`), including fields inherited from a parent class. A `T` with no known class fields (`keyof integer`) is plain `string`, not empty.
 * `NEW` `T[K]`, like TypeScript's indexed access types: reads the type of `T`'s field(s) named by the literal key(s) in `K` (`Point['x']` is `number`; `Point[keyof Point]` is the union of every field's type). A key that isn't a literal, or names no field, leaves the result `unknown`.
+* `NEW` TypeScript's utility types: `Partial<T>` / `Required<T>` add / remove optionality on every field of `T`; `Pick<T, K>` / `Omit<T, K>` keep / drop the field(s) named in `K`; `Record<K, V>` builds a fresh table from a literal key union and one value type. All five work on the result of another utility type (`Required<Partial<T>>`), and produce an ordinary table type (hover, completion, `missing-fields` etc. all see them the same as a plain inline `{ x: number }` annotation).
 
 ## 3.19.1
 `2026-08-14`

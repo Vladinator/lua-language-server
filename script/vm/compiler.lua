@@ -794,6 +794,162 @@ function vm.getClassFields(suri, object, key, pushResult)
     searchGlobal(object)
 end
 
+--- TypeScript-style utility types (`Partial<T>`, `Pick<T, K>`, ...): parsed as ordinary
+--- `doc.type.sign` generic-instantiation syntax (`Name<Args>`), recognized by name in the
+--- `doc.type.sign` resolver case below instead of requiring a bundled `---@class`/`---@alias`
+--- declaration for each one.
+---@type table<string, true>
+local UTILITY_TYPE_NAMES = {
+    Partial  = true,
+    Required = true,
+    Pick     = true,
+    Omit     = true,
+    Record   = true,
+}
+
+--- Whether `name` is a built-in utility type (`undefined-doc-name` uses this: none of these are
+--- declared as a real `---@class`/`---@alias` anywhere, by design).
+---@param name string
+---@return boolean
+function vm.isUtilityTypeName(name)
+    return UTILITY_TYPE_NAMES[name] == true
+end
+
+--- A synthetic `doc.type.field` carrying an already-resolved node, bypassing the normal
+--- `.extends` -> `vm.compileNode` parse step (there is no source text for it to parse): both the
+--- field and its `.extends` (a bare placeholder of a type no compiler case ever needs to know
+--- about) have the node written straight into the cache (`cover = true`), so any later
+--- `vm.compileNode` of either -- everything that walks a `doc.type.table`'s fields calls one or
+--- the other; `infer.lua`'s hover/view builder reads `field.extends` directly rather than going
+--- through `field` itself -- is a plain cache hit, no dispatch, exactly as if real source text had
+--- been compiled.
+---@param tableObj parser.object
+---@param key      string|integer
+---@param node     vm.node
+---@return parser.object
+local function buildUtilityField(tableObj, key, node)
+    ---@type parser.object
+    local field = {
+        type   = 'doc.type.field',
+        parent = tableObj,
+    }
+    field.name = {
+        type   = 'doc.field.name',
+        parent = field,
+        [1]    = key,
+    }
+    field.extends = {
+        type   = 'doc.type.precomputed',
+        parent = field,
+    }
+    vm.setNode(field.extends, node, true)
+    vm.setNode(field, node, true)
+    return field
+end
+
+--- @Partial/@Required add/remove the field's own optionality; @Pick/@Omit filter by a literal key
+--- or union of literal keys; @Record builds fresh fields from a literal key union and one value
+--- type, ignoring `T` (its `signs[1]` doubles as the key type). All five build a synthetic
+--- `doc.type.table` (the same shape a plain inline `{ x: number }` annotation parses to, and
+--- everywhere else already treats as a table type with no backing class -- hover, completion,
+--- `missing-fields`, `undefined-field`) rather than a real class global.
+--- `Partial/Required/Pick/Omit`'s base `T` is read through `searchFieldSwitch` rather than
+--- `vm.getClassFields` directly, so a `T` that is itself another utility type's result (a
+--- resolver-built `doc.type.table`, not a real class global -- `Required<Partial<X>>`) enumerates
+--- correctly too, not just a real `---@class`.
+---@param uri    uri
+---@param source parser.object a `doc.type.sign` whose name is in `UTILITY_TYPE_NAMES`
+---@return boolean handled
+local function resolveUtilityType(uri, source)
+    local name = source.node[1]
+    if not UTILITY_TYPE_NAMES[name] then
+        return false
+    end
+    local signs = source.signs or {}
+    ---@type parser.object
+    local tableObj = {
+        type   = 'doc.type.table',
+        start  = source.start,
+        finish = source.finish,
+        parent = source,
+        fields = {},
+    }
+    local fields = tableObj.fields
+
+    if name == 'Record' then
+        local keyNode = signs[1] and vm.compileNode(signs[1])
+        local valueNode = signs[2] and vm.compileNode(signs[2])
+        if keyNode and valueNode then
+            ---@type table<string|integer, true>
+            local seen = {}
+            for kn in keyNode:eachObject() do
+                if kn.type == 'doc.type.string' or kn.type == 'doc.type.integer' then
+                    local key = kn[1] --[[@as string|integer]]
+                    if not seen[key] then
+                        seen[key] = true
+                        fields[#fields+1] = buildUtilityField(tableObj, key, valueNode)
+                    end
+                end
+            end
+        end
+        vm.setNode(source, tableObj)
+        return true
+    end
+
+    -- Partial / Required / Pick / Omit: `T` is `signs[1]`, enumerate its own fields.
+    local baseNode = signs[1] and vm.compileNode(signs[1])
+    if not baseNode then
+        vm.setNode(source, vm.declareGlobal('type', 'unknown'))
+        return true
+    end
+    ---@type table<string|integer, true>?
+    local keyFilter
+    if name == 'Pick' or name == 'Omit' then
+        keyFilter = {}
+        local keyNode = signs[2] and vm.compileNode(signs[2])
+        if keyNode then
+            for kn in keyNode:eachObject() do
+                if kn.type == 'doc.type.string' or kn.type == 'doc.type.integer' then
+                    keyFilter[kn[1] --[[@as string|integer]]] = true
+                end
+            end
+        end
+    end
+    ---@type table<string, true>
+    local seen = {}
+    for opNode in baseNode:eachObject() do
+        searchFieldSwitch(opNode.type, uri, opNode, vm.ANY, function (field)
+            if field.type == 'generic' then
+                return
+            end
+            ---@cast field parser.object
+            local key = guide.getKeyName(field)
+            if not key or seen[key] then
+                return
+            end
+            if keyFilter then
+                local want = keyFilter[key] == true
+                if name == 'Omit' then
+                    want = not want
+                end
+                if not want then
+                    return
+                end
+            end
+            seen[key] = true
+            local fieldNode = vm.compileNode(field):copy()
+            if name == 'Partial' then
+                fieldNode:addOptional()
+            elseif name == 'Required' then
+                fieldNode:removeOptional()
+            end
+            fields[#fields+1] = buildUtilityField(tableObj, key, fieldNode)
+        end)
+    end
+    vm.setNode(source, tableObj)
+    return true
+end
+
 ---@param func  parser.object
 ---@param index integer
 ---@return (parser.object|vm.generic)?
@@ -2731,6 +2887,9 @@ local compilerSwitch = util.switch()
     ---@param source parser.object
     : call(function (source)
         local uri = guide.getUri(source)
+        if source.node[1] and resolveUtilityType(uri, source) then
+            return
+        end
         vm.setNode(source, source)
         if not source.node[1] then
             return

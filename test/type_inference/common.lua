@@ -540,6 +540,62 @@ local function F(v)
 end
 ]]
 
+-- TypeScript-style utility types: `Partial<T>` makes every field of `T` optional.
+TEST '{ x: number?, y: string? }' [[
+---@class UtilCommon.Point
+---@field x number
+---@field y string
+
+---@param v Partial<UtilCommon.Point>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+-- `Required<T>` removes optionality (also proves `Required<Partial<T>>` round-trips).
+TEST '{ x: number, y: string }' [[
+---@class UtilCommon.Point2
+---@field x number
+---@field y string
+
+---@param v Required<Partial<UtilCommon.Point2>>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+-- `Pick<T, K>` keeps only the named field(s).
+TEST '{ x: number }' [[
+---@class UtilCommon.Point3
+---@field x number
+---@field y string
+
+---@param v Pick<UtilCommon.Point3, "x">
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+-- `Omit<T, K>` drops the named field(s), keeps the rest.
+TEST '{ y: string }' [[
+---@class UtilCommon.Point4
+---@field x number
+---@field y string
+
+---@param v Omit<UtilCommon.Point4, "x">
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+-- `Record<K, V>` builds a fresh table from a literal key union, ignoring any real class.
+TEST '{ a: number, b: number }' [[
+---@param v Record<"a"|"b", number>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
 TEST 'unknown' [[
 local a, b
 function a()

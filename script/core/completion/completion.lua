@@ -1534,7 +1534,7 @@ local function buildInsertDocFunction(doc)
     ---@type string[]
     local args = {}
     for i, arg in ipairs(doc.args) do
-        args[i] = ('${%d:%s}'):format(i, arg.name[1] --[[@as string]])
+        args[i] = ('${%d:%s}'):format(i, arg.name[1])
     end
     return ("\z
 function (%s)\
@@ -1549,7 +1549,7 @@ end
 ---@param isInArray boolean?
 ---@param mark      table<vm.node.object, boolean>?
 local function insertEnum(state, pos, src, enums, isInArray, mark)
-    local markTbl = mark or {} --[[@as table<vm.node.object, boolean>]]
+    local markTbl = mark or {}
     if markTbl[src] then
         return
     end

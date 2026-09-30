@@ -491,7 +491,7 @@ function vm.isSubType(uri, child, parent, mark, errs)
         local maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0
         local i = 0
         for n in parent:eachObject() do
-            i = i + 1 --[[@as integer]]
+            i = i + 1
             if maxUnionVariants > 0 and i > maxUnionVariants then
                 break
             end

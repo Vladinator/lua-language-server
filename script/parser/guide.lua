@@ -249,7 +249,7 @@ end
         end
     end
     local buf = table.concat(text, '\n')
-    local f = load(buf, buf, 't') --[[@as fun(obj: parser.object, list: parser.object[])]]
+    local f = load(buf, buf, 't')
     self[name] = f
     return f
 end})
@@ -290,7 +290,7 @@ end
         end
     end
     local buf = table.concat(text, '\n')
-    local f = load(buf, buf, 't') --[[@as fun(obj: parser.object, callback: fun(child: parser.object))]]
+    local f = load(buf, buf, 't')
     self[name] = f
     return f
 end})

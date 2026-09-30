@@ -1148,9 +1148,9 @@ function vm.bindAs(source)
         local doc = ases[index]
         assert(doc.touch)
         if doc.touch < source.finish then
-            left = index + 1 --[[@as integer]]
+            left = index + 1
         else
-            right = index --[[@as integer]]
+            right = index
         end
     end
 
@@ -2015,7 +2015,7 @@ local function bindReturnOfFunction(source, mfunc, index, args)
                 vm.applyFlagsTable(rnode.flags, result)
                 returnNode = result
             else
-                returnNode = (rnode --[[@as vm.generic]]):resolve(guide.getUri(source), resolveArgs)
+                returnNode = rnode:resolve(guide.getUri(source), resolveArgs)
             end
             break
         end
@@ -3535,7 +3535,7 @@ local function compileFresh(source, pass)
         local parent = frames[depth]
         if parent and dep < parent.index
         and (not parent.dependsOn or dep < parent.dependsOn) then
-            parent.dependsOn = dep --[[@as integer]]
+            parent.dependsOn = dep
         end
     elseif #frame.tainted > 0 then
         ---@type any[]

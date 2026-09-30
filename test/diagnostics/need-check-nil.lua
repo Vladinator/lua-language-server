@@ -323,6 +323,78 @@ local function f(t, maybe)
 end
 ]]
 
+-- 字段赋值右侧是算术/一元/拼接表达式：结果不可能为 nil，即使字段本身声明为可选
+TEST [[
+---@class A
+---@field n? number
+---@param t A
+---@param a number
+local function f(t, a)
+    t.n = a + 1
+    print(t.n + 1)
+end
+]]
+
+TEST [[
+---@class A
+---@field n? number
+---@param t A
+---@param a number
+local function f(t, a)
+    t.n = -a
+    print(t.n + 1)
+end
+]]
+
+-- 反例：算术表达式仍可能包含未收窄的一侧，但结果本身从不为 nil，故不应报告
+TEST [[
+---@class A
+---@field n? number
+---@param t A
+---@param a number?
+local function f(t, a)
+    t.n = (a or 0) + 1
+    print(t.n + 1)
+end
+]]
+
+-- 字段赋值右侧是函数调用（单值，解析为 `select` 包裹 `call`）：被调用者声明的返回类型不可为 nil 时，
+-- 字段赋值之后不再可能为 nil
+TEST [[
+---@class A
+---@field n? number
+---@return number
+local function g() return 1 end
+---@param t A
+local function f(t)
+    t.n = g()
+    print(t.n + 1)
+end
+]]
+
+TEST [[
+---@class A
+---@field n? number
+---@param t A
+local function f(t)
+    t.n = math.max(0, 1)
+    print(t.n + 1)
+end
+]]
+
+-- 反例：被调用者的声明返回类型本身可选，字段赋值之后仍可能为 nil
+TEST [[
+---@class A
+---@field n? number
+---@return number?
+local function g() return nil end
+---@param t A
+local function f(t)
+    t.n = g()
+    print(<!t.n!> + 1)
+end
+]]
+
 -- 循环体内 `t.x = t.x or {}`：右侧读取与追踪器自身循环依赖，不能因此放弃窄化
 TEST [[
 ---@class A

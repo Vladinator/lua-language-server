@@ -1410,10 +1410,13 @@ local neverNilTypes = {
 }
 
 --- Whether an assigned value is syntactically known to be non-nil: a
---- constructor above, `true`, or `a or b` (either side, through parens). `a or
---- b` is decided syntactically rather than from the value's node because inside
---- a loop the read of `a` in `t.x = t.x or {}` is circular with the tracer that
---- is asking, so the node comes back empty.
+--- constructor above, `true`, an arithmetic/concat/unary expression (same
+--- reasoning as setlocal's self-referential case, vm/compiler.lua), or `a or
+--- b` (either side, through parens). Decided syntactically rather than from
+--- the value's node because inside a loop the read of `a` in `t.x = t.x or {}`
+--- is circular with the tracer that is asking, so the node comes back empty --
+--- and an arithmetic/unary operand can be just as circular (`t.x = t.x + 1`),
+--- so this never compiles the operands either, only the operator's own shape.
 ---@param value parser.object
 ---@return boolean
 local function neverNil(value)
@@ -1424,12 +1427,34 @@ local function neverNil(value)
     if tp == 'boolean' then
         return value[1] == true
     end
+    if tp == 'unary' then
+        return true
+    end
+    if tp == 'binary' and value.op.type ~= 'and' and value.op.type ~= 'or' then
+        return true
+    end
     if tp == 'paren' and value.exp then
         return neverNil(value.exp)
     end
     if tp == 'binary' and value.op.type == 'or' then
         return (value[2] ~= nil and neverNil(value[2]))
             or (value[1] ~= nil and neverNil(value[1]))
+    end
+    if tp == 'call' or (tp == 'select' and value.vararg and value.vararg.type == 'call') then
+        -- Unlike the shapes above, this can't be decided syntactically: it needs the callee's
+        -- actual declared return type. A single-value call RHS (`t.x = f()`) is parsed as a
+        -- `select` wrapping the `call`, not a bare `call`, same as any other return position --
+        -- `vm.compileNode` resolves either shape to that position's type directly. Only trust it
+        -- when compiling hit no open cycle and came back with a real answer -- a call whose own
+        -- arguments read the field being assigned (`t.x = f(t.x)` with `f`'s return type
+        -- following its argument's) is exactly as circular as `t.x = t.x or {}` above, and shows
+        -- up the same way: `watch.hit` or an empty node.
+        local watch <close> = vm.watchCompileCycles()
+        local callNode = vm.compileNode(value)
+        if watch.hit or callNode:isEmpty() then
+            return false
+        end
+        return not callNode:hasFalsy()
     end
     return false
 end

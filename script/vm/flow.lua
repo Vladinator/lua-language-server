@@ -1157,6 +1157,21 @@ function vm.traceNodeByFlow(source)
         return nil
     end
     local func = guide.getParentFunction(source) or guide.getRoot(source)
+    -- An upvalue whose own home scope (often the main chunk) is itself too large for a flow ever
+    -- to be built (`vm.getFlow`'s `MAX_LINES` cap below) can never get a real seeded answer here --
+    -- every function between that home scope and `func` falls back to the upvalue's bare declared
+    -- type when seeding it, silently losing whatever narrowing happened in the oversized scope
+    -- (found 2026-09-30 from a real ~16,700-line file, TRACER-REDESIGN.md 10.24: a closure reading
+    -- a root-scope local assigned exactly once still saw it as nilable). Deferring to the old
+    -- tracer here instead -- confirmed separately to get this shape right, via its own `'function'`
+    -- case closure propagation, which has no such size limit -- is strictly safer than trusting a
+    -- fabricated fallback seed.
+    if source.type == 'getlocal' and source.node then
+        local declFunc = guide.getParentFunction(source.node) or guide.getRoot(source.node)
+        if declFunc and declFunc ~= func and (declFunc.finish - declFunc.start) // 10000 > MAX_LINES then
+            return nil
+        end
+    end
     -- A request never builds a flow: a build compiles statements, and doing that from inside an
     -- open compile met half-built nodes that stayed (loop variables typed `unknown` for good).
     -- Flows are built by `vm.prebuildFlow`, before a compile that starts from nothing begins; a

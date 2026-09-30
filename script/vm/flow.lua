@@ -42,6 +42,7 @@ local IMPOSSIBLE = setmetatable({}, { __tostring = function () return 'vm.flow: 
 ---@field castsAt     table<parser.object, parser.object[]>
 ---@field castsInside table<parser.object, parser.object[]>  a statement / condition -> the casts written in the middle of it
 ---@field interesting table<vm.flow.key, true>
+---@field boolCondExpr table<parser.object, parser.object>  a `local` declaration -> its own value expression, when that expression is itself something `evalCondition` can narrow (see `activeBoolCond`)
 ---@alias vm.flow.state table<vm.flow.key, vm.node>|false
 
 --- Tracked things are keyed by a local's declaration node, or, for a field path rooted at a local
@@ -737,6 +738,13 @@ end
 ---@type table<parser.object, parser.object[]>
 local activeCasts = {}
 
+--- A boolean local's own value expression (`local isStr = type(x) == 'string'`), by its `local`
+--- declaration statement -- so `if isStr then` can narrow whatever *that* expression would have
+--- narrowed, not just `isStr` itself. Set around the flow being run, same pattern as `activeCasts`.
+--- Mirrors TypeScript's narrowing of aliased conditions (`const isStr = typeof x === 'string'`).
+---@type table<parser.object, parser.object>
+local activeBoolCond = {}
+
 --- `state` with the casts written right before `operand` applied.
 ---@param state   vm.flow.state
 ---@param operand parser.object
@@ -749,6 +757,35 @@ local function withCasts(state, operand)
     local out = copyState(state)
     applyCasts(out, casts)
     return out
+end
+
+--- Whether `expr` is a shape `evalCondition` below actually narrows something from (a comparison,
+--- `type(x)`, `and`/`or`, a registered guard call) -- as opposed to a literal, `nil`, or a plain
+--- reference with nothing to compose. Used only to decide which `local` declarations are worth
+--- remembering for `if theLocal then` to alias (see `boolCondExpr`, `hasBoolCond`): registering
+--- every `local x = <anything>` would defeat the point of `hasBoolCond`, which exists to keep the
+--- reentrant-read protection in `vm.traceNodeByFlow` off functions that do not need it.
+---@param expr parser.object
+---@return boolean
+local function isAliasableCond(expr)
+    local t = expr.type
+    if t == 'paren' then
+        return isAliasableCond(expr.exp)
+    end
+    if t == 'unary' then
+        return expr.op and expr.op.type == 'not' and isAliasableCond(expr[1]) or false
+    end
+    if t == 'binary' and expr.op then
+        local op = expr.op.type
+        if op == 'and' or op == 'or' then
+            return isAliasableCond(expr[1]) or isAliasableCond(expr[2])
+        end
+        return op == '==' or op == '~='
+    end
+    if t == 'call' then
+        return #vm.getFlowNarrowings(expr) > 0
+    end
+    return false
 end
 
 ---@param state vm.flow.state
@@ -774,8 +811,19 @@ local function evalCondition(state, expr)
         return state, false
     end
     if refKey(expr) then
-        return narrowRef(state, expr, function (node) return node:copy():setTruthy() end),
-               narrowRef(state, expr, function (node) return node:copy():setFalsy() end)
+        local selfYes = narrowRef(state, expr, function (node) return node:copy():setTruthy() end)
+        local selfNo  = narrowRef(state, expr, function (node) return node:copy():setFalsy() end)
+        -- A boolean local holding a narrowing condition's own result (`local isStr =
+        -- type(x)=='string'; if isStr then`): `isStr` is true exactly when that expression was, so
+        -- whatever it would have narrowed applies here too, on top of `isStr`'s own truthy/falsy
+        -- narrowing (not instead of it -- both are real constraints on the same edge).
+        local aliasExpr = expr.type == 'getlocal' and activeBoolCond[expr.node]
+        if aliasExpr then
+            local yes = evalCondition(selfYes, aliasExpr)
+            local _, no = evalCondition(selfNo, aliasExpr)
+            return yes, no
+        end
+        return selfYes, selfNo
     end
     if t == 'call' and expr.node then
         -- a registered guard (`isString(x)`, a `---@guard` function, a secret check): the rules say
@@ -986,6 +1034,27 @@ end
 ---@type table<parser.object, true>
 local building = setmetatable({}, { __mode = 'k' })
 
+--- A read of `main`'s own function, asked for again from inside the build of its own flow (the
+--- read that triggered the build needs its own static type to seed the flow, which means
+--- compiling it, which reaches this same build again -- `building` above answers that nested
+--- request from the old tracer instead of waiting on the flow. The old tracer's answer is
+--- correct for the idioms it independently understands (`type(x) == 'string'` directly), but not
+--- for one only the new flow narrows (a boolean local aliasing a condition): so what the old
+--- tracer returns here must not become this read's permanent answer once the flow -- which does
+--- get it right -- exists. Recorded by `vm.traceNodeByFlow` and dropped once the build that
+--- caused it finishes, forcing a fresh compile that finds the now-built flow.
+--- Scoped to functions with at least one `boolCondExpr` entry (`hasBoolCond`, set while building):
+--- for every other function the old tracer's answer to this same reentrant read already agrees
+--- with the flow's own (every idiom besides the alias one is one the old tracer understands
+--- natively) -- dropping and recompiling those too found real regressions elsewhere in the repo
+--- self-check (a read recompiled a second time, outside the context it first ran in, can land on
+--- a different, unrelated compiler quirk), for no behavior change, so it stays off there.
+---@type table<parser.object, parser.object[]>
+local pendingRebuild = setmetatable({}, { __mode = 'k' })
+
+---@type table<parser.object, true>
+local hasBoolCond = setmetatable({}, { __mode = 'k' })
+
 ---@type table<parser.object, true>
 local failed = setmetatable({}, { __mode = 'k' })
 local prebuilding = false
@@ -1090,7 +1159,18 @@ function vm.traceNodeByFlow(source)
     -- Flows are built by `vm.prebuildFlow`, before a compile that starts from nothing begins; a
     -- read whose function has no flow yet (first asked for from inside another function's compile)
     -- is answered by the old walk. Known limitation of the hybrid, see TRACER-REDESIGN.md.
+    -- When the read that triggered the build itself needs re-asking this way (compiling it
+    -- needs its own static type, to seed the flow being built), the old tracer's answer here
+    -- must not stick once the flow exists: `vm.buildFlow` drops it below, from this list.
     if building[func] then
+        if hasBoolCond[func] then
+            local list = pendingRebuild[func]
+            if not list then
+                list = {}
+                pendingRebuild[func] = list
+            end
+            list[#list+1] = source
+        end
         return nil
     end
     local ok, result = pcall(function ()
@@ -1116,6 +1196,13 @@ function vm.buildFlow(main)
     building[main] = true
     local ok, result = pcall(vm.buildFlowUnguarded, main)
     building[main] = nil
+    local dirty = pendingRebuild[main]
+    if dirty then
+        pendingRebuild[main] = nil
+        for _, source in ipairs(dirty) do
+            vm.removeNode(source)
+        end
+    end
     if not ok then
         error(result, 0)
     end
@@ -1278,6 +1365,8 @@ function vm.buildFlowBody(main)
             noteCondition(root)
         end
     end
+    ---@type table<parser.object, parser.object>
+    local boolCondExpr = {}
     for _, block in ipairs(cfg.blocks) do
         if block.condition then
             noteCondition(block.condition)
@@ -1286,6 +1375,15 @@ function vm.buildFlowBody(main)
             if stmt.type == 'call' and stmt.node
             and (stmt.node.special == 'assert' or #vm.getFlowNarrowings(stmt, true) > 0) then
                 noteRefs(stmt)
+            elseif stmt.type == 'local' and stmt.value and isAliasableCond(stmt.value) then
+                -- `local isStr = type(x) == 'string'`: remember `isStr`'s own value expression so
+                -- `if isStr then` can narrow whatever that expression would have (activeBoolCond,
+                -- evalCondition); restricted to a shape `evalCondition` actually narrows (not every
+                -- `local x = <anything>`) so `hasBoolCond` below stays true only for the functions
+                -- that need the reentrant-read protection it gates, in `vm.traceNodeByFlow`.
+                boolCondExpr[stmt] = stmt.value
+                hasBoolCond[main] = true
+                noteCondition(stmt.value)
             end
         end
     end
@@ -1329,7 +1427,7 @@ function vm.buildFlowBody(main)
         end })
     end
     ---@type vm.flow.context
-    local ctx = { castsAt = castsAt, castsInside = castsInside, interesting = interesting }
+    local ctx = { castsAt = castsAt, castsInside = castsInside, interesting = interesting, boolCondExpr = boolCondExpr }
 
     -- The variables each `for` loop declares, by the block that evaluates the loop's expressions.
     ---@type table<parser.object, true>
@@ -1432,7 +1530,9 @@ function vm.buildFlowBody(main)
             end
             checkBudget()
             local savedCasts = activeCasts
+            local savedBoolCond = activeBoolCond
             activeCasts = ctx.castsAt
+            activeBoolCond = ctx.boolCondExpr
             local state = copyState(stateIn)
             for _, stmt in ipairs(block.stmts) do
                 applyStmt(state, stmt, ctx)
@@ -1459,9 +1559,11 @@ function vm.buildFlowBody(main)
                 applyCasts(state, ctx.castsAt[block.condition])
                 local yes, no = evalCondition(state, block.condition)
                 activeCasts = savedCasts
+                activeBoolCond = savedBoolCond
                 return state, { ['true'] = yes, ['false'] = no }
             end
             activeCasts = savedCasts
+            activeBoolCond = savedBoolCond
             return state
         end,
     }
@@ -1475,7 +1577,9 @@ function vm.buildFlowBody(main)
     ---@type table<vm.cfg.block, table<vm.flow.key, vm.node>>
     local blockEnd = {}
     local savedCasts = activeCasts
+    local savedBoolCond = activeBoolCond
     activeCasts = castsAt
+    activeBoolCond = boolCondExpr
     for _, block in ipairs(cfg.blocks) do
         local stateIn = result.stateIn[block]
         if stateIn then
@@ -1488,6 +1592,7 @@ function vm.buildFlowBody(main)
         end
     end
     activeCasts = savedCasts
+    activeBoolCond = savedBoolCond
 
     return setmetatable({
         cfg       = cfg,
@@ -1605,9 +1710,12 @@ function flow:stateAt(node)
     for i = #guards, 1, -1 do
         local guard = guards[i]
         local savedCasts = activeCasts
+        local savedBoolCond = activeBoolCond
         activeCasts = self.ctx.castsAt
+        activeBoolCond = self.ctx.boolCondExpr
         local yes, no = evalCondition(at, guard[1])
         activeCasts = savedCasts
+        activeBoolCond = savedBoolCond
         at = guard.op.type == 'and' and yes or no
         if not at then
             return nil

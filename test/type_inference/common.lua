@@ -459,6 +459,41 @@ local function F(k, v) end
 local x, <?y?> = F()
 ]]
 
+-- `keyof T` (TypeScript parity): the union of `T`'s own field-name literals.
+TEST '"x"|"y"' [[
+---@class KeyofCommon.Point
+---@field x number
+---@field y number
+
+---@param k keyof KeyofCommon.Point
+local function F(k)
+    local <?y?> = k
+end
+]]
+
+-- inherited fields count too (`vm.getClassFields` walks the extends chain)
+TEST '"x"|"y"|"z"' [[
+---@class KeyofCommon.Point3
+---@field x number
+---@field y number
+
+---@class KeyofCommon.Point4 : KeyofCommon.Point3
+---@field z number
+
+---@param k keyof KeyofCommon.Point4
+local function F(k)
+    local <?y?> = k
+end
+]]
+
+-- a `T` with no known class fields falls back to plain `string`, not empty/`unknown`
+TEST 'string' [[
+---@param k keyof integer
+local function F(k)
+    local <?y?> = k
+end
+]]
+
 TEST 'unknown' [[
 local a, b
 function a()

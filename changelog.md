@@ -37,6 +37,7 @@
 * `FIX` The type of a variable no longer depends on the order in which files, diagnostics or requests reach it (the editor could show `no-unknown` / `need-check-nil` that the command line did not). The order diagnostics run in is reproducible; `LLS_DIAG_ORDER` (`cost`, `name`, `reverse`, `shuffle:<seed>`, `first:<diagnostic>`) selects another one for testing.
 * `FIX` `--checklevel` really filters the diagnostics by level, and diagnostics that plugins register are known to the settings schema.
 * `FIX` Several crashes on malformed input: text that is not valid UTF-8 (semantic tokens, psi-view), `undefined-field` on an unfinished `x.`, `redundant-return-value` on an unbounded number of returns, `unfulfilled-expect` naming an unregistered diagnostic.
+* `NEW` `keyof T`, like TypeScript's `keyof`: the union of `T`'s own field-name literals (`---@class Point`/`---@field x number`/`---@field y number` makes `keyof Point` the type `"x"|"y"`), including fields inherited from a parent class. A `T` with no known class fields (`keyof integer`) is plain `string`, not empty.
 
 ## 3.19.1
 `2026-08-14`

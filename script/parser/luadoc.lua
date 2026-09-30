@@ -988,8 +988,38 @@ local function parseParen(parent)
     return tp
 end
 
+---@param parent parser.object
+---@return parser.object?
+local function parseTypeUnitKeyof(parent)
+    if not checkToken('name', 'keyof', 1) then
+        return nil
+    end
+    nextToken()
+    local kwStart = getStart()
+    local node = parseTypeUnit(parent)
+    if not node then
+        pushWarning {
+            type   = 'LUADOC_MISS_TYPE_NAME',
+            start  = getFinish(),
+            finish = getFinish(),
+        }
+        return nil
+    end
+    ---@type parser.object
+    local result = {
+        type   = 'doc.type.keyof',
+        start  = kwStart,
+        finish = node.finish,
+        node   = node,
+        parent = parent,
+    }
+    node.parent = result
+    return result
+end
+
 function parseTypeUnit(parent)
-    local result = parseFunction(parent)
+    local result = parseTypeUnitKeyof(parent)
+                or parseFunction(parent)
                 or parseTable(parent)
                 or parseTuple(parent)
                 or parseString(parent)

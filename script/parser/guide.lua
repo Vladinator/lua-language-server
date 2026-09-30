@@ -191,6 +191,7 @@ local childMap = {
     ['doc.generic.object'] = {'generic', 'extends', 'defaultType', 'comment'},
     ['doc.vararg']         = {'vararg', 'comment'},
     ['doc.type.array']     = {'node'},
+    ['doc.type.keyof']     = {'node'},
     ['doc.type.function']  = {'#args', '#returns', '#signs', 'comment'},
     ['doc.type.table']     = {'#fields', 'comment'},
     ['doc.type.literal']   = {'node'},

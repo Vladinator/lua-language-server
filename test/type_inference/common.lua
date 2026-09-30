@@ -596,6 +596,59 @@ local function F(v)
 end
 ]]
 
+-- `A & B` (TypeScript's intersection types): merges the fields of both.
+TEST '{ x: number, y: string }' [[
+---@class InterCommon.A
+---@field x number
+
+---@class InterCommon.B
+---@field y string
+
+---@param v InterCommon.A & InterCommon.B
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+-- a later operand wins a field name shared with an earlier one.
+TEST '{ x: string }' [[
+---@class InterCommon.C
+---@field x number
+
+---@class InterCommon.D
+---@field x string
+
+---@param v InterCommon.C & InterCommon.D
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+-- a basic type intersected with anything else is `never` (nothing can be both).
+TEST 'never' [[
+---@class InterCommon.E
+---@field x number
+
+---@param v string & InterCommon.E
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+-- `&` binds tighter than `|`.
+TEST 'number|{ x: number, y: string }' [[
+---@class InterCommon.F
+---@field x number
+
+---@class InterCommon.G
+---@field y string
+
+---@param v InterCommon.F & InterCommon.G | number
+local function F(v)
+    local <?y?> = v
+end
+]]
+
 TEST 'unknown' [[
 local a, b
 function a()

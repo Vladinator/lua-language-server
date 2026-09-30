@@ -194,6 +194,7 @@ local childMap = {
     ['doc.type.array']     = {'node'},
     ['doc.type.keyof']     = {'node'},
     ['doc.type.indexed']   = {'node', 'key'},
+    ['doc.type.intersection'] = {'#types'},
     ['doc.type.function']  = {'#args', '#returns', '#signs', 'comment'},
     ['doc.type.table']     = {'#fields', 'comment'},
     ['doc.type.literal']   = {'node'},

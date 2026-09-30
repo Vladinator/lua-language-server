@@ -807,6 +807,21 @@ local UTILITY_TYPE_NAMES = {
     Record   = true,
 }
 
+--- Basic type names an intersection (`A & B`) cannot include alongside anything else: nothing but
+--- `never` itself is simultaneously one of these and able to satisfy another type's fields.
+--- `unknown`/`any`/`table` are deliberately not in this set -- see `doc.type.intersection` below.
+---@type table<string, true>
+local IMPOSSIBLE_INTERSECTION_NAMES = {
+    ['nil']      = true,
+    boolean      = true,
+    integer      = true,
+    number       = true,
+    string       = true,
+    ['function'] = true,
+    thread       = true,
+    userdata     = true,
+}
+
 --- Whether `name` is a built-in utility type (`undefined-doc-name` uses this: none of these are
 --- declared as a real `---@class`/`---@alias` anywhere, by design).
 ---@param name string
@@ -2882,6 +2897,62 @@ local compilerSwitch = util.switch()
         if not any then
             vm.setNode(source, vm.declareGlobal('type', 'unknown'))
         end
+    end)
+    : case 'doc.type.intersection'
+    -- `A & B` (TypeScript's intersection types): merges the fields of every table/class-shaped
+    -- operand into one synthetic `doc.type.table`, later operands winning a shared field name (the
+    -- common practical behavior, same choice the utility types make). An operand that names one of
+    -- the small set of genuinely incompatible primitives (`string`, `number`, `boolean`, ...) makes
+    -- the whole intersection `never`, since nothing but `never` itself can be both a primitive and
+    -- satisfy another type's fields; `unknown`/`any`/`table` are treated as contributing nothing
+    -- rather than as incompatible, since intersecting with them is a no-op in TypeScript too.
+    ---@param source parser.object
+    : call(function (source)
+        local uri = guide.getUri(source)
+        ---@type parser.object
+        local tableObj = {
+            type   = 'doc.type.table',
+            start  = source.start,
+            finish = source.finish,
+            parent = source,
+            fields = {},
+        }
+        local fields = tableObj.fields
+        ---@type table<string, integer>
+        local index = {}
+        local impossible = false
+        for _, typeUnit in ipairs(source.types) do
+            local opNode = vm.compileNode(typeUnit)
+            for obj in opNode:eachObject() do
+                if obj.type == 'global' and obj.cate == 'type' and IMPOSSIBLE_INTERSECTION_NAMES[obj.name] then
+                    impossible = true
+                elseif not (obj.type == 'global' and obj.cate == 'type' and (obj.name == 'unknown' or obj.name == 'any')) then
+                    searchFieldSwitch(obj.type, uri, obj, vm.ANY, function (field)
+                        if field.type == 'generic' then
+                            return
+                        end
+                        ---@cast field parser.object
+                        local key = guide.getKeyName(field)
+                        if not key then
+                            return
+                        end
+                        local fieldNode = vm.compileNode(field)
+                        local at = index[key]
+                        if at then
+                            fields[at] = buildUtilityField(tableObj, key, fieldNode)
+                        else
+                            fields[#fields+1] = buildUtilityField(tableObj, key, fieldNode)
+                            index[key] = #fields
+                        end
+                    end)
+                end
+            end
+        end
+        if impossible then
+            vm.setNode(source, vm.declareGlobal('type', 'never'))
+            return
+        end
+        vm.setNode(source, tableObj)
     end)
     : case 'doc.type.sign'
     ---@param source parser.object

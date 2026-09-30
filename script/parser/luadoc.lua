@@ -72,7 +72,7 @@ EChar               <-  'a' -> ea
                     /   ([0-9] [0-9]? [0-9]?) -> Char10
                     /   ('u{' {X16*} '}')    -> CharUtf8
 Symbol              <-  ({} {
-                            [:|,;<>()?+#{}*=]
+                            [:|,;<>()?+#{}*=&]
                         /   '[]'
                         /   '...'
                         /   '['
@@ -1093,6 +1093,45 @@ function parseTypeUnit(parent)
     return result
 end
 
+--- `A & B` (TypeScript's intersection types): binds tighter than `|` (parsed one level above
+--- `parseTypeUnit`, one level below `parseType`'s own `|`-loop), so `A & B | C` is `(A & B) | C`.
+--- A single unit with no `&` after it returns unwrapped -- no `doc.type.intersection` node for the
+--- common case of a plain type with no `&` at all.
+---@param parent parser.object
+---@return parser.object?
+local function parseTypeIntersection(parent)
+    local first = parseTypeUnit(parent)
+    if not first then
+        return nil
+    end
+    if not checkToken('symbol', '&', 1) then
+        return first
+    end
+    ---@type parser.object
+    local result = {
+        type   = 'doc.type.intersection',
+        start  = first.start,
+        parent = parent,
+        types  = { first },
+    }
+    first.parent = result
+    while checkToken('symbol', '&', 1) do
+        nextToken()
+        local unit = parseTypeUnit(result)
+        if not unit then
+            pushWarning {
+                type   = 'LUADOC_MISS_TYPE_NAME',
+                start  = getFinish(),
+                finish = getFinish(),
+            }
+            break
+        end
+        result.types[#result.types+1] = unit
+    end
+    result.finish = getFinish()
+    return result
+end
+
 ---@param parent parser.object
 ---@return parser.object?
 local function parseResume(parent)
@@ -1145,7 +1184,7 @@ function parseType(parent)
         end
     end
     while true do
-        local typeUnit = parseTypeUnit(result)
+        local typeUnit = parseTypeIntersection(result)
         if not typeUnit then
             break
         end

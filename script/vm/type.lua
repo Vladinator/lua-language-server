@@ -368,6 +368,40 @@ local function checkTableShape(parent, child, uri, mark, errs)
     return true
 end
 
+---@class vm.type.checkConfig
+---@field weakUnionCheck   boolean
+---@field weakNilCheck     boolean
+---@field maxUnionVariants integer
+
+--- `vm.isSubType` reads `Lua.type.weakUnionCheck`/`weakNilCheck`/`maxUnionVariants` from
+--- `config.get` on nearly every one of its own recursive calls -- a single top-level
+--- `vm.canCastType` on a concrete value against a concrete field type can recurse through
+--- `isSubType` several times over (once to unwrap the value's node, once to unwrap the field
+--- type's, an optional-nil check, ...), each asking `config.get` (a per-call scope/workspace-folder
+--- resolution, not a plain table read) for the same 3 keys again. These 3 settings cannot change
+--- mid-comparison (nothing in this recursion edits config), so they are fetched once per top-level
+--- call and cached on `mark` -- already threaded, unchanged, through every recursive call of one
+--- `isSubType`/`canCastType` invocation -- keyed by the `mark` table's own identity so a caller
+--- that passes no `mark` (a fresh `{}` each time) still gets its own, uncontaminated cache.
+---@type table<table, vm.type.checkConfig>
+local typeCheckConfigCache = setmetatable({}, { __mode = 'k' })
+
+---@param uri  uri
+---@param mark table<string, boolean>
+---@return vm.type.checkConfig
+local function getTypeCheckConfig(uri, mark)
+    local cfg = typeCheckConfigCache[mark]
+    if not cfg then
+        cfg = {
+            weakUnionCheck   = config.get(uri, 'Lua.type.weakUnionCheck') or false,
+            weakNilCheck     = config.get(uri, 'Lua.type.weakNilCheck') or false,
+            maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0,
+        }
+        typeCheckConfigCache[mark] = cfg
+    end
+    return cfg
+end
+
 ---@param uri uri
 ---@param child  vm.node|string|vm.node.object
 ---@param parent vm.node|string|vm.node.object
@@ -384,9 +418,10 @@ function vm.isSubType(uri, child, parent, mark, errs)
         end
         child = globalVar
     elseif child.type == 'vm.node' then
-        if config.get(uri, 'Lua.type.weakUnionCheck') then
+        local typeCfg = getTypeCheckConfig(uri, mark)
+        if typeCfg.weakUnionCheck then
             local hasKnownType = 0
-            local maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0
+            local maxUnionVariants = typeCfg.maxUnionVariants
             local i = 0
             for n in child:eachObject() do
                 i = i + 1
@@ -415,10 +450,10 @@ function vm.isSubType(uri, child, parent, mark, errs)
             end
             return true
         else
-            local weakNil = config.get(uri, 'Lua.type.weakNilCheck')
+            local weakNil = typeCfg.weakNilCheck
             ---@type boolean?
             local skipTable
-            local maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0
+            local maxUnionVariants = typeCfg.maxUnionVariants
             local i = 0
             for n in child:eachObject() do
                 i = i + 1
@@ -488,7 +523,7 @@ function vm.isSubType(uri, child, parent, mark, errs)
         parent = globalVar
     elseif parent.type == 'vm.node' then
         local hasKnownType = 0
-        local maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0
+        local maxUnionVariants = getTypeCheckConfig(uri, mark).maxUnionVariants
         local i = 0
         for n in parent:eachObject() do
             i = i + 1

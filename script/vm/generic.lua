@@ -90,6 +90,55 @@ local function cloneObject(source, resolved)
         }
         return newArray
     end
+    if source.type == 'doc.type.keyof' then
+        local newKeyof = {
+            type   = source.type,
+            start  = source.start,
+            finish = source.finish,
+            parent = source.parent,
+            node   = cloneObject(source.node, resolved),
+        }
+        return newKeyof
+    end
+    if source.type == 'doc.type.indexed' then
+        local newIndexed = {
+            type   = source.type,
+            start  = source.start,
+            finish = source.finish,
+            parent = source.parent,
+            node   = cloneObject(source.node, resolved),
+            key    = cloneObject(source.key, resolved),
+        }
+        return newIndexed
+    end
+    if source.type == 'doc.type.intersection' then
+        ---@type parser.object
+        local newIntersection = {
+            type   = source.type,
+            start  = source.start,
+            finish = source.finish,
+            parent = source.parent,
+            types  = {},
+        }
+        for i, typeUnit in ipairs(source.types) do
+            newIntersection.types[i] = cloneObject(typeUnit, resolved) --[[@as parser.object]]
+        end
+        return newIntersection
+    end
+    if source.type == 'doc.type.conditional' then
+        ---@type parser.object
+        local newConditional = {
+            type      = source.type,
+            start     = source.start,
+            finish    = source.finish,
+            parent    = source.parent,
+            check     = cloneObject(source.check, resolved) --[[@as parser.object]],
+            extends   = cloneObject(source.extends, resolved) --[[@as parser.object?]],
+            trueType  = cloneObject(source.trueType, resolved) --[[@as parser.object?]],
+            falseType = cloneObject(source.falseType, resolved) --[[@as parser.object?]],
+        }
+        return newConditional
+    end
     if source.type == 'doc.type.table' then
         ---@type parser.object
         local newTable = {

@@ -649,6 +649,42 @@ local function F(v)
 end
 ]]
 
+-- `T extends U ? X : Y` (TypeScript's conditional types), used directly (no generic involved).
+TEST '"yes"' [[
+---@type (string extends string ? "yes" : "no")
+local <?y?>
+]]
+
+TEST '"no"' [[
+---@type (integer extends string ? "yes" : "no")
+local <?y?>
+]]
+
+-- through a generic: `T` bound at the call site decides the branch.
+TEST '"other"' [[
+---@class CondCommon.Point
+---@field x number
+
+---@generic T
+---@param v T
+---@return (T extends CondCommon.Point ? "point" : "other")
+local function classify(v) end
+
+local <?y?> = classify(1)
+]]
+
+TEST '"point"' [==[
+---@class CondCommon.Point2
+---@field x number
+
+---@generic T
+---@param v T
+---@return (T extends CondCommon.Point2 ? "point" : "other")
+local function classify(v) end
+
+local <?y?> = classify({x = 1} --[[@as CondCommon.Point2]])
+]==]
+
 TEST 'unknown' [[
 local a, b
 function a()

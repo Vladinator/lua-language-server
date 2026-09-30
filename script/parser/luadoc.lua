@@ -1016,6 +1016,62 @@ local function parseParen(parent)
     end
     nextToken()
     local tp = parseType(parent)
+    -- `(T extends U ? X : Y)` (TypeScript's conditional types): checked here, inside the parens
+    -- and before they close, rather than as a general postfix on any type -- a bare `extends`
+    -- straight after a type, with no parens, is indistinguishable from the start of an ordinary
+    -- English tail comment (`---@param x string extends the base config`), and `parseType` runs
+    -- on the same token stream a tail comment's words come from. Requiring parens keeps the
+    -- grammar unambiguous: nothing containing a bare `extends` at the top level of a type was
+    -- ever valid syntax, but a tail comment starting with the word right after a plain type is
+    -- exactly the shape that would have silently misparsed without this restriction.
+    if tp and checkToken('name', 'extends', 1) then
+        nextToken()
+        local extendsType = parseType(tp)
+        if not extendsType then
+            pushWarning {
+                type   = 'LUADOC_MISS_TYPE_NAME',
+                start  = getFinish(),
+                finish = getFinish(),
+            }
+        end
+        -- `parseType`'s own trailing `?` (optional-suffix) check already consumed the ternary `?`
+        -- right after `U` as if it meant `U?` -- undo that reading and treat it as having
+        -- satisfied the `?` this needs, instead of requiring a second one.
+        local hadQuestion = extendsType and extendsType.optional
+        if extendsType then
+            extendsType.optional = nil
+        end
+        if not hadQuestion then
+            nextSymbolOrError '?'
+        end
+        local trueType = parseType(tp)
+        nextSymbolOrError ':'
+        local falseType = parseType(tp)
+        ---@type parser.object
+        local condResult = {
+            type      = 'doc.type.conditional',
+            start     = tp.start,
+            finish    = getFinish(),
+            parent    = parent,
+            check     = tp,
+            extends   = extendsType,
+            trueType  = trueType,
+            falseType = falseType,
+        }
+        tp.parent = condResult
+        if extendsType then
+            extendsType.parent = condResult
+        end
+        if trueType then
+            trueType.parent = condResult
+        end
+        if falseType then
+            falseType.parent = condResult
+        end
+        nextSymbolOrError(')')
+        condResult.finish = getFinish()
+        return condResult
+    end
     nextSymbolOrError(')')
     return tp
 end

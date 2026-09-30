@@ -830,6 +830,28 @@ function vm.isUtilityTypeName(name)
     return UTILITY_TYPE_NAMES[name] == true
 end
 
+--- Whether `node` is, or anywhere contains, a generic name not yet bound to a concrete type --
+--- `doc.type.conditional`'s own deferral check (see that case's comment for why). `nil` (no
+--- operand at all, a parse failure already warned about elsewhere) is not unresolved -- there is
+--- nothing to wait for.
+---@param node parser.object?
+---@return boolean
+local function hasUnresolvedGeneric(node)
+    if not node then
+        return false
+    end
+    if vm.isGenericUnsolved(node) then
+        return true
+    end
+    local found = false
+    guide.eachSourceType(node, 'doc.generic.name', function (src)
+        if not found and vm.isGenericUnsolved(src) then
+            found = true
+        end
+    end)
+    return found
+end
+
 --- A synthetic `doc.type.field` carrying an already-resolved node, bypassing the normal
 --- `.extends` -> `vm.compileNode` parse step (there is no source text for it to parse): both the
 --- field and its `.extends` (a bare placeholder of a type no compiler case ever needs to know
@@ -2953,6 +2975,51 @@ local compilerSwitch = util.switch()
             return
         end
         vm.setNode(source, tableObj)
+    end)
+    : case 'doc.type.conditional'
+    -- `T extends U ? X : Y` (TypeScript's conditional types): decided by `vm.isSubType(uri, T, U)`
+    -- (the same "is child assignable to parent" primitive `canCastType` builds on).
+    --
+    -- Genuinely deferred, not decided eagerly, when `T` is (or contains) a generic that isn't
+    -- bound yet: a generic function's own `self.proto` (its declared return type, here) is
+    -- compiled once, on its own, the first time anything asks -- *before* any call site exists to
+    -- bind its generics -- and that first compile's answer is what `vm.cloneObject`
+    -- (`vm/generic.lua`'s `mt:resolve`) then iterates and clones per call, not the raw
+    -- unresolved AST. Deciding a branch at that first, generic-less compile would freeze that
+    -- decision for every call, generic argument or not (confirmed by a real repro: it eagerly
+    -- picked the *true* branch for every call, wrong for calls that shouldn't take it). So this
+    -- case stays self-referential (`vm.setNode(source, source)`, the same idiom
+    -- `doc.generic.name` itself uses while unresolved) as long as `T` has an unresolved generic
+    -- anywhere in it -- `vm.cloneObject`'s own `doc.type.conditional` case then clones `check`/
+    -- `extends`/`trueType`/`falseType` through the resolved-generic map at each call site, and
+    -- `mt:resolve` recompiles that clone, landing back in this same case with `T` now concrete.
+    -- `isSubType` can also answer `nil` ("can't decide" for a reason other than an unresolved
+    -- generic): that leaves the result `unknown`, the same can't-decide fallback `keyof`/`T[K]`
+    -- already use, rather than guessing a branch.
+    ---@param source parser.object
+    : call(function (source)
+        local uri = guide.getUri(source)
+        if not source.extends then
+            vm.setNode(source, vm.declareGlobal('type', 'unknown'))
+            return
+        end
+        if hasUnresolvedGeneric(source.check) then
+            vm.setNode(source, source)
+            return
+        end
+        local checkNode = vm.compileNode(source.check)
+        local extendsNode = vm.compileNode(source.extends)
+        local holds = vm.isSubType(uri, checkNode, extendsNode)
+        if holds == nil then
+            vm.setNode(source, vm.declareGlobal('type', 'unknown'))
+            return
+        end
+        local branch = holds and source.trueType or source.falseType
+        if branch then
+            vm.setNode(source, vm.compileNode(branch))
+        else
+            vm.setNode(source, vm.declareGlobal('type', 'unknown'))
+        end
     end)
     : case 'doc.type.sign'
     ---@param source parser.object

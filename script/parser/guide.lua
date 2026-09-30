@@ -31,6 +31,9 @@ local type         = type
 ---@field labels                parser.object[]
 ---@field node                  parser.object
 ---@field key                   parser.object -- `doc.type.indexed`'s own key type (`T[K]`'s `K`)
+---@field check                 parser.object -- `doc.type.conditional`'s own `T` (`T extends U ? X : Y`)
+---@field trueType?             parser.object -- `doc.type.conditional`'s own `X`, absent on a parse error
+---@field falseType?            parser.object -- `doc.type.conditional`'s own `Y`, absent on a parse error
 ---@field field?                 parser.object
 ---@field method?                parser.object
 ---@field index?                 parser.object
@@ -195,6 +198,7 @@ local childMap = {
     ['doc.type.keyof']     = {'node'},
     ['doc.type.indexed']   = {'node', 'key'},
     ['doc.type.intersection'] = {'#types'},
+    ['doc.type.conditional'] = {'check', 'extends', 'trueType', 'falseType'},
     ['doc.type.function']  = {'#args', '#returns', '#signs', 'comment'},
     ['doc.type.table']     = {'#fields', 'comment'},
     ['doc.type.literal']   = {'node'},

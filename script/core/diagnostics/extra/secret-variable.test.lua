@@ -94,3 +94,32 @@ local b = ''
 ---@<!nosecret a2!>
 local a2, b2 = 1, 2
 ]]
+
+-- the same contradiction, `nosecret<T>` (generic-wrapper spelling) instead of the `nosecret T`
+-- prefix form -- same report, though the span covers the whole `nosecret<string>` text rather
+-- than just `string` (the contradiction-diagnostic reports on the outer `doc.type`'s own span,
+-- unchanged by the sugar splice, instead of the narrower inner-type span the prefix form has)
+TEST [[
+---@secret
+---@type <!nosecret<string>!>
+local b = ''
+]]
+
+-- `---@type secret<T>` initializer + `---@type nosecret<T>` mirror of the first test above
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@type nosecret<string>
+local a = <!get()!>
+
+---@type nosecret<string>
+local b = 'plain'
+b = <!get()!>
+b = 'plain again'
+
+---@type nosecret<string>?
+local c
+c = <!get()!>
+]]

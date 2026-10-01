@@ -1255,6 +1255,27 @@ function parseType(parent)
         end
         nextToken()
     end
+    -- A plugin type keyword wrapped as a one-argument generic instead of a bare prefix
+    -- (`secret<string>` for `secret string`) is pure sugar: unwrap it into the same shape the
+    -- prefix form produces (the inner type promoted to this `doc.type`'s own sole member, the
+    -- keyword field set here instead of on a `doc.type.sign`), so every consumer of the prefix
+    -- form (vm.node flag genesis rules, or a plain field read directly off a `doc.type` like
+    -- `nosecret` -- see need-check-secret.lua) sees an identical result either way. Only when it
+    -- is the type's sole member (matching the prefix form, which always covers the whole `doc.type`,
+    -- never just one union alternative) and not already using the prefix form.
+    if not keywordField and #result.types == 1 then
+        local sole = result.types[1]
+        if sole.type == 'doc.type.sign' and sole.node and sole.node.type == 'doc.type.name'
+        and sole.signs and #sole.signs == 1 then
+            local wrapperField = docTags.getTypeKeyword(sole.node[1])
+            if wrapperField then
+                local inner = sole.signs[1]
+                inner.parent = result
+                result.types[1] = inner
+                result[wrapperField] = true
+            end
+        end
+    end
     if not result.start then
         result.start = getFinish()
     end

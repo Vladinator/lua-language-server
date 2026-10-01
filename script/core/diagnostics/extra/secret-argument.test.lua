@@ -19,6 +19,26 @@ split(id, 'a,b')
 split(',', 'a,b', 2)
 ]]
 
+-- `nosecret<T>` (the generic-wrapper spelling) is pure sugar for the `nosecret T` prefix form --
+-- same behavior, same diagnostic
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@param delimiter string
+---@param str nosecret<string>
+---@param pieces? number
+---@return string ...
+---@nodiscard
+local function split(delimiter, str, pieces) end
+
+local id = get()
+split(',', <!id!>)
+split(id, 'a,b')
+split(',', 'a,b', 2)
+]]
+
 -- a value that was checked is not secret any more
 TEST [[
 ---@secret

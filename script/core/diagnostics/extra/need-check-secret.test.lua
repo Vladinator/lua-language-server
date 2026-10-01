@@ -57,6 +57,27 @@ else
 end
 ]]
 
+-- `secretguard<T>` (the generic-wrapper spelling) is pure sugar for the `secretguard T` prefix
+-- form -- same behavior, same narrowing
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-check
+---@param a any
+---@param b secretguard<any>
+local function chk2(a, b) return false end
+
+local x = f()
+local y = f()
+if not chk2(y, x) then
+    print(x + 5)
+else
+    print(<!x!> + 5)
+end
+]]
+
 -- without `secretguard` on either parameter, only the first still narrows -- the pre-existing,
 -- backward-compatible default
 TEST [[
@@ -500,6 +521,29 @@ TEST [[
 ---@type secret string?
 local s
 print(<!s!>:len())
+]]
+
+-- `secret<T>` (the generic-wrapper spelling) is pure sugar for the `secret T` prefix form -- same
+-- behavior, same diagnostic, on a local, a parameter and a return value
+TEST [[
+---@type secret<string>?
+local s
+print(<!s!>:len())
+]]
+
+TEST [[
+---@param token secret<string>
+local function f(token)
+    print(<!token!>:len())
+end
+]]
+
+TEST [[
+---@return secret<string>
+local function f() return 'x' end
+
+local x = f()
+print(<!x!>:len())
 ]]
 
 -- a class that is called `secret` still works as a plain type name

@@ -18,6 +18,25 @@ local function g()
 end
 ]]
 
+-- `nosecret<T>` (the generic-wrapper spelling) is pure sugar for the `nosecret T` prefix form --
+-- same behavior, same diagnostic
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@return nosecret<string>, string
+local function f()
+    local s = get()
+    return <!s!>, s
+end
+
+---@return string, nosecret<string>
+local function g()
+    return get(), <!get()!>
+end
+]]
+
 -- `---@nosecret` above a function: every return of it
 TEST [[
 ---@secret

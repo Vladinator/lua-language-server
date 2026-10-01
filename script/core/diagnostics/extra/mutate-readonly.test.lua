@@ -28,6 +28,34 @@ local function f(p)
 end
 ]]
 
+-- `readonly<T>` (the generic-wrapper spelling) is pure sugar for the `readonly T` prefix form --
+-- same behavior, same diagnostic
+TEST [[
+---@class Config
+---@field name string
+---@field volume number
+
+---@param t readonly<Config>
+local function f(t)
+    t.<!name!> = 'x'
+    t[<!'volume'!>] = 1
+    print(t.name) -- reading is fine
+end
+]]
+
+TEST [[
+---@class Point
+---@field x number
+---@field y number
+
+---@param p Point
+local function f(p)
+    ---@type readonly<Point>
+    local t = p
+    t.<!x!> = 1
+end
+]]
+
 -- an array parameter, and mutating calls
 TEST [[
 ---@param arr readonly integer[]

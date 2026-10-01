@@ -759,3 +759,68 @@ while true do
 end
 S = line:upper()
 ]]
+
+-- `---@correlated a, b` (wowlua-ls interop): locals that are always nil/non-nil together --
+-- narrowing one (even one the checker could not otherwise prove narrows the other, like an
+-- `if math.random() > 0.5 then` guard with no relation to either variable) narrows its sibling too.
+TEST [[
+---@type string?
+local tradeType = nil
+---@type number?
+local money = nil
+---@correlated tradeType, money
+
+if math.random() > 0.5 then
+    tradeType = "buy"
+    money = 100
+end
+
+if tradeType then
+    S = money + 1
+else
+    S = money
+end
+]]
+
+-- without the `---@correlated` tag, the same shape is correctly still flagged -- the narrowing
+-- extension only applies to a declared group, not a general property of the guard.
+TEST [[
+---@type string?
+local tradeType = nil
+---@type number?
+local money = nil
+
+if math.random() > 0.5 then
+    tradeType = "buy"
+    money = 100
+end
+
+if tradeType then
+    S = <!money!> + 1
+else
+    S = money
+end
+]]
+
+-- the `nil` edge correlates too: once `tradeType` is known nil (the `else` branch), a correlated
+-- sibling is known nil as well, not just "possibly nil" -- reading it is still fine (`nil` itself
+-- is never an error to read), but a correlated sibling that is *not* nil-checkable this way stays
+-- flagged, confirming the correlation only ever adds narrowing, never removes a real check.
+TEST [[
+---@type string?
+local tradeType = nil
+---@type number?
+local money = nil
+---@correlated tradeType, money
+
+if math.random() > 0.5 then
+    tradeType = "buy"
+    money = 100
+end
+
+if not tradeType then
+    S = money
+else
+    S = money + 1
+end
+]]

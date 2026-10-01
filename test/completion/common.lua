@@ -1229,6 +1229,10 @@ TEST [[
     {
         label = 'class',
         kind = define.CompletionItemKind.Event
+    },
+    {
+        label = 'correlated',
+        kind = define.CompletionItemKind.Event
     }
 }
 

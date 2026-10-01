@@ -1,6 +1,7 @@
 ---@class vm
-local vm    = require 'vm.vm'
-local guide = require 'parser.guide'
+local vm      = require 'vm.vm'
+local guide   = require 'parser.guide'
+local docTags = require 'parser.docTags'
 
 --- Phase 3 of the tracer redesign (see `TRACER-REDESIGN.md`): a real, reusable, multi-variable
 --- flow analysis built on `vm.buildCFG` (Phase 1) and `vm.runDataflow` (Phase 2). Still standalone:
@@ -43,6 +44,7 @@ local IMPOSSIBLE = setmetatable({}, { __tostring = function () return 'vm.flow: 
 ---@field castsInside table<parser.object, parser.object[]>  a statement / condition -> the casts written in the middle of it
 ---@field interesting table<vm.flow.key, true>
 ---@field boolCondExpr table<parser.object, parser.object>  a `local` declaration -> its own value expression, when that expression is itself something `evalCondition` can narrow (see `activeBoolCond`)
+---@field correlatedGroups table<vm.flow.key, vm.flow.key[]>  `---@correlated` groups declared in this function (see `activeCorrelated`)
 ---@alias vm.flow.state table<vm.flow.key, vm.node>|false
 
 --- Tracked things are keyed by a local's declaration node, or, for a field path rooted at a local
@@ -376,6 +378,12 @@ local evalEnabled = os.getenv('LLS_FLOW_EVAL') ~= '0'
 ---@type fun(expr: parser.object?): vm.flow.key?
 local refKey
 
+--- `---@correlated` groups active for the flow currently being run -- forward-declared here
+--- (same pattern as `refKey` above) because `narrowRef`'s propagation helpers read it before its
+--- own declaration, further down, where it sits next to `activeCasts`/`activeBoolCond`.
+---@type table<vm.flow.key, vm.flow.key[]>
+local activeCorrelated = {}
+
 --- The variables a `for` declares: `in` has a `list` of them, a numeric loop a single local.
 ---@param vars parser.object
 ---@return parser.object[]
@@ -697,6 +705,66 @@ function refKey(expr)
     return nil
 end
 
+--- Whether `node` can only ever be `nil` -- every member is the nil type (via `isNilObject`), and
+--- there is at least one (an empty node with nothing narrowed yet is "unknown", not "only nil").
+---@param node vm.node
+---@return boolean
+local function isNilOnly(node)
+    if #node == 0 then
+        return false
+    end
+    for i = 1, #node do
+        if not isNilObject(node[i]) then
+            return false
+        end
+    end
+    return true
+end
+
+--- `---@correlated` propagation: `key` just narrowed from `current` to `newNode` (by whatever
+--- transform the caller applied -- a truthy/falsy check, `== nil`, a guard, ...). If that changed
+--- `key`'s own nil-possibility, apply the same nil-dimension change to every sibling in its
+--- correlated group (if any) -- narrowing one narrows the others together, same as wowlua-ls's own
+--- semantics ("always nil or always non-nil together"). Only the nil dimension: a narrowing that
+--- picks a concrete non-nil type (`type(x)=='string'`) does not propagate anything beyond that, since
+--- correlation makes no claim about *which* type a sibling holds, only whether it is nil.
+---@param state   vm.flow.state
+---@param key     vm.flow.key
+---@param current vm.node
+---@param newNode vm.node
+---@return vm.flow.state
+local function propagateCorrelated(state, key, current, newNode)
+    local siblings = activeCorrelated[key]
+    if not siblings or not state then
+        return state
+    end
+    local wasOptional = current:isOptional() or isNilOnly(current)
+    local nowNilOnly = isNilOnly(newNode)
+    local nowNonNil = not newNode:isOptional() and not nowNilOnly and hasTypes(newNode)
+    if not (wasOptional and (nowNilOnly or nowNonNil)) then
+        return state
+    end
+    for _, sibling in ipairs(siblings) do
+        if not state then
+            return state
+        end
+        ---@type vm.node?
+        local siblingCurrent = state[sibling]
+        if siblingCurrent == IMPOSSIBLE then
+            siblingCurrent = nil
+        end
+        if siblingCurrent then
+            if nowNilOnly then
+                local nilNode = vm.createNode(vm.declareGlobal('type', 'nil'))
+                state = narrowedState(state, sibling, siblingCurrent, nilNode)
+            elseif nowNonNil and siblingCurrent:isOptional() then
+                state = narrowedState(state, sibling, siblingCurrent, siblingCurrent:copy():removeOptional())
+            end
+        end
+    end
+    return state
+end
+
 --- Narrows what `expr` refers to in `state` with `fn`; `state` itself when it is nothing tracked.
 --- A path nothing has narrowed yet starts from its static type.
 ---@param state table<vm.flow.key, vm.node>
@@ -719,7 +787,9 @@ local function narrowRef(state, expr, fn)
     if not current then
         return state
     end
-    return narrowedState(state, key, current, fn(current))
+    local newNode = fn(current)
+    local narrowed = narrowedState(state, key, current, newNode)
+    return propagateCorrelated(narrowed, key, current, newNode)
 end
 
 ---@param a vm.flow.state
@@ -744,6 +814,18 @@ local activeCasts = {}
 --- Mirrors TypeScript's narrowing of aliased conditions (`const isStr = typeof x === 'string'`).
 ---@type table<parser.object, parser.object>
 local activeBoolCond = {}
+
+-- `---@correlated f1, f2, ...` (wowlua-ls interop): locals or fields that are always nil/non-nil
+-- together -- narrowing one narrows every sibling in its group the same way, on the nil dimension
+-- only (not full type narrowing: correlation only claims "together nil or together not", nothing
+-- about which concrete type). `activeCorrelated` itself is forward-declared near `refKey`, above --
+-- this is just where it's set around the flow being run, same pattern as `activeCasts`/
+-- `activeBoolCond`, built once per function from the `---@correlated` docs inside it (see
+-- `buildFlowBody`'s `castsAt`-style scan).
+docTags.registerNameListTag('correlated', 'doc.correlated',
+    'Fields or locals that are always nil/non-nil together: narrowing one narrows every sibling '
+    .. 'the same way. On a `---@class` (`---@correlated f1, f2`), names its fields; as a statement '
+    .. 'inside a function (between the declarations and the code that uses them), names locals.')
 
 --- `state` with the casts written right before `operand` applied.
 ---@param state   vm.flow.state
@@ -1325,9 +1407,43 @@ function vm.buildFlowBody(main)
         end
     end
 
+    -- `---@correlated f1, f2, ...` as a statement inside this function: locals that are always
+    -- nil/non-nil together. Each name is resolved to its `local` declaration visible at the tag's
+    -- own position (same primitive go-to-definition uses) -- the group is every other name's
+    -- declaration, keyed by each member's own declaration (matching `refKey`'s shape for a local).
+    ---@type table<vm.flow.key, vm.flow.key[]>
+    local correlatedGroups = {}
+    for _, doc in ipairs(rootDocs) do
+        if doc.type == 'doc.correlated' and doc.names
+        and doc.start >= main.start and doc.finish <= main.finish then
+            ---@type parser.object[]
+            local decls = {}
+            for _, nameObj in ipairs(doc.names) do
+                local decl = guide.getLocal(main, nameObj[1], doc.start)
+                if decl then
+                    decls[#decls+1] = decl
+                end
+            end
+            if #decls > 1 then
+                for i, decl in ipairs(decls) do
+                    local siblings = correlatedGroups[decl] or {}
+                    for j, other in ipairs(decls) do
+                        if j ~= i then
+                            siblings[#siblings+1] = other
+                        end
+                    end
+                    correlatedGroups[decl] = siblings
+                end
+            end
+        end
+    end
+
     -- What is worth tracking: whatever a branch condition, an assertion-like call or a cast names.
     ---@type table<vm.flow.key, true>
     local interesting = {}
+    for decl in pairs(correlatedGroups) do
+        interesting[decl] = true
+    end
     ---@param expr parser.object?
     local function noteRef(expr)
         local key = refKey(expr)
@@ -1445,7 +1561,7 @@ function vm.buildFlowBody(main)
         end })
     end
     ---@type vm.flow.context
-    local ctx = { castsAt = castsAt, castsInside = castsInside, interesting = interesting, boolCondExpr = boolCondExpr }
+    local ctx = { castsAt = castsAt, castsInside = castsInside, interesting = interesting, boolCondExpr = boolCondExpr, correlatedGroups = correlatedGroups }
 
     -- The variables each `for` loop declares, by the block that evaluates the loop's expressions.
     ---@type table<parser.object, true>
@@ -1549,8 +1665,10 @@ function vm.buildFlowBody(main)
             checkBudget()
             local savedCasts = activeCasts
             local savedBoolCond = activeBoolCond
+            local savedCorrelated = activeCorrelated
             activeCasts = ctx.castsAt
             activeBoolCond = ctx.boolCondExpr
+            activeCorrelated = ctx.correlatedGroups
             local state = copyState(stateIn)
             for _, stmt in ipairs(block.stmts) do
                 applyStmt(state, stmt, ctx)
@@ -1578,10 +1696,12 @@ function vm.buildFlowBody(main)
                 local yes, no = evalCondition(state, block.condition)
                 activeCasts = savedCasts
                 activeBoolCond = savedBoolCond
+                activeCorrelated = savedCorrelated
                 return state, { ['true'] = yes, ['false'] = no }
             end
             activeCasts = savedCasts
             activeBoolCond = savedBoolCond
+            activeCorrelated = savedCorrelated
             return state
         end,
     }
@@ -1596,8 +1716,10 @@ function vm.buildFlowBody(main)
     local blockEnd = {}
     local savedCasts = activeCasts
     local savedBoolCond = activeBoolCond
+    local savedCorrelated = activeCorrelated
     activeCasts = castsAt
     activeBoolCond = boolCondExpr
+    activeCorrelated = correlatedGroups
     for _, block in ipairs(cfg.blocks) do
         local stateIn = result.stateIn[block]
         if stateIn then
@@ -1611,6 +1733,7 @@ function vm.buildFlowBody(main)
     end
     activeCasts = savedCasts
     activeBoolCond = savedBoolCond
+    activeCorrelated = savedCorrelated
 
     return setmetatable({
         cfg       = cfg,
@@ -1729,11 +1852,14 @@ function flow:stateAt(node)
         local guard = guards[i]
         local savedCasts = activeCasts
         local savedBoolCond = activeBoolCond
+        local savedCorrelated = activeCorrelated
         activeCasts = self.ctx.castsAt
         activeBoolCond = self.ctx.boolCondExpr
+        activeCorrelated = self.ctx.correlatedGroups
         local yes, no = evalCondition(at, guard[1])
         activeCasts = savedCasts
         activeBoolCond = savedBoolCond
+        activeCorrelated = savedCorrelated
         at = guard.op.type == 'and' and yes or no
         if not at then
             return nil

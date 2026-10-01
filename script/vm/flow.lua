@@ -779,6 +779,156 @@ local function workspaceHasCorrelatedFields(suri)
     return found
 end
 
+--- The type an `---@return` doc declares for one return slot of `func` (1-based), or nil when that
+--- slot has no explicit annotation (relying on inference instead). A declared type is a forced
+--- contract -- it wins over whatever the return statements themselves look like, the same way it
+--- already does for ordinary type checking -- so a slot declared non-optional is never worth
+--- correlating (nothing to narrow there: the contract already says it's never nil), regardless of
+--- what any individual `return` happens to look like.
+---@param func  parser.object a `function` node
+---@param index integer
+---@return vm.node?
+local function declaredReturnNode(func, index)
+    if not func.bindDocs then
+        return nil
+    end
+    for _, doc in ipairs(func.bindDocs) do
+        if doc.type == 'doc.return' then
+            for _, rtn in ipairs(doc.returns) do
+                if rtn.returnIndex == index then
+                    return compileForFlow(rtn)
+                end
+            end
+        end
+    end
+    return nil
+end
+
+---@alias vm.flow.returnSlotShape 'nil' | 'nonnil' | 'ambiguous'
+
+--- One `return` statement's own slot `index` (1-based), classified for inferred-correlation
+--- purposes: a missing trailing value (fewer returns than the statement with the most) is an
+--- implicit `nil`, same as Lua itself pads a short return list; anything whose compiled type mixes
+--- nil and non-nil members is `'ambiguous'` -- too unreliable to base a correlation claim on, so a
+--- slot that is ever ambiguous in any one `return` is excluded from every group entirely (see
+--- `getInferredReturnCorrelation`), not just that one statement.
+---@param expr parser.object?
+---@return vm.flow.returnSlotShape
+local function classifyReturnSlot(expr)
+    if not expr or expr.type == 'nil' then
+        return 'nil'
+    end
+    local node = compileForFlow(expr)
+    if not node then
+        return 'ambiguous'
+    end
+    if isNilOnly(node) then
+        return 'nil'
+    end
+    if not node:isOptional() and hasTypes(node) then
+        return 'nonnil'
+    end
+    return 'ambiguous'
+end
+
+---@type table<parser.object, table<integer, integer[]>|false>
+local inferredReturnCache = setmetatable({}, { __mode = 'k' })
+
+--- `func`'s own return slots that are always nil/non-nil together, inferred from its `return`
+--- statements themselves (TS-parity, wowlua-ls interop: no `---@correlated` needed) -- slot `i` to
+--- every slot it is correlated with. Cached per function (purely a property of its own source, same
+--- as `vm.flow.correlatedSibling`'s class-side cache being per-class): every call site that
+--- destructures this function's return values reuses the one analysis.
+---
+--- Deliberately conservative: a function whose last return expression in any statement is itself a
+--- call or `...` (an unknown-width tail expansion) is skipped entirely, since the slots beyond that
+--- point cannot be counted reliably; a slot declared non-optional by an explicit `---@return` is
+--- never a candidate (`declaredReturnNode`); two slots are only grouped when their shapes
+--- (`classifyReturnSlot`) agree, without exception, across *every* return statement, and at least
+--- one of those statements actually returns `nil` there (otherwise there is nothing narrowing ever
+--- removes -- no point tracking it).
+---@param func parser.object a `function` node
+---@return table<integer, integer[]>?
+local function getInferredReturnCorrelation(func)
+    local cached = inferredReturnCache[func]
+    if cached ~= nil then
+        return cached or nil
+    end
+    local returns = func.returns
+    if not returns or #returns == 0 then
+        inferredReturnCache[func] = false
+        return nil
+    end
+    local maxSlots = 0
+    for _, ret in ipairs(returns) do
+        local n = #ret
+        if n > 0 then
+            local last = ret[n]
+            if last.type == 'call' or last.type == 'varargs' then
+                -- an unknown-width tail: cannot count this statement's slots reliably at all
+                inferredReturnCache[func] = false
+                return nil
+            end
+        end
+        if n > maxSlots then
+            maxSlots = n
+        end
+    end
+    if maxSlots < 2 then
+        inferredReturnCache[func] = false
+        return nil
+    end
+    ---@type table<integer, vm.flow.returnSlotShape[]?>
+    local perSlot = {}
+    for i = 1, maxSlots do
+        local declared = declaredReturnNode(func, i)
+        if not (declared and not declared:isOptional()) then
+            ---@type vm.flow.returnSlotShape[]
+            local seq = {}
+            for _, ret in ipairs(returns) do
+                seq[#seq+1] = classifyReturnSlot(ret[i])
+            end
+            perSlot[i] = seq
+        end
+    end
+    ---@type table<integer, integer[]>
+    local groups = {}
+    for i = 1, maxSlots do
+        local seqI = perSlot[i]
+        if seqI then
+            for j = i + 1, maxSlots do
+                local seqJ = perSlot[j]
+                if seqJ then
+                    local correlated = true
+                    local sawNil = false
+                    for k = 1, #returns do
+                        local a, b = seqI[k], seqJ[k]
+                        if a == 'ambiguous' or b == 'ambiguous' or a ~= b then
+                            correlated = false
+                            break
+                        end
+                        if a == 'nil' then
+                            sawNil = true
+                        end
+                    end
+                    if correlated and sawNil then
+                        groups[i] = groups[i] or {}
+                        groups[j] = groups[j] or {}
+                        table.insert(groups[i], j)
+                        table.insert(groups[j], i)
+                    end
+                end
+            end
+        end
+    end
+    if not next(groups) then
+        inferredReturnCache[func] = false
+        return nil
+    end
+    inferredReturnCache[func] = groups
+    return groups
+end
+
 --- `---@correlated f1, f2` declared on a `@class`, read off the class's own doc node: field names
 --- that are always nil/non-nil together, keyed by each name, to its sibling names and each field's
 --- own `doc.field` declaration (for seeding, see `vm.flow.correlatedSibling`). Unlike a local's
@@ -1682,6 +1832,58 @@ function vm.buildFlowBody(main)
                         end
                     end
                     correlatedGroups[decl] = siblings
+                end
+            end
+        end
+    end
+
+    -- Inferred correlated returns (no `---@correlated` needed): `local a, b = f()`, where `f`'s own
+    -- return statements make two or more of its return slots always nil/non-nil together
+    -- (`getInferredReturnCorrelation`), gets the same propagation the explicit tag gives locals --
+    -- group the locals declared from the same multi-value call by the sindex each was bound to
+    -- (`parser/compile.lua`'s `select` wrapping, see `unwrapSelectCall`), merge into the same
+    -- `correlatedGroups` this builds for the explicit tag.
+    do
+        ---@type table<parser.object, table<integer, parser.object>>
+        local byCall = {}
+        for _, block in ipairs(cfg.blocks) do
+            for _, stmt in ipairs(block.stmts) do
+                if stmt.type == 'local' and stmt.value and stmt.value.type == 'select'
+                and stmt.value.sindex and stmt.value.vararg and stmt.value.vararg.type == 'call' then
+                    local call = stmt.value.vararg
+                    local bySindex = byCall[call]
+                    if not bySindex then
+                        bySindex = {}
+                        byCall[call] = bySindex
+                    end
+                    bySindex[stmt.value.sindex] = stmt
+                end
+            end
+        end
+        for call, bySindex in pairs(byCall) do
+            local calleeNode = call.node and compileForFlow(call.node)
+            if calleeNode then
+                for funcObj in calleeNode:eachObject() do
+                    if funcObj.type == 'function' then
+                        local returnGroups = getInferredReturnCorrelation(funcObj --[[@as parser.object]])
+                        if returnGroups then
+                            for i, siblingIdxs in pairs(returnGroups) do
+                                local declI = bySindex[i]
+                                if declI then
+                                    local siblings = correlatedGroups[declI] or {}
+                                    for _, j in ipairs(siblingIdxs) do
+                                        local declJ = bySindex[j]
+                                        if declJ then
+                                            siblings[#siblings+1] = declJ
+                                        end
+                                    end
+                                    if #siblings > 0 then
+                                        correlatedGroups[declI] = siblings
+                                    end
+                                end
+                            end
+                        end
+                    end
                 end
             end
         end

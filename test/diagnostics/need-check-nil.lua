@@ -927,3 +927,56 @@ if isShown then
     S = <!box!>.value
 end
 ]]
+
+-- Inferred correlated returns (no `---@correlated` needed): `f`'s own return statements make its
+-- two return slots always nil/non-nil together (one statement returns `nil, nil`, the other two
+-- real values) -- narrowing the first narrows the second, the same as the explicit tag would.
+TEST [[
+---@return string?, number?
+local function f(cond)
+    if cond then
+        return nil, nil
+    end
+    return "x", 5
+end
+
+local a, b = f(true)
+if a then
+    S = b + 1
+end
+]]
+
+-- without a shared `nil` return anywhere, there is nothing to correlate (and inference finds no
+-- group: the correlation check requires at least one statement to actually return `nil` there) --
+-- an unguarded read of either slot is still correctly flagged on its own, same as always.
+TEST [[
+---@return string?, number?
+local function f2(cond)
+    if cond then
+        return "y", 10
+    end
+    return "x", 5
+end
+
+local a, b = f2(true)
+S = <!a!>:len()
+S = <!b!> + 1
+]]
+
+-- the two slots are each sometimes nil, but *not* together (anti-correlated) -- inference must not
+-- group them: narrowing one says nothing reliable about the other, so the same shape as the
+-- correlated case above stays correctly flagged.
+TEST [[
+---@return string?, number?
+local function f3(cond)
+    if cond then
+        return nil, 5
+    end
+    return "x", nil
+end
+
+local a, b = f3(true)
+if a then
+    S = <!b!> + 1
+end
+]]

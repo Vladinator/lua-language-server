@@ -2790,6 +2790,9 @@ local compilerSwitch = util.switch()
         if source.optional then
             vm.getNode(source):addOptional()
         end
+        if source.lateinit then
+            vm.getNode(source):setFlag('lateinit')
+        end
     end)
     : case 'doc.type.integer'
     : case 'doc.type.string'
@@ -2805,7 +2808,12 @@ local compilerSwitch = util.switch()
         if source[1] == 'self' then
             local state = guide.getDocState(source)
             if state.type == 'doc.return'
-            or state.type == 'doc.param' then
+            or state.type == 'doc.param'
+            or state.type == 'doc.generic' then
+                -- `doc.generic` (a `---@generic K: keyof self` constraint): `self` resolves to the
+                -- method's own receiver, same as it already does inside `---@param`/`---@return`
+                -- (TS-parity `keyof self` -- wowlua-ls interop). `bindSource` is set generically for
+                -- every doc tag bound to a code element (`bindDocWithSource`), not just these two.
                 local func = state.bindSource
                 if func and func.type == 'function' then
                     local node = guide.getFunctionSelfNode(func)

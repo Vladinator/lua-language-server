@@ -107,6 +107,27 @@ f('y')
 f(<!'z'!>)
 ]]
 
+-- `keyof self` (wowlua-ls interop): inside a method, `self` resolves to the receiver's own class
+TEST [[
+---@class KeyofSelfPTM.Widget
+local Widget = {}
+
+function Widget:Show() end
+function Widget:Hide() end
+
+---@generic K: keyof self
+---@param method K
+function Widget:Dispatch(method)
+end
+
+---@type KeyofSelfPTM.Widget
+local w = {}
+
+w:Dispatch('Show')
+w:Dispatch('Hide')
+w:Dispatch(<!'Nope'!>)
+]]
+
 TEST [[
 ---@generic T: string | boolean | table
 ---@param x T

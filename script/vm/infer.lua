@@ -624,6 +624,16 @@ function mt:view(uri, default)
                 view = view .. '?'
             end
         end
+    elseif self.node:hasFlag('lateinit') then
+        -- lateinit (`T!`): shown in hover so the contract is visible, same spirit as `T?` for
+        -- optional -- a lateinit value is never itself `nil` in its type union (unlike `T?`), so
+        -- this is an `elseif`, not stacked on top of the optional rendering above.
+        if max > 1
+        or view:find(guide.notNamePattern .. guide.namePattern .. '$') then
+            view = '(' .. view .. ')!'
+        else
+            view = view .. '!'
+        end
     end
 
     -- do not truncate if exporting doc

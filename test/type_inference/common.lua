@@ -494,6 +494,33 @@ local function F(k)
 end
 ]]
 
+-- lateinit `T!` (wowlua-ls interop): hover shows the `!` suffix, same spirit as `T?`
+TEST 'number!' [[
+---@type number!
+local <?x?>
+]]
+
+TEST 'number[]!' [[
+---@type number[]!
+local <?x?>
+]]
+
+-- `keyof self` (wowlua-ls interop): inside a method, `self` resolves to the receiver's own class,
+-- same as `---@param x self` / `---@return self` already do, without naming the class separately.
+TEST '<K:"Dispatch"|"Hide"|"Show">'[[
+---@class KeyofSelfCommon.Widget
+local Widget = {}
+
+function Widget:Show() end
+function Widget:Hide() end
+
+---@generic K: keyof self
+---@param method K
+function Widget:Dispatch(method)
+    local <?m?> = method
+end
+]]
+
 -- `T[K]` (TypeScript parity): a literal key reads that field's type directly.
 TEST 'number' [[
 ---@class IndexedCommon.Point
@@ -647,6 +674,40 @@ TEST 'number|{ x: number, y: string }' [[
 local function F(v)
     local <?y?> = v
 end
+]]
+
+-- `@class X : A & B` -- `&` is an alternate separator for multiple parents in an extends list,
+-- same meaning as the usual `,` (wowlua-ls interop: both spellings mean the same thing there too).
+TEST 'string' [[
+---@class ExtendsAmp.A
+---@field x number
+
+---@class ExtendsAmp.B
+---@field y string
+
+---@class ExtendsAmp.C : ExtendsAmp.A & ExtendsAmp.B
+
+---@type ExtendsAmp.C
+local v
+local <?y?> = v.y
+]]
+
+-- `,` and `&` can be mixed freely in the same extends list.
+TEST 'string' [[
+---@class ExtendsMix.A
+---@field x number
+
+---@class ExtendsMix.B
+---@field y string
+
+---@class ExtendsMix.C
+---@field z boolean
+
+---@class ExtendsMix.D : ExtendsMix.A, ExtendsMix.B & ExtendsMix.C
+
+---@type ExtendsMix.D
+local v
+local <?y?> = v.y
 ]]
 
 -- `T extends U ? X : Y` (TypeScript's conditional types), used directly (no generic involved).
@@ -4265,6 +4326,55 @@ TEST 'enum A' [[
 local m = {}
 
 print(<?m?>)
+]]
+
+-- `@enum (key)`: the enum's type comes from the table's own keys, not its values -- useful when a
+-- table's keys are a fixed set of valid string identifiers (wowlua-ls interop).
+TEST 'KeyEnumCommon.Settings' [[
+---@enum (key) KeyEnumCommon.Settings
+local DEFAULTS = { showTooltip = true, maxRetries = 5, prefix = "My" }
+
+---@param setting KeyEnumCommon.Settings
+local function use(setting)
+    local <?s?> = setting
+end
+]]
+
+-- the bound table itself still hovers as the enum (same as a plain `@enum`), not its key union --
+-- that union is what *using* the type elsewhere resolves to, tested above.
+TEST 'enum KeyEnumRaw.Settings' [[
+---@enum (key) KeyEnumRaw.Settings
+local <?DEFAULTS?> = { showTooltip = true, maxRetries = 5, prefix = "My" }
+]]
+
+-- Labeled tuple shorthand `---@return (A name, B name2)`: sugar for separate `---@return` lines,
+-- same types at each position (wowlua-ls interop).
+TEST 'string' [[
+---@return (string name, number level)
+local function getInfo()
+    return "Arthas", 80
+end
+
+local <?name?>, level = getInfo()
+]]
+
+TEST 'number' [[
+---@return (string name, number level)
+local function getInfo()
+    return "Arthas", 80
+end
+
+local name, <?level?> = getInfo()
+]]
+
+-- a single parenthesized type with no label is unaffected -- still an ordinary grouped type, not
+-- the tuple shorthand (which requires a label on every position to be recognized as such)
+TEST 'number' [[
+---@alias ReturnParenCommon.Num number
+---@return (ReturnParenCommon.Num)
+local function f() return 1 end
+
+local <?n?> = f()
 ]]
 
 TEST 'A' [[

@@ -19,6 +19,16 @@ local x
 x = nil
 ]]
 
+-- lateinit `T!` (wowlua-ls interop): assigning a literal `nil` is allowed without the usual
+-- mismatch; any other wrong type is still flagged normally.
+TEST [[
+---@type number!
+local x = 5
+
+x = nil
+<!x!> = "wrong"
+]]
+
 TEST [[
 ---@type unknown
 local x

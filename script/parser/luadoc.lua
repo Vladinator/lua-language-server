@@ -72,7 +72,7 @@ EChar               <-  'a' -> ea
                     /   ([0-9] [0-9]? [0-9]?) -> Char10
                     /   ('u{' {X16*} '}')    -> CharUtf8
 Symbol              <-  ({} {
-                            [:|,;<>()?+#{}*=&]
+                            [:|,;<>()?+#{}*=&!]
                         /   '[]'
                         /   '...'
                         /   '['
@@ -1282,6 +1282,13 @@ function parseType(parent)
     if checkToken('symbol', '?', 1) then
         nextToken()
         result.optional = true
+    elseif checkToken('symbol', '!', 1) then
+        -- lateinit (`T!`, wowlua-ls interop): conceptually non-nil, but may be nil mid-lifecycle
+        -- (object pools, a separate `:Init()`). A core type-system marker, like `.optional` --
+        -- `need-check-nil`/`field-type-mismatch` read `.lateinit` to exempt it from their usual
+        -- nil-guard / nil-assignment checks (not owned by any `extra/` plugin).
+        nextToken()
+        result.lateinit = true
     end
     if keywordField then
         -- plugin-supplied field name, not known statically
@@ -1408,7 +1415,11 @@ local docSwitch = util.switch()
             end
             result.extends[#result.extends+1] = extend
             result.finish = getFinish()
-            if not checkToken('symbol', ',', 1) then
+            -- `&` is accepted as an alternate separator alongside `,` -- `@class X : A & B` reads
+            -- naturally when the parents are mixins, and both spellings already mean the same thing
+            -- here (multiple parents to inherit from), same as the general `A & B` intersection
+            -- type elsewhere just lists several types together.
+            if not checkToken('symbol', ',', 1) and not checkToken('symbol', '&', 1) then
                 break
             end
             nextToken()
@@ -1508,6 +1519,67 @@ local docSwitch = util.switch()
             type    = 'doc.return',
             returns = {},
         }
+        -- Labeled tuple shorthand: `---@return (A name, B name2)` is sugar for the equivalent
+        -- comma-separated `---@return A name` / `---@return B name2` lines below -- same AST, same
+        -- `result.returns` list, just written compactly in one pair of parens (wowlua-ls interop).
+        -- Tried speculatively (`try`, rolled back on failure) because a single parenthesized type
+        -- with no name, `---@return (SomeType)`, is already valid syntax elsewhere (an ordinary
+        -- grouped/cast type) and must keep parsing the normal way below.
+        if checkToken('symbol', '(', 1) then
+            try(function ()
+                local savePoint = Ci
+                nextToken()
+                ---@type parser.object[]
+                local tupleReturns = {}
+                while true do
+                    local docType = parseType(result)
+                    if not docType then
+                        Ci = savePoint
+                        return false
+                    end
+                    if checkToken('symbol', '?', 1) then
+                        nextToken()
+                        docType.optional = true
+                    end
+                    ---@diagnostic expect-next-line: assign-type-mismatch
+                    docType.name = parseName('doc.return.name', docType)
+                                or parseDots('doc.return.name', docType)
+                    if not docType.name then
+                        -- no label: not the tuple-shorthand shape (could be a plain grouped type,
+                        -- or a tuple-union case `(A, B) | (C, D)` -- neither is this feature)
+                        Ci = savePoint
+                        return false
+                    end
+                    tupleReturns[#tupleReturns+1] = docType
+                    if not checkToken('symbol', ',', 1) then
+                        break
+                    end
+                    nextToken()
+                end
+                if not checkToken('symbol', ')', 1) then
+                    Ci = savePoint
+                    return false
+                end
+                nextToken()
+                if checkToken('symbol', '|', 1) then
+                    -- a tuple-union case (`(A, B) | (C, D)`), not this shorthand -- not supported
+                    -- here, let the caller's own type parsing (or a future feature) handle it
+                    Ci = savePoint
+                    return false
+                end
+                result.start   = tupleReturns[1].start
+                result.returns = tupleReturns
+                result.finish  = getFinish()
+                return true
+            end)
+            -- `result.returns` is set to `{}` above, unconditionally, outside this closure; the
+            -- closure only ever reassigns it to a non-empty list on success, never clears it --
+            -- correlated invariant the checker can't see through a closure's own reassignment.
+            ---@diagnostic expect-next-line: need-check-nil
+            if #result.returns > 0 then
+                return result
+            end
+        end
         while true do
             local dots = parseDots('doc.return.name', result)
             if dots then

@@ -70,6 +70,7 @@ local type         = type
 ---@field state                 parser.state
 ---@field comment               string|parser.state.comm|parser.object -- a plain string on 'doc.resume' enum-default/additional nodes; otherwise an object carrying `.text` (a 'doc.tailcomment' node or the raw parser.state.comm)
 ---@field optional              boolean
+---@field lateinit              boolean -- `T!` (wowlua-ls interop): conceptually non-nil, may be nil mid-lifecycle; see cast-local-type.lua
 ---@field max                   parser.object
 ---@field init                  parser.object
 ---@field step                  parser.object

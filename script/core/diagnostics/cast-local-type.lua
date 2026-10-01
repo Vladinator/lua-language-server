@@ -48,8 +48,13 @@ return function (uri, callback)
                     refNode = refNode:copy():setTruthy()
                 end
 
+                -- lateinit (`T!`, wowlua-ls interop): conceptually non-nil, but may be nil
+                -- mid-lifecycle (object pools, a separate `:Init()`) -- a literal `nil` assignment
+                -- is allowed without the usual mismatch, the one exemption `.lateinit` grants.
+                local isLateinitNil = value.type == 'nil' and locNode:hasFlag('lateinit')
+
                 local errs = {}
-                if not vm.canCastType(uri, locNode, refNode, errs) then
+                if not isLateinitNil and not vm.canCastType(uri, locNode, refNode, errs) then
                     callback {
                         start   = ref.start,
                         finish  = ref.finish,

@@ -874,3 +874,56 @@ else
     S = p.b:len()
 end
 ]]
+
+-- a boolean local aliasing an `and`-chain whose operands are themselves plain narrowable refs (not
+-- just calls/comparisons) composes the same way the matching unaliased condition does: missing
+-- this made `isAliasableCond` bottom out at `false` for every operand down the chain, so the
+-- alias registered nothing at all (2026-10-01).
+TEST [[
+---@class Box
+---@field value string?
+---@field blocked boolean?
+
+---@return Box?
+local function getBox() return nil end
+
+local box = getBox()
+local isShown = box and (box.value and not box.blocked)
+if isShown then
+    S = box.value:len()
+end
+]]
+
+-- without the alias (the matching direct condition) already worked -- a negative control confirming
+-- the alias case above is testing the alias path specifically, not `and`-chain narrowing itself.
+TEST [[
+---@class Box2
+---@field value string?
+---@field blocked boolean?
+
+---@return Box2?
+local function getBox() return nil end
+
+local box = getBox()
+if box and (box.value and not box.blocked) then
+    S = box.value:len()
+end
+]]
+
+-- a bare single-ref alias (`local isShown = box`, no `and`/`or`/comparison wrapper at all) stays
+-- unsupported -- out of scope for this fix, and deliberately so (the function's own comment:
+-- registering every `local x = <anything>` would defeat `hasBoolCond`'s whole point). Confirms the
+-- fix above is scoped to and/or-chain operands, not a general "any alias of any ref" change.
+TEST [[
+---@class Box3
+---@field value string?
+
+---@return Box3?
+local function getBox() return nil end
+
+local box = getBox()
+local isShown = box
+if isShown then
+    S = <!box!>.value
+end
+]]

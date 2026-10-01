@@ -1092,12 +1092,21 @@ local function isAliasableCond(expr)
         return isAliasableCond(expr.exp)
     end
     if t == 'unary' then
-        return expr.op and expr.op.type == 'not' and isAliasableCond(expr[1]) or false
+        return expr.op and expr.op.type == 'not'
+            and (isAliasableCond(expr[1]) or refKey(expr[1]) ~= nil)
+            or false
     end
     if t == 'binary' and expr.op then
         local op = expr.op.type
         if op == 'and' or op == 'or' then
-            return isAliasableCond(expr[1]) or isAliasableCond(expr[2])
+            -- An operand that is itself a plain narrowable ref (`profile`, `profile.hasData`), not
+            -- just a call/comparison/nested and-or, is still something `evalCondition`'s own
+            -- `refKey(expr)` branch at the top of the function can narrow on its own -- missing this
+            -- made `local isShown = profile and (profile.hasData and not profile.blocked)` register
+            -- nothing at all, since every operand down the chain bottomed out at a bare ref and
+            -- returned false, even though the matching unaliased condition narrows fine (2026-10-01).
+            return isAliasableCond(expr[1]) or refKey(expr[1]) ~= nil
+                or isAliasableCond(expr[2]) or refKey(expr[2]) ~= nil
         end
         return op == '==' or op == '~='
     end

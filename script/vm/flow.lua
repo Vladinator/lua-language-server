@@ -2,6 +2,7 @@
 local vm      = require 'vm.vm'
 local guide   = require 'parser.guide'
 local docTags = require 'parser.docTags'
+local scope   = require 'workspace.scope'
 
 --- Phase 3 of the tracer redesign (see `TRACER-REDESIGN.md`): a real, reusable, multi-variable
 --- flow analysis built on `vm.buildCFG` (Phase 1) and `vm.runDataflow` (Phase 2). Still standalone:
@@ -86,11 +87,38 @@ local function isPathLike(key)
     return type(key) == 'string' or (type(key) == 'table' and key.type == 'global')
 end
 
+---@type fun(expr: parser.object?): string?
+local pathKey
+
+--- The base part of a path key -- everything before the trailing `type(name) .. tostring(name)`
+--- segment `pathKey` appends for its own field -- for `parent`, the base expression a field access
+--- is rooted on (a local, a plain global, or another field access). Factored out of `pathKey` so
+--- field-correlation's sibling keys (`---@correlated` on a `@class`, see `fieldSiblingKeys`) can
+--- build a key for a *different* field name on the same base without re-deriving this part.
+---@param parent parser.object?
+---@return string?
+local function baseKeyFor(parent)
+    if parent and (parent.type == 'getlocal' or parent.type == 'setlocal') then
+        if not parent.node then
+            return nil
+        end
+        return declKey(parent.node)
+    elseif parent and (parent.type == 'getglobal' or parent.type == 'setglobal') then
+        local globalVar = vm.getGlobalNode(parent)
+        if not globalVar then
+            return nil
+        end
+        return declKey(globalVar --[[@as parser.object]])
+    else
+        return pathKey(parent)
+    end
+end
+
 --- The path key of a field access rooted at a local or a plain global, or nil (a call, a dynamic
 --- key, or a field of something else this analysis does not root a path at).
 ---@param expr parser.object?
 ---@return string?
-local function pathKey(expr)
+function pathKey(expr)
     if not expr then
         return nil
     end
@@ -102,23 +130,7 @@ local function pathKey(expr)
     if name == nil then
         return nil
     end
-    local parent = expr.node
-    ---@type string?
-    local base
-    if parent and (parent.type == 'getlocal' or parent.type == 'setlocal') then
-        if not parent.node then
-            return nil
-        end
-        base = declKey(parent.node)
-    elseif parent and (parent.type == 'getglobal' or parent.type == 'setglobal') then
-        local globalVar = vm.getGlobalNode(parent)
-        if not globalVar then
-            return nil
-        end
-        base = declKey(globalVar --[[@as parser.object]])
-    else
-        base = pathKey(parent)
-    end
+    local base = baseKeyFor(expr.node)
     if not base then
         return nil
     end
@@ -383,6 +395,9 @@ local refKey
 --- own declaration, further down, where it sits next to `activeCasts`/`activeBoolCond`.
 ---@type table<vm.flow.key, vm.flow.key[]>
 local activeCorrelated = {}
+
+---@type table<parser.object, true>
+local hasBoolCond = setmetatable({}, { __mode = 'k' })
 
 --- The variables a `for` declares: `in` has a `list` of them, a numeric loop a single local.
 ---@param vars parser.object
@@ -721,21 +736,211 @@ local function isNilOnly(node)
     return true
 end
 
+--- One correlated sibling to propagate into: its flow key, and, for a field path only, the
+--- class's own `---@field` declaration (so an untouched sibling -- `state` has nothing for it yet,
+--- since a path is only present once something narrows or assigns it, unlike a local, always seeded
+--- -- can still be seeded from its declared type instead of being silently skipped). A local sibling
+--- needs no `static`: it is always already in `state`.
+---@class vm.flow.correlatedSibling
+---@field key    vm.flow.key
+---@field static parser.object? the sibling's own `doc.field` node, for a field path
+
+--- Whether *any* class visible from `suri` declares a `---@correlated` field group -- a cheap,
+--- cached, workspace-scoped yes/no (`assign-readonly.lua`'s `getReadonlyNames` pattern again) used
+--- to gate `hasBoolCond` for field correlation (see `vm.buildFlowBody`'s own call): a field's class
+--- is never known at the static per-function scan that marks `hasBoolCond` for the boolean-alias
+--- case, so field correlation cannot mark only the functions that need it the same precise way --
+--- but almost no workspace uses this tag at all, so this one question, asked once per scope and
+--- cached, is enough to keep every function's cost at the local-only case's for everyone else.
+---@param suri uri
+---@return boolean
+local function workspaceHasCorrelatedFields(suri)
+    local cache = vm.getCache('flow.anyCorrelatedFields') --[[@as table<string, boolean>]]
+    local scopeName = scope.getScope(suri):getName()
+    local found = cache[scopeName]
+    if found ~= nil then
+        return found
+    end
+    found = false
+    for _, doc in ipairs(vm.getDocSets(suri)) do
+        if doc.type == 'doc.class' and doc.bindDocs then
+            for _, bound in ipairs(doc.bindDocs) do
+                if bound.type == 'doc.correlated' then
+                    found = true
+                    break
+                end
+            end
+        end
+        if found then
+            break
+        end
+    end
+    cache[scopeName] = found
+    return found
+end
+
+--- `---@correlated f1, f2` declared on a `@class`, read off the class's own doc node: field names
+--- that are always nil/non-nil together, keyed by each name, to its sibling names and each field's
+--- own `doc.field` declaration (for seeding, see `vm.flow.correlatedSibling`). Unlike a local's
+--- group (`correlatedGroups`, one fixed declaration resolved once per function build), a class's
+--- fields are shared workspace-wide state, so this is a cache keyed by class name, not something
+--- built per function -- the same shape as `assign-readonly.lua`'s `getReadonlyNames`, one step
+--- coarser (by class, not by scope) since a field path's class isn't known until the narrowing call
+--- itself runs.
+---@class vm.flow.correlatedClassInfo
+---@field groups table<string, string[]> field name -> sibling names
+---@field fields table<string, parser.object> field name -> its own `doc.field` declaration
+
+---@param class vm.global
+---@param suri  uri
+---@return table<string, string[]> groups field name -> sibling names
+---@return table<string, parser.object> fields field name -> its own `doc.field` declaration
+local function getClassCorrelatedInfo(class, suri)
+    ---@type table<string, table<string, vm.flow.correlatedClassInfo>>
+    local cache = vm.getCache('flow.correlatedFields') --[[@as any]]
+    local scopeName = scope.getScope(suri):getName()
+    local scopeCache = cache[scopeName]
+    if not scopeCache then
+        scopeCache = {}
+        cache[scopeName] = scopeCache
+    end
+    local info = scopeCache[class.name]
+    if info then
+        return info.groups, info.fields
+    end
+    ---@type table<string, string[]>
+    local groups = {}
+    ---@type table<string, parser.object>
+    local fields = {}
+    for _, set in ipairs(class:getSets(suri)) do
+        if set.type == 'doc.class' then
+            for _, field in ipairs(set.fields) do
+                local fieldKey = guide.getKeyName(field)
+                if fieldKey ~= nil and fields[fieldKey] == nil then
+                    fields[fieldKey] = field
+                end
+            end
+            if set.bindDocs then
+                for _, doc in ipairs(set.bindDocs) do
+                    if doc.type == 'doc.correlated' and doc.names then
+                        ---@type string[]
+                        local names = {}
+                        for _, nameObj in ipairs(doc.names) do
+                            names[#names+1] = nameObj[1]
+                        end
+                        if #names > 1 then
+                            for i, name in ipairs(names) do
+                                local sibs = groups[name] or {}
+                                for j, other in ipairs(names) do
+                                    if j ~= i then
+                                        sibs[#sibs+1] = other
+                                    end
+                                end
+                                groups[name] = sibs
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    scopeCache[class.name] = { groups = groups, fields = fields }
+    return groups, fields
+end
+
+--- The correlated siblings of a field access `expr` (`t.f1`), via whatever class(es) `t`'s
+--- compiled type names -- the dynamic half of field correlation: the group itself
+--- (`getClassCorrelatedInfo`) is per-class and cached, but which class a given base expression is
+--- only known here, at narrowing time. Reads `t`'s node from the compiler's cache (`vm.getNode`,
+--- never forcing a compile) -- unlike `narrowRef`'s own `staticNodeOf(expr)` for the field path
+--- itself, this runs on *every* field narrow regardless of whether correlation is ever used, so it
+--- must never change compile order (confirmed the hard way: forcing `t`'s compile here shifted an
+--- unrelated diagnostic's result elsewhere in the same file, the compile-order landmine in
+--- AGENTS.md -- `t` not being compiled yet simply means "no answer from this analysis", same as an
+--- untracked path, not a reason to force one). Each sibling's own `doc.field` declaration *is* a
+--- safe forced compile, unlike `t`: it is shared class metadata, not a particular instance's live
+--- reference, so it does not shift *this* file's own compile order the way `t` would.
+---@param expr parser.object getfield/setfield/getindex/setindex
+---@return vm.flow.correlatedSibling[]?
+local function fieldSiblingKeys(expr)
+    local fieldName = guide.getKeyName(expr)
+    if type(fieldName) ~= 'string' then
+        return nil
+    end
+    local base = baseKeyFor(expr.node)
+    if not base then
+        return nil
+    end
+    local baseType = expr.node and vm.getNode(expr.node)
+    if not baseType then
+        return nil
+    end
+    local uri = guide.getUri(expr)
+    ---@type table<string, parser.object?>
+    local siblingNames
+    for opNode in baseType:eachObject() do
+        if opNode.type == 'global' and opNode.cate == 'type' then
+            local groups, fields = getClassCorrelatedInfo(opNode --[[@as vm.global]], uri)
+            local sibs = groups[fieldName]
+            if sibs then
+                siblingNames = siblingNames or {}
+                for _, name in ipairs(sibs) do
+                    siblingNames[name] = fields[name]
+                end
+            end
+        end
+    end
+    if not siblingNames then
+        return nil
+    end
+    ---@type vm.flow.correlatedSibling[]
+    local out = {}
+    for name, fieldDecl in pairs(siblingNames) do
+        out[#out+1] = { key = base .. SEP .. 'string' .. name, static = fieldDecl }
+    end
+    return out
+end
+
+--- The correlated siblings of `key` -- a local's declared group (`activeCorrelated`, resolved once
+--- per function), or, for a field path, the class-declared group its base expression's type names
+--- right now (`fieldSiblingKeys`). `expr` is only needed for the field case; a local's `key` is
+--- already its own lookup into `activeCorrelated`.
+---@param key  vm.flow.key
+---@param expr parser.object?
+---@return vm.flow.correlatedSibling[]?
+local function siblingsOf(key, expr)
+    local locals = activeCorrelated[key]
+    if locals then
+        ---@type vm.flow.correlatedSibling[]
+        local out = {}
+        for _, local_ in ipairs(locals) do
+            out[#out+1] = { key = local_ }
+        end
+        return out
+    end
+    if type(key) ~= 'string' or not expr then
+        return nil
+    end
+    return fieldSiblingKeys(expr)
+end
+
 --- `---@correlated` propagation: `key` just narrowed from `current` to `newNode` (by whatever
 --- transform the caller applied -- a truthy/falsy check, `== nil`, a guard, ...). If that changed
 --- `key`'s own nil-possibility, apply the same nil-dimension change to every sibling in its
 --- correlated group (if any) -- narrowing one narrows the others together, same as wowlua-ls's own
 --- semantics ("always nil or always non-nil together"). Only the nil dimension: a narrowing that
 --- picks a concrete non-nil type (`type(x)=='string'`) does not propagate anything beyond that, since
---- correlation makes no claim about *which* type a sibling holds, only whether it is nil.
+--- correlation makes no claim about *which* type a sibling holds, only whether it is nil. `expr` is
+--- the expression that was narrowed -- only used (and only needed) to resolve a field path's class
+--- at this point, see `siblingsOf`.
 ---@param state   vm.flow.state
 ---@param key     vm.flow.key
 ---@param current vm.node
 ---@param newNode vm.node
+---@param expr    parser.object?
 ---@return vm.flow.state
-local function propagateCorrelated(state, key, current, newNode)
-    local siblings = activeCorrelated[key]
-    if not siblings or not state then
+local function propagateCorrelated(state, key, current, newNode, expr)
+    if not state then
         return state
     end
     local wasOptional = current:isOptional() or isNilOnly(current)
@@ -744,21 +949,32 @@ local function propagateCorrelated(state, key, current, newNode)
     if not (wasOptional and (nowNilOnly or nowNonNil)) then
         return state
     end
+    local siblings = siblingsOf(key, expr)
+    if not siblings then
+        return state
+    end
     for _, sibling in ipairs(siblings) do
         if not state then
             return state
         end
+        local siblingKey = sibling.key
         ---@type vm.node?
-        local siblingCurrent = state[sibling]
+        local siblingCurrent = state[siblingKey]
         if siblingCurrent == IMPOSSIBLE then
             siblingCurrent = nil
+        end
+        if not siblingCurrent and sibling.static then
+            -- An untouched field path has no entry in `state` yet (unlike a local, not seeded) --
+            -- seed it from its own declared type so it can still be narrowed, same as a local
+            -- always can.
+            siblingCurrent = compileForFlow(sibling.static)
         end
         if siblingCurrent then
             if nowNilOnly then
                 local nilNode = vm.createNode(vm.declareGlobal('type', 'nil'))
-                state = narrowedState(state, sibling, siblingCurrent, nilNode)
+                state = narrowedState(state, siblingKey, siblingCurrent, nilNode)
             elseif nowNonNil and siblingCurrent:isOptional() then
-                state = narrowedState(state, sibling, siblingCurrent, siblingCurrent:copy():removeOptional())
+                state = narrowedState(state, siblingKey, siblingCurrent, siblingCurrent:copy():removeOptional())
             end
         end
     end
@@ -789,7 +1005,7 @@ local function narrowRef(state, expr, fn)
     end
     local newNode = fn(current)
     local narrowed = narrowedState(state, key, current, newNode)
-    return propagateCorrelated(narrowed, key, current, newNode)
+    return propagateCorrelated(narrowed, key, current, newNode, expr)
 end
 
 ---@param a vm.flow.state
@@ -826,6 +1042,11 @@ docTags.registerNameListTag('correlated', 'doc.correlated',
     'Fields or locals that are always nil/non-nil together: narrowing one narrows every sibling '
     .. 'the same way. On a `---@class` (`---@correlated f1, f2`), names its fields; as a statement '
     .. 'inside a function (between the declarations and the code that uses them), names locals.')
+-- On a `@class`, `---@correlated` binds to the class itself (`class.bindDocs`, read by
+-- `getClassCorrelatedGroups`) the same way `---@secret` does, and may sit anywhere in the comment
+-- group without ending it (same allowance as `doc.field`/`doc.operator`).
+docTags.registerClassGroupDoc('doc.correlated')
+docTags.registerContinuesAfterClassGroup('doc.correlated')
 
 --- `state` with the casts written right before `operand` applied.
 ---@param state   vm.flow.state
@@ -1151,9 +1372,6 @@ local building = setmetatable({}, { __mode = 'k' })
 local pendingRebuild = setmetatable({}, { __mode = 'k' })
 
 ---@type table<parser.object, true>
-local hasBoolCond = setmetatable({}, { __mode = 'k' })
-
----@type table<parser.object, true>
 local failed = setmetatable({}, { __mode = 'k' })
 local prebuilding = false
 
@@ -1341,6 +1559,15 @@ end
 ---@return vm.flow
 function vm.buildFlowBody(main)
     local cfg = vm.buildCFG(main)
+
+    if workspaceHasCorrelatedFields(guide.getUri(main)) then
+        -- Field correlation's class is only known at narrowing time, not at this static scan (see
+        -- `boolCondExpr`'s own loop below, which marks `hasBoolCond` for the one case it can see
+        -- up front) -- so every function is marked here instead, once this workspace is confirmed
+        -- to use the tag on a class at all (`workspaceHasCorrelatedFields`, cheap and cached: most
+        -- workspaces never do, and pay nothing).
+        hasBoolCond[main] = true
+    end
 
     ---@type table<parser.object, vm.cfg.block>
     local stmtBlock = {}

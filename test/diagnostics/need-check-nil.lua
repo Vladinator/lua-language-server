@@ -824,3 +824,53 @@ else
     S = money + 1
 end
 ]]
+
+-- `---@correlated` on a `@class`'s own fields (TODO.md's field half of this): a field's base
+-- object is only known at narrowing time, unlike a local's fixed declaration, so the class/field
+-- lookup (`getClassCorrelatedInfo`/`fieldSiblingKeys`) has to run dynamically, from inside
+-- `narrowRef`'s own propagation, not from the static per-function scan the local case uses.
+TEST [[
+---@class Pair
+---@field a string?
+---@field b string?
+---@correlated a, b
+
+---@type Pair
+local p = {}
+
+if p.a then
+    S = p.b:len()
+end
+]]
+
+-- without the `---@correlated` tag, the same shape is correctly still flagged.
+TEST [[
+---@class Pair2
+---@field a string?
+---@field b string?
+
+---@type Pair2
+local p = {}
+
+if p.a then
+    S = <!p.b!>:len()
+end
+]]
+
+-- the `nil` edge correlates too, same as the local case: once `p.a` is known nil, `p.b` is known
+-- nil as well (reading it is fine), but a non-nil-checkable use of it stays flagged.
+TEST [[
+---@class Pair3
+---@field a string?
+---@field b string?
+---@correlated a, b
+
+---@type Pair3
+local p = {}
+
+if not p.a then
+    S = p.b
+else
+    S = p.b:len()
+end
+]]

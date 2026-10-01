@@ -521,6 +521,38 @@ function Widget:Dispatch(method)
 end
 ]]
 
+-- `returns<F>` (wowlua-ls interop): `F`'s own return type, read from inside a wrapper's signature.
+TEST 'boolean' [[
+---@generic F
+---@param func F
+---@return returns<F>
+local function callIt(func)
+    return func()
+end
+
+---@return boolean
+local function original() return true end
+
+local <?r?> = callIt(original)
+]]
+
+-- `returns<F>` inside an inline `fun()` return type, not just a bare `@return`.
+TEST 'boolean' [[
+---@generic F
+---@param func F
+---@return fun(key: string): returns<F>
+local function wrapKeyed(func)
+    return function(key) return func(key) end
+end
+
+---@param a number
+---@return boolean
+local function original(a) return true end
+
+local wrapped = wrapKeyed(original)
+local <?r?> = wrapped("x")
+]]
+
 -- `T[K]` (TypeScript parity): a literal key reads that field's type directly.
 TEST 'number' [[
 ---@class IndexedCommon.Point

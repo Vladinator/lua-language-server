@@ -134,6 +134,11 @@ return function (uri, callback)
         if vm.isUtilityTypeName(name) then
             return
         end
+        -- `returns<F>` (wowlua-ls interop): recognized by name on ordinary generic-instantiation
+        -- syntax, same as the utility types above -- not a real class either.
+        if name == 'returns' then
+            return
+        end
         if isClassGenericParam(source, name, uri) then
             return
         end

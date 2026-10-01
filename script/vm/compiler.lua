@@ -987,6 +987,49 @@ local function resolveUtilityType(uri, source)
     return true
 end
 
+--- `returns<F>` (wowlua-ls interop): `F`'s own return type, read from inside another function's
+--- signature (a generic bound to a `fun(...)`-shaped value, usually from an earlier `@param`).
+--- Parsed as ordinary `doc.type.sign` generic-instantiation syntax, same as the utility types
+--- above -- no new grammar. Only the first return position (wowlua-ls's own examples are all
+--- single-return); a multi-return `F` would need a design decision this fork hasn't been asked to
+--- make yet.
+---@param uri    uri
+---@param source parser.object a `doc.type.sign` whose name is `returns`
+---@return boolean handled
+local function resolveReturnsProjection(uri, source)
+    if source.node[1] ~= 'returns' then
+        return false
+    end
+    local signs = source.signs or {}
+    local fSign = signs[1]
+    if not fSign then
+        vm.setNode(source, vm.declareGlobal('type', 'unknown'))
+        return true
+    end
+    -- Deferred exactly like `doc.type.conditional`: `F` may still be an unresolved generic the
+    -- first time this compiles (before any call site binds it) -- stay self-referential until a
+    -- real call substitutes a concrete `F` in and recompiles this same clone.
+    if hasUnresolvedGeneric(fSign) then
+        vm.setNode(source, source)
+        return true
+    end
+    local fNode = vm.compileNode(fSign)
+    ---@type vm.node?
+    local resultNode
+    for obj in fNode:eachObject() do
+        if obj.type == 'function' or obj.type == 'doc.type.function' then
+            ---@cast obj parser.object
+            local rtn = vm.getReturnOfFunction(obj, 1)
+            if rtn then
+                local rtnNode = vm.compileNode(rtn)
+                resultNode = resultNode and resultNode:copy():merge(rtnNode) or rtnNode:copy()
+            end
+        end
+    end
+    vm.setNode(source, resultNode or vm.declareGlobal('type', 'unknown'))
+    return true
+end
+
 ---@param func  parser.object
 ---@param index integer
 ---@return (parser.object|vm.generic)?
@@ -3034,6 +3077,9 @@ local compilerSwitch = util.switch()
     : call(function (source)
         local uri = guide.getUri(source)
         if source.node[1] and resolveUtilityType(uri, source) then
+            return
+        end
+        if source.node[1] and resolveReturnsProjection(uri, source) then
             return
         end
         vm.setNode(source, source)

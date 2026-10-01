@@ -847,12 +847,25 @@ end
 --- remembering for `if theLocal then` to alias (see `boolCondExpr`, `hasBoolCond`): registering
 --- every `local x = <anything>` would defeat the point of `hasBoolCond`, which exists to keep the
 --- reentrant-read protection in `vm.traceNodeByFlow` off functions that do not need it.
+--- `local x = f()` wraps a single-value call RHS in a `select` node (parser/compile.lua), even
+--- though there is no multi-value context here. Unwrap it so a guard call's own shape (`call`)
+--- is what the condition logic below actually sees, same as it would in `if f() then`.
+---@param expr parser.object
+---@return parser.object
+local function unwrapSelectCall(expr)
+    if expr.type == 'select' and expr.vararg then
+        return expr.vararg
+    end
+    return expr
+end
+
 ---@param expr parser.object?
 ---@return boolean
 local function isAliasableCond(expr)
     if not expr then
         return false
     end
+    expr = unwrapSelectCall(expr)
     local t = expr.type
     if t == 'paren' then
         return isAliasableCond(expr.exp)
@@ -1515,9 +1528,10 @@ function vm.buildFlowBody(main)
                 -- evalCondition); restricted to a shape `evalCondition` actually narrows (not every
                 -- `local x = <anything>`) so `hasBoolCond` below stays true only for the functions
                 -- that need the reentrant-read protection it gates, in `vm.traceNodeByFlow`.
-                boolCondExpr[stmt] = stmt.value
+                local value = unwrapSelectCall(stmt.value)
+                boolCondExpr[stmt] = value
                 hasBoolCond[main] = true
-                noteCondition(stmt.value)
+                noteCondition(value)
             end
         end
     end

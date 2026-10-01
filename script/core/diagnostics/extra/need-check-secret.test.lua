@@ -546,6 +546,86 @@ local x = f()
 print(<!x!>:len())
 ]]
 
+-- a boolean local holding a guard call's own result (`local isSecretVal = issecretvalue(x)`)
+-- narrows the same way the guard call would narrow directly as the condition -- `false` = safe,
+-- not negated (flow.lua's `local x = f()` wraps a single-value call RHS in a `select` node;
+-- the alias-registration scan missed it, so nothing composed, 2026-10-01)
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-check
+---@param v any
+---@return boolean
+local function chk(v) return false end
+
+local x = f()
+local isSecretVal = chk(x)
+if isSecretVal then
+    print(<!x!> + 5)
+else
+    print(x + 5)
+end
+]]
+
+-- same shape, negated (the originally reported gap)
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-check
+---@param v any
+---@return boolean
+local function chk(v) return false end
+
+local x = f()
+local isSecretVal = chk(x)
+if not isSecretVal then
+    print(x + 5)
+end
+]]
+
+-- same alias composition, `---@secret-access-check` polarity (`true` = safe)
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-access-check
+---@param v any
+---@return boolean
+local function ok(v) return false end
+
+local x = f()
+local canAccess = ok(x)
+if canAccess then
+    print(x + 5)
+else
+    print(<!x!> + 5)
+end
+]]
+
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-access-check
+---@param v any
+---@return boolean
+local function ok(v) return false end
+
+local x = f()
+local canAccess = ok(x)
+if not canAccess then
+    print(<!x!> + 5)
+else
+    print(x + 5)
+end
+]]
+
 -- a class that is called `secret` still works as a plain type name
 TEST [[
 ---@class secret

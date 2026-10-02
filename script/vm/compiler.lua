@@ -833,6 +833,35 @@ function vm.isUtilityTypeName(name)
 end
 
 --- Whether `node` is, or anywhere contains, a generic name not yet bound to a concrete type --
+--- The literal a key operand stands for (`keyof`, `T[K]`, `Pick`, `Record`): a literal annotation
+--- (`'x'`, `1`, `true`) or, when the key came from a generic bound by a call argument, the literal
+--- value that argument had -- `get(pt, 'x')` binds `K` to the string literal `'x'` (a parser node,
+--- not an annotation), which is as good a key as `---@param k 'x'` is.
+---@param obj vm.node.object
+---@return string|integer|boolean?
+local function literalKeyOf(obj)
+    local t = obj.type
+    if t == 'doc.type.string' or t == 'doc.type.integer' or t == 'doc.type.boolean'
+    or t == 'string' or t == 'integer' or t == 'boolean' then
+        return obj[1] --[[@as string|integer|boolean]]
+    end
+    return nil
+end
+
+--- `literalKeyOf` limited to what can name a field: a string or an integer.
+---@param obj vm.node.object
+---@return string|integer?
+local function fieldKeyOf(obj)
+    local key = literalKeyOf(obj)
+    if type(key) == 'string' then
+        return key
+    end
+    if math.type(key) == 'integer' then
+        return key --[[@as integer]]
+    end
+    return nil
+end
+
 --- `doc.type.conditional`'s own deferral check (see that case's comment for why). `nil` (no
 --- operand at all, a parse failure already warned about elsewhere) is not unresolved -- there is
 --- nothing to wait for.
@@ -930,8 +959,8 @@ local function resolveUtilityType(uri, source)
             ---@type table<string|integer, true>
             local seen = {}
             for kn in keyNode:eachObject() do
-                if kn.type == 'doc.type.string' or kn.type == 'doc.type.integer' then
-                    local key = kn[1] --[[@as string|integer]]
+                local key = fieldKeyOf(kn)
+                if key ~= nil then
                     if not seen[key] then
                         seen[key] = true
                         fields[#fields+1] = buildUtilityField(tableObj, key, valueNode)
@@ -956,8 +985,9 @@ local function resolveUtilityType(uri, source)
         local keyNode = signs[2] and vm.compileNode(signs[2])
         if keyNode then
             for kn in keyNode:eachObject() do
-                if kn.type == 'doc.type.string' or kn.type == 'doc.type.integer' then
-                    keyFilter[kn[1] --[[@as string|integer]]] = true
+                local key = fieldKeyOf(kn)
+                if key ~= nil then
+                    keyFilter[key] = true
                 end
             end
         end
@@ -2968,13 +2998,7 @@ local compilerSwitch = util.switch()
             if opNode.type == 'global' and opNode.cate == 'type' then
                 ---@cast opNode vm.global
                 for kn in keyNode:eachObject() do
-                    ---@type string|number|boolean?
-                    local literalKey
-                    if kn.type == 'doc.type.string'
-                    or kn.type == 'doc.type.integer'
-                    or kn.type == 'doc.type.boolean' then
-                        literalKey = kn[1]
-                    end
+                    local literalKey = literalKeyOf(kn)
                     if literalKey ~= nil then
                         vm.getClassFields(uri, opNode, literalKey, function (field)
                             if field.type == 'generic' then

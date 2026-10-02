@@ -1006,6 +1006,114 @@ local pt
 local <?y?> = both(pt)
 ]]
 
+-- a key that is a generic bound by a literal argument (`get(pt, 'x')` binds `K` to the string
+-- literal): `T[K]`, `Pick`, `Omit` and `Record` read it as the key it is, per call
+TEST 'number' [[
+---@class GenKey.Point
+---@field x number
+---@field y string
+
+---@generic T, K: keyof T
+---@param v T
+---@param k K
+---@return T[K]
+local function get(v, k) end
+
+---@type GenKey.Point
+local pt
+local <?y?> = get(pt, 'x')
+]]
+
+TEST 'string' [[
+---@class GenKey.Point2
+---@field x number
+---@field y string
+
+---@generic T, K: keyof T
+---@param v T
+---@param k K
+---@return T[K]
+local function get(v, k) end
+
+---@type GenKey.Point2
+local pt
+local <?y?> = get(pt, 'y')
+]]
+
+-- no such field, or a key that is not a literal: nothing to read
+TEST 'unknown' [[
+---@class GenKey.Point3
+---@field x number
+
+---@generic T, K: keyof T
+---@param v T
+---@param k K
+---@return T[K]
+local function get(v, k) end
+
+---@type GenKey.Point3
+local pt
+local <?y?> = get(pt, 'nope')
+]]
+
+TEST 'unknown' [[
+---@class GenKey.Point4
+---@field x number
+
+---@generic T, K: keyof T
+---@param v T
+---@param k K
+---@return T[K]
+local function get(v, k) end
+
+---@type GenKey.Point4
+local pt
+---@type string
+local dyn
+local <?y?> = get(pt, dyn)
+]]
+
+TEST '{ y: string }' [[
+---@class GenKey.Point5
+---@field x number
+---@field y string
+
+---@generic T, K: keyof T
+---@param v T
+---@param k K
+---@return Pick<T, K>
+local function pick(v, k) end
+
+---@type GenKey.Point5
+local pt
+local <?y?> = pick(pt, 'y')
+]]
+
+TEST '{ x: number }' [[
+---@class GenKey.Point6
+---@field x number
+---@field y string
+
+---@generic T, K: keyof T
+---@param v T
+---@param k K
+---@return Omit<T, K>
+local function omit(v, k) end
+
+---@type GenKey.Point6
+local pt
+local <?y?> = omit(pt, 'y')
+]]
+
+TEST '{ a: number }' [[
+---@generic K
+---@param k K
+---@return Record<K, number>
+local function rec(k) end
+
+local <?y?> = rec('a')
+]]
+
 -- conditional types, edges: the check is not distributive (a union is checked as a whole), `nil` and
 -- an optional only match when the target allows nil, a literal matches its base type, a subclass
 -- matches its parent but not the other way round, and a conditional can nest in a branch.

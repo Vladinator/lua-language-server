@@ -570,6 +570,21 @@ local function f() return nil, nil end
 local a, <?b?> = f()
 ]]
 
+-- a slot that is `nil` in every case is just `nil` (not an empty or unknown type)
+TEST 'nil' [[
+---@return (nil, string) | (nil, number)
+local function f() return nil, "x" end
+
+local <?a?>, b = f()
+]]
+
+TEST 'string|number' [[
+---@return (nil, string) | (nil, number)
+local function f() return nil, "x" end
+
+local a, <?b?> = f()
+]]
+
 -- case elimination: narrowing one slot's *type* narrows the others to what the surviving cases say
 TEST 'number' [[
 ---@return (string, number) | (boolean, nil)

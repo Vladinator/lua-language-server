@@ -1213,3 +1213,50 @@ else
     S = b + 1
 end
 ]]
+
+-- case elimination on a boolean-literal discriminant: `true` and `false` are different cases (the
+-- `true` / `false` slot used to count as overlapping each other, so nothing was eliminated)
+TEST [[
+---@return (true, string) | (false, nil)
+local function f(c) end
+
+local ok, v = f(true)
+if ok then
+    S = v:len()
+end
+if not ok then
+    S = v
+end
+S = <!v!>:len()
+]]
+
+TEST [[
+---@return (true, string) | (false, nil)
+local function f(c) end
+
+local ok, v = f(true)
+if not ok then
+    return
+end
+S = v:len()
+]]
+
+-- ... when both cases carry a value, nothing needs narrowing; plain `boolean` overlaps both literals
+TEST [[
+---@return (true, string) | (false, string)
+local function f(c) end
+
+local ok, v = f(true)
+S = v:len()
+]]
+
+TEST [[
+---@return (boolean, string) | (nil, nil)
+local function f(c) end
+
+local ok, v = f(true)
+if ok then
+    S = v:len()
+end
+S = <!v!>:len()
+]]

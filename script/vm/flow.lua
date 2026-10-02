@@ -1249,6 +1249,12 @@ local function overlapName(obj)
     elseif t == 'number' then
         return 'number'
     elseif t == 'doc.type.boolean' or t == 'boolean' then
+        -- a literal `true` / `false` only overlaps itself (and plain `boolean`)
+        if obj[1] == true then
+            return 'true'
+        elseif obj[1] == false then
+            return 'false'
+        end
         return 'boolean'
     end
     return nil
@@ -1267,8 +1273,9 @@ local function namesOverlap(a, b, uri)
         return true
     end
     local function boolish(n) return n == 'boolean' or n == 'true' or n == 'false' end
-    if boolish(a) and boolish(b) and (a == 'boolean' or b == 'boolean') then
-        return true
+    if boolish(a) and boolish(b) then
+        -- `true` and `false` are distinct literals; plain `boolean` overlaps both
+        return a == 'boolean' or b == 'boolean' or a == b
     end
     return vm.isSubType(uri, a, b) == true or vm.isSubType(uri, b, a) == true
 end

@@ -186,3 +186,102 @@ do
     assert(next(kindsOf('zzqqxxnomatch')) == nil, 'no match, no result')
     files.remove(TESTURI)
 end
+
+-- prepare-rename: what the editor may offer to rename (and the text it shows in the box)
+local rename = require 'core.rename'
+
+---@param script string
+---@return { start: integer, finish: integer, text: string|integer }?
+local function prepareAt(script)
+    local text, catched = catch(script, '?')
+    files.remove(TESTURI)
+    files.setText(TESTURI, text)
+    files.compileState(TESTURI)
+    local result = rename.prepareRename(TESTURI, catched['?'][1][1])
+    files.remove(TESTURI)
+    return result
+end
+
+do
+    ---@type [string, string][] script, text shown
+    local renameable = {
+        { 'local <?abc?> = 1\nprint(abc)\n',                   'abc' },
+        { 'local t = {}\nt.<?field?> = 1\n',                   'field' },
+        { '<?Glob?> = 1\n',                                    'Glob' },
+        { 'local function <?fn?>() end\n',                     'fn' },
+        { '---@class <?Cls?>\nlocal C = {}\n',                 'Cls' },
+        { '---@param <?p?> number\nlocal function f(p) end\n', 'p' },
+        { 'local t = {}\nfunction t:<?meth?>() end\n',         'meth' },
+        { 'goto <?lbl?>\n::lbl::\n',                           'lbl' },
+        { "local t = {}\nt[<?'key'?>] = 1\n",                  'key' },
+    }
+    for _, case in ipairs(renameable) do
+        local result = prepareAt(case[1])
+        assert(result and result.text == case[2], case[1])
+    end
+    local result = assert(prepareAt('local <?abc?> = 1\nprint(abc)\n'))
+    assert(result.finish - result.start == 3, 'the range is the name')
+
+    ---@type string[]
+    local notRenameable = {
+        'local x = <?123?>\n',          -- a number
+        '<?local?> x = 1\n',            -- a keyword
+        'local x = 1 --[[<?note?>]]\n', -- a comment
+        "local s = '<?text?>'\n",       -- a plain string value
+    }
+    for _, script in ipairs(notRenameable) do
+        assert(prepareAt(script) == nil, script)
+    end
+end
+
+-- keyword snippets: typing the start of a block keyword offers the whole block as a snippet
+local completion = require 'core.completion'
+
+---@param script string with one `<?` `?>` cursor
+---@return table<string, string> label -> insertText of every snippet offered
+local function snippetsAt(script)
+    local text, catched = catch(script, '?')
+    files.remove(TESTURI)
+    files.setText(TESTURI, text)
+    local items = completion.completion(TESTURI, catched['?'][1][2], nil) or {}
+    files.remove(TESTURI)
+    ---@type table<string, string>
+    local snippets = {}
+    for _, item in ipairs(items) do
+        if item.kind == define.CompletionItemKind.Snippet then
+            snippets[item.label] = tostring(item.insertText)
+        end
+    end
+    return snippets
+end
+
+do
+    local lf = string.char(10)
+    local tab = string.char(9)
+    ---@type [string, string, string?][] script, label, insertText (nil: only the label is checked)
+    local expected = {
+        { 'fo<??>',   'for .. ipairs', 'for ${1:index}, ${2:value} in ipairs(${3:t}) do' .. lf .. tab .. '$0' .. lf .. 'end' },
+        { 'fo<??>',   'for .. pairs',  'for ${1:key}, ${2:value} in pairs(${3:t}) do' .. lf .. tab .. '$0' .. lf .. 'end' },
+        { 'fo<??>',   'for i = ..' },
+        { 'whi<??>',  'while .. do',   'while ${1:true} do' .. lf .. tab .. '$0' .. lf .. 'end' },
+        { 'repea<??>', 'repeat .. until', 'repeat' .. lf .. tab .. '$0' .. lf .. 'until $1' },
+        { 'func<??>', 'function ()',   'function $1($2)' .. lf .. tab .. '$0' .. lf .. 'end' },
+        { 'if<??>',   'if .. then',    'if $1 then' .. lf .. tab .. '$0' .. lf .. 'end' },
+        { 'do<??>',   'do .. end',     'do' .. lf .. tab .. '$0' .. lf .. 'end' },
+        { 'elsei<??>', 'elseif .. then' },
+        { 'x = 1 th<??>', 'then .. end', 'then' .. lf .. tab .. '$0' .. lf .. 'end' },
+        { 'if x then ret<??>', 'do return end' },
+        { 'while true do' .. lf .. '  con<??>' .. lf .. 'end', 'goto continue ..' },
+    }
+    for _, case in ipairs(expected) do
+        local snippets = snippetsAt(case[1])
+        assert(snippets[case[2]], ('%q should offer %q, got %s'):format(case[1], case[2], next(snippets) or 'nothing'))
+        if case[3] then
+            assert(snippets[case[2]] == case[3], ('%q: %q'):format(case[1], snippets[case[2]]))
+        end
+    end
+
+    -- nothing is offered inside a word that is no keyword's start, and `continue` needs a loop
+    assert(next(snippetsAt('zzz<??>')) == nil)
+    assert(snippetsAt('local x = 1' .. lf .. 'con<??>')['goto continue ..'] == nil, 'no loop, no continue')
+end

@@ -1183,3 +1183,33 @@ for i = 1, 3 do
     end
 end
 ]]
+
+-- tuple-union negatives: with no check on either slot nothing is narrowed, and a check on one slot
+-- of an anti-correlated pair narrows its sibling to the other case only (`b` is nil when `a` is set)
+TEST [[
+---@return (string, nil) | (nil, number)
+local function f(cond)
+    if cond then return 'a', nil end
+    return nil, 3
+end
+
+local a, b = f(true)
+S = <!a!>:len()
+S = <!b!> + 1
+]]
+
+TEST [[
+---@return (string, nil) | (nil, number)
+local function f(cond)
+    if cond then return 'a', nil end
+    return nil, 3
+end
+
+local a, b = f(true)
+if a then
+    S = a:len()
+    S = <!b!> + 1
+else
+    S = b + 1
+end
+]]

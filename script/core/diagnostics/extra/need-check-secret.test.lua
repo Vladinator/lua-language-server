@@ -754,6 +754,35 @@ do
     assert(viewOf('---@type string[]\nlocal arr\n', 'arr') == 'string[]')
     assert(viewOf('---@type (string|number)[]\nlocal arr\n', 'arr') == '(string|number)[]')
 
+    -- the flag a generic call hands back must not depend on which node is compiled first
+    do
+        local script = table.concat({
+            '---@secret', '---@return string', 'local function getSecret() return "" end',
+            'local s = getSecret()',
+            '---@generic T', '---@param v T', '---@return T', 'local function id(v) return v end',
+            'local t = id(s)', 'local u = id("plain")', '',
+        }, string.char(10))
+        for _, order in ipairs { { 'call', 'local' }, { 'local', 'call' }, { 'arg', 'local' } } do
+            files.setText(TESTURI, script)
+            local state = assert(files.getState(TESTURI))
+            ---@type table<string, parser.object>
+            local picked = {}
+            guide.eachSource(state.ast, function (src)
+                if src.type == 'call' and src.node and src.node[1] == 'id' and not picked.call then
+                    picked.call = src
+                    picked.arg  = src.args and src.args[1]
+                elseif src.type == 'local' and src[1] == 't' then
+                    picked['local'] = src
+                end
+            end)
+            for _, which in ipairs(order) do
+                vm.compileNode(picked[which])
+            end
+            assert(vm.compileNode(picked['local']):hasFlag('secret'), 'secret through id(): ' .. table.concat(order, ','))
+            files.remove(TESTURI)
+        end
+    end
+
     -- colours: the tag word is a documentation keyword like every other tag
     files.setText(TESTURI, '---@secret\nlocal a\n---@secret-unwrap a\nlocal b\n')
     local data = semantic(TESTURI, 0, math.huge) --[[@as integer[] ]]

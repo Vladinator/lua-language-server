@@ -859,6 +859,103 @@ local function classify(v) end
 local <?y?> = classify({x = 1} --[[@as CondCommon.Point2]])
 ]==]
 
+-- conditional types, edges: the check is not distributive (a union is checked as a whole), `nil` and
+-- an optional only match when the target allows nil, a literal matches its base type, a subclass
+-- matches its parent but not the other way round, and a conditional can nest in a branch.
+TEST '"no"' [[
+---@type (string|number extends string ? "yes" : "no")
+local <?y?>
+]]
+
+TEST '"no"' [[
+---@type (nil extends string ? "yes" : "no")
+local <?y?>
+]]
+
+TEST '"no"' [[
+---@type (string? extends string ? "yes" : "no")
+local <?y?>
+]]
+
+TEST '"yes"' [[
+---@type ("a" extends string ? "yes" : "no")
+local <?y?>
+]]
+
+TEST '"yes"' [[
+---@class CondEdge.Base
+---@class CondEdge.Derived: CondEdge.Base
+
+---@type (CondEdge.Derived extends CondEdge.Base ? "yes" : "no")
+local <?y?>
+]]
+
+TEST '"no"' [[
+---@class CondEdge.Base2
+---@class CondEdge.Derived2: CondEdge.Base2
+
+---@type (CondEdge.Base2 extends CondEdge.Derived2 ? "yes" : "no")
+local <?y?>
+]]
+
+TEST '"n"' [[
+---@type (integer extends string ? "s" : (integer extends number ? "n" : "other"))
+local <?y?>
+]]
+
+-- `returns<F>` edges: a function with no return gives nil, only the first return counts, an
+-- optional return stays optional, a non-function gives unknown, a typed `fun()` works like a real one.
+TEST 'nil' [[
+---@generic F
+---@param f F
+---@return returns<F>
+local function ret(f) end
+
+local function none() end
+local <?y?> = ret(none)
+]]
+
+TEST 'integer' [[
+---@generic F
+---@param f F
+---@return returns<F>
+local function ret(f) end
+
+local function two() return 1, 'a' end
+local <?y?> = ret(two)
+]]
+
+TEST 'string?' [[
+---@generic F
+---@param f F
+---@return returns<F>
+local function ret(f) end
+
+---@return string?
+local function opt() return nil end
+local <?y?> = ret(opt)
+]]
+
+TEST 'unknown' [[
+---@generic F
+---@param f F
+---@return returns<F>
+local function ret(f) end
+
+local <?y?> = ret(1)
+]]
+
+TEST 'number' [[
+---@generic F
+---@param f F
+---@return returns<F>
+local function ret(f) end
+
+---@type fun(): (number, string)
+local ft
+local <?y?> = ret(ft)
+]]
+
 TEST 'unknown' [[
 local a, b
 function a()

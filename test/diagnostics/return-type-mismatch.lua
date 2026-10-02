@@ -165,3 +165,19 @@ local function f()
     return <!true!>
 end
 ]]
+
+-- tuple-union returns: each returned value is still checked against its slot's union
+TEST [[
+---@return (string, nil) | (nil, number)
+local function f()
+    return <!1!>, 2
+end
+]]
+
+TEST [[
+---@return (string, nil) | (nil, number)
+local function f(cond)
+    if cond then return 'a', nil end
+    return nil, 3
+end
+]]

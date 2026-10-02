@@ -118,3 +118,71 @@ do
     local values = colorsOf('local a = "#336699"\n')
     assert(color.colorToText(values[1].color) == 'FF336699', color.colorToText(values[1].color))
 end
+
+-- go to type definition: from a type name, or from a value of that type, to the class declaration
+local catch          = require 'catch'
+local typeDefinition = require 'core.type-definition'
+
+--- The start positions of every result of "go to type definition" at the `<?` `?>` of `script`.
+---@param script string
+---@return integer[]
+local function typeDefsAt(script)
+    local text, catched = catch(script, '?')
+    files.remove(TESTURI)
+    files.setText(TESTURI, text)
+    files.compileState(TESTURI)
+    local results = typeDefinition(TESTURI, catched['?'][1][1]) or {}
+    ---@type integer[]
+    local starts = {}
+    for _, result in ipairs(results) do
+        starts[#starts+1] = result.target.start
+    end
+    files.remove(TESTURI)
+    return starts
+end
+
+local classDeclPos = 10 -- row 0, after `---@class `
+
+do
+    -- on the type name in an annotation
+    local at = typeDefsAt('---@class TdFoo\nlocal TdFoo = {}\n---@type <?TdFoo?>\nlocal inst = {}\n')
+    assert(#at == 1 and at[1] == classDeclPos, table.concat(at, ','))
+    -- on a local declared with that type
+    at = typeDefsAt('---@class TdFoo\nlocal TdFoo = {}\n---@type TdFoo\nlocal inst = {}\nprint(<?inst?>)\n')
+    assert(#at == 1 and at[1] == classDeclPos, table.concat(at, ','))
+    -- on a parameter
+    at = typeDefsAt('---@class TdFoo\nlocal TdFoo = {}\n---@param p TdFoo\nlocal function f(p) return <?p?> end\n')
+    assert(#at == 1 and at[1] == classDeclPos, table.concat(at, ','))
+    -- on a field read whose declared type is the class
+    at = typeDefsAt('---@class TdFoo\n---@field child TdFoo\nlocal TdFoo = {}\n---@type TdFoo\nlocal a\nprint(a.<?child?>)\n')
+    assert(#at == 1 and at[1] == classDeclPos, table.concat(at, ','))
+    -- a plain string value has no class declaration in the workspace to go to
+    at = typeDefsAt("local s = 'x'\nprint(<?s?>)\n")
+    assert(#at == 0, table.concat(at, ','))
+end
+
+-- workspace symbols: classes, aliases and globals are found by name (fuzzy), nothing for a miss
+local workspaceSymbol = require 'core.workspace-symbol'
+local define          = require 'proto.define'
+
+do
+    files.remove(TESTURI)
+    files.setText(TESTURI, '---@class WsClassX\nlocal C = {}\n---@alias WsAliasX string\nWsGlobalX = 1\n')
+    files.compileState(TESTURI)
+    ---@param query string
+    ---@return table<string, integer> name -> symbol kind
+    local function kindsOf(query)
+        ---@type table<string, integer>
+        local kinds = {}
+        for _, result in ipairs(workspaceSymbol(query, TESTURI)) do
+            kinds[tostring(result.name)] = result.skind
+        end
+        return kinds
+    end
+    assert(kindsOf('WsClassX')['WsClassX'] == define.SymbolKind.Class)
+    assert(kindsOf('WsAliasX')['WsAliasX'] == define.SymbolKind.Struct)
+    assert(kindsOf('WsGlobalX')['WsGlobalX'] == define.SymbolKind.Variable)
+    assert(kindsOf('wsclassx')['WsClassX'], 'case-insensitive')
+    assert(next(kindsOf('zzqqxxnomatch')) == nil, 'no match, no result')
+    files.remove(TESTURI)
+end

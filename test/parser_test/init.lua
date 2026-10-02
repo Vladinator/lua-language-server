@@ -12,6 +12,7 @@ local function main()
     --unitTest 'lines'
     unitTest 'grammar_check'
     unitTest 'syntax_check'
+    unitTest 'luadoc_errors'
     unitTest 'luajit_ext'
     --unitTest 'guide'
     --unitTest 'perform'

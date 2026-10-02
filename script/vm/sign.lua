@@ -142,6 +142,10 @@ function mt:resolve(uri, args)
                         end
                     end
                 end
+                if resolved[key] then
+                    -- the bound argument's flags (e.g. a taint bit) belong to whatever T stands for
+                    vm.propagateFlags(node, resolved[key])
+                end
                 if resolved[key] and node:isOptional() then
                     resolved[key]:addOptional()
                 end
@@ -391,6 +395,8 @@ function mt:resolve(uri, args)
         local knownTypes, genericNames = getSignInfo(sign)
         if not isAllResolved(genericNames) then
             local newArgNode = buildArgNode(argNode, sign, knownTypes)
+            -- the rebuilt node is a fresh one: carry the argument's flags (e.g. a taint bit)
+            vm.propagateFlags(argNode, newArgNode)
             resolve(sign, newArgNode)
         end
     end

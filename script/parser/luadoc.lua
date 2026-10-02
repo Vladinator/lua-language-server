@@ -771,6 +771,34 @@ local function parseFunction(parent)
     end
 end
 
+--- A plugin type keyword used as a one-argument generic (`secret<string>`) that is not the whole
+--- type (an array element, one alternative of a union) becomes a nested `doc.type` of its own, the
+--- same shape `(secret string)` gives, so the keyword field sits on a `doc.type` here too.
+---@param unit parser.object
+---@return parser.object
+local function wrapKeywordSign(unit)
+    if unit.type ~= 'doc.type.sign' or not unit.node or unit.node.type ~= 'doc.type.name'
+    or not unit.signs or #unit.signs ~= 1 then
+        return unit
+    end
+    local wrapperField = docTags.getTypeKeyword(unit.node[1])
+    if not wrapperField then
+        return unit
+    end
+    local inner = unit.signs[1]
+    ---@type parser.object
+    local wrapped = {
+        type   = 'doc.type',
+        start  = unit.start,
+        finish = unit.finish,
+        parent = unit.parent,
+        types  = { inner },
+        [wrapperField] = true,
+    }
+    inner.parent = wrapped
+    return wrapped
+end
+
 ---@param parent parser.object
 ---@param node parser.object
 ---@return parser.object?
@@ -779,6 +807,7 @@ local function parseTypeUnitArray(parent, node)
         return nil
     end
     nextToken()
+    node = wrapKeywordSign(node)
     ---@type parser.object
     local result = {
         type   = 'doc.type.array',
@@ -1264,6 +1293,11 @@ function parseType(parent)
     -- `nosecret` -- see need-check-secret.lua) sees an identical result either way. Only when it
     -- is the type's sole member (matching the prefix form, which always covers the whole `doc.type`,
     -- never just one union alternative) and not already using the prefix form.
+    if not keywordField and #result.types > 1 then
+        for i, member in ipairs(result.types) do
+            result.types[i] = wrapKeywordSign(member)
+        end
+    end
     if not keywordField and #result.types == 1 then
         local sole = result.types[1]
         if sole.type == 'doc.type.sign' and sole.node and sole.node.type == 'doc.type.name'

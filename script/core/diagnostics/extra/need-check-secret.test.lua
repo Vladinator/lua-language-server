@@ -546,6 +546,43 @@ local x = f()
 print(<!x!>:len())
 ]]
 
+-- the flag also survives a generic identity call, an array element read and a union member
+-- (it was dropped when the node was rebuilt from the bound type, 2026-10-02)
+TEST [[
+---@generic T
+---@param v T
+---@return T
+local function id(v) return v end
+
+---@secret
+---@return string
+local function f() return 'x' end
+
+local s = f()
+local t = id(s)
+print(<!t!>:len())
+local u = id('plain')
+print(u:len())
+]]
+
+TEST [[
+---@type secret<string>[]
+local arr = {}
+print(<!arr[1]!>:len())
+]]
+
+TEST [[
+---@type string[]
+local arr = {}
+print(arr[1]:len())
+]]
+
+TEST [[
+---@type secret<string>|number
+local un
+print(<!un!> + 1)
+]]
+
 -- a boolean local holding a guard call's own result (`local isSecretVal = issecretvalue(x)`)
 -- narrows the same way the guard call would narrow directly as the condition -- `false` = safe,
 -- not negated (flow.lua's `local x = f()` wraps a single-value call RHS in a `select` node;

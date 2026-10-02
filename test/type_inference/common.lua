@@ -859,6 +859,138 @@ local function classify(v) end
 local <?y?> = classify({x = 1} --[[@as CondCommon.Point2]])
 ]==]
 
+-- the type operators inside a generic function's declared return: `T` is bound per call, so each
+-- call site resolves them against its own argument (the declared return compiles once, before any
+-- call; these used to freeze at that first compile and ignore `T`)
+TEST '"x"|"y"' [[
+---@class GenOps.Point
+---@field x number
+---@field y string
+
+---@generic T
+---@param v T
+---@return keyof T
+local function keys(v) end
+
+---@type GenOps.Point
+local pt
+local <?y?> = keys(pt)
+]]
+
+TEST 'string' [[
+---@generic T
+---@param v T
+---@return keyof T
+local function keys(v) end
+
+local <?y?> = keys(1)
+]]
+
+TEST 'number' [[
+---@class GenOps.Point2
+---@field x number
+---@field y string
+
+---@generic T
+---@param v T
+---@return T['x']
+local function xOf(v) end
+
+---@type GenOps.Point2
+local pt
+local <?y?> = xOf(pt)
+]]
+
+TEST 'string|number' [[
+---@class GenOps.Point3
+---@field x number
+---@field y string
+
+---@generic T
+---@param v T
+---@return T[keyof T]
+local function allValues(v) end
+
+---@type GenOps.Point3
+local pt
+local <?y?> = allValues(pt)
+]]
+
+TEST '{ x: number, y: string, extra: boolean }' [[
+---@class GenOps.Point4
+---@field x number
+---@field y string
+
+---@generic T
+---@param v T
+---@return T & { extra: boolean }
+local function extend(v) end
+
+---@type GenOps.Point4
+local pt
+local <?y?> = extend(pt)
+]]
+
+TEST '{ x: number?, y: string? }' [[
+---@class GenOps.Point5
+---@field x number
+---@field y string
+
+---@generic T
+---@param v T
+---@return Partial<T>
+local function part(v) end
+
+---@type GenOps.Point5
+local pt
+local <?y?> = part(pt)
+]]
+
+TEST '{ y: string }' [[
+---@class GenOps.Point6
+---@field x number
+---@field y string
+
+---@generic T
+---@param v T
+---@return Pick<T, 'y'>
+local function pick(v) end
+
+---@type GenOps.Point6
+local pt
+local <?y?> = pick(pt)
+]]
+
+TEST '{ x: number }' [[
+---@class GenOps.Point7
+---@field x number
+---@field y string
+
+---@generic T
+---@param v T
+---@return Omit<T, 'y'>
+local function omit(v) end
+
+---@type GenOps.Point7
+local pt
+local <?y?> = omit(pt)
+]]
+
+TEST '{ x: number, y: string }' [[
+---@class GenOps.Point8
+---@field x number
+---@field y string
+
+---@generic T
+---@param v T
+---@return Required<Partial<T>>
+local function both(v) end
+
+---@type GenOps.Point8
+local pt
+local <?y?> = both(pt)
+]]
+
 -- conditional types, edges: the check is not distributive (a union is checked as a whole), `nil` and
 -- an optional only match when the target allows nil, a literal matches its base type, a subclass
 -- matches its parent but not the other way round, and a conditional can nest in a branch.

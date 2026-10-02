@@ -905,6 +905,14 @@ local function resolveUtilityType(uri, source)
         return false
     end
     local signs = source.signs or {}
+    -- an argument that is a generic still unbound: stay self-referential until a call site
+    -- substitutes it (see `doc.type.conditional`)
+    for _, sign in ipairs(signs) do
+        if hasUnresolvedGeneric(sign) then
+            vm.setNode(source, source)
+            return true
+        end
+    end
     ---@type parser.object
     local tableObj = {
         type   = 'doc.type.table',
@@ -2895,6 +2903,13 @@ local compilerSwitch = util.switch()
     ---@param source parser.object
     : call(function (source)
         local uri = guide.getUri(source)
+        -- a generic still unbound (the declared return of a generic function compiles once before
+        -- any call binds it): stay self-referential, `vm.cloneObject` substitutes per call -- see
+        -- `doc.type.conditional`
+        if hasUnresolvedGeneric(source.node) then
+            vm.setNode(source, source)
+            return
+        end
         local operandNode = vm.compileNode(source.node)
         ---@type table<string, true>
         local seen = {}
@@ -2942,6 +2957,10 @@ local compilerSwitch = util.switch()
     ---@param source parser.object
     : call(function (source)
         local uri = guide.getUri(source)
+        if hasUnresolvedGeneric(source.node) or hasUnresolvedGeneric(source.key) then
+            vm.setNode(source, source)
+            return
+        end
         local operandNode = vm.compileNode(source.node)
         local keyNode = vm.compileNode(source.key)
         local any = false
@@ -2984,6 +3003,12 @@ local compilerSwitch = util.switch()
     ---@param source parser.object
     : call(function (source)
         local uri = guide.getUri(source)
+        for _, typeUnit in ipairs(source.types) do
+            if hasUnresolvedGeneric(typeUnit) then
+                vm.setNode(source, source)
+                return
+            end
+        end
         ---@type parser.object
         local tableObj = {
             type   = 'doc.type.table',

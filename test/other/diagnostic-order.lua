@@ -43,3 +43,19 @@ local first = table.concat(order, ' ')
 for _ = 1, 5 do
     assert(table.concat(diagd.getRunOrder(), ' ') == first, 'the run order changed between calls')
 end
+
+-- Every call returns a list of its own. A file's diagnoses walk the list across `await.delay()`
+-- yields while other files' diagnoses ask for it again, and in `cost` mode that call re-sorts the
+-- order as costs are measured: when the list was one shared table, an entry moving under a live
+-- `ipairs` was skipped, so a diagnostic never ran on that file -- only in the editor (files are
+-- diagnosed concurrently), only in `cost` mode, and so chaotically that the `unfulfilled-expect` of
+-- the suppression it did not run for was the only symptom (found 2026-10-02, `editor_sim`).
+local a = diagd.getRunOrder()
+local b = diagd.getRunOrder()
+assert(a ~= b, 'getRunOrder returned the same table twice: callers walking it across yields see the re-sorts of the others')
+for i = 1, #a // 2 do
+    a[i], a[#a - i + 1] = a[#a - i + 1], a[i]    -- what a re-sort does to a list somebody is still walking
+end
+table.remove(a)
+assert(table.concat(diagd.getRunOrder(), ' ') == first, 'a caller changing its list changed what the next call returns')
+assert(table.concat(b, ' ') == first, 'a caller changing its list changed the list of another caller')

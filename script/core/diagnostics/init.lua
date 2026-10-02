@@ -391,7 +391,12 @@ local function buildDiagList()
             return a < b
         end)
     end
-    return diagList
+    -- A copy, not `diagList` itself: the caller walks it across `await.delay()` yields while other
+    -- files' diagnoses call this again and re-sort it in place, and an element that moves under a
+    -- live `ipairs` is skipped -- a diagnostic that never runs on that file (only in the editor,
+    -- where files are diagnosed concurrently, and only in `cost` mode, where the order changes as
+    -- the costs are measured).
+    return table.move(diagList, 1, #diagList, 1, {})
 end
 diagd.getRunOrder = buildDiagList
 

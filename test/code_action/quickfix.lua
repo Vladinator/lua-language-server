@@ -10,7 +10,7 @@ local converter = require 'proto.converter'
 
 ---@param script string with one `<!` `!>` pair: the range of the diagnostic
 ---@param code   string
----@param extra? table fields merged into the diagnostic (`data`, `source`, ...)
+---@param extra? table<string, any> fields merged into the diagnostic (`data`, `source`, ...)
 ---@return core.code-action.results
 ---@return parser.state
 local function actions(script, code, extra)
@@ -45,6 +45,24 @@ local function onlyEdit(result)
     local edits = result.edit and result.edit.changes[TESTURI]
     assert(edits and #edits == 1, 'one edit expected')
     return edits[1]
+end
+
+---@param result core.code-action.result
+---@return any
+local function commandArg(result)
+    return assert(result.command).arguments[1]
+end
+
+---@param result core.code-action.result
+---@return string
+local function commandName(result)
+    return assert(result.command).command
+end
+
+---@param result core.code-action.result
+---@return table[]
+local function editsOf(result)
+    return assert(result.edit).changes[TESTURI]
 end
 
 -- every diagnostic can be disabled: through the config, for the next line, for the whole file
@@ -85,10 +103,10 @@ end
 do
     local results = actions('<!foo!>()\n', 'undefined-global', { data = { versions = { 'Lua 5.1', 'Lua 5.4' } } })
     local mark = assert(find(results, lang.script('ACTION_MARK_GLOBAL', 'foo')))
-    local arg = mark.command.arguments[1]
+    local arg = commandArg(mark)
     assert(arg.key == 'Lua.diagnostics.globals' and arg.value == 'foo' and arg.action == 'add')
     local version = assert(find(results, lang.script('ACTION_RUNTIME_VERSION', 'Lua 5.4')))
-    assert(version.command.arguments[1].key == 'Lua.runtime.version')
+    assert(commandArg(version).key == 'Lua.runtime.version')
     assert(find(results, lang.script('ACTION_RUNTIME_VERSION', 'Lua 5.1')))
 end
 
@@ -109,14 +127,14 @@ end
 do
     local results = actions('local x = <!a or b == c!>\n', 'ambiguity-1')
     local fix = assert(find(results, lang.script.ACTION_ADD_BRACKETS))
-    assert(fix.command.command == 'lua.solve' and fix.command.arguments[1].name == 'ambiguity-1')
+    assert(commandName(fix) == 'lua.solve' and commandArg(fix).name == 'ambiguity-1')
 end
 
 -- trailing-space: a command that strips it
 do
     local results = actions('local x = 1<!   !>\n', 'trailing-space')
     local fix = assert(find(results, lang.script.ACTION_REMOVE_SPACE))
-    assert(fix.command.command == 'lua.removeSpace')
+    assert(commandName(fix) == 'lua.removeSpace')
 end
 
 -- await-in-sync: `---@async` is added above the enclosing function, keeping its indentation
@@ -179,7 +197,7 @@ end
 do
     local results = syntaxActions('return 1\nprint(2)\n', 'ACTION_AFTER_RETURN')
     local fix = assert(find(results, lang.script.ACTION_ADD_DO_END))
-    local edits = fix.edit.changes[TESTURI]
+    local edits = editsOf(fix)
     assert(#edits == 2 and edits[1].newText == 'do ' and edits[2].newText == ' end')
 end
 
@@ -194,7 +212,7 @@ end
 do
     local results = syntaxActions('local \xe5\x8f\x98\xe9\x87\x8f = 1\n', 'UNICODE_NAME')
     local fix = assert(find(results, lang.script('ACTION_RUNTIME_UNICODE_NAME')))
-    assert(fix.command.arguments[1].key == 'Lua.runtime.unicodeName')
+    assert(commandArg(fix).key == 'Lua.runtime.unicodeName')
 end
 
 -- fixes the parser itself proposes (`!=` -> `~=`, `==` where `=` was meant) become text edits

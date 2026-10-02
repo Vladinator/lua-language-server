@@ -1,4 +1,5 @@
 -- Editor features that no other test group touched: folding ranges and colour swatches.
+---@diagnostic disable: await-in-sync
 local files   = require 'files'
 local folding = require 'core.folding'
 local color   = require 'core.color'

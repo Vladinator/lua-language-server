@@ -1081,3 +1081,105 @@ local function outer()
     end
 end
 ]]) .. string.rep('-- padding\n', 6100))
+
+-- correlation negatives and edges (locals): a reassignment of the sibling after the check ends the
+-- correlation, a sibling set to a fresh optional value is flagged again
+TEST [[
+---@type string?
+local a = nil
+---@type number?
+local b = nil
+---@correlated a, b
+
+if math.random() > 0.5 then
+    a = "x"
+    b = 1
+end
+
+if a then
+    b = math.random() > 0.5 and 1 or nil
+    S = <!b!> + 1
+end
+]]
+
+-- the check on the sibling works in either direction and in `not`/early-return form
+TEST [[
+---@type string?
+local a = nil
+---@type number?
+local b = nil
+---@correlated a, b
+
+if math.random() > 0.5 then
+    a = "x"
+    b = 1
+end
+
+if not b then
+    return
+end
+S = a:len()
+]]
+
+-- three-member group: one check narrows all of them
+TEST [[
+---@type string?
+local a = nil
+---@type number?
+local b = nil
+---@type boolean?
+local c = nil
+---@correlated a, b, c
+
+if math.random() > 0.5 then
+    a = "x"
+    b = 1
+    c = true
+end
+
+if a then
+    S = b + 1
+    S = c and 1
+end
+]]
+
+-- a variable outside the group is never narrowed by the group
+TEST [[
+---@type string?
+local a = nil
+---@type number?
+local b = nil
+---@type number?
+local other = nil
+---@correlated a, b
+
+if math.random() > 0.5 then
+    a = "x"
+    b = 1
+    other = 2
+end
+
+if a then
+    S = b + 1
+    S = <!other!> + 1
+end
+]]
+
+-- inside a loop the correlation holds per iteration
+TEST [[
+---@type string?
+local a = nil
+---@type number?
+local b = nil
+---@correlated a, b
+
+for i = 1, 3 do
+    if math.random() > 0.5 then
+        a = "x"
+        b = i
+    end
+    if a then
+        S = b + 1
+    end
+end
+]]

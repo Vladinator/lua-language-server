@@ -476,3 +476,125 @@ w:set('ok')
 ]]
 
 config.set(nil, 'Lua.type.checkTableShape', false)
+
+-- TypeScript-parity types as parameter types: what they accept and what they reject
+-- (a table literal's wrong field is reported by assign-type-mismatch, so these pass typed values)
+TEST [[
+---@class TSParamPTM.Point
+---@field x number
+---@field y string
+
+---@param k keyof TSParamPTM.Point
+local function byKey(k) end
+
+byKey('x')
+byKey('y')
+byKey(<!'z'!>)
+byKey(<!1!>)
+
+---@param v TSParamPTM.Point['x']
+local function byField(v) end
+
+byField(1)
+byField(<!'s'!>)
+]]
+
+TEST [[
+---@class TSParamPTM.Point2
+---@field x number
+---@field y string
+
+---@param v Pick<TSParamPTM.Point2, "x">
+local function picked(v) end
+
+---@type { x: number }
+local good
+---@type { x: string }
+local bad
+
+picked(good)
+picked(<!bad!>)
+picked(<!1!>)
+]]
+
+TEST [[
+---@class TSParamPTM.Point3
+---@field x number
+---@field y string
+
+---@param v Omit<TSParamPTM.Point3, "x">
+local function omitted(v) end
+
+---@type { y: string }
+local good
+---@type { y: number }
+local bad
+
+omitted(good)
+omitted(<!bad!>)
+]]
+
+TEST [[
+---@class TSParamPTM.Point4
+---@field x number
+
+---@param v Partial<TSParamPTM.Point4>
+local function partial(v) end
+
+---@type { x: number }
+local full
+---@type { x: number? }
+local optional
+---@type { x: string }
+local bad
+
+partial(full)
+partial(optional)
+partial(<!bad!>)
+]]
+
+TEST [[
+---@class TSParamPTM.Point5
+---@field x number
+
+---@param v Required<TSParamPTM.Point5>
+local function required(v) end
+
+---@type { x: number }
+local full
+
+required(full)
+required(<!nil!>)
+]]
+
+TEST [[
+---@param v Record<"a"|"b", number>
+local function rec(v) end
+
+---@type { a: number, b: number }
+local good
+---@type { a: string, b: number }
+local bad
+
+rec(good)
+rec(<!bad!>)
+]]
+
+TEST [[
+---@class TSParamPTM.A
+---@field x number
+
+---@class TSParamPTM.B
+---@field y string
+
+---@param v TSParamPTM.A & TSParamPTM.B
+local function both(v) end
+
+---@type { x: number, y: string }
+local good
+---@type { x: string, y: string }
+local bad
+
+both(good)
+both(<!bad!>)
+]]

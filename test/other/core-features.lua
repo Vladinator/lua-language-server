@@ -285,3 +285,40 @@ do
     assert(next(snippetsAt('zzz<??>')) == nil)
     assert(snippetsAt('local x = 1' .. lf .. 'con<??>')['goto continue ..'] == nil, 'no loop, no continue')
 end
+
+-- code lens: a lens above each function that is assigned or returned, resolved to its reference count
+local codeLens = require 'core.code-lens'
+local lang     = require 'language'
+
+do
+    files.remove(TESTURI)
+    files.setText(TESTURI, table.concat({
+        'local function used() end',
+        'local t = {}',
+        'function t.method() end',
+        'local anon = function() end',
+        'used()',
+        'used()',
+        't.method()',
+        'print(anon)',
+        'return function() end',
+        '',
+    }, string.char(10)))
+    local lenses = assert(codeLens.codeLens(TESTURI))
+    assert(#lenses == 4, 'one lens per function that has a name or is returned: ' .. #lenses)
+    for _, lens in ipairs(lenses) do
+        assert(lens.id and lens.position, 'every lens carries an id to resolve and a position')
+    end
+    -- the lens above `used` resolves to its references: the two calls
+    local first = lenses[1]
+    local command = assert(codeLens.resolve(TESTURI, first.id))
+    assert(command.title == lang.script('COMMAND_REFERENCE_COUNT', 2), command.title)
+    -- an id that was never handed out resolves to nothing
+    assert(codeLens.resolve(TESTURI, 99999) == nil)
+    files.remove(TESTURI)
+
+    -- no function, no lens
+    files.setText(TESTURI, 'local a = 1' .. string.char(10) .. 'print(a)' .. string.char(10))
+    assert(codeLens.codeLens(TESTURI) == nil)
+    files.remove(TESTURI)
+end

@@ -46,6 +46,7 @@ local IMPOSSIBLE = setmetatable({}, { __tostring = function () return 'vm.flow: 
 ---@field interesting table<vm.flow.key, true>
 ---@field boolCondExpr table<parser.object, parser.object>  a `local` declaration -> its own value expression, when that expression is itself something `evalCondition` can narrow (see `activeBoolCond`)
 ---@field correlatedGroups table<vm.flow.key, vm.flow.key[]>  `---@correlated` groups declared in this function (see `activeCorrelated`)
+---@field caseGroups table<vm.flow.key, vm.flow.caseMember>  locals declared from one tuple-union call, by local (see `activeCaseGroups`)
 ---@alias vm.flow.state table<vm.flow.key, vm.node>|false
 
 --- Tracked things are keyed by a local's declaration node, or, for a field path rooted at a local
@@ -395,6 +396,18 @@ local refKey
 --- own declaration, further down, where it sits next to `activeCasts`/`activeBoolCond`.
 ---@type table<vm.flow.key, vm.flow.key[]>
 local activeCorrelated = {}
+
+--- One local declared from a tuple-union call (`local a, b = f()` with `---@return (A, B) | (C, D)`):
+--- the declared cases and which slot this local is, plus every sibling local by slot. Narrowing
+--- one local says which cases can still hold (`propagateCases`), which narrows the others' types to
+--- what the surviving cases allow -- the type-level counterpart of `activeCorrelated`'s nil-only
+--- propagation. Same forward-declaration reason as `activeCorrelated`.
+---@class vm.flow.caseMember
+---@field cases parser.object[][]  `doc.return.cases`: each case's per-slot `doc.type`
+---@field slot  integer            which slot this local is
+---@field decls table<integer, parser.object>  every sibling local of the same call, by slot
+---@type table<vm.flow.key, vm.flow.caseMember>
+local activeCaseGroups = {}
 
 ---@type table<parser.object, true>
 local hasBoolCond = setmetatable({}, { __mode = 'k' })
@@ -933,6 +946,18 @@ local function casesCorrelation(func)
     return nil, false
 end
 
+--- The cases of a tuple-union `---@return (A, B) | (C, D)` on `func`, or nil.
+---@param func parser.object a `function` node
+---@return parser.object[][]?
+local function declaredCases(func)
+    for _, doc in ipairs(func.bindDocs or {}) do
+        if doc.type == 'doc.return' and doc.cases then
+            return doc.cases
+        end
+    end
+    return nil
+end
+
 ---@type table<parser.object, table<integer, integer[]>|false>
 local inferredReturnCache = setmetatable({}, { __mode = 'k' })
 
@@ -1205,6 +1230,253 @@ local function propagateCorrelated(state, key, current, newNode, expr)
     return state
 end
 
+--- The type name an object stands for, for the one question case elimination asks: could this
+--- overlap that? nil when the object is something this does not model (a table literal, a function,
+--- ...), which callers treat as "might overlap" -- the safe direction: a case that is kept too long
+--- only means a sibling is narrowed less than it could be.
+---@param obj vm.node.object
+---@return string?
+local function overlapName(obj)
+    if obj.type == 'global' and obj.cate == 'type' then
+        ---@cast obj vm.global
+        return obj.name
+    end
+    local t = obj.type
+    if t == 'doc.type.string' or t == 'string' then
+        return 'string'
+    elseif t == 'doc.type.integer' or t == 'integer' then
+        return 'integer'
+    elseif t == 'number' then
+        return 'number'
+    elseif t == 'doc.type.boolean' or t == 'boolean' then
+        return 'boolean'
+    end
+    return nil
+end
+
+---@param a   string
+---@param b   string
+---@param uri uri
+---@return boolean
+local function namesOverlap(a, b, uri)
+    if a == b or a == 'any' or b == 'any' or a == 'unknown' or b == 'unknown' then
+        return true
+    end
+    local function numeric(n) return n == 'number' or n == 'integer' end
+    if numeric(a) and numeric(b) then
+        return true
+    end
+    local function boolish(n) return n == 'boolean' or n == 'true' or n == 'false' end
+    if boolish(a) and boolish(b) and (a == 'boolean' or b == 'boolean') then
+        return true
+    end
+    return vm.isSubType(uri, a, b) == true or vm.isSubType(uri, b, a) == true
+end
+
+---@param node vm.node
+---@return boolean
+local function nilPossible(node)
+    if node:isOptional() then
+        return true
+    end
+    for i = 1, #node do
+        if isNilObject(node[i]) then
+            return true
+        end
+    end
+    return false
+end
+
+--- Could a value of type `a` also be of type `b`? Anything it cannot tell (an empty node, an object
+--- `overlapName` does not model) says yes.
+---@param obj vm.node.object
+---@return boolean
+local function isWrapper(obj)
+    -- (`variable` / `local` stand for a declared type that is also listed as plain type objects)
+    return obj.type == 'variable' or obj.type == 'local'
+end
+
+---@param a   vm.node
+---@param b   vm.node
+---@param uri uri
+---@return boolean
+local function nodesOverlap(a, b, uri)
+    local aNonNil, bNonNil = 0, 0
+    for i = 1, #a do
+        if not isNilObject(a[i]) and not isWrapper(a[i]) then
+            aNonNil = aNonNil + 1
+        end
+    end
+    for i = 1, #b do
+        if not isNilObject(b[i]) and not isWrapper(b[i]) then
+            bNonNil = bNonNil + 1
+        end
+    end
+    if (aNonNil == 0 and not nilPossible(a)) or (bNonNil == 0 and not nilPossible(b)) then
+        return true
+    end
+    if nilPossible(a) and nilPossible(b) then
+        return true
+    end
+    for i = 1, #a do
+        local oa = a[i]
+        if not isNilObject(oa) and not isWrapper(oa) then
+            local na = overlapName(oa)
+            for j = 1, #b do
+                local ob = b[j]
+                if not isNilObject(ob) and not isWrapper(ob) then
+                    local nb = overlapName(ob)
+                    if na == nil or nb == nil or namesOverlap(na, nb, uri) then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+--- `current` without whatever none of `allowed` (the sibling slot's type in each surviving case)
+--- could be. Returns nil when nothing would be removed, or when the result would be empty (the
+--- cases and the narrowing contradict each other -- then the state stays as it is, not invented).
+---@param current vm.node
+---@param allowed vm.node[]
+---@param uri     uri
+---@return vm.node?
+local function restrictTo(current, allowed, uri)
+    local nilOk = false
+    for _, n in ipairs(allowed) do
+        if nilPossible(n) then
+            nilOk = true
+            break
+        end
+    end
+    local out = current:copy()
+    local changed = false
+    local removedObject = false
+    if not nilOk and out:isOptional() then
+        out:removeOptional()
+        changed = true
+    end
+    for i = #out, 1, -1 do
+        local obj = out[i]
+        local keep = true
+        if isNilObject(obj) then
+            keep = nilOk
+        else
+            local name = overlapName(obj)
+            if name then
+                keep = false
+                for _, n in ipairs(allowed) do
+                    local anyObject = false
+                    for j = 1, #n do
+                        local p = n[j]
+                        if not isNilObject(p) then
+                            anyObject = true
+                            local pn = overlapName(p)
+                            if pn == nil or namesOverlap(name, pn, uri) then
+                                keep = true
+                                break
+                            end
+                        end
+                    end
+                    if keep or (not anyObject and not nilPossible(n)) then
+                        -- (a case slot with no object and no nil is as good as unknown: keep; one
+                        -- that is only `nil` is known, and allows no non-nil object at all)
+                        keep = true
+                        break
+                    end
+                end
+            end
+        end
+        if not keep then
+            table.remove(out, i)
+            out[obj] = nil
+            changed = true
+            removedObject = true
+        end
+    end
+    if removedObject then
+        -- the `variable` / `local` wrappers stand for the whole declared type and would bring the
+        -- removed one back on inference -- `vm.node:narrow` drops them for the same reason
+        for i = #out, 1, -1 do
+            local obj = out[i]
+            if obj.type == 'variable' or obj.type == 'local' then
+                table.remove(out, i)
+                out[obj] = nil
+            end
+        end
+    end
+    if not changed or (#out == 0 and not out:isOptional()) then
+        return nil
+    end
+    return out
+end
+
+--- A tuple-union case's slot as a node. A bare `nil` slot compiles to an *empty* node (the optional
+--- flag is what carries nil elsewhere), which would read as "unknown" -- so it is built explicitly.
+---@param slot parser.object a case's `doc.type`
+---@return vm.node
+local function caseSlotNode(slot)
+    if classifyCaseSlot(slot) == 'nil' then
+        return vm.createNode(vm.declareGlobal('type', 'nil'))
+    end
+    return compileForFlow(slot)
+end
+
+--- Case elimination for tuple-union returns (`---@return (A, B) | (C, D)`): `key` is a local
+--- declared from such a call and was just narrowed to `newNode`. The cases whose slot for this local
+--- can still hold `newNode` survive; each sibling local is narrowed to what the surviving cases
+--- allow in *its* slot -- after `if type(a) == 'string' then`, a `(string, number) | (boolean, nil)`
+--- call's second slot is `number`, not `number?`. Narrows only, never widens: a sibling already
+--- narrower than the survivors' union stays as it is.
+---@param state   vm.flow.state
+---@param key     vm.flow.key
+---@param newNode vm.node
+---@return vm.flow.state
+local function propagateCases(state, key, newNode)
+    local member = activeCaseGroups[key]
+    if not member or not state then
+        return state
+    end
+    local total = #member.cases
+    local uri = guide.getUri(member.cases[1][member.slot])
+    ---@type integer[]
+    local survivors = {}
+    for k = 1, total do
+        if nodesOverlap(newNode, caseSlotNode(member.cases[k][member.slot]), uri) then
+            survivors[#survivors+1] = k
+        end
+    end
+    if #survivors == 0 or #survivors == total then
+        return state
+    end
+    for slot, decl in pairs(member.decls) do
+        if slot ~= member.slot then
+            if not state then
+                return state
+            end
+            ---@type vm.node?
+            local siblingCurrent = state[decl]
+            if siblingCurrent == IMPOSSIBLE then
+                siblingCurrent = nil
+            end
+            if siblingCurrent then
+                ---@type vm.node[]
+                local allowed = {}
+                for _, k in ipairs(survivors) do
+                    allowed[#allowed+1] = caseSlotNode(member.cases[k][slot])
+                end
+                local restricted = restrictTo(siblingCurrent, allowed, uri)
+                if restricted then
+                    state = narrowedState(state, decl, siblingCurrent, restricted)
+                end
+            end
+        end
+    end
+    return state
+end
+
 --- Narrows what `expr` refers to in `state` with `fn`; `state` itself when it is nothing tracked.
 --- A path nothing has narrowed yet starts from its static type.
 ---@param state table<vm.flow.key, vm.node>
@@ -1229,7 +1501,7 @@ local function narrowRef(state, expr, fn)
     end
     local newNode = fn(current)
     local narrowed = narrowedState(state, key, current, newNode)
-    return propagateCorrelated(narrowed, key, current, newNode, expr)
+    return propagateCases(propagateCorrelated(narrowed, key, current, newNode, expr), key, newNode)
 end
 
 ---@param a vm.flow.state
@@ -1982,6 +2254,8 @@ function vm.buildFlowBody(main)
     -- group the locals declared from the same multi-value call by the sindex each was bound to
     -- (`parser/compile.lua`'s `select` wrapping, see `unwrapSelectCall`), merge into the same
     -- `correlatedGroups` this builds for the explicit tag.
+    ---@type table<vm.flow.key, vm.flow.caseMember>
+    local caseGroups = {}
     do
         ---@type table<parser.object, table<integer, parser.object>>
         local byCall = {}
@@ -2002,8 +2276,43 @@ function vm.buildFlowBody(main)
         for call, bySindex in pairs(byCall) do
             local calleeNode = call.node and compileForFlow(call.node)
             if calleeNode then
+                -- Case elimination (tuple-union returns) needs one unambiguous callee: a call whose
+                -- callee could be several functions with different declared cases has no single
+                -- set of cases to eliminate from.
+                local functions = 0
                 for funcObj in calleeNode:eachObject() do
                     if funcObj.type == 'function' then
+                        functions = functions + 1
+                    end
+                end
+                for funcObj in calleeNode:eachObject() do
+                    if funcObj.type == 'function' then
+                        local cases = functions == 1 and declaredCases(funcObj --[[@as parser.object]])
+                        if cases then
+                            ---@type table<integer, parser.object>
+                            local decls = {}
+                            local count = 0
+                            local reassigned = false
+                            for i = 1, #cases[1] do
+                                local decl = bySindex[i]
+                                if decl then
+                                    decls[i] = decl
+                                    count = count + 1
+                                    -- a slot assigned to later no longer belongs to the call's tuple:
+                                    -- the cases say nothing about it, so the whole group is skipped
+                                    for _, ref in ipairs(decl.ref or {}) do
+                                        if ref.type == 'setlocal' then
+                                            reassigned = true
+                                        end
+                                    end
+                                end
+                            end
+                            if count > 1 and not reassigned then
+                                for i, decl in pairs(decls) do
+                                    caseGroups[decl] = { cases = cases, slot = i, decls = decls }
+                                end
+                            end
+                        end
                         local returnGroups = getInferredReturnCorrelation(funcObj --[[@as parser.object]])
                         if returnGroups then
                             for i, siblingIdxs in pairs(returnGroups) do
@@ -2034,7 +2343,8 @@ function vm.buildFlowBody(main)
     -- the boolean-alias case (`hasBoolCond`). Without it, whether `if a then use(b) end` narrowed
     -- `b` depended on which diagnostic happened to compile first (found 2026-10-02 with
     -- `LLS_DIAG_ORDER=shuffle:6` on the inferred-returns test).
-    if next(correlatedGroups) then
+    -- (a tuple-union group's case elimination is the same kind of narrowing: only this flow knows it)
+    if next(correlatedGroups) or next(caseGroups) then
         hasBoolCond[main] = true
     end
 
@@ -2042,6 +2352,9 @@ function vm.buildFlowBody(main)
     ---@type table<vm.flow.key, true>
     local interesting = {}
     for decl in pairs(correlatedGroups) do
+        interesting[decl] = true
+    end
+    for decl in pairs(caseGroups) do
         interesting[decl] = true
     end
     ---@param expr parser.object?
@@ -2162,7 +2475,7 @@ function vm.buildFlowBody(main)
         end })
     end
     ---@type vm.flow.context
-    local ctx = { castsAt = castsAt, castsInside = castsInside, interesting = interesting, boolCondExpr = boolCondExpr, correlatedGroups = correlatedGroups }
+    local ctx = { castsAt = castsAt, castsInside = castsInside, interesting = interesting, boolCondExpr = boolCondExpr, correlatedGroups = correlatedGroups, caseGroups = caseGroups }
 
     -- The variables each `for` loop declares, by the block that evaluates the loop's expressions.
     ---@type table<parser.object, true>
@@ -2267,9 +2580,11 @@ function vm.buildFlowBody(main)
             local savedCasts = activeCasts
             local savedBoolCond = activeBoolCond
             local savedCorrelated = activeCorrelated
+            local savedCaseGroups = activeCaseGroups
             activeCasts = ctx.castsAt
             activeBoolCond = ctx.boolCondExpr
             activeCorrelated = ctx.correlatedGroups
+            activeCaseGroups = ctx.caseGroups
             local state = copyState(stateIn)
             for _, stmt in ipairs(block.stmts) do
                 applyStmt(state, stmt, ctx)
@@ -2298,11 +2613,13 @@ function vm.buildFlowBody(main)
                 activeCasts = savedCasts
                 activeBoolCond = savedBoolCond
                 activeCorrelated = savedCorrelated
+                activeCaseGroups = savedCaseGroups
                 return state, { ['true'] = yes, ['false'] = no }
             end
             activeCasts = savedCasts
             activeBoolCond = savedBoolCond
             activeCorrelated = savedCorrelated
+            activeCaseGroups = savedCaseGroups
             return state
         end,
     }
@@ -2318,9 +2635,11 @@ function vm.buildFlowBody(main)
     local savedCasts = activeCasts
     local savedBoolCond = activeBoolCond
     local savedCorrelated = activeCorrelated
+    local savedCaseGroups = activeCaseGroups
     activeCasts = castsAt
     activeBoolCond = boolCondExpr
     activeCorrelated = correlatedGroups
+    activeCaseGroups = caseGroups
     for _, block in ipairs(cfg.blocks) do
         local stateIn = result.stateIn[block]
         if stateIn then
@@ -2335,6 +2654,7 @@ function vm.buildFlowBody(main)
     activeCasts = savedCasts
     activeBoolCond = savedBoolCond
     activeCorrelated = savedCorrelated
+    activeCaseGroups = savedCaseGroups
 
     return setmetatable({
         cfg       = cfg,
@@ -2454,13 +2774,16 @@ function flow:stateAt(node)
         local savedCasts = activeCasts
         local savedBoolCond = activeBoolCond
         local savedCorrelated = activeCorrelated
+        local savedCaseGroups = activeCaseGroups
         activeCasts = self.ctx.castsAt
         activeBoolCond = self.ctx.boolCondExpr
         activeCorrelated = self.ctx.correlatedGroups
+        activeCaseGroups = self.ctx.caseGroups
         local yes, no = evalCondition(at, guard[1])
         activeCasts = savedCasts
         activeBoolCond = savedBoolCond
         activeCorrelated = savedCorrelated
+        activeCaseGroups = savedCaseGroups
         at = guard.op.type == 'and' and yes or no
         if not at then
             return nil

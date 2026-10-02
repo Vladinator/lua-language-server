@@ -570,6 +570,70 @@ local function f() return nil, nil end
 local a, <?b?> = f()
 ]]
 
+-- case elimination: narrowing one slot's *type* narrows the others to what the surviving cases say
+TEST 'number' [[
+---@return (string, number) | (boolean, nil)
+local function f() return "x", 1 end
+
+local a, b = f()
+if type(a) == 'string' then
+    local <?x?> = b
+end
+]]
+
+TEST 'nil' [[
+---@return (string, number) | (boolean, nil)
+local function f() return "x", 1 end
+
+local a, b = f()
+if type(a) == 'boolean' then
+    local <?x?> = b
+end
+]]
+
+-- ... and the other direction: the second slot's narrowing decides the first
+TEST 'string' [[
+---@return (string, number) | (boolean, nil)
+local function f() return "x", 1 end
+
+local a, b = f()
+if b then
+    local <?x?> = a
+end
+]]
+
+-- no narrowing, no elimination: the declared union of both cases
+TEST 'number?' [[
+---@return (string, number) | (boolean, nil)
+local function f() return "x", 1 end
+
+local a, b = f()
+local <?x?> = b
+]]
+
+-- three cases: eliminating one leaves the union of the other two
+TEST 'string|integer' [[
+---@return (string, integer) | (boolean, string) | (number, nil)
+local function f() return "x", 1 end
+
+local a, b = f()
+if type(a) ~= 'number' then
+    local <?x?> = b
+end
+]]
+
+-- a slot assigned to later is no longer part of the call's tuple: no elimination
+TEST 'number?' [[
+---@return (string, number) | (boolean, nil)
+local function f() return "x", 1 end
+
+local a, b = f()
+a = "other"
+if type(a) == 'string' then
+    local <?x?> = b
+end
+]]
+
 -- `T[K]` (TypeScript parity): a literal key reads that field's type directly.
 TEST 'number' [[
 ---@class IndexedCommon.Point

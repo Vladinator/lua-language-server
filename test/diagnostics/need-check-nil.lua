@@ -1027,6 +1027,40 @@ if e then
 end
 ]]
 
+-- case elimination (tuple-union returns): narrowing one slot's *type* narrows the others to what the
+-- surviving cases say -- in the `string` case the second slot is a plain `number`, not `number?`
+TEST [[
+---@return (string, number) | (boolean, nil)
+local function f() return "x", 1 end
+
+local a, b = f()
+if type(a) == 'string' then
+    S = b + 1
+end
+]]
+
+-- ... outside any narrowing it is still `number?`: the elimination only applies where a case was
+-- actually ruled out
+TEST [[
+---@return (string, number) | (boolean, nil)
+local function f() return "x", 1 end
+
+local a, b = f()
+S = <!b!> + 1
+]]
+
+-- ... and a slot assigned to later left the call's tuple: no elimination through it
+TEST [[
+---@return (string, number) | (boolean, nil)
+local function f() return "x", 1 end
+
+local a, b = f()
+a = "other"
+if type(a) == 'string' then
+    S = <!b!> + 1
+end
+]]
+
 -- Shape guard for a closure's read of an upvalue declared in a chunk too large for a flow
 -- (`MAX_LINES`, 6000 -- `vm.getFlow` builds none for it; fork 68c3f456f defers such reads to the old
 -- tracer, the real case was a ~16,700-line addon file). The chunk is padded past the cap with

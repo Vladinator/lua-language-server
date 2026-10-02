@@ -463,6 +463,23 @@ end
         want = 'number',
     },
     {
+        name = 'tuple-union case elimination',
+        text = [[
+---@return (string, number) | (boolean, nil)
+local function f(cond)
+    if cond then return "x", 1 end
+    return true, nil
+end
+
+local a, b = f(true)
+if type(a) == 'string' then
+    S = b + 1
+end
+]],
+        read = function (source) return source.type == 'getlocal' and source[1] == 'b' end,
+        want = 'number',
+    },
+    {
         name = 'tuple-union return',
         text = [[
 ---@return (string, number) | (nil, nil)

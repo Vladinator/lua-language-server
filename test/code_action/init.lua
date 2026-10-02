@@ -248,3 +248,5 @@ TEST_CROSSFILE {
         }
     },
 }
+
+require 'code_action.quickfix'

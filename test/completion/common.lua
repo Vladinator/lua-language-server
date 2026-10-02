@@ -1337,6 +1337,53 @@ TEST [[
     },
 }
 
+-- the built-in type operators are offered as type names
+TEST [[
+---@param x Part<??>
+]]
+{
+    {
+        label = 'Partial',
+        kind = define.CompletionItemKind.Class,
+    },
+}
+
+TEST [[
+---@type Rec<??>
+]]
+{
+    {
+        label = 'Record',
+        kind = define.CompletionItemKind.Class,
+    },
+}
+
+TEST [[
+---@type keyo<??>
+]]
+{
+    {
+        label = 'keyof',
+        kind = define.CompletionItemKind.Class,
+    },
+}
+
+TEST [[
+---@return ret<??>
+]]
+{
+    {
+        label = 'returns',
+        kind = define.CompletionItemKind.Class,
+    },
+}
+
+-- ... and not offered where no type is expected
+TEST [[
+local Part<??>
+]]
+(nil)
+
 TEST [[
 ---@class ZClass
 ---@param x ZC<??>

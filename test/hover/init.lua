@@ -2555,3 +2555,65 @@ global <?*?>
 (global) any
 ]]
 config.set(nil, 'Lua.runtime.version', nil)
+
+-- TypeScript-parity types in a parameter's hover: the resolved type, not the spelling
+TEST [[
+---@class HoverTS.A
+---@field x number
+---@field y string
+---@param p Partial<HoverTS.A>
+local function f(<?p?>) end
+]]
+[[
+(parameter) p: { x: number?, y: string? } {
+    x?: number,
+    y?: string,
+}
+]]
+
+TEST [[
+---@class HoverTS.B
+---@field x number
+---@param p keyof HoverTS.B
+local function f(<?p?>) end
+]]
+[[
+(parameter) p: "x"
+]]
+
+TEST [[
+---@param p Pick<{x: number, y: string}, 'x'>
+local function f(<?p?>) end
+]]
+[[
+(parameter) p: { x: number } {
+    x: number,
+}
+]]
+
+TEST [[
+---@param p {x: number} & {y: string}
+local function f(<?p?>) end
+]]
+[[
+(parameter) p: { x: number, y: string } {
+    x: number,
+    y: string,
+}
+]]
+
+TEST [[
+---@param p (string extends string ? 'a' : 'b')
+local function f(<?p?>) end
+]]
+[[
+(parameter) p: 'a'
+]]
+
+TEST [[
+---@param p number!
+local function f(<?p?>) end
+]]
+[[
+(parameter) p: number!
+]]

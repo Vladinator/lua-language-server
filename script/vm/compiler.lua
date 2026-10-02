@@ -806,6 +806,8 @@ local UTILITY_TYPE_NAMES = {
     Omit     = true,
     Record   = true,
 }
+-- (read by type-name completion)
+vm.utilityTypeNames = UTILITY_TYPE_NAMES
 
 --- Basic type names an intersection (`A & B`) cannot include alongside anything else: nothing but
 --- `never` itself is simultaneously one of these and able to satisfy another type's fields.

@@ -2265,6 +2265,23 @@ local function tryluaDocBySource(state, position, source, results)
                 }
             end
         end
+        -- the built-in type operators (`Partial<T>`, `keyof T`, `returns<F>`, ...) are not declared
+        -- anywhere, so the resolvers' own name list is offered as type names
+        ---@type string[]
+        local operators = { 'keyof', 'returns' }
+        for name in pairs(vm.utilityTypeNames) do
+            operators[#operators+1] = name
+        end
+        table.sort(operators)
+        for _, name in ipairs(operators) do
+            if not used[name] and matchKey(source[1] --[[@as string]], name) then
+                used[name] = true
+                results[#results+1] = {
+                    label = name,
+                    kind  = define.CompletionItemKind.Class,
+                }
+            end
+        end
         for _, doc in ipairs(vm.getDocSets(state.uri)) do
             local name = ((doc.type == 'doc.class' and doc.class[1])
                     or   (doc.type == 'doc.alias' and doc.alias[1])

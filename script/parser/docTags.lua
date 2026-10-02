@@ -232,6 +232,21 @@ function m.getTypeKeyword(keyword)
     return typeKeywords[keyword]
 end
 
+--- The registered type keywords whose result field is set on `source` (a `doc.type`), sorted.
+---@param source parser.object
+---@return string[]
+function m.getTypeKeywordsOf(source)
+    ---@type string[]
+    local result = {}
+    for keyword, field in pairs(typeKeywords) do
+        if source[field] then
+            result[#result+1] = keyword
+        end
+    end
+    table.sort(result)
+    return result
+end
+
 ---@type table<string, true>
 local classGroupDocTypes = {}
 

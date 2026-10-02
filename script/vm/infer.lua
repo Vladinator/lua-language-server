@@ -1,6 +1,7 @@
 local util     = require 'utility'
 local config   = require 'config'
 local guide    = require 'parser.guide'
+local docTags  = require 'parser.docTags'
 ---@class vm
 local vm       = require 'vm.vm'
 
@@ -183,7 +184,14 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         infer._hasClass = true
         local view = vm.getInfer(source.node):view(uri)
         if source.node.type == 'doc.type' then
-            view = '(' .. view .. ')'
+            local keywords = docTags.getTypeKeywordsOf(source.node)
+            if #keywords == 0 then
+                view = '(' .. view .. ')'
+            end
+            -- a plugin type keyword on the element type: `secret<string>[]`
+            for _, keyword in ipairs(keywords) do
+                view = ('%s<%s>'):format(keyword, view)
+            end
         end
         return view .. '[]'
     end)

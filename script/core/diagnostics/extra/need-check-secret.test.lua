@@ -733,6 +733,27 @@ do
     assert(shown:string():find('secret', 1, true))
     files.remove(TESTURI)
 
+    -- a type keyword on a nested type keeps showing in the inferred type (`secret<string>[]`)
+    local vm = require 'vm'
+    local guide = require 'parser.guide'
+    local function viewOf(script, name)
+        files.setText(TESTURI, script)
+        local state = assert(files.getState(TESTURI))
+        ---@type string?
+        local view
+        guide.eachSource(state.ast, function (src)
+            if src.type == 'local' and src[1] == name and not view then
+                view = vm.getInfer(src):view(TESTURI)
+            end
+        end)
+        files.remove(TESTURI)
+        return view
+    end
+    assert(viewOf('---@type secret<string>[]\nlocal arr\n', 'arr') == 'secret<string>[]')
+    assert(viewOf('---@type (secret string)[]\nlocal arr\n', 'arr') == 'secret<string>[]')
+    assert(viewOf('---@type string[]\nlocal arr\n', 'arr') == 'string[]')
+    assert(viewOf('---@type (string|number)[]\nlocal arr\n', 'arr') == '(string|number)[]')
+
     -- colours: the tag word is a documentation keyword like every other tag
     files.setText(TESTURI, '---@secret\nlocal a\n---@secret-unwrap a\nlocal b\n')
     local data = semantic(TESTURI, 0, math.huge) --[[@as integer[] ]]

@@ -382,9 +382,19 @@ local function buildDiagList()
         diagListSize = registered
     end
     if ORDER_MODE == 'cost' then
+        -- Costs are compared in whole milliseconds, not as raw floats: two checks of near-equal
+        -- average cost (`missing-parameter` / `redundant-parameter`, ~0.1 ms apart) otherwise swap
+        -- places with the timer's noise from one run to the next, and since the first of them pays
+        -- for what both compile, the order -- and so what later checks infer -- was different on
+        -- every run. Within the same millisecond the name decides, always the same way.
+        ---@param name string
+        ---@return integer
+        local function milliseconds(name)
+            return math.floor((diagCosts[name] or 0) / (diagCount[name] or 1) * 1000 + 0.5)
+        end
         table.sort(diagList, function (a, b)
-            local time1 = (diagCosts[a] or 0) / (diagCount[a] or 1)
-            local time2 = (diagCosts[b] or 0) / (diagCount[b] or 1)
+            local time1 = milliseconds(a)
+            local time2 = milliseconds(b)
             if time1 ~= time2 then
                 return time1 < time2
             end

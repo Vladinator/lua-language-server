@@ -6406,3 +6406,45 @@ local function f(s)
     end
 end
 ]]
+
+-- LuaJIT's `a ?? b`: the right side replaces a nil left side (`false` stays `false`); an optional left
+-- side loses its `nil`, a left side that cannot be nil is returned as it is, `error()` on the right adds nothing
+config.set(nil, 'Lua.runtime.version', 'LuaJIT')
+config.set(nil, 'Lua.runtime.enableLuaJITExtensions', true)
+
+TEST 'string' [[
+---@type string?
+local a
+local <?r?> = a ?? 'x'
+]]
+
+TEST 'string|integer' [[
+---@type string?
+local a
+local <?r?> = a ?? 1
+]]
+
+TEST 'string' [[
+---@type string
+local s
+local <?r?> = s ?? 1
+]]
+
+TEST 'boolean' [[
+---@type boolean?
+local flag
+local <?r?> = flag ?? true
+]]
+
+TEST 'integer' [[
+local <?r?> = nil ?? 1
+]]
+
+TEST 'string' [[
+---@type string?
+local a
+local <?r?> = a ?? error('no value')
+]]
+
+config.set(nil, 'Lua.runtime.version', nil)
+config.set(nil, 'Lua.runtime.enableLuaJITExtensions', nil)

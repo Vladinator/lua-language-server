@@ -291,6 +291,10 @@ vm.binarySwitch = util.switch()
                 end
             end
         end
+        -- a `T?` operand carries its nil as the optional flag, not as an object
+        if node1:isOptional() then
+            hasNil = true
+        end
         if count == 0 then
             -- 无具体类型（仅元信息或空）：未知，视为可能为 nil，取右侧
             vm.setNode(source, node2)

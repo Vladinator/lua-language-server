@@ -831,6 +831,108 @@ local function classifyReturnSlot(expr)
     return 'ambiguous'
 end
 
+--- Slots that agree, row for row, on being nil or non-nil -- the pairing both inference sources
+--- share (a function's `return` statements, a tuple-union's declared cases): slot `i` to every slot
+--- it is correlated with, or nil when none is. A slot whose shape list is nil (excluded: declared
+--- non-optional) or ever `'ambiguous'` never pairs; a pair only counts when at least one row is
+--- actually `'nil'` there (otherwise narrowing has nothing to remove).
+---@param perSlot  table<integer, vm.flow.returnSlotShape[]?>
+---@param slots    integer
+---@param rows     integer
+---@return table<integer, integer[]>?
+local function groupSlots(perSlot, slots, rows)
+    ---@type table<integer, integer[]>
+    local groups = {}
+    for i = 1, slots do
+        local seqI = perSlot[i]
+        if seqI then
+            for j = i + 1, slots do
+                local seqJ = perSlot[j]
+                if seqJ then
+                    local correlated = true
+                    local sawNil = false
+                    for k = 1, rows do
+                        local a, b = seqI[k], seqJ[k]
+                        if a == 'ambiguous' or b == 'ambiguous' or a ~= b then
+                            correlated = false
+                            break
+                        end
+                        if a == 'nil' then
+                            sawNil = true
+                        end
+                    end
+                    if correlated and sawNil then
+                        groups[i] = groups[i] or {}
+                        groups[j] = groups[j] or {}
+                        table.insert(groups[i], j)
+                        table.insert(groups[j], i)
+                    end
+                end
+            end
+        end
+    end
+    if not next(groups) then
+        return nil
+    end
+    return groups
+end
+
+--- One slot of one tuple-union case (`---@return (A, B) | (C, D)`), classified from its declared
+--- type alone (syntactic: the cases are detached `doc.type`s, never compiled): exactly the `nil`
+--- type is `'nil'`, a type with no `nil` member and no `?` is `'nonnil'`, anything else mixed.
+---@param slot parser.object a `doc.type`
+---@return vm.flow.returnSlotShape
+local function classifyCaseSlot(slot)
+    local hasNil, hasOther = false, false
+    for _, unit in ipairs(slot.types or {}) do
+        if unit.type == 'doc.type.name' and unit[1] == 'nil' then
+            hasNil = true
+        else
+            hasOther = true
+        end
+    end
+    if slot.optional then
+        hasNil = true
+    end
+    if hasNil and hasOther then
+        return 'ambiguous'
+    end
+    if hasNil then
+        return 'nil'
+    end
+    return 'nonnil'
+end
+
+--- The correlation a tuple-union `---@return` declares (`(A, B) | (C, D)`), read straight off its
+--- cases -- a declared contract, so it wins over whatever the function's `return` statements
+--- would be inferred to say. nil when the function has no such doc.
+---@param func parser.object a `function` node
+---@return table<integer, integer[]>?
+---@return boolean found whether a tuple-union doc exists at all (then inference is skipped)
+local function casesCorrelation(func)
+    if not func.bindDocs then
+        return nil, false
+    end
+    for _, doc in ipairs(func.bindDocs) do
+        if doc.type == 'doc.return' and doc.cases then
+            local cases = doc.cases
+            local width = #cases[1]
+            ---@type table<integer, vm.flow.returnSlotShape[]?>
+            local perSlot = {}
+            for i = 1, width do
+                ---@type vm.flow.returnSlotShape[]
+                local seq = {}
+                for k = 1, #cases do
+                    seq[k] = classifyCaseSlot(cases[k][i])
+                end
+                perSlot[i] = seq
+            end
+            return groupSlots(perSlot, width, #cases), true
+        end
+    end
+    return nil, false
+end
+
 ---@type table<parser.object, table<integer, integer[]>|false>
 local inferredReturnCache = setmetatable({}, { __mode = 'k' })
 
@@ -853,6 +955,11 @@ local function getInferredReturnCorrelation(func)
     local cached = inferredReturnCache[func]
     if cached ~= nil then
         return cached or nil
+    end
+    local declaredGroups, hasCases = casesCorrelation(func)
+    if hasCases then
+        inferredReturnCache[func] = declaredGroups or false
+        return declaredGroups
     end
     local returns = func.returns
     if not returns or #returns == 0 then
@@ -891,41 +998,8 @@ local function getInferredReturnCorrelation(func)
             perSlot[i] = seq
         end
     end
-    ---@type table<integer, integer[]>
-    local groups = {}
-    for i = 1, maxSlots do
-        local seqI = perSlot[i]
-        if seqI then
-            for j = i + 1, maxSlots do
-                local seqJ = perSlot[j]
-                if seqJ then
-                    local correlated = true
-                    local sawNil = false
-                    for k = 1, #returns do
-                        local a, b = seqI[k], seqJ[k]
-                        if a == 'ambiguous' or b == 'ambiguous' or a ~= b then
-                            correlated = false
-                            break
-                        end
-                        if a == 'nil' then
-                            sawNil = true
-                        end
-                    end
-                    if correlated and sawNil then
-                        groups[i] = groups[i] or {}
-                        groups[j] = groups[j] or {}
-                        table.insert(groups[i], j)
-                        table.insert(groups[j], i)
-                    end
-                end
-            end
-        end
-    end
-    if not next(groups) then
-        inferredReturnCache[func] = false
-        return nil
-    end
-    inferredReturnCache[func] = groups
+    local groups = groupSlots(perSlot, maxSlots, #returns)
+    inferredReturnCache[func] = groups or false
     return groups
 end
 

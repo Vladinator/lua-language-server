@@ -980,3 +980,70 @@ if a then
     S = <!b!> + 1
 end
 ]]
+
+-- tuple-union `---@return (A, B) | (C, D)` (wowlua-ls interop): a declared contract -- the cases
+-- themselves say which slots are nil together (here both are, or neither), so narrowing one
+-- narrows the other with no `---@correlated` and no reliance on how the body returns.
+TEST [[
+---@return (string, number) | (nil, nil)
+local function f(cond)
+    if cond then return "x", 1 end
+    return nil, nil
+end
+
+local a, b = f(true)
+if a then
+    S = b + 1
+end
+]]
+
+-- anti-correlated cases (`string, nil` or `nil, number`): never nil together, so narrowing the
+-- first says nothing safe about the second -- still flagged.
+TEST [[
+---@return (string, nil) | (nil, number)
+local function g(cond)
+    if cond then return "x", nil end
+    return nil, 1
+end
+
+local c, d = g(true)
+if c then
+    S = <!d!> + 1
+end
+]]
+
+-- the declared cases win over the body: the body here would infer *no* correlation (it returns
+-- `nil, 1` and `"x", nil`), but the contract says the slots are nil together.
+TEST [[
+---@return (string, number) | (nil, nil)
+local function h(cond)
+    if cond then return nil, 1 end
+    return "x", nil
+end
+
+local e, f = h(true)
+if e then
+    S = f + 1
+end
+]]
+
+-- Shape guard for a closure's read of an upvalue declared in a chunk too large for a flow
+-- (`MAX_LINES`, 6000 -- `vm.getFlow` builds none for it; fork 68c3f456f defers such reads to the old
+-- tracer, the real case was a ~16,700-line addon file). The chunk is padded past the cap with
+-- comment lines: a local assigned once in an unconditional `do ... end` at chunk scope, read from a
+-- function nested two levels down, must not be flagged. NOT a mutation test: like the commit's own
+-- notes say, no small synthetic fixture was found that fails without the deferral (checked again
+-- 2026-10-02 with this one) -- the real-corpus run is that change's regression evidence; this only
+-- keeps the shape from regressing through some other path.
+TEST(([[
+---@type string?
+local x
+do
+    x = 'a'
+end
+local function outer()
+    local function inner()
+        S = x:len()
+    end
+end
+]]) .. string.rep('-- padding\n', 6100))

@@ -553,6 +553,23 @@ local wrapped = wrapKeyed(original)
 local <?r?> = wrapped("x")
 ]]
 
+-- tuple-union `---@return (A, B) | (C, D)` (wowlua-ls interop): each slot's type is the union of
+-- that slot across the cases; a slot that is `nil` in some case is optional (`string | nil` is
+-- `string?`, same as everywhere else in the engine).
+TEST 'string?' [[
+---@return (string, number) | (nil, nil)
+local function f() return nil, nil end
+
+local <?a?>, b = f()
+]]
+
+TEST 'number?' [[
+---@return (string, number) | (nil, nil)
+local function f() return nil, nil end
+
+local a, <?b?> = f()
+]]
+
 -- `T[K]` (TypeScript parity): a literal key reads that field's type directly.
 TEST 'number' [[
 ---@class IndexedCommon.Point

@@ -176,6 +176,7 @@ Symbol              <-  ({} {
 ---@field visible?          parser.visibleType
 ---@field operators?        parser.object[]
 ---@field calls?            parser.object[]
+---@field cases?            parser.object[][] -- on a tuple-union 'doc.return' (`(A, B) | (C, D)`): each case's per-slot 'doc.type's, detached from the tree
 ---@field generics?         parser.object[]
 ---@field generic?          parser.object
 ---@field docAttr?          parser.object
@@ -1519,6 +1520,108 @@ local docSwitch = util.switch()
             type    = 'doc.return',
             returns = {},
         }
+        -- Tuple-union (wowlua-ls interop): `---@return (A, B) | (C, D)` -- the function returns one
+        -- of the listed tuples, all of the same width. Each slot's type is the union of that slot
+        -- across the cases (so ordinary typing needs nothing new: `result.returns` is the usual
+        -- per-slot list), and the cases themselves are kept as `result.cases` (each a list of the
+        -- per-slot `doc.type`s, detached from the tree -- read only for their nil-ness) so the flow
+        -- analysis can tell which slots are always nil/non-nil together (vm/flow.lua,
+        -- `casesCorrelation`). Tried speculatively and rolled back unless there are at least two
+        -- cases of equal width, so the labeled shorthand below and a plain grouped type still parse
+        -- the way they always did.
+        if checkToken('symbol', '(', 1) then
+            try(function ()
+                ---@type parser.object[][]
+                local cases = {}
+                while true do
+                    if not checkToken('symbol', '(', 1) then
+                        return false
+                    end
+                    nextToken()
+                    ---@type parser.object[]
+                    local caseTypes = {}
+                    while true do
+                        local docType = parseType(result)
+                        if not docType then
+                            return false
+                        end
+                        caseTypes[#caseTypes+1] = docType
+                        if not checkToken('symbol', ',', 1) then
+                            break
+                        end
+                        nextToken()
+                    end
+                    if not checkToken('symbol', ')', 1) then
+                        return false
+                    end
+                    nextToken()
+                    cases[#cases+1] = caseTypes
+                    if not checkToken('symbol', '|', 1) then
+                        break
+                    end
+                    nextToken()
+                end
+                if #cases < 2 then
+                    return false
+                end
+                local width = #cases[1]
+                for k = 2, #cases do
+                    if #cases[k] ~= width then
+                        return false
+                    end
+                end
+                ---@type parser.object[]
+                local slots = {}
+                for i = 1, width do
+                    ---@type parser.object
+                    local union = {
+                        type   = 'doc.type',
+                        parent = result,
+                        types  = {},
+                        start  = cases[1][i].start,
+                        finish = cases[#cases][i].finish,
+                    }
+                    ---@type parser.object[]
+                    local nilUnits = {}
+                    for k = 1, #cases do
+                        local caseSlot = cases[k][i]
+                        for _, unit in ipairs(caseSlot.types) do
+                            unit.parent = union
+                            if unit.type == 'doc.type.name' and unit[1] == 'nil' then
+                                nilUnits[#nilUnits+1] = unit
+                            else
+                                union.types[#union.types+1] = unit
+                            end
+                        end
+                        if caseSlot.optional then
+                            union.optional = true
+                        end
+                    end
+                    -- `string | nil` is `string?` everywhere else in the engine (the `.optional`
+                    -- flag, not a `nil` member): normalize to that, so a tuple-union slot types and
+                    -- narrows exactly like the plain `---@return string?` it is equivalent to. A
+                    -- slot that is only ever `nil` stays a plain `nil` type.
+                    if #nilUnits > 0 then
+                        if #union.types > 0 then
+                            union.optional = true
+                        else
+                            union.types[1] = nilUnits[1]
+                        end
+                    end
+                    union.firstFinish = union.finish
+                    slots[i] = union
+                end
+                result.start   = slots[1].start
+                result.returns = slots
+                result.cases   = cases
+                result.finish  = getFinish()
+                return true
+            end)
+            ---@diagnostic expect-next-line: need-check-nil
+            if #result.returns > 0 then
+                return result
+            end
+        end
         -- Labeled tuple shorthand: `---@return (A name, B name2)` is sugar for the equivalent
         -- comma-separated `---@return A name` / `---@return B name2` lines below -- same AST, same
         -- `result.returns` list, just written compactly in one pair of parens (wowlua-ls interop).

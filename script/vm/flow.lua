@@ -1988,6 +1988,22 @@ function vm.prebuildFlow(source)
     if not func then
         return
     end
+    if vm.compileDepth() > 0 then
+        -- Never start a build from inside another compile: what a build asks the compiler for (a
+        -- loop variable's seeds compile `ipairs(x)`, a parameter's type, ...) can be half built, and
+        -- the answer sticks (TRACER-REDESIGN.md, design lesson 1: loop variables typed `unknown` for
+        -- good). Found 2026-10-02: asking for the `---@type table<any, any>` of a local first, then
+        -- `for _, lang in ipairs(support) do lang:sub(1, 2) end`, left `lang` `unknown` -- and with a
+        -- different diagnostic order the repo's own self-check showed it (`LLS_DIAG_ORDER=shuffle:6`,
+        -- `first:return-type-mismatch`). A function whose first compile is nested is marked pending
+        -- (reads are recorded while it has no flow, see `softPending`) and built at the next fresh
+        -- compile that starts from a clean stack; until then the old walk answers, as it did before
+        -- the flow existed. The whole-file build below is left for that same moment.
+        if not flowCache[func] and not failed[func] then
+            softPending[func] = true
+        end
+        return
+    end
     prebuildOne(func)
     -- The whole file, once: a read compiled from inside another compile (a callee, a return value)
     -- finds its function's flow already built, instead of the old walk answering it.

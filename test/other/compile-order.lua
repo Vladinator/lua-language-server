@@ -513,6 +513,52 @@ local function allSources(text)
     return list
 end
 
+-- A loop variable must not depend on the order either: the flow build used to start from inside
+-- whichever compile asked first (here the `---@type` doc of the iterated local) and meet half-built
+-- nodes -- `lang` came out `unknown` for good instead of `any` (fork: depth guard in
+-- `vm.prebuildFlow`; the same family as the `no-unknown` findings of `shuffle:6`).
+---@type string[]
+local loopTexts = {
+    [[
+local function getLanguage(id)
+    ---@type table<any, any>
+    local support = {}
+    for _, lang in ipairs(support) do
+        local x = lang:sub(1, 2)
+        return lang
+    end
+end
+]],
+    [[
+---@return table<any, any>
+local function supportLanguage()
+    return {}
+end
+
+local function getLanguage(id)
+    local support = supportLanguage()
+    for _, lang in ipairs(support) do
+        if lang:sub(1, 2) == id:sub(1, 2) then
+            return lang
+        end
+    end
+end
+]],
+}
+for k, text in ipairs(loopTexts) do
+    for i = 1, #allSources(text) do
+        local list = allSources(text)
+        vm.getInfer(list[i])
+        for _, source in ipairs(list) do
+            if source.type == 'local' and source[1] == 'lang' then
+                local view = vm.getInfer(source):view(TESTURI)
+                assert(view == 'any', ('loop variable text %d: source %d (%s) asked first leaves `lang` as `%s`, want `any`')
+                    :format(k, i, list[i].type, view))
+            end
+        end
+    end
+end
+
 for _, case in ipairs(flowOnly) do
     local count = #allSources(case.text)
     for i = 1, count do

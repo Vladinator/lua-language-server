@@ -212,3 +212,29 @@ function m.ff(x) end
 
 m.ff(1)
 ]]
+
+-- a function that takes nothing: any argument is wrong, even when the last one is a call
+TEST [[
+local function foo() end
+
+local function bar() return 1 end
+
+foo(<!bar()!>)
+foo(<!1!>, <!bar()!>)
+]]
+
+-- a function that takes parameters forgives a trailing call while the count could still fit (it may expand)
+TEST [[
+local function foo(a, b) end
+
+local function bar() return 1, 2 end
+
+foo(1, bar())
+foo(bar())
+]]
+
+-- a function literal with more parameters than the `fun()` type it is assigned to declares
+TEST [[
+---@type fun(a: number)
+local f = function(a, <!b!>) end
+]]

@@ -156,3 +156,15 @@ X = {
 
 print(X.<!C!>)
 ]]
+
+-- an enum read by index: a missing key is reported, an existing one is not
+TEST [[
+---@enum IdxEnum
+local IdxEnum = {
+    A = 1,
+    B = 2,
+}
+
+print(IdxEnum['A'])
+print(IdxEnum[<!'C'!>])
+]]

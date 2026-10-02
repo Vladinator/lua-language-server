@@ -46,3 +46,18 @@ TEST [[
 ---@diagnostic expect-next-line: no-such-diagnostic
 local s = 1
 ]]
+
+-- an expectation without codes means "any diagnostic on that line"
+TEST [[
+print(1)
+---@diagnostic <!expect-next-line!>
+print(2)
+]]
+
+TEST [[
+---@type string?
+local x
+
+---@diagnostic expect-next-line
+local s = x:upper()
+]]

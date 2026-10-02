@@ -598,3 +598,35 @@ local bad
 both(good)
 both(<!bad!>)
 ]]
+
+-- a method of a generic class: the class's type parameter is replaced by the receiver's own type
+-- argument before the argument is checked
+TEST [[
+---@class GenBoxPTM<T>
+local Box = {}
+
+---@param v T
+function Box:set(v) end
+
+---@type GenBoxPTM<string>
+local b
+
+b:set('ok')
+b:set(<!1!>)
+]]
+
+TEST [[
+---@class GenPairPTM<K, V>
+local Pair = {}
+
+---@param k K
+---@param v V
+function Pair:put(k, v) end
+
+---@type GenPairPTM<string, number>
+local p
+
+p:put('a', 1)
+p:put(<!1!>, 1)
+p:put('a', <!'x'!>)
+]]

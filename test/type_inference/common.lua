@@ -6446,5 +6446,52 @@ local a
 local <?r?> = a ?? error('no value')
 ]]
 
+-- LuaJIT's ternary `c ? a : b`: a decided condition picks its branch, an undecided one gives both,
+-- a branch that cannot return (`error()`) adds nothing
+TEST 'integer' [[
+local <?r?> = true ? 1 : 'x'
+]]
+
+TEST 'string' [[
+local <?r?> = false ? 1 : 'x'
+]]
+
+TEST 'string|integer' [[
+---@type boolean
+local cond
+local <?r?> = cond ? 1 : 'x'
+]]
+
+TEST 'integer' [[
+---@type boolean
+local cond
+local <?r?> = cond ? 1 : error('no')
+]]
+
+TEST 'integer' [[
+local <?r?> = nil ? 1 : 2
+]]
+
 config.set(nil, 'Lua.runtime.version', nil)
 config.set(nil, 'Lua.runtime.enableLuaJITExtensions', nil)
+
+-- `---@enum (partial)`: another declaration of the same enum adds its fields
+TEST 'integer' [[
+---@enum (partial) PartialEnumTI
+local A = { First = 1 }
+
+---@enum (partial) PartialEnumTI
+local B = { Second = 'two' }
+
+local <?r?> = A.First
+]]
+
+TEST 'string' [[
+---@enum (partial) PartialEnumTI2
+local A = { First = 1 }
+
+---@enum (partial) PartialEnumTI2
+local B = { Second = 'two' }
+
+local <?r?> = B.Second
+]]

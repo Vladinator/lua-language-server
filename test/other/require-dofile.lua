@@ -57,4 +57,22 @@ do
     assert(views.third == 'nil')
 end
 
+-- `---@module 'name'` types a variable as the module that `require 'name'` would return
+do
+    local modUri2 = furi.encode(TESTROOT .. 'requiredofile_mod2.lua')
+    files.setText(modUri2, table.concat({ 'local M = {}', 'function M.hello() return 1 end', 'M.value = "s"', 'return M', '' }, string.char(10)))
+    files.compileState(modUri2)
+    local views = viewsOf(table.concat({
+        "---@module 'requiredofile_mod2'",
+        "local m",
+        "local h = m.hello()",
+        "local v = m.value",
+        "---@module 'requiredofile_nothing'",
+        "local gone",
+    }, string.char(10)) .. string.char(10), 'Lua 5.4')
+    assert(views.h == 'integer', views.h)
+    assert(views.v == 'string', views.v)
+    files.remove(modUri2)
+end
+
 files.remove(modUri)

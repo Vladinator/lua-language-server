@@ -1593,19 +1593,41 @@ local building = setmetatable({}, { __mode = 'k' })
 --- correct for the idioms it independently understands (`type(x) == 'string'` directly), but not
 --- for one only the new flow narrows (a boolean local aliasing a condition): so what the old
 --- tracer returns here must not become this read's permanent answer once the flow -- which does
---- get it right -- exists. Recorded by `vm.traceNodeByFlow` and dropped once the build that
---- caused it finishes, forcing a fresh compile that finds the now-built flow.
---- Scoped to functions with at least one `boolCondExpr` entry (`hasBoolCond`, set while building):
---- for every other function the old tracer's answer to this same reentrant read already agrees
---- with the flow's own (every idiom besides the alias one is one the old tracer understands
---- natively) -- dropping and recompiling those too found real regressions elsewhere in the repo
---- self-check (a read recompiled a second time, outside the context it first ran in, can land on
---- a different, unrelated compiler quirk), for no behavior change, so it stays off there.
+--- get it right -- exists. Recorded by `vm.traceNodeByFlow` (while the flow is being built, and
+--- while it is absent after a build dropped on a compile cycle, see `softPending`) and dropped once
+--- a build finishes, forcing a fresh compile that finds the now-built flow.
+--- Only dropped for functions with narrowing the old tracer does not know (`hasBoolCond`: a
+--- `boolCondExpr` alias entry, a `---@correlated` group explicit or inferred, a workspace that
+--- declares correlated class fields): for every other function the old tracer's answer to this same
+--- reentrant read already agrees with the flow's own (every other idiom is one the old tracer
+--- understands natively) -- dropping and recompiling those too found real regressions elsewhere in
+--- the repo self-check (a read recompiled a second time, outside the context it first ran in, can
+--- land on a different, unrelated compiler quirk), for no behavior change, so it stays off there.
+--- Which functions those are is only known once the build's static scan has run, so the list is
+--- kept unconditionally and `vm.buildFlow` decides at the end.
 ---@type table<parser.object, parser.object[]>
 local pendingRebuild = setmetatable({}, { __mode = 'k' })
 
 ---@type table<parser.object, true>
 local failed = setmetatable({}, { __mode = 'k' })
+
+--- Builds that were dropped, not for an error but because a compile was open further down the stack
+--- (`CYCLE`, or `vm.watchCompileCycles` seeing a half-built read): a *transient* miss -- the same
+--- function builds fine from a clean stack. Giving up on the first one left the function without a
+--- flow for the rest of the epoch, every later read of it answered by the old tracer; which
+--- diagnostic happened to compile first (so what was open on the stack) then decided whether an
+--- alias / correlation narrowing worked at all (found 2026-10-02: `LLS_DIAG_ORDER=shuffle:6` and
+--- `shuffle:14` failed the alias and inferred-returns tests, the default cost order intermittently).
+---
+--- So a miss with compiles still open (`softPending`) is not counted and not retried until a fresh
+--- compile starts from a clean stack (`vm.compileDepth() == 0`) -- retrying inside the same blocked
+--- region just fails the same way, as the first attempt at this fix did, burning its whole budget
+--- back to back. A miss from a clean stack is structural and counts, up to `MAX_SOFT_FAILS`.
+---@type table<parser.object, true>
+local softPending = setmetatable({}, { __mode = 'k' })
+---@type table<parser.object, integer>
+local softFails = setmetatable({}, { __mode = 'k' })
+local MAX_SOFT_FAILS = 3
 local prebuilding = false
 
 --- The flow of `main` when it has been built (and is still valid), else nil.
@@ -1639,19 +1661,42 @@ local function prebuildOne(func)
     end
     if flowEpoch ~= vm.nodeCache then
         failed = setmetatable({}, { __mode = 'k' })
+        softFails = setmetatable({}, { __mode = 'k' })
+        softPending = setmetatable({}, { __mode = 'k' })
     elseif flowCache[func] or failed[func] then
+        return
+    end
+    local cleanStack = vm.compileDepth() == 0
+    if softPending[func] and not cleanStack then
         return
     end
     prebuilding = true
     local ok, flow = pcall(vm.getFlow, func)
     prebuilding = false
+    ---@type boolean
+    local soft = false
     if not ok then
-        if flow ~= CYCLE then
+        if flow == CYCLE then
+            soft = true
+        else
             log.error(('flow analysis failed at %s:%d: %s'):format(guide.getUri(func), func.start // 10000 + 1, tostring(flow)))
+            failed[func] = true
         end
-        failed[func] = true
     elseif not flow then
-        failed[func] = true
+        soft = true
+    else
+        softPending[func] = nil
+    end
+    if soft then
+        if cleanStack then
+            local count = (softFails[func] or 0) + 1
+            softFails[func] = count
+            if count >= MAX_SOFT_FAILS then
+                failed[func] = true
+            end
+        else
+            softPending[func] = true
+        end
     end
 end
 
@@ -1727,7 +1772,24 @@ function vm.traceNodeByFlow(source)
     -- needs its own static type, to seed the flow being built), the old tracer's answer here
     -- must not stick once the flow exists: `vm.buildFlow` drops it below, from this list.
     if building[func] then
-        if hasBoolCond[func] then
+        -- (recorded whether or not `hasBoolCond[func]` is known yet: it is set by the static scan,
+        -- which this very read may be reentering from before it has run -- `vm.buildFlow` decides
+        -- at the end of the build whether to drop what is listed)
+        local list = pendingRebuild[func]
+        if not list then
+            list = {}
+            pendingRebuild[func] = list
+        end
+        list[#list+1] = source
+        return nil
+    end
+    local ok, result = pcall(function ()
+        local flow = peekFlow(func)
+        if not flow and softPending[func] and not failed[func] then
+            -- No flow *yet* (a build was dropped on a compile cycle and waits for a clean stack to
+            -- be retried, see `softPending`): the old tracer answers this read, and that answer
+            -- must not stick once a later build succeeds -- same reasoning as the reads asked while
+            -- building, above.
             local list = pendingRebuild[func]
             if not list then
                 list = {}
@@ -1735,10 +1797,6 @@ function vm.traceNodeByFlow(source)
             end
             list[#list+1] = source
         end
-        return nil
-    end
-    local ok, result = pcall(function ()
-        local flow = peekFlow(func)
         return flow and flow:getNode(source)
     end)
     if not ok then
@@ -1761,10 +1819,17 @@ function vm.buildFlow(main)
     local ok, result = pcall(vm.buildFlowUnguarded, main)
     building[main] = nil
     local dirty = pendingRebuild[main]
-    if dirty then
+    -- (reads are recorded unconditionally, whether or not this function turns out to have
+    -- narrowing only the flow understands -- `hasBoolCond` is only known once the static scan has
+    -- run, which a build aborted early never reaches. A failed build without it keeps its list for
+    -- the retry; every other end of a build settles it: drop the recorded answers when the flow has
+    -- something the old tracer would get wrong, forget them otherwise.)
+    if dirty and (ok or hasBoolCond[main]) then
         pendingRebuild[main] = nil
-        for _, source in ipairs(dirty) do
-            vm.removeNode(source)
+        if hasBoolCond[main] then
+            for _, source in ipairs(dirty) do
+                vm.removeNode(source)
+            end
         end
     end
     if not ok then
@@ -1961,6 +2026,16 @@ function vm.buildFlowBody(main)
                 end
             end
         end
+    end
+
+    -- A correlation (explicit tag or inferred from a callee's returns) is narrowing only this flow
+    -- knows -- the old tracer has no idea what it means -- so a read answered by the old tracer
+    -- while this flow is absent or building must be dropped once a build succeeds, exactly like
+    -- the boolean-alias case (`hasBoolCond`). Without it, whether `if a then use(b) end` narrowed
+    -- `b` depended on which diagnostic happened to compile first (found 2026-10-02 with
+    -- `LLS_DIAG_ORDER=shuffle:6` on the inferred-returns test).
+    if next(correlatedGroups) then
+        hasBoolCond[main] = true
     end
 
     -- What is worth tracking: whatever a branch condition, an assertion-like call or a cast names.

@@ -387,4 +387,134 @@ for k = 1, #loopNames do
     end
 end
 
+-- Narrowing only the flow analysis knows (a boolean alias of an and-chain, a `---@correlated`
+-- group, a callee's inferred correlated returns, a tuple-union return) must not depend on which node
+-- is compiled first either. The first flow build of a chunk used to be dropped for good when it hit
+-- a compile still open on the stack (`prebuildOne` marked it `failed`), and the old tracer, which
+-- does not know these, answered every read of the chunk after that -- so the same alias test passed
+-- or failed with the order the diagnostics happened to run in (`LLS_DIAG_ORDER=shuffle:6`, found
+-- 2026-10-02). Every source of each script is asked first, alone, in a fresh state; the read that
+-- needs the narrowing must always come out narrowed.
+---@class test.flowOnlyCase
+---@field name string
+---@field text string
+---@field read fun(source: parser.object): boolean
+---@field want string
+
+---@type test.flowOnlyCase[]
+local flowOnly = {
+    {
+        name = 'alias of an and-chain of plain refs',
+        text = [[
+---@class Box
+---@field value string?
+---@field blocked boolean?
+
+---@return Box?
+local function getBox() return nil end
+
+local box = getBox()
+local isShown = box and (box.value and not box.blocked)
+if isShown then
+    S = box.value:len()
+end
+]],
+        read = function (source) return source.type == 'getlocal' and source[1] == 'box' end,
+        want = 'Box',
+    },
+    {
+        name = 'inferred correlated returns',
+        text = [[
+---@return string?, number?
+local function f(cond)
+    if cond then
+        return nil, nil
+    end
+    return "x", 5
+end
+
+local a, b = f(true)
+if a then
+    S = b + 1
+end
+]],
+        read = function (source) return source.type == 'getlocal' and source[1] == 'b' end,
+        want = 'number',
+    },
+    {
+        name = 'explicit ---@correlated locals',
+        text = [[
+---@type string?
+local tradeType = nil
+---@type number?
+local money = nil
+---@correlated tradeType, money
+
+if math.random() > 0.5 then
+    tradeType = "buy"
+    money = 100
+end
+
+if tradeType then
+    S = money + 1
+end
+]],
+        read = function (source) return source.type == 'getlocal' and source[1] == 'money' end,
+        want = 'number',
+    },
+    {
+        name = 'tuple-union return',
+        text = [[
+---@return (string, number) | (nil, nil)
+local function f(cond)
+    if cond then return "x", 1 end
+    return nil, nil
+end
+
+local a, b = f(true)
+if a then
+    S = b + 1
+end
+]],
+        read = function (source) return source.type == 'getlocal' and source[1] == 'b' end,
+        want = 'number',
+    },
+}
+
+---@param text string
+---@return parser.object[]
+local function allSources(text)
+    files.remove(TESTURI)
+    files.setText(TESTURI, text)
+    local state = files.getState(TESTURI)
+    assert(state)
+    ---@type parser.object[]
+    local list = {}
+    guide.eachSource(state.ast, function (source)
+        list[#list+1] = source
+    end)
+    return list
+end
+
+for _, case in ipairs(flowOnly) do
+    local count = #allSources(case.text)
+    for i = 1, count do
+        local list = allSources(case.text)
+        local first = list[i]
+        -- (a doc node or a plain constant is as good a first ask as any: only the order matters)
+        vm.getInfer(first)
+        ---@type parser.object?
+        local target
+        for _, source in ipairs(list) do
+            if case.read(source) then
+                target = source   -- the last matching read: the one inside the narrowed branch
+            end
+        end
+        assert(target, case.name)
+        local view = vm.getInfer(target):view(TESTURI)
+        assert(view == case.want, ('%s: source %d (%s) asked first leaves the read as `%s`, want `%s`')
+            :format(case.name, i, first.type, view, case.want))
+    end
+end
+
 files.remove(TESTURI)

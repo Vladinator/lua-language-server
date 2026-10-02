@@ -255,6 +255,11 @@ local function snippetsAt(script)
     return snippets
 end
 
+-- (an earlier test group may have switched the snippets off: state what this one expects)
+local config = require 'config'
+local savedKeywordSnippet = config.get(nil, 'Lua.completion.keywordSnippet')
+config.set(nil, 'Lua.completion.keywordSnippet', 'Replace')
+
 do
     local lf = string.char(10)
     local tab = string.char(9)
@@ -285,6 +290,7 @@ do
     assert(next(snippetsAt('zzz<??>')) == nil)
     assert(snippetsAt('local x = 1' .. lf .. 'con<??>')['goto continue ..'] == nil, 'no loop, no continue')
 end
+config.set(nil, 'Lua.completion.keywordSnippet', savedKeywordSnippet)
 
 -- code lens: a lens above each function that is assigned or returned, resolved to its reference count
 local codeLens = require 'core.code-lens'

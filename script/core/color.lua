@@ -35,7 +35,7 @@ end
 ---@return Color
 local function hexTextToColor(colorText)
     return {
-        alpha = 255,
+        alpha = 1,
         red   = tonumber(colorText:sub(2, 3), 16) / 255,
         green = tonumber(colorText:sub(4, 5), 16) / 255,
         blue  = tonumber(colorText:sub(6, 7), 16) / 255,

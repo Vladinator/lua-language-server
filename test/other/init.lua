@@ -2,6 +2,7 @@
 require 'other.view-string'
 require 'other.configuration'
 require 'other.compile-order'
+require 'other.core-features'
 require 'other.diagnostic-order'
 require 'other.encoder'
 require 'other.semantic-tokens'

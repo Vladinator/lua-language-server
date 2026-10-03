@@ -406,6 +406,12 @@ config.type.checkTableShape              =
 [[
 Strictly check the shape of the table.
 ]]
+config.annotations.dialects             =
+[[
+The annotation dialects the project is written for: `legacyluals` (the original LuaLS), `luals` (this fork), `wowluals` (wowlua-ls), or `mixed` (all of them, the default).
+
+A `---@tag` that none of the listed dialects knows is reported as a hint (`non-portable-annotation`) instead of being silently ignored. Parsing is not changed: every spelling is always read.
+]]
 config.type.inferTableSize               =
 'Maximum number of table fields analyzed during type inference.'
 config.doc.privateName                   =

@@ -62,6 +62,29 @@ string
 ""
 ```
 
+# annotations.dialects
+
+**Missing description!!**
+
+## type
+
+```ts
+Array<string>
+```
+
+## enum
+
+* ``"legacyluals"``
+* ``"luals"``
+* ``"wowluals"``
+* ``"mixed"``
+
+## default
+
+```jsonc
+["mixed"]
+```
+
 # codeLens.enable
 
 啟用CodeLens。
@@ -300,6 +323,8 @@ Array<string>
 
 ## enum
 
+* ``"access-private"``
+* ``"access-protected"``
 * ``"action-after-return"``: `return` 陳述式之後的程式碼
 * ``"ambiguity-1"``: 優先順序歧義，如： `num or 0 + 1` ，推測使用者的實際期望為 `(num or 0) + 1`
 * ``"ambiguous-syntax"``: 存在歧義的語法
@@ -405,6 +430,7 @@ Array<string>
 * ``"newline-call"``: 以 `(` 開始的新行，在語法上被解析為了上一行的函式呼叫
 * ``"no-unknown"``: 無法推斷變數的未知類型
 * ``"no-visible-label"``: 不可見的標籤
+* ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
 * ``"not-yieldable"``: 不允許呼叫 `coroutine.yield()`
 * ``"param-type-mismatch"``: 給定參數的類型不符合函式定義所要求的類型（ `@param` ）
 * ``"redefined-label"``: 重複定義的標籤
@@ -414,6 +440,7 @@ Array<string>
 * ``"redundant-return-value"``: 回傳了 `@return` 標註未指定的額外值
 * ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: 賦值操作時，值的數量比被賦值的對象多
+* ``"return-mismatch"``
 * ``"return-type-mismatch"``: 回傳值的類型不符合 `@return` 中宣告的類型
 * ``"secret-access"``: Enable diagnostics for indexing (`s.x`, `s[k]`, `s:m()`), calling (`s()`) or iterating (`pairs(s)`, `ipairs(s)`, `next(s)`) a secret value before it is checked.
 * ``"secret-argument"``: Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
@@ -427,6 +454,7 @@ Array<string>
 * ``"set-const"``: 對 const 常數賦值
 * ``"spell-check"``: 字串拼寫檢查
 * ``"trailing-space"``: 後置空格
+* ``"type-mismatch"``
 * ``"unbalanced-assignments"``: 多重賦值時沒有賦值所有變數（如 `local x,y = 1` ）
 * ``"unchecked-array-index"``: Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
 * ``"undefined-doc-class"``: 在 `@class` 標註中引用未定義的類別。
@@ -446,7 +474,11 @@ Array<string>
 * ``"unknown-attribute"``: 未知的屬性
 * ``"unknown-cast-variable"``: 使用 `@cast` 對未定義的變數進行強制轉換
 * ``"unknown-diag-code"``: 輸入了未知的診斷
+* ``"unknown-field-type"``
+* ``"unknown-local-type"``
 * ``"unknown-operator"``: 未知的運算子
+* ``"unknown-param-type"``
+* ``"unknown-return-type"``
 * ``"unknown-symbol"``: 未知的符號
 * ``"unreachable-code"``: 無法到達的程式碼
 * ``"unsupport-named-vararg"``: 不支援的命名變參
@@ -602,6 +634,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
@@ -751,6 +784,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
@@ -1065,6 +1099,10 @@ object<string, string>
     無法推斷變數的未知類型
     */
     "no-unknown": "None",
+    /*
+    Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
+    */
+    "non-portable-annotation": "Any",
     /*
     不允許呼叫 `coroutine.yield()`
     */
@@ -1427,6 +1465,10 @@ object<string, string>
     無法推斷變數的未知類型
     */
     "no-unknown": "Warning",
+    /*
+    Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
+    */
+    "non-portable-annotation": "Hint",
     /*
     不允許呼叫 `coroutine.yield()`
     */

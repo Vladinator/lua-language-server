@@ -84,6 +84,24 @@ function m.eachTag()
     end
 end
 
+---@type table<string, string[]>
+local tagFlavors = {}
+
+--- Say which annotation dialects know the tag `name` (`legacyluals`, `luals`, `wowluals`; see the
+--- `non-portable-annotation` diagnostic). A tag that never says is taken as `luals` only.
+---@param name    string
+---@param flavors string[]
+function m.setTagFlavors(name, flavors)
+    tagFlavors[name] = flavors
+end
+
+--- The dialects that know a registered tag.
+---@param name string
+---@return string[]
+function m.getTagFlavors(name)
+    return tagFlavors[name] or { 'luals' }
+end
+
 ---@param name string
 ---@return string?
 function m.getMarkerTagType(name)

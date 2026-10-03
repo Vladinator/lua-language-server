@@ -6,6 +6,12 @@ local protoDiagnostic = require 'proto.diagnostic'
 
 local MESSAGE = 'Cannot infer type.'
 
+-- wowlua-ls spells this diagnostic `unknown-param-type` / `unknown-return-type` / `unknown-local-type` / `unknown-field-type`
+protoDiagnostic.registerAlias('unknown-param-type', 'no-unknown')
+protoDiagnostic.registerAlias('unknown-return-type', 'no-unknown')
+protoDiagnostic.registerAlias('unknown-local-type', 'no-unknown')
+protoDiagnostic.registerAlias('unknown-field-type', 'no-unknown')
+
 protoDiagnostic.register {
     'no-unknown',
 } {

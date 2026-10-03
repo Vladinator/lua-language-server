@@ -64,6 +64,12 @@ end
 -- `local a, b, c`): only those locals are affected. No list means every
 -- local of the statement, as before.
 
+-- which annotation dialects know each tag (the `non-portable-annotation` lint): only `@secret-guard` is
+-- also wowlua-ls's
+for _, name in ipairs { 'secret', 'secret-unwrap', 'nosecret', 'secret-check', 'secret-access-check' } do
+    docTags.setTagFlavors(name, { 'luals' })
+end
+docTags.setTagFlavors('secret-guard', { 'luals', 'wowluals' })
 docTags.registerNameListTag('secret', 'doc.secret',
     'Marks a value as secret: using it before it is checked raises `secret-arithmetic`, `secret-comparison`, `secret-condition`, `secret-table-key` or `secret-access`.\n\n'
     .. '`---@secret` marks everything it is bound to; `---@secret a, b` only the named locals.')

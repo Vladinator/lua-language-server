@@ -62,6 +62,29 @@ string
 ""
 ```
 
+# annotations.dialects
+
+**Missing description!!**
+
+## type
+
+```ts
+Array<string>
+```
+
+## enum
+
+* ``"legacyluals"``
+* ``"luals"``
+* ``"wowluals"``
+* ``"mixed"``
+
+## default
+
+```jsonc
+["mixed"]
+```
+
 # codeLens.enable
 
 Habilita el lente para código.
@@ -300,6 +323,8 @@ Array<string>
 
 ## enum
 
+* ``"access-private"``
+* ``"access-protected"``
 * ``"action-after-return"``: Código después de una sentencia `return`
 * ``"ambiguity-1"``: Habilita el diagnóstico de precedencia de operadores ambiguos. Por ejemplo, ante la expresión `num or 0 + 1` se sugerirrá `(num or 0) + 1`.
 * ``"ambiguous-syntax"``: Sintaxis ambigua
@@ -405,6 +430,7 @@ Array<string>
 * ``"newline-call"``: Habilita el diagnóstico de llamadas en línea nueva. Se alza un error en las líneas que comienzan con `(`, lo que se lee sintácticamente como una llamada a la línea anterior.
 * ``"no-unknown"``: Habilita el diagnóstico para los casos en que el tipo no puede ser inferido.
 * ``"no-visible-label"``: Etiqueta invisible
+* ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
 * ``"not-yieldable"``: Habilita el diagnóstico para llamadas a `coroutine.yield()` cuando no esté permitido.
 * ``"param-type-mismatch"``: Habilita el diagnóstico para llamadas a funciones donde el tipo de un parámetro provisto no calza con el tipo de la definición anotado de la función.
 * ``"redefined-label"``: Etiqueta redefinida
@@ -414,6 +440,7 @@ Array<string>
 * ``"redundant-return-value"``: Habilita el diagnóstico para sentencias de retorno que retornan un valor extra que no fue especificado por una anotación de retorno.
 * ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: Habilita el diagnóstico de valores asignados redundantemente. Se alza un error en una asignación, cuando el número de valores es mayor que el número de objetos a los cuales se les asigna.
+* ``"return-mismatch"``
 * ``"return-type-mismatch"``: Habilita el diagnóstico para valores retornados cuyo tipo no calza con el tipo declarado en la anotación correspondiente de la función.
 * ``"secret-access"``: Enable diagnostics for indexing (`s.x`, `s[k]`, `s:m()`), calling (`s()`) or iterating (`pairs(s)`, `ipairs(s)`, `next(s)`) a secret value before it is checked.
 * ``"secret-argument"``: Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
@@ -427,6 +454,7 @@ Array<string>
 * ``"set-const"``: Asignando a una constante const
 * ``"spell-check"``: Habilita el diagnóstico para errores tipográficos en strings.
 * ``"trailing-space"``: Habilita el diagnóstico de espacios al final de línea.
+* ``"type-mismatch"``
 * ``"unbalanced-assignments"``: Habilita el diagnóstico para asignaciones múltiplies si no todas las variables obtienen un valor (por ejemplo, `local x,y = 1`).
 * ``"unchecked-array-index"``: Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
 * ``"undefined-doc-class"``: Habilita el diagnóstico para las anotaciones de clase en las cuales una clase sin definir es referenciada.
@@ -446,7 +474,11 @@ Array<string>
 * ``"unknown-attribute"``: Atributo desconocido
 * ``"unknown-cast-variable"``: Habilita el diagnóstico para conversiones de tipo de variables sin definir.
 * ``"unknown-diag-code"``: Habilita el diagnóstico para los casos en que un código desconocido de diagnóstico es ingresado.
+* ``"unknown-field-type"``
+* ``"unknown-local-type"``
 * ``"unknown-operator"``: Habilita el diagnóstico para operadores desconocidos.
+* ``"unknown-param-type"``
+* ``"unknown-return-type"``
 * ``"unknown-symbol"``: Símbolo desconocido
 * ``"unreachable-code"``: Habilita el diagnóstico para código inalcanzable.
 * ``"unsupport-named-vararg"``: Vararg nombrado no soportado
@@ -602,6 +634,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
@@ -751,6 +784,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
@@ -1065,6 +1099,10 @@ object<string, string>
     Habilita el diagnóstico para los casos en que el tipo no puede ser inferido.
     */
     "no-unknown": "None",
+    /*
+    Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
+    */
+    "non-portable-annotation": "Any",
     /*
     Habilita el diagnóstico para llamadas a `coroutine.yield()` cuando no esté permitido.
     */
@@ -1428,6 +1466,10 @@ object<string, string>
     Habilita el diagnóstico para los casos en que el tipo no puede ser inferido.
     */
     "no-unknown": "Warning",
+    /*
+    Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
+    */
+    "non-portable-annotation": "Hint",
     /*
     Habilita el diagnóstico para llamadas a `coroutine.yield()` cuando no esté permitido.
     */

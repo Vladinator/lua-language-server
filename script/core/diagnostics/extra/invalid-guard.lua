@@ -35,6 +35,8 @@ protoDiagnostic.register {
 docTags.registerGuardTag('guard', 'doc.guard',
     'A function that returns true when its parameter has a type: `---@guard v is string`, or `---@guard v is not nil`.\n\n'
     .. 'In the branch of a condition where the call holds, the argument has that type; in the other branch it is taken away.')
+docTags.setTagFlavors('guard',   { 'luals' })
+docTags.setTagFlavors('asserts', { 'luals' })
 docTags.registerGuardTag('asserts', 'doc.asserts',
     'A function that raises an error unless its parameter has a type: `---@asserts v is table`.\n\n'
     .. 'After a call used as a statement the argument has that type.')

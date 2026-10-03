@@ -112,20 +112,6 @@ function m.resolveAlias(name)
     return aliases[name] or name
 end
 
--- wowlua-ls spellings of diagnostics we have under their original LuaLS name
-for alias, canonical in pairs {
-    ['type-mismatch']       = 'param-type-mismatch',
-    ['return-mismatch']     = 'return-type-mismatch',
-    ['access-private']      = 'invisible',
-    ['access-protected']    = 'invisible',
-    ['unknown-param-type']  = 'no-unknown',
-    ['unknown-return-type'] = 'no-unknown',
-    ['unknown-local-type']  = 'no-unknown',
-    ['unknown-field-type']  = 'no-unknown',
-} do
-    m.registerAlias(alias, canonical)
-end
-
 --- The names a per-diagnostic setting (`severity`, `neededFileStatus`) takes as key, sorted: the
 --- registered diagnostics and the aliases.
 ---@return string[]

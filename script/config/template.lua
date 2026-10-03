@@ -485,6 +485,12 @@ local template = {
     ['Lua.type.inferParamType']             = Type.Boolean >> false,
     ['Lua.type.checkTableShape']            = Type.Boolean >> false,
     ['Lua.type.inferTableSize']             = Type.Integer >> 10,
+    ['Lua.annotations.dialects']            = Type.Array(Type.String << {
+                                                'legacyluals',
+                                                'luals',
+                                                'wowluals',
+                                                'mixed',
+                                            }) >> { 'mixed' },
     ['Lua.doc.privateName']                 = Type.Array(Type.String),
     ['Lua.doc.protectedName']               = Type.Array(Type.String),
     ['Lua.doc.packageName']                 = Type.Array(Type.String),

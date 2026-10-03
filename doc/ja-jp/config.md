@@ -62,6 +62,29 @@ string
 ""
 ```
 
+# annotations.dialects
+
+**Missing description!!**
+
+## type
+
+```ts
+Array<string>
+```
+
+## enum
+
+* ``"legacyluals"``
+* ``"luals"``
+* ``"wowluals"``
+* ``"mixed"``
+
+## default
+
+```jsonc
+["mixed"]
+```
+
 # codeLens.enable
 
 コードレンズを有効にします。
@@ -300,6 +323,8 @@ Array<string>
 
 ## enum
 
+* ``"access-private"``
+* ``"access-protected"``
 * ``"action-after-return"``: `return` 文の後のコード
 * ``"ambiguity-1"``: 演算子優先順位のあいまいさ診断を有効にします。例: `num or 0 + 1` には `(num or 0) + 1` を推奨します。
 * ``"ambiguous-syntax"``: 曖昧な構文
@@ -405,6 +430,7 @@ Array<string>
 * ``"newline-call"``: 改行呼び出しの診断を有効にします。`(` で始まる行が前の行への関数呼び出しとして構文解析される場合に発生します。
 * ``"no-unknown"``: 型を推論できない場合の診断を有効にします。
 * ``"no-visible-label"``: 見えないラベル
+* ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
 * ``"not-yieldable"``: 許可されない場所での`coroutine.yield()`呼び出しの診断を有効にします。
 * ``"param-type-mismatch"``: 注釈の型と一致しない引数を渡した場合の診断を有効にします。
 * ``"redefined-label"``: 再定義されたラベル
@@ -414,6 +440,7 @@ Array<string>
 * ``"redundant-return-value"``: 注釈にない追加の戻り値を返すreturn文の診断を有効にします。
 * ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: 代入時の余分な値の診断を有効にします。値の数が変数の数を超える場合に発生します。
+* ``"return-mismatch"``
 * ``"return-type-mismatch"``: 戻り値の型が注釈と一致しない場合の診断を有効にします。
 * ``"secret-access"``: Enable diagnostics for indexing (`s.x`, `s[k]`, `s:m()`), calling (`s()`) or iterating (`pairs(s)`, `ipairs(s)`, `next(s)`) a secret value before it is checked.
 * ``"secret-argument"``: Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
@@ -427,6 +454,7 @@ Array<string>
 * ``"set-const"``: const 定数への代入
 * ``"spell-check"``: 文字列内のタイポ診断を有効にします。
 * ``"trailing-space"``: 行末の余分な空白の診断を有効にします。
+* ``"type-mismatch"``
 * ``"unbalanced-assignments"``: 多重代入で一部の変数が値を得られない場合の診断を有効にします（例: `local x,y = 1`）。
 * ``"unchecked-array-index"``: Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
 * ``"undefined-doc-class"``: 未定義クラスを参照するクラス注釈の診断を有効にします。
@@ -446,7 +474,11 @@ Array<string>
 * ``"unknown-attribute"``: 不明な属性
 * ``"unknown-cast-variable"``: 未定義変数へのキャスト診断を有効にします。
 * ``"unknown-diag-code"``: 不明な診断コードが入力された場合の診断を有効にします。
+* ``"unknown-field-type"``
+* ``"unknown-local-type"``
 * ``"unknown-operator"``: 不明な演算子の診断を有効にします。
+* ``"unknown-param-type"``
+* ``"unknown-return-type"``
 * ``"unknown-symbol"``: 不明な記号
 * ``"unreachable-code"``: 到達不能コードの診断を有効にします。
 * ``"unsupport-named-vararg"``: サポートされない名前付き可変引数
@@ -602,6 +634,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
@@ -751,6 +784,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
@@ -1065,6 +1099,10 @@ object<string, string>
     型を推論できない場合の診断を有効にします。
     */
     "no-unknown": "None",
+    /*
+    Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
+    */
+    "non-portable-annotation": "Any",
     /*
     許可されない場所での`coroutine.yield()`呼び出しの診断を有効にします。
     */
@@ -1428,6 +1466,10 @@ object<string, string>
     型を推論できない場合の診断を有効にします。
     */
     "no-unknown": "Warning",
+    /*
+    Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
+    */
+    "non-portable-annotation": "Hint",
     /*
     許可されない場所での`coroutine.yield()`呼び出しの診断を有効にします。
     */

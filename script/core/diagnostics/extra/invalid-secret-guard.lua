@@ -1,4 +1,4 @@
--- `---@secret-guard <param> <kind>` (declared in need-check-secret.lua) that does not read like that, or
+-- `---@secret-guard <param> <kind>` (declared in secret-access.lua) that does not read like that, or
 -- names something that is not a parameter of the function it is bound to: the parser leaves such a tag
 -- bare, and a bare tag does nothing, so without this report a guard that looks protective would silently
 -- be none. Same shape as invalid-guard.lua for `---@guard`; deleting this file removes only the report.

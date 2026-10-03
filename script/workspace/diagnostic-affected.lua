@@ -1,7 +1,7 @@
 -- Safe, structural approximation of "which files could a change to this file affect",
 -- for narrowing a workspace-wide re-diagnosis pass (provider/diagnostic.lua) to less than
 -- every file. Never calls vm.compileNode/vm.getDefs -- purely an AST scan, like
--- core/diagnostics/extra/need-check-secret.lua's own name index -- so it is always safe to
+-- core/diagnostics/extra/secret-access.lua's own name index -- so it is always safe to
 -- call from anywhere, including before the changed file's own diagnostics have re-run.
 --
 -- Only ever asked to *narrow*, never to *decide correctness*: every path that cannot prove a

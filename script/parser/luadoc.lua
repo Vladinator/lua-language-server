@@ -1290,7 +1290,7 @@ function parseType(parent)
     -- prefix form produces (the inner type promoted to this `doc.type`'s own sole member, the
     -- keyword field set here instead of on a `doc.type.sign`), so every consumer of the prefix
     -- form (vm.node flag genesis rules, or a plain field read directly off a `doc.type` like
-    -- `nosecret` -- see need-check-secret.lua) sees an identical result either way. Only when it
+    -- `nosecret` -- see secret-access.lua) sees an identical result either way. Only when it
     -- is the type's sole member (matching the prefix form, which always covers the whole `doc.type`,
     -- never just one union alternative) and not already using the prefix form.
     if not keywordField and #result.types > 1 then

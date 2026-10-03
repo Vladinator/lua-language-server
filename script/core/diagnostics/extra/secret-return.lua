@@ -1,4 +1,4 @@
--- Companion of need-check-secret.lua (which owns the flag that says a value is secret).
+-- Companion of secret-access.lua (which owns the flag that says a value is secret).
 -- `---@return nosecret string` (one slot) and `---@nosecret` above a function (every return) say that
 -- the function must not return a secret value: a `return` statement whose value is known to be secret is
 -- reported on that value. A value that was checked with a `---@secret-check` function is not secret any
@@ -10,7 +10,7 @@
 --
 -- A function that is declared both secret (`---@secret`, `---@return secret ...`) and `nosecret` is a
 -- contradiction: it is reported on the `nosecret` tag and its returns are not checked.
--- The `nosecret` keyword and tag belong to the secret vocabulary (need-check-secret.lua); this file
+-- The `nosecret` keyword and tag belong to the secret vocabulary (secret-access.lua); this file
 -- only reads them.
 
 local files           = require 'files'

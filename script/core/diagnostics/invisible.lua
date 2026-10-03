@@ -51,7 +51,7 @@ end
 --- getlocal/setlocal/getglobal/setglobal, so a `local`/global def is never relevant here). A rare
 --- `---@field [1] private ...` (a numeric field declaration) can't be indexed by name, so it only
 --- sets `hasNumericFieldMark` -- see `mightBeInvisible` below. Structural, AST-only, same as
---- `need-check-secret.lua`'s own name index: never `vm.compileNode`/`vm.getDefs`.
+--- `secret-access.lua`'s own name index: never `vm.compileNode`/`vm.getDefs`.
 ---@param uri uri
 ---@return invisible.fileNames?
 local function getFileNames(uri)
@@ -156,7 +156,7 @@ local function mightBeInvisible(uri, src, key)
     -- string field name) and a numeric `---@field [n] private ...` is per-declaration, not
     -- name-indexable workspace-wide -- so this only needs to rule out a mark directly on this
     -- access or on whatever it structurally, cheaply resolves to (vm.getVariableSets: the same
-    -- compound-ID system need-check-secret.lua's own safe path uses -- never vm.compileNode).
+    -- compound-ID system secret-access.lua's own safe path uses -- never vm.compileNode).
     if getWorkspaceNames(uri).hasNumericFieldMark then
         return true
     end

@@ -1,10 +1,10 @@
--- Companion of need-check-secret.lua (which owns the flag that says a value is secret).
+-- Companion of secret-access.lua (which owns the flag that says a value is secret).
 -- `---@field name nosecret string` says a field cannot hold a secret value: an assignment
 -- `obj.name = value`, `obj['name'] = value` or a table constructor `{ name = value }` typed as the
 -- class that passes a value known to be secret is reported on the value. A value that was checked
 -- with a `---@secret-check` function is not secret any more, and a field without the keyword
 -- takes anything. The `nosecret` keyword belongs to the secret vocabulary and is registered next to
--- `secret` in need-check-secret.lua; this file only reads it.
+-- `secret` in secret-access.lua; this file only reads it.
 
 local files           = require 'files'
 local guide           = require 'parser.guide'

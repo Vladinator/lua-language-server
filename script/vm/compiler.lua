@@ -2250,7 +2250,7 @@ local function bindReturnOfFunction(source, mfunc, index, args)
         end
         -- vm.propagateFlags/vm.applyDerivedFlags are no-ops for any flag
         -- no plugin has registered, so this stays correct whether or not
-        -- e.g. core/diagnostics/extra/need-check-secret.lua is loaded.
+        -- e.g. core/diagnostics/extra/secret-access.lua is loaded.
         local resultNode = vm.getNode(source)
         assert(resultNode)
         vm.propagateFlags(returnNode, resultNode)

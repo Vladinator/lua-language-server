@@ -1,7 +1,16 @@
--- Lives next to need-check-secret.lua on purpose: this test only runs if
+-- Lives next to secret-access.lua on purpose: this test only runs if
 -- its plugin does too (see the checkPluginDir scan in
 -- test/diagnostics/init.lua), so deleting the plugin also removes its
 -- test with nothing left over to update elsewhere.
+
+-- (the file is named after one of the five codes the plugin registers: its tests care about all of them)
+DIAG_CARE = {
+    ['secret-arithmetic'] = true,
+    ['secret-comparison'] = true,
+    ['secret-condition']  = true,
+    ['secret-table-key']  = true,
+    ['secret-access']     = true,
+}
 
 TEST [[
 ---@secret
@@ -769,6 +778,58 @@ TEST [[
 local s = { a = 1 }
 print(s.a)
 ]]
+
+-- The five codes each report only their own kind of use: one script with every kind, checked once per code
+-- (a use of another kind must NOT be reported under this code, and a code that has no use reports nothing)
+local ALL_KINDS = [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret
+---@return boolean
+local function fb() return true end
+
+local s = f()
+local b = fb()
+local t = {}
+local r1 = %s
+]]
+
+---@param use string the expression with the secret in it
+---@return string
+local function script(use)
+    return (ALL_KINDS:gsub('%%s', function () return use end))
+end
+
+---@type table<string, string[]> code -> uses that must be reported under it
+local kinds = {
+    ['secret-arithmetic'] = { '<!s!> + 1', '-<!s!>', '#<!s!>' },
+    ['secret-comparison'] = { '<!s!> == 1', '<!s!> < 2', '1 >= <!s!>' },
+    ['secret-condition']  = { 'not <!b!>', '<!b!> and 1' },
+    ['secret-table-key']  = { 't[<!s!>]' },
+    ['secret-access']     = { '<!s!>.x', '<!s!>()', 'pairs(<!s!>)' },
+}
+for code, uses in pairs(kinds) do
+    DIAG_CARE = code
+    for _, use in ipairs(uses) do
+        TEST(script(use))
+    end
+    -- the other kinds are not reported under this code
+    for otherCode, otherUses in pairs(kinds) do
+        if otherCode ~= code then
+            for _, use in ipairs(otherUses) do
+                TEST(script((use:gsub('<!', ''):gsub('!>', ''))))
+            end
+        end
+    end
+end
+-- a use that needs no check: nothing under any of the five
+for code in pairs(kinds) do
+    DIAG_CARE = code
+    TEST(script('s .. "x"'))
+    TEST(script('s and 1'))
+end
 
 -- What the plugin teaches the editor features: its tags, its `secret` field and type keywords, the
 -- names in `---@secret a, b`, hover text and colours. The generic machinery is tested with the

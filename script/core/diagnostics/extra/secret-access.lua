@@ -35,14 +35,28 @@ local scope           = require 'workspace.scope'
 
 local MESSAGE = 'Need check secret value.'
 
-protoDiagnostic.register {
-    'need-check-secret',
-} {
-    group    = 'secret',
-    severity = 'Warning',
-    status   = 'Opened',
-    description = 'Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.',
+-- One engine, five codes (wowlua-ls's names): every use of a value that is secret and not yet checked is
+-- classified once per file (`getUses` below), and each diagnostic reports its own kind. The file is named after
+-- one of them (a plugin file's stem has to be a registered name, see custom-plugins.lua); the others are
+-- registered here too and run the same function, called with the name.
+---@type table<string, string>
+local USE_DESCRIPTIONS = {
+    ['secret-arithmetic'] = 'Enable diagnostics for arithmetic or a unary operator (`-`, `#`, `~`) applied to a secret value before it is checked with a `---@secret-check` / `---@secret-access-check` / `---@secret-guard` function.',
+    ['secret-comparison'] = 'Enable diagnostics for comparing a secret value (`==`, `~=`, `<`, `<=`, `>`, `>=`) before it is checked.',
+    ['secret-condition']  = 'Enable diagnostics for testing a secret boolean directly as a condition (`if s`, `not s`, `s and ...`) before it is checked. A secret that is not a boolean may still be tested for truthiness.',
+    ['secret-table-key']  = 'Enable diagnostics for using a secret value as a table key (`t[s]`, `t[s] = v`, `{ [s] = v }`) before it is checked.',
+    ['secret-access']     = 'Enable diagnostics for indexing (`s.x`, `s[k]`, `s:m()`), calling (`s()`) or iterating (`pairs(s)`, `ipairs(s)`, `next(s)`) a secret value before it is checked.',
 }
+for name, description in pairs(USE_DESCRIPTIONS) do
+    protoDiagnostic.register {
+        name,
+    } {
+        group    = 'secret',
+        severity = 'Warning',
+        status   = 'Opened',
+        description = description,
+    }
+end
 
 -- LuaDoc tags: @secret [names], @secret-unwrap [names], @secret-check,
 -- @secret-access-check. `@secret` and `@secret-unwrap` take an optional
@@ -51,7 +65,7 @@ protoDiagnostic.register {
 -- local of the statement, as before.
 
 docTags.registerNameListTag('secret', 'doc.secret',
-    'Marks a value as secret: reading it before it is checked raises `need-check-secret`.\n\n'
+    'Marks a value as secret: using it before it is checked raises `secret-arithmetic`, `secret-comparison`, `secret-condition`, `secret-table-key` or `secret-access`.\n\n'
     .. '`---@secret` marks everything it is bound to; `---@secret a, b` only the named locals.')
 docTags.registerNameListTag('secret-unwrap', 'doc.secret-unwrap',
     'Clears the secret flag a local would inherit from its value, e.g. from a call returning a secret.\n\n'
@@ -888,14 +902,43 @@ local function isDirectCondition(parent, src)
     return false
 end
 
+---@class secret.use
+---@field start  integer
+---@field finish integer
+---@field code   string the diagnostic that reports it
+
+--- The binary operators that compare (the rest, but `..` / `and` / `or`, are arithmetic).
+---@type table<string, true>
+local COMPARISON_OPS = {
+    ['=='] = true, ['~='] = true, ['<'] = true, ['<='] = true, ['>'] = true, ['>='] = true,
+}
+
+--- Every use of a secret value in `uri` that has to be checked first, classified. Computed once per file for all
+--- five diagnostics (each reports the ones of its own kind); dropped with the rest of `vm.getCache` when any file
+--- changes, since a secret can come from another file.
 ---@async
-return function (uri, callback)
+---@param uri uri
+---@return secret.use[]
+local function getUses(uri)
+    local cache = vm.getCache('secret.uses') --[[@as table<uri, secret.use[]>]]
+    local cached = cache[uri]
+    if cached then
+        return cached
+    end
+    ---@type secret.use[]
+    local uses = {}
     local state = files.getState(uri)
     if not state then
-        return
+        return uses
     end
 
     local delayer = await.newThrottledDelayer(500)
+
+    ---@param src  parser.object
+    ---@param code string
+    local function add(src, code)
+        uses[#uses+1] = { start = src.start, finish = src.finish, code = code }
+    end
 
     ---@async
     ---@param src parser.object
@@ -914,40 +957,24 @@ return function (uri, callback)
 
         if isDirectCondition(parent, src) then
             if isBooleanNode(node) then
-                callback {
-                    start   = src.start,
-                    finish  = src.finish,
-                    message = MESSAGE,
-                }
+                add(src, 'secret-condition')
             end
             return
         end
 
         if isIndexNode(parent.type) and parent.node == src then
-            callback {
-                start   = src.start,
-                finish  = src.finish,
-                message = MESSAGE,
-            }
+            add(src, 'secret-access')
             return
         end
 
         if (parent.type == 'getindex' or parent.type == 'setindex' or parent.type == 'tableindex')
         and parent.index == src then
-            callback {
-                start   = src.start,
-                finish  = src.finish,
-                message = MESSAGE,
-            }
+            add(src, 'secret-table-key')
             return
         end
 
         if parent.type == 'call' and parent.node == src then
-            callback {
-                start   = src.start,
-                finish  = src.finish,
-                message = MESSAGE,
-            }
+            add(src, 'secret-access')
             return
         end
 
@@ -956,20 +983,12 @@ return function (uri, callback)
         and (parent.parent.node.special == 'pairs'
             or parent.parent.node.special == 'ipairs'
             or parent.parent.node.special == 'next') then
-            callback {
-                start   = src.start,
-                finish  = src.finish,
-                message = MESSAGE,
-            }
+            add(src, 'secret-access')
             return
         end
 
         if parent.type == 'unary' and parent.op and parent.op.type ~= 'not' then
-            callback {
-                start   = src.start,
-                finish  = src.finish,
-                message = MESSAGE,
-            }
+            add(src, 'secret-arithmetic')
             return
         end
 
@@ -977,12 +996,27 @@ return function (uri, callback)
             ---@type string|false
             local op = parent.op and parent.op.type
             if not ALLOWED_BINARY_OPS[op] then
-                callback {
-                    start   = src.start,
-                    finish  = src.finish,
-                    message = MESSAGE,
-                }
+                add(src, COMPARISON_OPS[op] and 'secret-comparison' or 'secret-arithmetic')
             end
         end
     end)
+
+    cache[uri] = uses
+    return uses
+end
+
+---@async
+---@param uri      uri
+---@param callback async fun(result: any)
+---@param name     string the diagnostic being run: one of the five codes above
+return function (uri, callback, name)
+    for _, use in ipairs(getUses(uri)) do
+        if use.code == name then
+            callback {
+                start   = use.start,
+                finish  = use.finish,
+                message = MESSAGE,
+            }
+        end
+    end
 end

@@ -23,7 +23,7 @@ local customPlugins = require 'core.diagnostics.custom-plugins'
 --
 -- Anything non-standard or specialized enough that it shouldn't need a
 -- line added and removed here doesn't belong in this list at all --
--- drop it in core/diagnostics/extra/ instead (see need-check-secret.lua
+-- drop it in core/diagnostics/extra/ instead (see secret-access.lua
 -- there), which custom-plugins.lua above scans and loads on its own,
 -- with no eager-require line to maintain: adding or deleting a file
 -- there is the whole story, no edits needed anywhere else.

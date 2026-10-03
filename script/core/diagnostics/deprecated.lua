@@ -62,7 +62,7 @@ end
 --- Every STRING name (global, field, or method) this file could ever make `deprecated` report on.
 --- A rare numeric `SPELLS[1] = ... ---@deprecated` can't be indexed by name, so it only sets
 --- `hasNumericMark` -- see `mightBeDeprecated` below. Structural, AST-only, same pattern as
---- `need-check-secret.lua`'s own name index and `invisible.lua`'s own follow-up: never
+--- `secret-access.lua`'s own name index and `invisible.lua`'s own follow-up: never
 --- `vm.compileNode`/`vm.getDefs`.
 ---@param uri uri
 ---@return deprecated.fileNames?

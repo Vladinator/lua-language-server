@@ -1,18 +1,19 @@
 -- Loads diagnostic plugin files from a directory. Each is run exactly
 -- like a built-in core/diagnostics/*.lua plugin: it self-registers via
 -- proto.diagnostic.register and returns a `function(uri, callback)`
--- check function -- see core/diagnostics/extra/need-check-secret.lua for
+-- check function -- see core/diagnostics/extra/secret-access.lua for
 -- what a full self-contained plugin looks like. The one convention a
 -- plugin loaded this way must follow that a plain core/diagnostics/*.lua
 -- file (wired in through init.lua's eager-require list) doesn't: its
--- filename (without .lua) must be the name it registers, since that's
+-- filename (without .lua) must be a name it registers (it may register
+-- more: those run the same function, called with the name), since that's
 -- how this loader locates the check function core/diagnostics/init.lua's
 -- check() needs to call for it later -- a plugin loaded from here isn't
 -- reachable via the normal require('core.diagnostics.'..name)
 -- convention.
 --
 -- A plugin can optionally ship its own tests right alongside it, as
--- `<name>.test.lua` (see need-check-secret.test.lua) -- this loader
+-- `<name>.test.lua` (see secret-access.test.lua) -- this loader
 -- skips those (they're not plugins themselves), and
 -- test/diagnostics/init.lua's checkPluginDir runs one only if its
 -- `<name>.lua` is still there next to it.
@@ -28,7 +29,7 @@
 --     removed -- drop a file in, it's live on the next start; delete
 --     it, it's gone, no errors anywhere else. Use this for anything
 --     non-standard or specialized enough that it doesn't belong in the
---     eager-require list, e.g. need-check-secret.lua's secret-value
+--     eager-require list, e.g. secret-access.lua's secret-value
 --     tracking.
 --   - Lua.diagnostics.pluginsDir -- user/workspace-configured, blank by
 --     default. Same self-contained-file contract, but since it can
@@ -102,6 +103,12 @@ local function loadDirectoryFiles(dirPath)
             local filePath = path:string()
             local name     = path:stem():string()
             local before   = diag.diagnosticDatas[name]
+            -- (the names that exist before the file runs: any it registers on top of its own are its siblings)
+            ---@type table<string, true>
+            local known    = {}
+            for existing in pairs(diag.diagnosticDatas) do
+                known[existing] = true
+            end
 
             local src, readErr = util.loadFile(filePath)
             if not src then
@@ -131,7 +138,7 @@ local function loadDirectoryFiles(dirPath)
             end
 
             if not diag.diagnosticDatas[name] then
-                log.warn(('Diagnostic plugin [%s] must self-register as %q (its own filename) via proto.diagnostic.register -- see core/diagnostics/extra/need-check-secret.lua for the expected shape.'):format(filePath, name))
+                log.warn(('Diagnostic plugin [%s] must self-register as %q (its own filename) via proto.diagnostic.register -- see core/diagnostics/extra/secret-access.lua for the expected shape.'):format(filePath, name))
                 goto CONTINUE
             end
 
@@ -143,6 +150,14 @@ local function loadDirectoryFiles(dirPath)
 
             registry[name] = result
             owner[name]    = filePath
+            -- A file may register more diagnostics than its own name (one engine, several codes): they all run its
+            -- function, which tells them apart by the `name` it is called with.
+            for registered in pairs(diag.diagnosticDatas) do
+                if not known[registered] and registered ~= name then
+                    registry[registered] = result
+                    owner[registered]    = filePath
+                end
+            end
 
             ::CONTINUE::
         end

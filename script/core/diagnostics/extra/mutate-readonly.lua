@@ -39,7 +39,7 @@ local TABLE_MUTATORS = {
 
 --- Is `loc` (a `local` or `self`) declared `readonly`, directly (`---@type readonly T`) or as a
 --- parameter (`---@param x readonly T`)? Only its own doc comment counts, the same restriction
---- need-check-secret.lua notes for its flag: resolving through `vm.getDefs` would be unsound to call on
+--- secret-access.lua notes for its flag: resolving through `vm.getDefs` would be unsound to call on
 --- every plain local.
 ---@param loc parser.object
 ---@return boolean

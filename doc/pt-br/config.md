@@ -399,7 +399,6 @@ Array<string>
 * ``"mutate-readonly"``: Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
 * ``"name-style-check"``: Habilita diagnóstico para estilo de nomes.
 * ``"need-check-nil"``: Habilita diagnóstico para uso de variável após ela receber `nil` ou valor opcional.
-* ``"need-check-secret"``: Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
 * ``"need-paren"``: Parênteses necessários
 * ``"nesting-long-mark"``: Marcadores de comentário longo aninhados
 * ``"newfield-call"``: Em uma tabela literal, faltou um separador entre duas linhas; foi interpretado como uma operação de índice
@@ -416,9 +415,14 @@ Array<string>
 * ``"redundant-secret-unwrap"``: Enable diagnostics for a `---@secret-unwrap` on a local that is not secret, so there is nothing to unwrap.
 * ``"redundant-value"``: Em uma atribuição, há mais valores que variáveis-alvo
 * ``"return-type-mismatch"``: Habilita diagnóstico para retornos cujo tipo não corresponde ao tipo declarado.
+* ``"secret-access"``: Enable diagnostics for indexing (`s.x`, `s[k]`, `s:m()`), calling (`s()`) or iterating (`pairs(s)`, `ipairs(s)`, `next(s)`) a secret value before it is checked.
 * ``"secret-argument"``: Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
+* ``"secret-arithmetic"``: Enable diagnostics for arithmetic or a unary operator (`-`, `#`, `~`) applied to a secret value before it is checked with a `---@secret-check` / `---@secret-access-check` / `---@secret-guard` function.
+* ``"secret-comparison"``: Enable diagnostics for comparing a secret value (`==`, `~=`, `<`, `<=`, `>`, `>=`) before it is checked.
+* ``"secret-condition"``: Enable diagnostics for testing a secret boolean directly as a condition (`if s`, `not s`, `s and ...`) before it is checked. A secret that is not a boolean may still be tested for truthiness.
 * ``"secret-field"``: Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
 * ``"secret-return"``: Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
+* ``"secret-table-key"``: Enable diagnostics for using a secret value as a table key (`t[s]`, `t[s] = v`, `{ [s] = v }`) before it is checked.
 * ``"secret-variable"``: Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
 * ``"set-const"``: Atribuindo a uma constante const
 * ``"spell-check"``: Habilita diagnóstico para erros ortográficos em strings.
@@ -612,11 +616,15 @@ object<string, string>
     */
     "redefined": "Fallback",
     /*
-    * need-check-secret
     * redundant-secret-unwrap
+    * secret-access
     * secret-argument
+    * secret-arithmetic
+    * secret-comparison
+    * secret-condition
     * secret-field
     * secret-return
+    * secret-table-key
     * secret-variable
     * undefined-secret-name
     */
@@ -757,11 +765,15 @@ object<string, string>
     */
     "redefined": "Fallback",
     /*
-    * need-check-secret
     * redundant-secret-unwrap
+    * secret-access
     * secret-argument
+    * secret-arithmetic
+    * secret-comparison
+    * secret-condition
     * secret-field
     * secret-return
+    * secret-table-key
     * secret-variable
     * undefined-secret-name
     */
@@ -1042,10 +1054,6 @@ object<string, string>
     */
     "need-check-nil": "Opened",
     /*
-    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
-    */
-    "need-check-secret": "Opened",
-    /*
     Em uma tabela literal, faltou um separador entre duas linhas; foi interpretado como uma operação de índice
     */
     "newfield-call": "Any",
@@ -1094,9 +1102,25 @@ object<string, string>
     */
     "return-type-mismatch": "Opened",
     /*
+    Enable diagnostics for indexing (`s.x`, `s[k]`, `s:m()`), calling (`s()`) or iterating (`pairs(s)`, `ipairs(s)`, `next(s)`) a secret value before it is checked.
+    */
+    "secret-access": "Opened",
+    /*
     Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
     */
     "secret-argument": "Opened",
+    /*
+    Enable diagnostics for arithmetic or a unary operator (`-`, `#`, `~`) applied to a secret value before it is checked with a `---@secret-check` / `---@secret-access-check` / `---@secret-guard` function.
+    */
+    "secret-arithmetic": "Opened",
+    /*
+    Enable diagnostics for comparing a secret value (`==`, `~=`, `<`, `<=`, `>`, `>=`) before it is checked.
+    */
+    "secret-comparison": "Opened",
+    /*
+    Enable diagnostics for testing a secret boolean directly as a condition (`if s`, `not s`, `s and ...`) before it is checked. A secret that is not a boolean may still be tested for truthiness.
+    */
+    "secret-condition": "Opened",
     /*
     Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
     */
@@ -1105,6 +1129,10 @@ object<string, string>
     Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
     */
     "secret-return": "Opened",
+    /*
+    Enable diagnostics for using a secret value as a table key (`t[s]`, `t[s] = v`, `{ [s] = v }`) before it is checked.
+    */
+    "secret-table-key": "Opened",
     /*
     Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
     */
@@ -1389,10 +1417,6 @@ object<string, string>
     */
     "need-check-nil": "Warning",
     /*
-    Enable diagnostics for using a secret value (tagged `---@secret`, or of a `@secret` class) before it is checked with a `---@secret-check` / `---@secret-access-check` function.
-    */
-    "need-check-secret": "Warning",
-    /*
     Em uma tabela literal, faltou um separador entre duas linhas; foi interpretado como uma operação de índice
     */
     "newfield-call": "Warning",
@@ -1441,9 +1465,25 @@ object<string, string>
     */
     "return-type-mismatch": "Warning",
     /*
+    Enable diagnostics for indexing (`s.x`, `s[k]`, `s:m()`), calling (`s()`) or iterating (`pairs(s)`, `ipairs(s)`, `next(s)`) a secret value before it is checked.
+    */
+    "secret-access": "Warning",
+    /*
     Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).
     */
     "secret-argument": "Warning",
+    /*
+    Enable diagnostics for arithmetic or a unary operator (`-`, `#`, `~`) applied to a secret value before it is checked with a `---@secret-check` / `---@secret-access-check` / `---@secret-guard` function.
+    */
+    "secret-arithmetic": "Warning",
+    /*
+    Enable diagnostics for comparing a secret value (`==`, `~=`, `<`, `<=`, `>`, `>=`) before it is checked.
+    */
+    "secret-comparison": "Warning",
+    /*
+    Enable diagnostics for testing a secret boolean directly as a condition (`if s`, `not s`, `s and ...`) before it is checked. A secret that is not a boolean may still be tested for truthiness.
+    */
+    "secret-condition": "Warning",
     /*
     Enable diagnostics for assigning a secret value to a field that is declared `nosecret` (`---@field name nosecret string`).
     */
@@ -1452,6 +1492,10 @@ object<string, string>
     Enable diagnostics for returning a secret value from a function declared `nosecret` (`---@nosecret`, `---@return nosecret string`), and for a function declared both secret and `nosecret`.
     */
     "secret-return": "Warning",
+    /*
+    Enable diagnostics for using a secret value as a table key (`t[s]`, `t[s] = v`, `{ [s] = v }`) before it is checked.
+    */
+    "secret-table-key": "Warning",
     /*
     Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
     */

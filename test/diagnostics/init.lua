@@ -68,7 +68,8 @@ function TEST(script, version)
     local results = {}
     core(TESTURI, false, function (result)
         if DIAG_CARE == result.code
-        or DIAG_CARE == '*' then
+        or DIAG_CARE == '*'
+        or (type(DIAG_CARE) == 'table' and DIAG_CARE[result.code]) then
             results[#results+1] = { result.start, result.finish }
             filteds[#filteds+1] = result
         end

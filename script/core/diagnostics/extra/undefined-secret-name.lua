@@ -1,4 +1,4 @@
--- Companion of need-check-secret.lua: `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b`
+-- Companion of secret-access.lua: `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b`
 -- must name locals of the statement the tag is bound to; a name that matches
 -- nothing (a typo, or a local that was renamed) silently does nothing, so report it.
 

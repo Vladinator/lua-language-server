@@ -1,4 +1,4 @@
--- Companion of need-check-secret.lua (which owns the flag that says a value is secret).
+-- Companion of secret-access.lua (which owns the flag that says a value is secret).
 -- `---@type nosecret string` and `---@nosecret` (all the locals of the statement, or `---@nosecret a, b`)
 -- say that a local cannot hold a secret value: `local x = value` and `x = value` with a value that is
 -- known to be secret are reported on the value. A value that was checked with a `---@secret-check`
@@ -8,7 +8,7 @@
 --
 -- A local that is declared both secret and `nosecret` is a contradiction: it is reported on the
 -- `nosecret` tag (or type) and its values are not checked.
--- The `nosecret` keyword and tag belong to the secret vocabulary (need-check-secret.lua); this file
+-- The `nosecret` keyword and tag belong to the secret vocabulary (secret-access.lua); this file
 -- only reads them.
 
 local files           = require 'files'

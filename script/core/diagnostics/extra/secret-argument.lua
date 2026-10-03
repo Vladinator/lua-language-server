@@ -1,10 +1,10 @@
--- Companion of need-check-secret.lua (which owns the flag that says a value is secret).
+-- Companion of secret-access.lua (which owns the flag that says a value is secret).
 -- `---@param str nosecret string` says a function cannot take a secret value in that parameter
 -- (an API of the game that raises an error for one): a call that passes a value known to be
 -- secret there is reported on the argument. A value that was checked with a
 -- `---@secret-check` function is not secret any more, and a parameter without the keyword
 -- takes anything, as before. The `nosecret` keyword belongs to the secret vocabulary and is registered
--- next to `secret` in need-check-secret.lua; this file only reads it.
+-- next to `secret` in secret-access.lua; this file only reads it.
 
 local files           = require 'files'
 local guide           = require 'parser.guide'

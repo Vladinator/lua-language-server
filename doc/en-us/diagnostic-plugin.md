@@ -1,7 +1,7 @@
 # Writing a diagnostic plugin
 
 A diagnostic plugin adds a diagnostic (and, if it wants, LuaDoc tags and flow narrowing) without a
-line changed in the server. This is the guide to the pieces that exist; `script/core/diagnostics/extra/need-check-secret.lua`
+line changed in the server. This is the guide to the pieces that exist; `script/core/diagnostics/extra/secret-access.lua`
 is the complete example (a diagnostic, tags, keywords, narrowing and propagation in one file).
 
 It is not the same thing as the `Lua.runtime.plugin` user plugins, which rewrite text and trees
@@ -118,8 +118,8 @@ calls to a global of that name `special` (like `pairs`), for a plugin that has t
 
 ## Flags and narrowing (`vm/`)
 
-A plugin that has to follow a property through assignments, calls and guards (as `need-check-secret`
-does for "secret") uses these:
+A plugin that has to follow a property through assignments, calls and guards (as the secret diagnostics
+do for "secret") uses these:
 
 | Call | What for |
 | --- | --- |
@@ -145,7 +145,7 @@ local t = "done"
 ```
 
 The file is plain Lua, so it can also call the core APIs for what does not fit that form (completion,
-hover and the colour of the plugin's tags: `need-check-secret.test.lua` does that at its end).
+hover and the colour of the plugin's tags: `secret-access.test.lua` does that at its end).
 
 **A plugin must be removable.** Shared code and shared tests are generic and must pass with the whole `extra/`
 folder deleted:

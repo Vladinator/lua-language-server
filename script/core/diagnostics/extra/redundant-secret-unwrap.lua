@@ -1,4 +1,4 @@
--- Companion of need-check-secret.lua (the plugin that owns `@secret-unwrap`).
+-- Companion of secret-access.lua (the plugin that owns `@secret-unwrap`).
 -- `---@secret-unwrap` on a local only has a purpose when that local would
 -- otherwise be secret; when it clears nothing, the tag is dead weight (or the
 -- code it guarded was fixed): report it, like `unfulfilled-expect` does for

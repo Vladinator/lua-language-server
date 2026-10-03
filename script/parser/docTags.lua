@@ -138,6 +138,34 @@ function m.isGuardTag(docType)
     return guardTags[docType] == true
 end
 
+---@type table<string, table<string, true>>
+local paramKindTags = {}
+
+--- A tag that names a parameter of the function it is bound to and one word out of a fixed list:
+--- `---@mytag x is-secret`, `---@mytag ... accessible` (`...` for a vararg), produced as
+--- `{ type = docType, param = <name node>, kind = <the word> }`. Anything that does not read like
+--- that leaves the tag bare, so a plugin can report it.
+---@param name        string tag name after the `@`, e.g. 'secret-guard'
+---@param docType     string produced node's `.type`, e.g. 'doc.secret-guard'
+---@param kinds       string[] the words accepted after the parameter name (hyphens allowed)
+---@param description? string shown by completion (markdown)
+function m.registerParamKindTag(name, docType, kinds, description)
+    m.registerMarkerTag(name, docType, description)
+    ---@type table<string, true>
+    local set = {}
+    for _, kind in ipairs(kinds) do
+        set[kind] = true
+    end
+    paramKindTags[docType] = set
+    guide.registerChildren(docType, {'param'})
+end
+
+---@param docType string
+---@return table<string, true>?
+function m.getParamKinds(docType)
+    return paramKindTags[docType]
+end
+
 ---@type table<string, true>
 local continuesAfterClassGroup = {}
 

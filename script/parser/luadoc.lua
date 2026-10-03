@@ -2364,6 +2364,47 @@ local function convertTokens(doc)
                     -- not a clean list (a description, a trailing comma): stay bare
                     Ci = savePoint
                 end
+            elseif docTags.getParamKinds(docType) then
+                -- `---@secret-guard x accessible`: a parameter (or `...`) and one word of the tag's list
+                result.start = getStart()
+                local savePoint = Ci
+                local param = parseName(docType .. '.name', result)
+                if not param and checkToken('symbol', '...', 1) then
+                    nextToken()
+                    ---@type parser.object
+                    param = {
+                        type   = docType .. '.name',
+                        start  = getStart(),
+                        finish = getFinish(),
+                        parent = result,
+                        [1]    = '...',
+                    }
+                end
+                if param then
+                    -- the word may contain hyphens (`is-secret`): name and `-` tokens joined
+                    ---@type string[]
+                    local parts = {}
+                    while true do
+                        local tp, content = peekToken()
+                        if tp == 'name' or (tp == 'symbol' and content == '-' and #parts > 0) then
+                            parts[#parts+1] = tostring(content)
+                            nextToken()
+                        else
+                            break
+                        end
+                    end
+                    local kind = table.concat(parts)
+                    local kinds = docTags.getParamKinds(docType)
+                    if kinds and kinds[kind] and not peekToken() then
+                        result.param  = param
+                        result.kind   = kind
+                        result.finish = getFinish()
+                    else
+                        Ci = savePoint
+                    end
+                else
+                    Ci = savePoint
+                end
             elseif docTags.isGuardTag(docType) then
                 -- `---@guard x is T` / `---@guard x is not T`
                 result.start = getStart()

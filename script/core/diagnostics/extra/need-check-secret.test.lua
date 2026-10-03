@@ -58,6 +58,76 @@ else
 end
 ]]
 
+-- `---@secret-guard <param> <kind>` (wowlua-ls's spelling of the check tags, naming the checked parameter):
+-- `accessible` = @secret-access-check (true: safe), `is-secret` / `any-secret` = @secret-check (true: secret)
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-guard value accessible
+---@param value any
+---@return boolean
+local function canAccess(value) return true end
+
+local x = f()
+if canAccess(x) then
+    print(x + 5)
+else
+    print(<!x!> + 6)
+end
+]]
+
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-guard value is-secret
+---@param value any
+---@return boolean
+local function isSecret(value) return true end
+
+---@secret-guard value any-secret
+---@param value any
+---@return boolean
+local function anySecret(value) return true end
+
+local x = f()
+if isSecret(x) then
+    print(<!x!> + 5)
+else
+    print(x + 6)
+end
+if anySecret(x) then
+    print(<!x!> + 5)
+else
+    print(x + 6)
+end
+]]
+
+-- the named parameter is the one that narrows, not the first
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-guard b is-secret
+---@param a any
+---@param b any
+---@return boolean
+local function chk(a, b) return true end
+
+local x = f()
+local y = f()
+if not chk(y, x) then
+    print(x + 5)
+end
+if not chk(x, y) then
+    print(<!x!> + 5)
+end
+]]
+
 -- `secretguard` and `secretguard<T>`: the earlier spelling, an alias with the same behavior
 TEST [[
 ---@secret
@@ -741,7 +811,7 @@ do
     local event, keyword, variable = define.CompletionItemKind.Event, define.CompletionItemKind.Keyword, define.CompletionItemKind.Variable
 
     -- the tags
-    for _, tag in ipairs { 'secret', 'secret-unwrap', 'secret-check', 'secret-access-check' } do
+    for _, tag in ipairs { 'secret', 'secret-unwrap', 'secret-check', 'secret-access-check', 'secret-guard' } do
         assertOffers('---@' .. tag:sub(1, 5) .. '<??>\nlocal x\n', tag, event)
     end
     assertOffers('---@secret-u<??>\nlocal x\n', 'secret-unwrap', event)

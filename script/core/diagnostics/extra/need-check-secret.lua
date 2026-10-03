@@ -62,6 +62,12 @@ docTags.registerMarkerTag('secret-check', 'doc.secret-check',
     'Marks a function that tells whether a value is secret: on the branch where it reports not secret, the value may be used.')
 docTags.registerMarkerTag('secret-access-check', 'doc.secret-access-check',
     'Like `---@secret-check`, but the function returns true when the value is safe to access.')
+-- wowlua-ls's spelling of the same two tags, naming the checked parameter in the tag itself:
+-- `---@secret-guard value is-secret` (= @secret-check on `value`), `---@secret-guard value accessible`
+-- (= @secret-access-check on `value`), `any-secret` (true: the argument is secret, one argument; the
+-- shape of `hasanysecretvalues` = @secret-check), `...` for a vararg.
+docTags.registerParamKindTag('secret-guard', 'doc.secret-guard', { 'is-secret', 'accessible', 'any-secret' },
+    'Declares a function that tells whether a parameter is secret, naming the parameter: `---@secret-guard value is-secret` (true = secret, like `@secret-check`), `accessible` (true = safe, like `@secret-access-check`), `any-secret` (true = secret).')
 
 docTags.registerContinuesAfterClassGroup('doc.secret')
 docTags.registerClassGroupDoc('doc.secret')
@@ -79,6 +85,9 @@ docTags.registerBindRule('doc.secret-check', function (doc, source, isParam)
     return source.type == 'function'
 end)
 docTags.registerBindRule('doc.secret-access-check', function (doc, source, isParam)
+    return source.type == 'function'
+end)
+docTags.registerBindRule('doc.secret-guard', function (doc, source, isParam)
     return source.type == 'function'
 end)
 
@@ -142,6 +151,28 @@ end
 
 ---@alias secret.docKind 'doc.secret' | 'doc.secret-unwrap' | 'doc.secret-check' | 'doc.secret-access-check'
 
+--- What each `---@secret-guard <param> <kind>` kind stands for.
+---@type table<string, 'doc.secret-check'|'doc.secret-access-check'>
+local GUARD_KIND = {
+    ['is-secret']  = 'doc.secret-check',
+    ['any-secret'] = 'doc.secret-check',
+    ['accessible'] = 'doc.secret-access-check',
+}
+
+--- The check tag `doc` amounts to: `@secret-check` / `@secret-access-check` themselves, or the kind a
+--- `@secret-guard` maps to; nil for any other doc.
+---@param doc parser.object
+---@return 'doc.secret-check'|'doc.secret-access-check'?
+local function checkKindOf(doc)
+    if doc.type == 'doc.secret-check' or doc.type == 'doc.secret-access-check' then
+        return doc.type --[[@as 'doc.secret-check'|'doc.secret-access-check']]
+    end
+    if doc.type == 'doc.secret-guard' and doc.kind then
+        return GUARD_KIND[doc.kind]
+    end
+    return nil
+end
+
 ---@param value parser.object
 ---@param kind  secret.docKind
 ---@return boolean
@@ -150,7 +181,7 @@ local function hasSecretDoc(value, kind)
         return false
     end
     for _, doc in ipairs(value.bindDocs) do
-        if doc.type == kind and docAppliesTo(doc, value) then
+        if (doc.type == kind or checkKindOf(doc) == kind) and docAppliesTo(doc, value) then
             return true
         end
     end
@@ -351,8 +382,9 @@ local function getFileNames(uri)
         local tag = false
         for _, holder in ipairs { func, func.parent } do
             for _, doc in ipairs(holder and holder.bindDocs or {}) do
-                if doc.type == 'doc.secret-check' or doc.type == 'doc.secret-access-check' then
-                    tag = doc.type --[[@as 'doc.secret-check'|'doc.secret-access-check']]
+                local checkKind = checkKindOf(doc)
+                if checkKind then
+                    tag = checkKind
                 end
             end
         end
@@ -492,6 +524,18 @@ local function checkedIndicesOf(funcNode)
     end
     ---@type integer[]
     local indices = {}
+    -- `---@secret-guard <param> <kind>` names the checked parameter itself (`...`: the vararg)
+    for _, holder in ipairs { funcNode, funcNode.parent } do
+        for _, doc in ipairs(holder and holder.bindDocs or {}) do
+            if doc.type == 'doc.secret-guard' and doc.param then
+                for i, param in ipairs(args) do
+                    if param[1] == doc.param[1] then
+                        indices[#indices+1] = i
+                    end
+                end
+            end
+        end
+    end
     for i, param in ipairs(args) do
         local docs = param.bindDocs
         if docs then

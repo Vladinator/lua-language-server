@@ -1734,7 +1734,12 @@ local docSwitch = util.switch()
         while true do
             local dots = parseDots('doc.return.name', result)
             if dots then
-                Ci = Ci - 1
+                -- `...T` written together (wowlua-ls): the type of the remaining returns, so the type is parsed
+                -- from here; a lone `...` (or `... words`) stays the unknown vararg it always was
+                local nextStart = TokenStarts[Ci + 1]
+                if not (TokenTypes[Ci + 1] == 'name' and nextStart and nextStart == TokenFinishs[Ci] + 1) then
+                    Ci = Ci - 1
+                end
             end
             local docType = parseType(result)
             if not docType then

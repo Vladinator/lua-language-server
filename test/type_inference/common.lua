@@ -582,6 +582,66 @@ TEST 'string' [[
 local <?a?>
 ]]
 
+-- tuple `[T1, T2]` (wowlua-ls: a fixed-shape table `{ [1]: T1, [2]: T2 }`): each slot has its own type
+TEST 'string' [[
+---@type [string, number]
+local t
+
+local <?a?> = t[1]
+]]
+
+TEST 'number' [[
+---@type [string, number]
+local t
+
+local <?a?> = t[2]
+]]
+
+TEST 'string?' [[
+---@type [string?, number]
+local t
+
+local <?a?> = t[1]
+]]
+
+-- ... also as a return and a parameter
+TEST 'number' [[
+---@param t [string, number]
+local function f(t)
+    local <?a?> = t[2]
+end
+]]
+
+-- variadic return `---@return ...T` (wowlua-ls): fills the remaining positions
+TEST 'number' [[
+---@return string, ...number
+local function f() end
+
+local a, <?b?> = f()
+]]
+
+TEST 'number' [[
+---@return string, ...number
+local function f() end
+
+local a, b, <?c?> = f()
+]]
+
+TEST 'string' [[
+---@return string, ...number
+local function f() end
+
+local <?a?>, b, c = f()
+]]
+
+-- a lone `...` or `... words` is still an unknown vararg, not a type named after the words
+TEST 'unknown' [[
+---@return string, ... some words
+local function f() end
+
+local a, <?b?> = f()
+]]
+
 -- tuple-union `---@return (A, B) | (C, D)` (wowlua-ls interop): each slot's type is the union of
 -- that slot across the cases; a slot that is `nil` in some case is optional (`string | nil` is
 -- `string?`, same as everywhere else in the engine).

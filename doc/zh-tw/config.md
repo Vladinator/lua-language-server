@@ -438,6 +438,7 @@ Array<string>
 * ``"redefined-label"``: 重複定義的標籤
 * ``"redefined-local"``: 重複定義的區域變數
 * ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+* ``"redundant-condition"``: Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
 * ``"redundant-or"``: Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
 * ``"redundant-parameter"``: 函式呼叫時，傳入了多餘的引數
 * ``"redundant-return"``: 放了一個不需要的 `return` 陳述式，因為函式會自行退出
@@ -656,6 +657,7 @@ object<string, string>
     "redefined": "Fallback",
     /*
     * redundant-and
+    * redundant-condition
     * redundant-or
     */
     "redundant": "Fallback",
@@ -813,6 +815,7 @@ object<string, string>
     "redefined": "Fallback",
     /*
     * redundant-and
+    * redundant-condition
     * redundant-or
     */
     "redundant": "Fallback",
@@ -1146,6 +1149,10 @@ object<string, string>
     Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
     */
     "redundant-and": "None",
+    /*
+    Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
+    */
+    "redundant-condition": "None",
     /*
     Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
     */
@@ -1528,6 +1535,10 @@ object<string, string>
     Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
     */
     "redundant-and": "Hint",
+    /*
+    Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
+    */
+    "redundant-condition": "Hint",
     /*
     Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
     */

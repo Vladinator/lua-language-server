@@ -438,6 +438,7 @@ Array<string>
 * ``"redefined-label"``: 重复定义的标签
 * ``"redefined-local"``: 重复定义的局部变量
 * ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+* ``"redundant-condition"``: Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
 * ``"redundant-or"``: Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
 * ``"redundant-parameter"``: 函数调用时，传入了多余的参数
 * ``"redundant-return"``: 当放置一个不需要的返回值时触发(函数会自行退出)
@@ -656,6 +657,7 @@ object<string, string>
     "redefined": "Fallback",
     /*
     * redundant-and
+    * redundant-condition
     * redundant-or
     */
     "redundant": "Fallback",
@@ -813,6 +815,7 @@ object<string, string>
     "redefined": "Fallback",
     /*
     * redundant-and
+    * redundant-condition
     * redundant-or
     */
     "redundant": "Fallback",
@@ -1146,6 +1149,10 @@ object<string, string>
     Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
     */
     "redundant-and": "None",
+    /*
+    Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
+    */
+    "redundant-condition": "None",
     /*
     Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
     */
@@ -1528,6 +1535,10 @@ object<string, string>
     Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
     */
     "redundant-and": "Hint",
+    /*
+    Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
+    */
+    "redundant-condition": "Hint",
     /*
     Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
     */

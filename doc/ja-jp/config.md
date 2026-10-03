@@ -438,6 +438,7 @@ Array<string>
 * ``"redefined-label"``: 再定義されたラベル
 * ``"redefined-local"``: ローカル変数の再定義診断を有効にします。
 * ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+* ``"redundant-condition"``: Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
 * ``"redundant-or"``: Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
 * ``"redundant-parameter"``: 冗長な関数パラメータの診断を有効にします。
 * ``"redundant-return"``: 不要なreturn文の診断を有効にします。
@@ -656,6 +657,7 @@ object<string, string>
     "redefined": "Fallback",
     /*
     * redundant-and
+    * redundant-condition
     * redundant-or
     */
     "redundant": "Fallback",
@@ -813,6 +815,7 @@ object<string, string>
     "redefined": "Fallback",
     /*
     * redundant-and
+    * redundant-condition
     * redundant-or
     */
     "redundant": "Fallback",
@@ -1146,6 +1149,10 @@ object<string, string>
     Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
     */
     "redundant-and": "None",
+    /*
+    Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
+    */
+    "redundant-condition": "None",
     /*
     Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
     */
@@ -1529,6 +1536,10 @@ object<string, string>
     Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
     */
     "redundant-and": "Hint",
+    /*
+    Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
+    */
+    "redundant-condition": "Hint",
     /*
     Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
     */

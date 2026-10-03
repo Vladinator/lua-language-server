@@ -438,6 +438,7 @@ Array<string>
 * ``"redefined-label"``: Rótulo redefinido
 * ``"redefined-local"``: Variável local redefinida
 * ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+* ``"redundant-condition"``: Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
 * ``"redundant-or"``: Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
 * ``"redundant-parameter"``: Chamada de função com parâmetros em excesso
 * ``"redundant-return"``: Habilita diagnóstico para retornos desnecessários porque a função já terminaria.
@@ -656,6 +657,7 @@ object<string, string>
     "redefined": "Fallback",
     /*
     * redundant-and
+    * redundant-condition
     * redundant-or
     */
     "redundant": "Fallback",
@@ -813,6 +815,7 @@ object<string, string>
     "redefined": "Fallback",
     /*
     * redundant-and
+    * redundant-condition
     * redundant-or
     */
     "redundant": "Fallback",
@@ -1146,6 +1149,10 @@ object<string, string>
     Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
     */
     "redundant-and": "None",
+    /*
+    Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
+    */
+    "redundant-condition": "None",
     /*
     Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
     */
@@ -1529,6 +1536,10 @@ object<string, string>
     Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
     */
     "redundant-and": "Hint",
+    /*
+    Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
+    */
+    "redundant-condition": "Hint",
     /*
     Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
     */

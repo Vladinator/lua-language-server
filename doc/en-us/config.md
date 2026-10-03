@@ -2934,7 +2934,7 @@ integer
 
 # workspace.tocFileArguments
 
-Type the two arguments a WoW addon file receives at its top level (`local addonName, ns = ...`): the first as `string`, the second as `table`. Only for files that have a `.toc` file in their folder or above it.
+Type the two arguments a WoW addon file receives at its top level (`local addonName, ns = ...` or `local ns = select(2, ...)`): the first as the addon's folder name (a string literal), the second as the class `<Folder>NS`, which accepts new keys like a class written with `---@class` on that line. A `---@class` or `---@type` of your own on or above the line replaces it. Only for files that have a `.toc` file in their folder or above it.
 
 
 ## type
@@ -2947,6 +2947,23 @@ boolean
 
 ```jsonc
 false
+```
+
+# workspace.tocNamespaceClass
+
+The name of the class the namespace argument of an addon file gets (see `Lua.workspace.tocFileArguments`): `{addon}` is replaced by the addon's folder name (letters, digits and underscores). For example `{addon}NS` (the default), `{addon}.ns` or `{addon}_ns`. Use the same name in your own `---@class` so they merge.
+
+
+## type
+
+```ts
+string
+```
+
+## default
+
+```jsonc
+"{addon}NS"
 ```
 
 # workspace.tocSavedVariables

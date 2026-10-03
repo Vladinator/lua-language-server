@@ -2949,6 +2949,22 @@ boolean
 false
 ```
 
+# workspace.tocNamespaceClass
+
+**Missing description!!**
+
+## type
+
+```ts
+string
+```
+
+## default
+
+```jsonc
+"{addon}NS"
+```
+
 # workspace.tocSavedVariables
 
 **Missing description!!**

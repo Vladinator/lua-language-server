@@ -85,6 +85,7 @@ end
 --- above it that has one, up to the workspace folder); nil when it has none.
 ---@param uri uri
 ---@return workspace.toc.vars?
+---@return string? dir the folder the `.toc` is in
 function m.findToc(uri)
     local path = furi.decode(uri)
     if not path then
@@ -100,7 +101,7 @@ function m.findToc(uri)
         end
         local vars = readDir(dir)
         if vars then
-            return vars
+            return vars, dir
         end
         if not root or dir == root or #dir <= #root then
             break

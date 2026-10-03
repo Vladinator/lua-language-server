@@ -161,6 +161,21 @@ function mt:hasFalsy()
     return false
 end
 
+--- Whether `nil` is among the types (`false` is not: it is a valid table key).
+---@return boolean
+function mt:hasNil()
+    if self.optional then
+        return true
+    end
+    for _, c in ipairs(self) do
+        if c.type == 'nil'
+        or (c.type == 'global' and c.cate == 'type' and c.name == 'nil') then
+            return true
+        end
+    end
+    return false
+end
+
 ---Almost an inverse of hasFalsy, but stricter about "any" and "unknown" types.
 ---@return boolean
 function mt:alwaysTruthy()

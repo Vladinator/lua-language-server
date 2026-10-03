@@ -428,6 +428,8 @@ Array<string>
 * ``"nesting-long-mark"``: Marcadores de comentário longo aninhados
 * ``"newfield-call"``: Em uma tabela literal, faltou um separador entre duas linhas; foi interpretado como uma operação de índice
 * ``"newline-call"``: Nova linha iniciando com `(` é analisada como chamada da linha anterior
+* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+* ``"nil-table-key"``: Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
 * ``"no-unknown"``: Habilita diagnóstico para casos em que o tipo não pode ser inferido.
 * ``"no-visible-label"``: Rótulo invisível
 * ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
@@ -634,6 +636,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
@@ -681,6 +684,7 @@ object<string, string>
     * inject-field
     * mutate-readonly
     * need-check-nil
+    * nil-index
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -784,6 +788,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
@@ -831,6 +836,7 @@ object<string, string>
     * inject-field
     * mutate-readonly
     * need-check-nil
+    * nil-index
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -1095,6 +1101,14 @@ object<string, string>
     Nova linha iniciando com `(` é analisada como chamada da linha anterior
     */
     "newline-call": "Any",
+    /*
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    */
+    "nil-index": "None",
+    /*
+    Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
+    */
+    "nil-table-key": "Any",
     /*
     Habilita diagnóstico para casos em que o tipo não pode ser inferido.
     */
@@ -1462,6 +1476,14 @@ object<string, string>
     Nova linha iniciando com `(` é analisada como chamada da linha anterior
     */
     "newline-call": "Warning",
+    /*
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    */
+    "nil-index": "Warning",
+    /*
+    Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
+    */
+    "nil-table-key": "Warning",
     /*
     Habilita diagnóstico para casos em que o tipo não pode ser inferido.
     */

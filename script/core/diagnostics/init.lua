@@ -90,6 +90,8 @@ require 'core.diagnostics.redundant-value'
 require 'core.diagnostics.undefined-doc-param'
 require 'core.diagnostics.unused-label'
 require 'core.diagnostics.undefined-field'
+require 'core.diagnostics.nil-index'
+require 'core.diagnostics.nil-table-key'
 -- unnecessary-assert.lua is NOT required here: it's disabled upstream
 -- (09900e7daf) and its own protoDiagnostic.register call is commented
 -- out, so requiring it would have nothing to trigger.

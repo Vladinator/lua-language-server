@@ -431,6 +431,8 @@ Array<string>
 * ``"nesting-long-mark"``: Nested long comment markers
 * ``"newfield-call"``: Enable newfield call diagnostics. It is raised when the parenthesis of a function call appear on the following line when defining a field in a table.
 * ``"newline-call"``: Enable newline call diagnostics. It's raised when a line starting with `(` is encountered, which is syntactically parsed as a function call on the previous line.
+* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+* ``"nil-table-key"``: Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
 * ``"no-unknown"``: Enable diagnostics for cases in which the type cannot be inferred.
 * ``"no-visible-label"``: Invisible label
 * ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
@@ -637,6 +639,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
@@ -684,6 +687,7 @@ object<string, string>
     * inject-field
     * mutate-readonly
     * need-check-nil
+    * nil-index
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -787,6 +791,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
@@ -834,6 +839,7 @@ object<string, string>
     * inject-field
     * mutate-readonly
     * need-check-nil
+    * nil-index
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -1098,6 +1104,14 @@ object<string, string>
     Enable newline call diagnostics. It's raised when a line starting with `(` is encountered, which is syntactically parsed as a function call on the previous line.
     */
     "newline-call": "Any",
+    /*
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    */
+    "nil-index": "None",
+    /*
+    Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
+    */
+    "nil-table-key": "Any",
     /*
     Enable diagnostics for cases in which the type cannot be inferred.
     */
@@ -1465,6 +1479,14 @@ object<string, string>
     Enable newline call diagnostics. It's raised when a line starting with `(` is encountered, which is syntactically parsed as a function call on the previous line.
     */
     "newline-call": "Warning",
+    /*
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    */
+    "nil-index": "Warning",
+    /*
+    Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
+    */
+    "nil-table-key": "Warning",
     /*
     Enable diagnostics for cases in which the type cannot be inferred.
     */

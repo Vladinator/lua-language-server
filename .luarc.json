@@ -6,6 +6,7 @@
             "incomplete-signature-doc",
             "missing-global-doc",
             "missing-local-export-doc",
+            "nil-index",
             "redefined-local",
             "unchecked-array-index",
             "unused-local"

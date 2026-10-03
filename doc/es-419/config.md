@@ -428,6 +428,8 @@ Array<string>
 * ``"nesting-long-mark"``: Marcadores de comentario largo anidados
 * ``"newfield-call"``: Habilita el diagnóstico de campo nuevo en una llamada. Se alza un error cuando los paréntesis de una llamada a una función aparecen en la siguiente línea cuando se define un campo en una tabla.
 * ``"newline-call"``: Habilita el diagnóstico de llamadas en línea nueva. Se alza un error en las líneas que comienzan con `(`, lo que se lee sintácticamente como una llamada a la línea anterior.
+* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+* ``"nil-table-key"``: Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
 * ``"no-unknown"``: Habilita el diagnóstico para los casos en que el tipo no puede ser inferido.
 * ``"no-visible-label"``: Etiqueta invisible
 * ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
@@ -634,6 +636,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
@@ -681,6 +684,7 @@ object<string, string>
     * inject-field
     * mutate-readonly
     * need-check-nil
+    * nil-index
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -784,6 +788,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
@@ -831,6 +836,7 @@ object<string, string>
     * inject-field
     * mutate-readonly
     * need-check-nil
+    * nil-index
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -1095,6 +1101,14 @@ object<string, string>
     Habilita el diagnóstico de llamadas en línea nueva. Se alza un error en las líneas que comienzan con `(`, lo que se lee sintácticamente como una llamada a la línea anterior.
     */
     "newline-call": "Any",
+    /*
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    */
+    "nil-index": "None",
+    /*
+    Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
+    */
+    "nil-table-key": "Any",
     /*
     Habilita el diagnóstico para los casos en que el tipo no puede ser inferido.
     */
@@ -1462,6 +1476,14 @@ object<string, string>
     Habilita el diagnóstico de llamadas en línea nueva. Se alza un error en las líneas que comienzan con `(`, lo que se lee sintácticamente como una llamada a la línea anterior.
     */
     "newline-call": "Warning",
+    /*
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    */
+    "nil-index": "Warning",
+    /*
+    Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
+    */
+    "nil-table-key": "Warning",
     /*
     Habilita el diagnóstico para los casos en que el tipo no puede ser inferido.
     */

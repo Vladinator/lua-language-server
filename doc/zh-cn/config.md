@@ -428,6 +428,8 @@ Array<string>
 * ``"nesting-long-mark"``: 嵌套的长注释标记
 * ``"newfield-call"``: 在字面量表中，2行代码之间缺少分隔符，在语法上被解析为了一次索引操作
 * ``"newline-call"``: 以 `(` 开始的新行，在语法上被解析为了上一行的函数调用
+* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+* ``"nil-table-key"``: Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
 * ``"no-unknown"``: 变量的未知类型无法推断
 * ``"no-visible-label"``: 不可见的标签
 * ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
@@ -634,6 +636,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
@@ -681,6 +684,7 @@ object<string, string>
     * inject-field
     * mutate-readonly
     * need-check-nil
+    * nil-index
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -784,6 +788,7 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
     * undefined-doc-name
@@ -831,6 +836,7 @@ object<string, string>
     * inject-field
     * mutate-readonly
     * need-check-nil
+    * nil-index
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -1095,6 +1101,14 @@ object<string, string>
     以 `(` 开始的新行，在语法上被解析为了上一行的函数调用
     */
     "newline-call": "Any",
+    /*
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    */
+    "nil-index": "None",
+    /*
+    Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
+    */
+    "nil-table-key": "Any",
     /*
     变量的未知类型无法推断
     */
@@ -1461,6 +1475,14 @@ object<string, string>
     以 `(` 开始的新行，在语法上被解析为了上一行的函数调用
     */
     "newline-call": "Warning",
+    /*
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    */
+    "nil-index": "Warning",
+    /*
+    Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
+    */
+    "nil-table-key": "Warning",
     /*
     变量的未知类型无法推断
     */

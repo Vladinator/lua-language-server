@@ -80,6 +80,12 @@ log.info('LOGPATH:', LOGPATH)
 log.info('METAPATH:', METAPATH)
 log.info('VERSION:', version.getVersion())
 
+-- a profiler for the server's own Lua code (luals-dev/tools/lls_profiler.lua), only when asked for
+local profilerFile = os.getenv('LLS_PROFILE_LUA')
+if profilerFile then
+    xpcall(dofile, log.error, profilerFile)
+end
+
 require 'tracy'
 
 xpcall(dofile, log.debug, (ROOT / 'debugger.lua'):string())

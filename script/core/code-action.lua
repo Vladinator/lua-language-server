@@ -402,6 +402,141 @@ local function solveTrailingSpace(uri, _diag, results)
     }
 end
 
+--- The statement (an item of a block) that `source` is part of.
+---@param source parser.object
+---@return parser.object?
+local function enclosingStatement(source)
+    local BLOCKS = {
+        ['main'] = true, ['function'] = true, ['ifblock'] = true, ['elseifblock'] = true, ['elseblock'] = true,
+        ['loop'] = true, ['while'] = true, ['in'] = true, ['repeat'] = true, ['do'] = true,
+    }
+    ---@type parser.object?
+    local stmt = source
+    while stmt and stmt.parent and not BLOCKS[stmt.parent.type] do
+        stmt = stmt.parent
+    end
+    if stmt and stmt.parent and BLOCKS[stmt.parent.type] and stmt ~= source then
+        return stmt
+    end
+    return nil
+end
+
+local NL = string.char(10)
+
+--- `need-check-nil` (a possibly-nil value is used): the ways to say that it is not nil here. `diag.range` is the
+--- value (a name or a field path): safe navigation `?.` where the syntax is enabled, and a guard around or before
+--- the statement that uses it.
+---@param uri uri
+---@param diag core.code-action.diag
+---@param results core.code-action.results
+local function solveNeedCheckNil(uri, diag, results)
+    local state = files.getState(uri)
+    local text  = files.getText(uri)
+    if not state or not text then
+        return
+    end
+    local start, finish = converter.unpackRange(state, diag.range)
+    ---@type parser.object?
+    local src
+    guide.eachSourceContain(state.ast, start, function (source)
+        if source.start == start and source.finish == finish and not src then
+            src = source
+        end
+    end)
+    if not src then
+        return
+    end
+
+    -- safe navigation, when the syntax is on (LuaJIT, or the symbol in `Lua.runtime.nonstandardSymbol`)
+    local nxt = src.next
+    if nxt and not nxt.safe then
+        local symbol = (nxt.type == 'getfield' or nxt.type == 'getmethod') and '?.'
+                    or  nxt.type == 'getindex' and '?.['
+                    or  nxt.type == 'call' and '?.('
+        local options = state.options
+        if symbol and (state.luaJITExtensions or (options and options.nonstandardSymbol[symbol])) then
+            results[#results+1] = {
+                title = lang.script.ACTION_NIL_SAFE_NAV,
+                kind  = 'quickfix',
+                edit  = {
+                    changes = {
+                        [uri] = {
+                            {
+                                start   = src.finish,
+                                finish  = src.finish,
+                                newText = nxt.type == 'getfield' and '?' or '?.',
+                            }
+                        }
+                    }
+                },
+            }
+        end
+    end
+
+    -- a guard needs the value as plain text: a name or a field path, on one line
+    local offsetStart  = guide.positionToOffset(state, start + 1)
+    local offsetFinish = guide.positionToOffset(state, finish)
+    local value = text:sub(offsetStart, offsetFinish)
+    if not value:match('^[%a_][%w_]*[%w_%.]*$') or value:find('%.%.') then
+        return
+    end
+    local stmt = enclosingStatement(src)
+    if not stmt then
+        return
+    end
+    -- (a statement node does not always cover its value: `local x = a.b` ends at `x`)
+    local stmtFinish = stmt.finish
+    guide.eachSource(stmt, function (inner)
+        if inner.finish > stmtFinish then
+            stmtFinish = inner.finish
+        end
+    end)
+    local row    = guide.rowColOf(stmt.start)
+    local endRow = guide.rowColOf(stmtFinish)
+    local pos    = guide.positionOf(row, 0)
+    local offset = guide.positionToOffset(state, pos + 1)
+    local indent = text:match('^[ \t]*', offset) or ''
+    local unit   = indent:find('\t') and '\t' or '    '
+
+    ---@type vm.completion.edit[]
+    local wrap = {
+        {
+            start   = pos,
+            finish  = pos,
+            newText = indent .. 'if ' .. value .. ' then' .. NL .. unit,
+        },
+    }
+    for r = row + 1, endRow do
+        local p = guide.positionOf(r, 0)
+        wrap[#wrap+1] = { start = p, finish = p, newText = unit }
+    end
+    wrap[#wrap+1] = {
+        start   = stmtFinish,
+        finish  = stmtFinish,
+        newText = NL .. indent .. 'end',
+    }
+    results[#results+1] = {
+        title = lang.script('ACTION_NIL_WRAP', value),
+        kind  = 'quickfix',
+        edit  = { changes = { [uri] = wrap } },
+    }
+    results[#results+1] = {
+        title = lang.script('ACTION_NIL_ASSERT', value),
+        kind  = 'quickfix',
+        edit  = {
+            changes = {
+                [uri] = {
+                    {
+                        start   = pos,
+                        finish  = pos,
+                        newText = indent .. 'assert(' .. value .. ')' .. NL,
+                    }
+                }
+            }
+        },
+    }
+end
+
 ---@param uri uri
 ---@param diag core.code-action.diag
 ---@param results core.code-action.results
@@ -526,6 +661,8 @@ local function solveDiagnostic(uri, diag, start, results)
         solveTrailingSpace(uri, diag, results)
     elseif diag.code == 'await-in-sync' then
         solveAwaitInSync(uri, diag, results)
+    elseif diag.code == 'need-check-nil' then
+        solveNeedCheckNil(uri, diag, results)
     elseif diag.code == 'spell-check' then
         solveSpell(uri, diag, results)
     end

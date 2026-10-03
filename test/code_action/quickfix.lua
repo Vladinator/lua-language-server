@@ -233,3 +233,87 @@ do
     local results = syntaxActions('print(1))\n', 'UNKNOWN_SYMBOL')
     assert(#results == 0, #results)
 end
+
+-- need-check-nil: a guard around the statement, an assert before it, safe navigation where the syntax is on
+do
+    local results = actions('---@type table?\nlocal t\nlocal x = <!t!>.a\n', 'need-check-nil')
+    local wrap = assert(find(results, lang.script('ACTION_NIL_WRAP', 't')))
+    local edits = assert(wrap.edit).changes[TESTURI]
+    assert(#edits == 2, 'one line: the opening and the closing edit, got ' .. #edits)
+    assert(edits[1].newText == 'if t then\n    ', edits[1].newText)
+    assert(edits[2].newText == '\nend', edits[2].newText)
+    local assertFix = assert(find(results, lang.script('ACTION_NIL_ASSERT', 't')))
+    assert(onlyEdit(assertFix).newText == 'assert(t)\n')
+    assert(not find(results, lang.script.ACTION_NIL_SAFE_NAV), 'no safe navigation in plain Lua')
+end
+
+-- a statement on several lines is indented line by line, keeping the indentation of the statement
+do
+    local results = actions('---@type table?\nlocal t\nif true then\n    print(\n        <!t!>.a\n    )\nend\n', 'need-check-nil')
+    local wrap = assert(find(results, lang.script('ACTION_NIL_WRAP', 't')))
+    local edits = assert(wrap.edit).changes[TESTURI]
+    assert(edits[1].newText == '    if t then\n    ', edits[1].newText)
+    assert(#edits == 4, 'opening, 2 continuation lines, the closing one: ' .. #edits)
+    assert(edits[#edits].newText == '\n    end')
+end
+
+-- a field path is guarded as text; a call result or an expression is not (no plain text to repeat)
+do
+    local results = actions('---@type {a: table?}\nlocal t\nlocal x = <!t.a!>.b\n', 'need-check-nil')
+    assert(find(results, lang.script('ACTION_NIL_WRAP', 't.a')), 'a field path')
+    local results2 = actions('local function f() ---@type table?\n    return nil end\nlocal x = <!f()!>.b\n', 'need-check-nil')
+    assert(not find(results2, lang.script('ACTION_NIL_ASSERT', 'f()')), 'nothing for a call')
+end
+
+-- safe navigation: offered only when the syntax is enabled
+do
+    config.set(nil, 'Lua.runtime.nonstandardSymbol', { '?.', '?.[', '?.(' })
+    local results = actions('---@type table?\nlocal t\nlocal x = <!t!>.a\nlocal y = <!t!>[1]\nlocal z = <!t!>()\n', 'need-check-nil')
+    config.set(nil, 'Lua.runtime.nonstandardSymbol', {})
+    assert(find(results, lang.script.ACTION_NIL_SAFE_NAV), 'with the symbols on')
+end
+
+-- the edits of the need-check-nil fixes give valid code when applied
+do
+    local guide = require 'parser.guide'
+    ---@param script string
+    ---@param title  string
+    ---@return string
+    local function applied(script, title)
+        local results, state = actions(script, 'need-check-nil')
+        local fix = assert(find(results, title))
+        local text = assert(state.lua)
+        ---@type {s: integer, f: integer, t: string, i: integer}[]
+        local list = {}
+        for i, edit in ipairs(assert(fix.edit).changes[TESTURI]) do
+            list[i] = {
+                s = guide.positionToOffset(state, edit.start + 1) or 1,
+                f = guide.positionToOffset(state, edit.finish),
+                t = edit.newText,
+                i = i,
+            }
+        end
+        -- from the end of the text to its start, so the offsets stay valid (same position: later edit first)
+        table.sort(list, function (a, b)
+            if a.s ~= b.s then
+                return a.s > b.s
+            end
+            return a.i > b.i
+        end)
+        for _, e in ipairs(list) do
+            text = text:sub(1, e.s - 1) .. e.t .. text:sub(e.f + 1)
+        end
+        return text
+    end
+    local NL = string.char(10)
+    assert(applied('---@type table?' .. NL .. 'local t' .. NL .. 'local x = <!t!>.a' .. NL,
+        lang.script('ACTION_NIL_WRAP', 't'))
+        == '---@type table?' .. NL .. 'local t' .. NL .. 'if t then' .. NL .. '    local x = t.a' .. NL .. 'end' .. NL)
+    assert(applied('---@type table?' .. NL .. 'local t' .. NL .. 'do' .. NL .. '    print(' .. NL .. '        <!t!>.a' .. NL .. '    )' .. NL .. 'end' .. NL,
+        lang.script('ACTION_NIL_WRAP', 't'))
+        == '---@type table?' .. NL .. 'local t' .. NL .. 'do' .. NL .. '    if t then' .. NL .. '        print(' .. NL
+        .. '            t.a' .. NL .. '        )' .. NL .. '    end' .. NL .. 'end' .. NL)
+    assert(applied('---@type table?' .. NL .. 'local t' .. NL .. 'local x = <!t!>.a' .. NL,
+        lang.script('ACTION_NIL_ASSERT', 't'))
+        == '---@type table?' .. NL .. 'local t' .. NL .. 'assert(t)' .. NL .. 'local x = t.a' .. NL)
+end

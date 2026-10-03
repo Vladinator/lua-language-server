@@ -333,6 +333,12 @@ ACTION_DISABLE_DIAG_FILE=
 'Disable diagnostics in this file ({}).'
 ACTION_MARK_ASYNC       =
 'Mark current function as async.'
+ACTION_NIL_SAFE_NAV     =
+'Use safe navigation (`?.`).'
+ACTION_NIL_WRAP         =
+'Wrap the statement in `if {} then`.'
+ACTION_NIL_ASSERT       =
+'Add `assert({})` before the statement.'
 ACTION_ADD_DICT         =
 'Add \'{}\' to workspace dict'
 ACTION_FIX_ADD_PAREN    =

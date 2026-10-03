@@ -1367,6 +1367,38 @@ function vm.compileByParentNodeAll(source, key, pushResult)
     end
 end
 
+---@type (fun(uri: uri, index: integer): string?)[]
+local mainVarargProviders = {}
+
+--- Let a plugin type the arguments the host passes to a file (the main chunk's `...`): the provider answers with the
+--- name of the type of argument `index` of the file `uri`, or nil. Without one every position of `...` is unknown.
+---@param provider fun(uri: uri, index: integer): string?
+function vm.registerMainVarargProvider(provider)
+    mainVarargProviders[#mainVarargProviders+1] = provider
+end
+
+--- The type name a provider gives to argument `index` of the main chunk `...` (`varargs` node) `exp`.
+---@param exp   parser.object
+---@param index integer
+---@return string?
+local function mainVarargType(exp, index)
+    if #mainVarargProviders == 0 then
+        return nil
+    end
+    local func = guide.getParentFunction(exp)
+    if not func or func.type ~= 'main' then
+        return nil
+    end
+    local uri = guide.getUri(exp)
+    for _, provider in ipairs(mainVarargProviders) do
+        local name = provider(uri, index)
+        if name then
+            return name
+        end
+    end
+    return nil
+end
+
 ---@param list  parser.object[]
 ---@param index integer
 ---@return vm.node
@@ -1405,6 +1437,8 @@ function vm.selectNode(list, index)
         if result:isEmpty() then
             result:merge(vm.declareGlobal('type', 'unknown'))
         end
+    elseif exp.type == 'varargs' and mainVarargType(exp, index) then
+        result = vm.createNode(vm.declareGlobal('type', mainVarargType(exp, index) --[[@as string]]))
     else
         ---@type vm.node
         result = vm.compileNode(exp)
@@ -2850,7 +2884,12 @@ local compilerSwitch = util.switch()
             vm.setNode(source, node)
         end
         if vararg.type == 'varargs' then
-            vm.setNode(source, vm.compileNode(vararg))
+            local typeName = mainVarargType(vararg, source.sindex)
+            if typeName then
+                vm.setNode(source, vm.declareGlobal('type', typeName))
+            else
+                vm.setNode(source, vm.compileNode(vararg))
+            end
         end
     end)
     : case 'varargs'

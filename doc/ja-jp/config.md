@@ -366,6 +366,7 @@ Array<string>
 * ``"global-close-attribute"``: グローバル変数への close 属性
 * ``"global-element"``: グローバル要素に関する警告診断を有効にします。
 * ``"global-in-nil-env"``: グローバル変数を使用できない（`_ENV` が `nil`）場合の診断を有効にします。
+* ``"grouped-return-mismatch"``: Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
 * ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
 * ``"incomplete-signature-doc"``: 関数の @param または @return 注釈が不完全な場合の診断。
 * ``"index-in-func-name"``: 関数名にインデックスが含まれる
@@ -693,6 +694,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * grouped-return-mismatch
     * inject-field
     * mutate-readonly
     * need-check-nil
@@ -852,6 +854,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * grouped-return-mismatch
     * inject-field
     * mutate-readonly
     * need-check-nil
@@ -1052,6 +1055,10 @@ object<string, string>
     グローバル変数を使用できない（`_ENV` が `nil`）場合の診断を有効にします。
     */
     "global-in-nil-env": "Any",
+    /*
+    Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
+    */
+    "grouped-return-mismatch": "Opened",
     /*
     Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
     */
@@ -1443,6 +1450,10 @@ object<string, string>
     グローバル変数を使用できない（`_ENV` が `nil`）場合の診断を有効にします。
     */
     "global-in-nil-env": "Warning",
+    /*
+    Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
+    */
+    "grouped-return-mismatch": "Warning",
     /*
     Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
     */

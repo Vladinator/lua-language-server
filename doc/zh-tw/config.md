@@ -366,6 +366,7 @@ Array<string>
 * ``"global-close-attribute"``: 全域變數使用 close 屬性
 * ``"global-element"``: 對全域元素的警告
 * ``"global-in-nil-env"``: 不能使用全域變數（ `_ENV` 被設定為 `nil`）
+* ``"grouped-return-mismatch"``: Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
 * ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
 * ``"incomplete-signature-doc"``: `@param` 或 `@return` 不完整
 * ``"index-in-func-name"``: 函式名稱中包含索引
@@ -693,6 +694,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * grouped-return-mismatch
     * inject-field
     * mutate-readonly
     * need-check-nil
@@ -852,6 +854,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * grouped-return-mismatch
     * inject-field
     * mutate-readonly
     * need-check-nil
@@ -1052,6 +1055,10 @@ object<string, string>
     不能使用全域變數（ `_ENV` 被設定為 `nil`）
     */
     "global-in-nil-env": "Any",
+    /*
+    Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
+    */
+    "grouped-return-mismatch": "Opened",
     /*
     Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
     */
@@ -1442,6 +1449,10 @@ object<string, string>
     不能使用全域變數（ `_ENV` 被設定為 `nil`）
     */
     "global-in-nil-env": "Warning",
+    /*
+    Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
+    */
+    "grouped-return-mismatch": "Warning",
     /*
     Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
     */

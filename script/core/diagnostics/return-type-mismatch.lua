@@ -69,11 +69,21 @@ local function getDocCases(func)
     return nil
 end
 
+--- Serves two diagnostics: `return-type-mismatch` (each returned value against its slot) and
+--- `grouped-return-mismatch` (grouped-return-mismatch.lua: the values together against the cases of a
+--- tuple-union `---@return (A, B) | (C, D)`, once every value fits its own slot). `name` says which one runs.
 ---@async
-return function (uri, callback)
+return function (uri, callback, name)
     local state = files.getState(uri)
     if not state then
         return
+    end
+    local grouped = name == 'grouped-return-mismatch'
+    ---@param result proto.diagnostic.result
+    local function report(result)
+        if not grouped then
+            callback(result)
+        end
     end
 
     --- Does `value` fit one slot of a case? `vm.canCastType` accepts anything for a `nil` target (so that
@@ -153,7 +163,7 @@ return function (uri, callback)
             end
             local errs = {}
             if not vm.canCastType(uri, docRet, retNode, errs) then
-                callback {
+                report {
                     start   = exp.start,
                     finish  = exp.finish,
                     message = MESSAGE:format(
@@ -179,9 +189,12 @@ return function (uri, callback)
             return
         end
         local cases = getDocCases(source)
+        if grouped and not cases then
+            return
+        end
         for _, ret in ipairs(source.returns) do
             -- the combination is only judged once every value fits its own slot
-            if checkReturn(docReturns, ret) and cases then
+            if checkReturn(docReturns, ret) and grouped and cases then
                 checkCases(cases, ret)
             end
             await.delay()

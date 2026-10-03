@@ -366,6 +366,7 @@ Array<string>
 * ``"global-close-attribute"``: Atributo close en una variable global
 * ``"global-element"``: Habilita el diagnóstico que alerta sobre elementos globales.
 * ``"global-in-nil-env"``: Habilita el diagnóstico para la prohibición de uso de variables globales (`_ENV` se fija a `nil`).
+* ``"grouped-return-mismatch"``: Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
 * ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
 * ``"incomplete-signature-doc"``: Habilita el diagnóstico para anotaciones @param o @return incompletas para funciones.
 * ``"index-in-func-name"``: Índice en nombre de función
@@ -693,6 +694,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * grouped-return-mismatch
     * inject-field
     * mutate-readonly
     * need-check-nil
@@ -852,6 +854,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * grouped-return-mismatch
     * inject-field
     * mutate-readonly
     * need-check-nil
@@ -1052,6 +1055,10 @@ object<string, string>
     Habilita el diagnóstico para la prohibición de uso de variables globales (`_ENV` se fija a `nil`).
     */
     "global-in-nil-env": "Any",
+    /*
+    Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
+    */
+    "grouped-return-mismatch": "Opened",
     /*
     Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
     */
@@ -1443,6 +1450,10 @@ object<string, string>
     Habilita el diagnóstico para la prohibición de uso de variables globales (`_ENV` se fija a `nil`).
     */
     "global-in-nil-env": "Warning",
+    /*
+    Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
+    */
+    "grouped-return-mismatch": "Warning",
     /*
     Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
     */

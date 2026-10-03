@@ -553,6 +553,35 @@ local wrapped = wrapKeyed(original)
 local <?r?> = wrapped("x")
 ]]
 
+-- `?T` prefix (wowlua-ls interop): the same as `T?`
+TEST 'string?' [[
+---@type ?string
+local <?a?>
+]]
+
+TEST 'number?' [[
+---@param p ?number
+local function f(p)
+    local <?x?> = p
+end
+]]
+
+TEST 'string[]?' [[
+---@type ?string[]
+local <?a?>
+]]
+
+-- `?` that is not followed by a type is not a prefix, and the suffix form keeps working
+TEST 'string?' [[
+---@type string?
+local <?a?>
+]]
+
+TEST 'string' [[
+---@type string
+local <?a?>
+]]
+
 -- tuple-union `---@return (A, B) | (C, D)` (wowlua-ls interop): each slot's type is the union of
 -- that slot across the cases; a slot that is `nil` in some case is optional (`string | nil` is
 -- `string?`, same as everywhere else in the engine).

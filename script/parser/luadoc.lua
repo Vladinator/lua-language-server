@@ -1269,6 +1269,17 @@ function parseType(parent)
             end
         end
     end
+    -- `?T` (wowlua-ls): the same as `T?`, only when a type follows the `?`
+    local prefixOptional = false
+    if keywordTp == 'symbol' and keyword == '?' then
+        local nextTp, nextContent = peekToken(2)
+        if nextTp == 'name'
+        or nextTp == 'string'
+        or (nextTp == 'symbol' and (nextContent == '(' or nextContent == '{' or nextContent == '[')) then
+            nextToken()
+            prefixOptional = true
+        end
+    end
     while true do
         local typeUnit = parseTypeIntersection(result)
         if not typeUnit then
@@ -1324,6 +1335,9 @@ function parseType(parent)
         -- nil-guard / nil-assignment checks (not owned by any `extra/` plugin).
         nextToken()
         result.lateinit = true
+    end
+    if prefixOptional then
+        result.optional = true
     end
     if keywordField then
         -- plugin-supplied field name, not known statically

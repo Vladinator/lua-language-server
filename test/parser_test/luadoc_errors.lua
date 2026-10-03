@@ -20,6 +20,7 @@ local samples = {
     ['---@type (string']                = { 'LUADOC_MISS_SYMBOL' },
     ['---@type string[']                = { 'LUADOC_MISS_TYPE_NAME' },
     ['---@type keyof']                  = { 'LUADOC_MISS_TYPE_NAME' },
+    ['---@type ?']                      = { 'LUADOC_MISS_TYPE_NAME' },
     ['---@type A &']                    = { 'LUADOC_MISS_TYPE_NAME' },
     ['---@type (A extends B ? C)']      = { 'LUADOC_MISS_SYMBOL' },
     -- the tags that name something

@@ -1399,6 +1399,18 @@ local function mainVarargType(exp, index)
     return nil
 end
 
+--- The node of a file argument type a provider named: a quoted name (`"Folder"`) is that string literal, any other name
+--- a type.
+---@param name string
+---@return vm.node
+local function fileArgumentNode(name)
+    local literal = name:match('^"(.*)"$')
+    if literal then
+        return vm.createNode({ type = 'doc.type.string', start = 0, finish = 0, [1] = literal, [2] = '"' })
+    end
+    return vm.createNode(vm.declareGlobal('type', name))
+end
+
 --- The type a plugin gives to `select(N, ...)` written at the top of a file (N a number, the main chunk's `...`).
 ---@param call parser.object
 ---@return string?
@@ -1449,14 +1461,14 @@ function vm.selectNode(list, index)
     ---@type vm.node?
     local result
     if exp.type == 'call' and index == 1 and fileArgumentOfSelect(exp) then
-        result = vm.createNode(vm.declareGlobal('type', fileArgumentOfSelect(exp) --[[@as string]]))
+        result = fileArgumentNode(fileArgumentOfSelect(exp) --[[@as string]])
     elseif exp.type == 'call' then
         result = getReturn(exp.node, index, exp.args)
         if result:isEmpty() then
             result:merge(vm.declareGlobal('type', 'unknown'))
         end
     elseif exp.type == 'varargs' and mainVarargType(exp, index) then
-        result = vm.createNode(vm.declareGlobal('type', mainVarargType(exp, index) --[[@as string]]))
+        result = fileArgumentNode(mainVarargType(exp, index) --[[@as string]])
     else
         ---@type vm.node
         result = vm.compileNode(exp)
@@ -2893,7 +2905,7 @@ local compilerSwitch = util.switch()
         local vararg = source.vararg
         local fileArg = vararg.type == 'call' and source.sindex == 1 and fileArgumentOfSelect(vararg)
         if fileArg then
-            vm.setNode(source, vm.declareGlobal('type', fileArg))
+            vm.setNode(source, fileArgumentNode(fileArg))
             return
         end
         if vararg.type == 'call' then
@@ -2909,7 +2921,7 @@ local compilerSwitch = util.switch()
         if vararg.type == 'varargs' then
             local typeName = mainVarargType(vararg, source.sindex)
             if typeName then
-                vm.setNode(source, vm.declareGlobal('type', typeName))
+                vm.setNode(source, fileArgumentNode(typeName))
             else
                 vm.setNode(source, vm.compileNode(vararg))
             end
@@ -2932,7 +2944,7 @@ local compilerSwitch = util.switch()
         -- `select(N, ...)` at the top of a file: the file's argument N, when a plugin types them
         local fileArg = fileArgumentOfSelect(source)
         if fileArg then
-            vm.setNode(source, vm.declareGlobal('type', fileArg))
+            vm.setNode(source, fileArgumentNode(fileArg))
             return
         end
         local node = getReturn(source.node, 1, source.args)

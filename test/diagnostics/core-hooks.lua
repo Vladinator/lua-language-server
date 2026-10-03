@@ -105,7 +105,8 @@ vm.registerMainVarargProvider(function (_uri, index)
     if not varargsOn then
         return nil
     end
-    return index == 1 and 'string' or index == 2 and 'table' or nil
+    -- (a quoted name is a string literal type)
+    return index == 1 and 'string' or index == 2 and 'table' or index == 3 and '"Zz"' or nil
 end)
 
 ---@param script string
@@ -133,7 +134,9 @@ assert(off.a == 'unknown' and off.b == 'unknown', 'no provider answer: unknown a
 varargsOn = true
 local on = typesOf(varargScript)
 assert(on.a == 'string' and on.b == 'table', 'positions 1 and 2: ' .. tostring(on.a) .. ' ' .. tostring(on.b))
-assert(on.c == 'unknown', 'a position nobody answers stays unknown')
+assert(on.c == '"Zz"', 'a quoted name is a literal: ' .. tostring(on.c))
+local fourth = typesOf('local a, b, c, d = ...\nreturn a, b, c, d\n')
+assert(fourth.d == 'unknown', 'a position nobody answers stays unknown')
 assert(on.inner == 'unknown', "a function's own `...` is not the file's")
 local selected = typesOf('local ns = select(2, ...)\nreturn ns\n')
 assert(selected.ns == 'table', '`select(2, ...)`, the usual way to take the second one: ' .. tostring(selected.ns))
@@ -218,4 +221,48 @@ do
     assert(#keyword == 1 and keyword[1] == 'luals')
     docTags.setKeywordFlavors('zz-test-keyword', { 'wowluals' })
     assert(docTags.getKeywordFlavors('zz-test-keyword')[1] == 'wowluals')
+end
+
+-- ## built-in text rewrites --------------------------------------------------------------------------------------
+
+do
+    local plugin = require 'plugin'
+    local rewriteOn = false
+    -- the text `ZZ_BUILTIN_SOURCE` becomes the declaration of a local, while the hook is on
+    plugin.registerBuiltin {
+        OnSetText = function (_uri, text)
+            if not rewriteOn then
+                return nil
+            end
+            local first, last = text:find('ZZ_BUILTIN_SOURCE', 1, true)
+            if not first then
+                return nil
+            end
+            return { { start = first, finish = last, text = 'local zzFromBuiltin = 1' } }
+        end,
+    }
+    local UNDEFINED = { ['undefined-global'] = true }
+    local script = 'ZZ_BUILTIN_SOURCE\nprint(zzFromBuiltin)\n'
+    rewriteOn = false
+    -- (without the rewrite the first line is not even a statement: only count what is said about the global)
+    local plain = reported(script, UNDEFINED)
+    local mentions = 0
+    for _, line in ipairs(plain) do
+        if line:find('zzFromBuiltin', 1, true) then
+            mentions = mentions + 1
+        end
+    end
+    assert(mentions == 1, 'off: the name is undefined, got ' .. table.concat(plain, ' | '))
+    rewriteOn = true
+    local rewritten = reported(script, UNDEFINED)
+    for _, line in ipairs(rewritten) do
+        assert(not line:find('zzFromBuiltin', 1, true), 'on: the local the rewrite declared is known: ' .. line)
+    end
+    -- the dispatch contract: a built-in interface that has nothing to say is no answer, one that answers is
+    rewriteOn = false
+    assert(plugin.dispatch('OnSetText', TESTURI, 'ZZ_BUILTIN_SOURCE') == false, 'built-ins with nothing to say: nobody answered')
+    rewriteOn = true
+    local suc, diffs = plugin.dispatch('OnSetText', TESTURI, 'ZZ_BUILTIN_SOURCE')
+    assert(suc == true and type(diffs) == 'table' and #diffs == 1, 'a built-in answer is returned')
+    rewriteOn = false
 end

@@ -437,6 +437,8 @@ Array<string>
 * ``"param-type-mismatch"``: 給定參數的類型不符合函式定義所要求的類型（ `@param` ）
 * ``"redefined-label"``: 重複定義的標籤
 * ``"redefined-local"``: 重複定義的區域變數
+* ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+* ``"redundant-or"``: Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
 * ``"redundant-parameter"``: 函式呼叫時，傳入了多餘的引數
 * ``"redundant-return"``: 放了一個不需要的 `return` 陳述式，因為函式會自行退出
 * ``"redundant-return-value"``: 回傳了 `@return` 標註未指定的額外值
@@ -454,6 +456,7 @@ Array<string>
 * ``"secret-table-key"``: Enable diagnostics for using a secret value as a table key (`t[s]`, `t[s] = v`, `{ [s] = v }`) before it is checked.
 * ``"secret-variable"``: Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
 * ``"set-const"``: 對 const 常數賦值
+* ``"shadowed-local"``
 * ``"spell-check"``: 字串拼寫檢查
 * ``"trailing-space"``: 後置空格
 * ``"type-mismatch"``
@@ -652,6 +655,11 @@ object<string, string>
     */
     "redefined": "Fallback",
     /*
+    * redundant-and
+    * redundant-or
+    */
+    "redundant": "Fallback",
+    /*
     * redundant-secret-unwrap
     * secret-access
     * secret-argument
@@ -803,6 +811,11 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * redundant-and
+    * redundant-or
+    */
+    "redundant": "Fallback",
     /*
     * redundant-secret-unwrap
     * secret-access
@@ -1129,6 +1142,14 @@ object<string, string>
     重複定義的區域變數
     */
     "redefined-local": "Opened",
+    /*
+    Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+    */
+    "redundant-and": "None",
+    /*
+    Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
+    */
+    "redundant-or": "None",
     /*
     函式呼叫時，傳入了多餘的引數
     */
@@ -1503,6 +1524,14 @@ object<string, string>
     重複定義的區域變數
     */
     "redefined-local": "Hint",
+    /*
+    Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+    */
+    "redundant-and": "Hint",
+    /*
+    Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
+    */
+    "redundant-or": "Hint",
     /*
     函式呼叫時，傳入了多餘的引數
     */

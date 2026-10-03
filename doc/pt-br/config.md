@@ -437,6 +437,8 @@ Array<string>
 * ``"param-type-mismatch"``: Habilita diagnóstico para chamadas onde o tipo do parâmetro fornecido não corresponde à definição anotada.
 * ``"redefined-label"``: Rótulo redefinido
 * ``"redefined-local"``: Variável local redefinida
+* ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+* ``"redundant-or"``: Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
 * ``"redundant-parameter"``: Chamada de função com parâmetros em excesso
 * ``"redundant-return"``: Habilita diagnóstico para retornos desnecessários porque a função já terminaria.
 * ``"redundant-return-value"``: Habilita diagnóstico para retornos que entregam valor extra não especificado na anotação.
@@ -454,6 +456,7 @@ Array<string>
 * ``"secret-table-key"``: Enable diagnostics for using a secret value as a table key (`t[s]`, `t[s] = v`, `{ [s] = v }`) before it is checked.
 * ``"secret-variable"``: Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
 * ``"set-const"``: Atribuindo a uma constante const
+* ``"shadowed-local"``
 * ``"spell-check"``: Habilita diagnóstico para erros ortográficos em strings.
 * ``"trailing-space"``: Espaços à direita
 * ``"type-mismatch"``
@@ -652,6 +655,11 @@ object<string, string>
     */
     "redefined": "Fallback",
     /*
+    * redundant-and
+    * redundant-or
+    */
+    "redundant": "Fallback",
+    /*
     * redundant-secret-unwrap
     * secret-access
     * secret-argument
@@ -803,6 +811,11 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * redundant-and
+    * redundant-or
+    */
+    "redundant": "Fallback",
     /*
     * redundant-secret-unwrap
     * secret-access
@@ -1129,6 +1142,14 @@ object<string, string>
     Variável local redefinida
     */
     "redefined-local": "Opened",
+    /*
+    Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+    */
+    "redundant-and": "None",
+    /*
+    Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
+    */
+    "redundant-or": "None",
     /*
     Chamada de função com parâmetros em excesso
     */
@@ -1504,6 +1525,14 @@ object<string, string>
     Variável local redefinida
     */
     "redefined-local": "Hint",
+    /*
+    Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+    */
+    "redundant-and": "Hint",
+    /*
+    Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
+    */
+    "redundant-or": "Hint",
     /*
     Chamada de função com parâmetros em excesso
     */

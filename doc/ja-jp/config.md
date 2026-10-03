@@ -437,6 +437,8 @@ Array<string>
 * ``"param-type-mismatch"``: 注釈の型と一致しない引数を渡した場合の診断を有効にします。
 * ``"redefined-label"``: 再定義されたラベル
 * ``"redefined-local"``: ローカル変数の再定義診断を有効にします。
+* ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+* ``"redundant-or"``: Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
 * ``"redundant-parameter"``: 冗長な関数パラメータの診断を有効にします。
 * ``"redundant-return"``: 不要なreturn文の診断を有効にします。
 * ``"redundant-return-value"``: 注釈にない追加の戻り値を返すreturn文の診断を有効にします。
@@ -454,6 +456,7 @@ Array<string>
 * ``"secret-table-key"``: Enable diagnostics for using a secret value as a table key (`t[s]`, `t[s] = v`, `{ [s] = v }`) before it is checked.
 * ``"secret-variable"``: Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
 * ``"set-const"``: const 定数への代入
+* ``"shadowed-local"``
 * ``"spell-check"``: 文字列内のタイポ診断を有効にします。
 * ``"trailing-space"``: 行末の余分な空白の診断を有効にします。
 * ``"type-mismatch"``
@@ -652,6 +655,11 @@ object<string, string>
     */
     "redefined": "Fallback",
     /*
+    * redundant-and
+    * redundant-or
+    */
+    "redundant": "Fallback",
+    /*
     * redundant-secret-unwrap
     * secret-access
     * secret-argument
@@ -803,6 +811,11 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * redundant-and
+    * redundant-or
+    */
+    "redundant": "Fallback",
     /*
     * redundant-secret-unwrap
     * secret-access
@@ -1129,6 +1142,14 @@ object<string, string>
     ローカル変数の再定義診断を有効にします。
     */
     "redefined-local": "Opened",
+    /*
+    Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+    */
+    "redundant-and": "None",
+    /*
+    Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
+    */
+    "redundant-or": "None",
     /*
     冗長な関数パラメータの診断を有効にします。
     */
@@ -1504,6 +1525,14 @@ object<string, string>
     ローカル変数の再定義診断を有効にします。
     */
     "redefined-local": "Hint",
+    /*
+    Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+    */
+    "redundant-and": "Hint",
+    /*
+    Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
+    */
+    "redundant-or": "Hint",
     /*
     冗長な関数パラメータの診断を有効にします。
     */

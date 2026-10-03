@@ -202,6 +202,23 @@ function mt:alwaysTruthy()
     return true
 end
 
+--- Whether the node is only `nil` and / or `false` (and not an unknown or `any`).
+---@return boolean
+function mt:alwaysFalsy()
+    if #self == 0 then
+        return false
+    end
+    for _, c in ipairs(self) do
+        if not (c.type == 'nil'
+        or (c.type == 'global' and c.cate == 'type' and (c.name == 'nil' or c.name == 'false'))
+        or (c.type == 'boolean' and c[1] == false)
+        or (c.type == 'doc.type.boolean' and c[1] == false)) then
+            return false
+        end
+    end
+    return true
+end
+
 ---@return boolean
 function mt:hasKnownType()
     for _, c in ipairs(self) do

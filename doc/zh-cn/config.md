@@ -437,6 +437,8 @@ Array<string>
 * ``"param-type-mismatch"``: 给定参数的类型与函数定义所要求的类型(`@param`)不匹配
 * ``"redefined-label"``: 重复定义的标签
 * ``"redefined-local"``: 重复定义的局部变量
+* ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+* ``"redundant-or"``: Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
 * ``"redundant-parameter"``: 函数调用时，传入了多余的参数
 * ``"redundant-return"``: 当放置一个不需要的返回值时触发(函数会自行退出)
 * ``"redundant-return-value"``: 返回`@return`注释未指定的额外值
@@ -454,6 +456,7 @@ Array<string>
 * ``"secret-table-key"``: Enable diagnostics for using a secret value as a table key (`t[s]`, `t[s] = v`, `{ [s] = v }`) before it is checked.
 * ``"secret-variable"``: Enable diagnostics for assigning a secret value to a local declared `nosecret` (`---@type nosecret string`, `---@nosecret`), and for a local declared both secret and `nosecret`.
 * ``"set-const"``: 给 const 常量赋值
+* ``"shadowed-local"``
 * ``"spell-check"``: 启用字符串拼写检查的诊断。
 * ``"trailing-space"``: 后置空格
 * ``"type-mismatch"``
@@ -652,6 +655,11 @@ object<string, string>
     */
     "redefined": "Fallback",
     /*
+    * redundant-and
+    * redundant-or
+    */
+    "redundant": "Fallback",
+    /*
     * redundant-secret-unwrap
     * secret-access
     * secret-argument
@@ -803,6 +811,11 @@ object<string, string>
     * redefined-local
     */
     "redefined": "Fallback",
+    /*
+    * redundant-and
+    * redundant-or
+    */
+    "redundant": "Fallback",
     /*
     * redundant-secret-unwrap
     * secret-access
@@ -1129,6 +1142,14 @@ object<string, string>
     重复定义的局部变量
     */
     "redefined-local": "Opened",
+    /*
+    Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+    */
+    "redundant-and": "None",
+    /*
+    Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
+    */
+    "redundant-or": "None",
     /*
     函数调用时，传入了多余的参数
     */
@@ -1503,6 +1524,14 @@ object<string, string>
     重复定义的局部变量
     */
     "redefined-local": "Hint",
+    /*
+    Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+    */
+    "redundant-and": "Hint",
+    /*
+    Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
+    */
+    "redundant-or": "Hint",
     /*
     函数调用时，传入了多余的参数
     */

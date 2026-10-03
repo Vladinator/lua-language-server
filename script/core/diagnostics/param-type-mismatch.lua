@@ -6,9 +6,6 @@ local protoDiagnostic = require 'proto.diagnostic'
 
 local MESSAGE = 'Cannot assign `%s` to parameter `%s`.'
 
--- wowlua-ls spells this diagnostic `type-mismatch`
-protoDiagnostic.registerAlias('type-mismatch', 'param-type-mismatch')
-
 protoDiagnostic.register {
     'param-type-mismatch',
 } {

@@ -8,9 +8,6 @@ local protoDiagnostic = require 'proto.diagnostic'
 local MESSAGE = 'Annotations specify that return value #%s has a type of `%s`, returning value of type `%s` here instead.'
 local CASES_MESSAGE = 'The returned values match none of the cases declared by the return annotation: %s.'
 
--- wowlua-ls spells this diagnostic `return-mismatch`
-protoDiagnostic.registerAlias('return-mismatch', 'return-type-mismatch')
-
 protoDiagnostic.register {
     'return-type-mismatch',
 } {

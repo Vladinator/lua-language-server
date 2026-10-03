@@ -138,6 +138,19 @@ local function loadDirectoryFiles(dirPath)
             end
 
             if not diag.diagnosticDatas[name] then
+                -- A feature plugin registers no diagnostic of its own (it only extends the server through the
+                -- registries: aliases, known globals, ...) and returns nothing: that is fine. Anything else must
+                -- self-register under its filename.
+                local registeredAny = false
+                for registered in pairs(diag.diagnosticDatas) do
+                    if not known[registered] then
+                        registeredAny = true
+                        break
+                    end
+                end
+                if result == nil and not registeredAny then
+                    goto CONTINUE
+                end
                 log.warn(('Diagnostic plugin [%s] must self-register as %q (its own filename) via proto.diagnostic.register -- see core/diagnostics/extra/secret-access.lua for the expected shape.'):format(filePath, name))
                 goto CONTINUE
             end

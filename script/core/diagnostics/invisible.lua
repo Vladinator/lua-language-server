@@ -9,10 +9,6 @@ local PRIVATE_MESSAGE   = 'Field `%s` is private, it can only be accessed in cla
 local PROTECTED_MESSAGE = 'Field `%s` is protected, it can only be accessed in class `%s` and its subclasses.'
 local PACKAGE_MESSAGE   = 'Field `%s` can only be accessed in same file `%s`.'
 
--- wowlua-ls spells this diagnostic `access-private` / `access-protected`
-protoDiagnostic.registerAlias('access-private', 'invisible')
-protoDiagnostic.registerAlias('access-protected', 'invisible')
-
 protoDiagnostic.register {
     'invisible',
 } {

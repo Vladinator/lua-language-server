@@ -275,3 +275,30 @@ for _, name in ipairs(okFiles) do
 end
 
 print('LuaJIT 扩展语法测试完成')
+
+-- safe navigation: which nodes carry the `safe` flag the checkers read (need-check-nil skips them)
+do
+    local guide = require 'parser.guide'
+    ---@param text string
+    ---@return string[] types of the nodes marked safe, in source order
+    local function safeNodes(text)
+        local state = parser.compile(text, 'Lua', 'LuaJIT', LuaJITExtOptions)
+        assert(#state.errs == 0, text)
+        ---@type string[]
+        local kinds = {}
+        guide.eachSource(state.ast, function (src)
+            if src.safe then
+                kinds[#kinds+1] = src.type
+            end
+        end)
+        return kinds
+    end
+    assert(table.concat(safeNodes('local a = b?.c'), ',') == 'getfield')
+    assert(table.concat(safeNodes('local a = b?.[1]'), ',') == 'getindex')
+    assert(table.concat(safeNodes('local a = f?.(1)'), ',') == 'call')
+    assert(table.concat(safeNodes('local a = f?.[[str]]'), ',') == 'call')
+    assert(table.concat(safeNodes('local a = b?.c?.d'), ',') == 'getfield,getfield')
+    assert(#safeNodes('local a = b.c') == 0, 'a plain access is not safe')
+    -- the rest of a chain after a safe step is not itself safe
+    assert(table.concat(safeNodes('local a = b?.c.d'), ',') == 'getfield')
+end

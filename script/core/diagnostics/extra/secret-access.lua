@@ -30,7 +30,7 @@ local scope           = require 'workspace.scope'
 ---@class parser.object
 ---@field ["secret"]? boolean
 ---@field ["nosecret"]? boolean -- the `nosecret` type keyword below: a slot that cannot take a secret value (checked by secret-argument.lua and secret-field.lua)
----@field ["secretCheck"]? boolean -- the `secretcheck` type keyword below: which parameter(s) of a @secret-check/@secret-access-check function actually narrow (read by checkedIndicesOf)
+---@field ["secretCheck"]? boolean -- the `secretguard` type keyword below: which parameter(s) of a @secret-check/@secret-access-check function actually narrow (read by checkedIndicesOf)
 ---@field ["secretUnwrapUsed"]? boolean -- on a `doc.secret-unwrap`: it cleared an inherited flag at least once
 
 local MESSAGE = 'Need check secret value.'
@@ -123,15 +123,15 @@ docTags.registerTypeKeyword('secret', 'secret',
 docTags.registerTypeKeyword('nosecret', 'nosecret',
     'This slot cannot take a secret value: `---@param str nosecret string`, `---@field name nosecret string`. Passing or assigning one is reported by `secret-argument` / `secret-field`.')
 
--- `secretcheck` marks which parameter(s) of a `---@secret-check`/`---@secret-access-check`
+-- `secretguard` marks which parameter(s) of a `---@secret-check`/`---@secret-access-check`
 -- function the narrowing actually applies to (default: the first parameter, unchanged from
 -- before this existed). Several parameters may each carry it, narrowing all of them together
 -- on the same call -- the equivalent of a multi-value check like `canaccessallvalues(a, b)`.
--- `secretguard` is the same keyword under its earlier spelling, kept as an alias (wowlua-ls calls these
--- functions guards: `@secret-guard`).
-docTags.registerTypeKeyword('secretcheck', 'secretCheck',
-    'Marks the parameter a `---@secret-check`/`---@secret-access-check` function narrows: `---@param b secretcheck any`. Default (no parameter marked): the first parameter. Mark several to narrow them together.')
-docTags.registerTypeKeywordAlias('secretguard', 'secretcheck')
+-- `secretcheck` is the same keyword under this fork's earlier spelling, kept as an alias (the primary
+-- name is wowlua-ls's: it calls these functions guards, `@secret-guard`).
+docTags.registerTypeKeyword('secretguard', 'secretCheck',
+    'Marks the parameter a `---@secret-check`/`---@secret-access-check` function narrows: `---@param b secretguard any`. Default (no parameter marked): the first parameter. Mark several to narrow them together.')
+docTags.registerTypeKeywordAlias('secretcheck', 'secretguard')
 
 -- Recognize `next` as an iteration entry point, alongside the parser's
 -- own built-in pairs/ipairs, so `next(secretTable)` can be banned below.
@@ -527,7 +527,7 @@ local function isDirectOrAliasedSecretCheck(calleeNode, kind, seen)
     return false
 end
 
---- Which parameter(s) of `funcNode` (a real `function` AST node) are marked `secretcheck`, by
+--- Which parameter(s) of `funcNode` (a real `function` AST node) are marked `secretguard`, by
 --- position. No marked parameter means "the first one", the default before this existed.
 ---@param funcNode parser.object
 ---@return integer[]
@@ -681,7 +681,7 @@ local function getCheckedIndices(uri)
 end
 
 --- Which argument position(s) a matched secret-check call narrows. Tries the safe direct/aliased
---- resolution first (an exact function node to read `secretcheck` params off of), then the same
+--- resolution first (an exact function node to read `secretguard` params off of), then the same
 --- name-based fallback match() itself uses. Always returns at least `{1}`.
 ---@param calleeNode parser.object
 ---@return integer[]
@@ -715,7 +715,7 @@ vm.registerCallNarrowing {
             return topNode, outNode
         end
         -- the traced variable can be read at any checked position, not just the first
-        -- argument (secretcheck, see above); find the one that matches, if any
+        -- argument (secretguard, see above); find the one that matches, if any
         ---@type parser.object?
         local value
         for _, i in ipairs(getCheckedParamIndices(action.node)) do

@@ -15,6 +15,7 @@ local weakMT = { __mode = 'kv' }
 ---@field cacheVersion? integer
 ---@field cacheActiveTime? number
 ---@field locked? table<any, boolean>
+---@field nodeCache table<vm.node.object|vm.generic, vm.node> compiled node of each source (node.lua owns it; declared here so its type does not depend on which assignment was compiled first)
 local m = {}
 
 m.ID_SPLITE = '\x1F'

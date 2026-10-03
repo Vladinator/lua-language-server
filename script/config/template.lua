@@ -394,6 +394,7 @@ local template = {
     ['Lua.workspace.ignoreSubmodules']      = Type.Boolean >> true,
     ['Lua.workspace.useGitIgnore']          = Type.Boolean >> true,
     ['Lua.workspace.tocSavedVariables']     = Type.Boolean >> false,
+    ['Lua.workspace.tocFileArguments']      = Type.Boolean >> false,
     ['Lua.workspace.maxPreload']            = Type.Integer >> 5000,
     ['Lua.workspace.preloadFileSize']       = Type.Integer >> 500,
     ['Lua.workspace.library']               = Type.Array(Type.String),

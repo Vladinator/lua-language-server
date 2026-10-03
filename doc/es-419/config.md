@@ -2933,6 +2933,22 @@ integer
 500
 ```
 
+# workspace.tocFileArguments
+
+**Missing description!!**
+
+## type
+
+```ts
+boolean
+```
+
+## default
+
+```jsonc
+false
+```
+
 # workspace.tocSavedVariables
 
 **Missing description!!**

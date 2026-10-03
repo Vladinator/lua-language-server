@@ -41,27 +41,30 @@ function m.parse(text)
     return vars
 end
 
----@type table<string, {time: number, vars: workspace.toc.vars}>  folder path -> the variables of its `.toc` files
+---@type table<string, {time: number, vars?: workspace.toc.vars}>  folder path -> the variables of its `.toc` files (none: no `.toc` there)
 local dirCache = {}
 
 function m.clearCache()
     dirCache = {}
 end
 
---- The variables the `.toc` files directly in `dir` declare (nil: no `.toc` there).
+--- The variables the `.toc` files directly in `dir` declare (an empty set for `.toc` files that declare none; nil: no
+--- `.toc` there at all).
 ---@param dir string
 ---@return workspace.toc.vars?
 local function readDir(dir)
     local cached = dirCache[dir]
     local now = os.clock()
     if cached and now - cached.time < m.TTL then
-        return next(cached.vars) ~= nil and cached.vars or nil
+        return cached.vars
     end
     ---@type workspace.toc.vars
     local vars = {}
+    local found = false
     local ok = pcall(function ()
         for entry in fs.pairs(fs.path(dir)) do
             if entry:filename():string():lower():match('%.toc$') then
+                found = true
                 local file = io.open(entry:string(), 'rb')
                 if file then
                     local text = file:read('a')
@@ -73,18 +76,19 @@ local function readDir(dir)
             end
         end
     end)
-    dirCache[dir] = { time = now, vars = ok and vars or {} }
-    return next(vars) ~= nil and vars or nil
+    local result = (ok and found) and vars or nil
+    dirCache[dir] = { time = now, vars = result }
+    return result
 end
 
---- Whether the `.toc` of the file `uri` declares `name` as a saved variable.
----@param uri  uri
----@param name string
----@return boolean
-function m.isSavedVariable(uri, name)
+--- The variables the `.toc` of the file `uri` declares (the `.toc` files of its own folder, or of the nearest folder
+--- above it that has one, up to the workspace folder); nil when it has none.
+---@param uri uri
+---@return workspace.toc.vars?
+function m.findToc(uri)
     local path = furi.decode(uri)
     if not path then
-        return false
+        return nil
     end
     local scp  = scope.getFolder(uri)
     local root = scp and scp.uri and furi.decode(scp.uri) or nil
@@ -96,14 +100,23 @@ function m.isSavedVariable(uri, name)
         end
         local vars = readDir(dir)
         if vars then
-            return vars[name] == true
+            return vars
         end
         if not root or dir == root or #dir <= #root then
             break
         end
         dir = dir:match('^(.*)[/\\][^/\\]*$')
     end
-    return false
+    return nil
+end
+
+--- Whether the `.toc` of the file `uri` declares `name` as a saved variable.
+---@param uri  uri
+---@param name string
+---@return boolean
+function m.isSavedVariable(uri, name)
+    local vars = m.findToc(uri)
+    return vars ~= nil and vars[name] == true
 end
 
 -- (the plugin file is not `require`d, so its tests reach it through package.loaded)

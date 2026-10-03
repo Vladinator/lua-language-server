@@ -12,6 +12,7 @@
 * `NEW` `---@diagnostic expect-next-line: code` and `expect-line` (like `@ts-expect-error`) suppress a diagnostic that must occur, and the new `unfulfilled-expect` diagnostic reports an expectation that suppressed nothing. `expect-next-line` / `expect-line` and the diagnostic names after `---@diagnostic <mode>:` are offered by completion.
 * `NEW` `---@class (incremental)` attribute: a table constructor for the class is not checked by `missing-fields`, for classes that are filled in step by step.
 * `CHG` The check that returned values together match one case of a tuple-union return (`---@return (A, B) | (C, D)`) is its own diagnostic `grouped-return-mismatch` (same name as wowlua-ls) instead of part of `return-type-mismatch`.
+* `NEW` `Lua.workspace.tocFileArguments` (default off): in a file that has a WoW `.toc`, the two arguments the game passes to every addon file (`local addonName, ns = ...`) are typed `string` and `table`.
 * `NEW` `Lua.workspace.tocSavedVariables` (default off): the variables a WoW addon's `.toc` declares with `## SavedVariables:` / `SavedVariablesPerCharacter` / `SavedVariablesMachine` count as defined globals for `undefined-global`, `lowercase-global` and `global-element`.
 * `NEW` Quick fixes for `need-check-nil`: wrap the statement in `if x then ... end`, add `assert(x)` before it (for a name or a field path), and use safe navigation `?.` where that syntax is enabled.
 * `NEW` `implicit-nil-return` diagnostic (Hint, off by default): a bare `return` in a function whose first `@return` is optional (`T?`). Same name as wowlua-ls.

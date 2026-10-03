@@ -2932,6 +2932,23 @@ integer
 500
 ```
 
+# workspace.tocFileArguments
+
+Type the two arguments a WoW addon file receives at its top level (`local addonName, ns = ...`): the first as `string`, the second as `table`. Only for files that have a `.toc` file in their folder or above it.
+
+
+## type
+
+```ts
+boolean
+```
+
+## default
+
+```jsonc
+false
+```
+
 # workspace.tocSavedVariables
 
 Treat the variables a WoW addon's `.toc` file declares with `## SavedVariables:` (and `SavedVariablesPerCharacter`, `SavedVariablesMachine`) as defined globals, so `undefined-global`, `lowercase-global` and `global-element` do not report them. The `.toc` is the one in the file's own folder or the nearest folder above it that has one.

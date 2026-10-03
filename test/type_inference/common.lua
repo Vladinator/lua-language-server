@@ -383,7 +383,7 @@ end
 local _, _, _, <?b?>, _ = x(nil, true, 1, 'yy')
 ]]
 
-TEST 'nil' [[
+TEST 'unknown?' [[
 local <?k?>, <?v?> = next()
 local <?k?>, <?v?> = next({})
 ]]
@@ -6534,4 +6534,26 @@ if b == false then
     return
 end
 local <?r?> = b
+]]
+
+-- `next` on a typed table: both values or neither
+TEST 'string?' [[
+---@type table<string, number>
+local t
+local <?k?>, v = next(t)
+]]
+
+TEST 'number?' [[
+---@type table<string, number>
+local t
+local k, <?v?> = next(t)
+]]
+
+TEST 'string' [[
+---@type table<string, number>
+local t
+local k, v = next(t)
+if v then
+    local <?r?> = k
+end
 ]]

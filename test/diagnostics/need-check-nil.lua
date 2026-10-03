@@ -1282,3 +1282,39 @@ if ok ~= true then
 end
 S = <!v!>:len()
 ]]
+
+-- `next` returns both values or neither: the object-pool idiom needs no nil check on the key
+TEST [[
+local pool = {}
+
+local function acquire()
+    local index, item = next(pool)
+    if not item then
+        return
+    end
+    pool[index] = nil
+    return item
+end
+]]
+
+-- ... but without any check on the value the key still may be nil
+TEST [[
+local pool = {}
+
+local function acquire()
+    local index, item = next(pool)
+    pool[<!index!>] = nil
+    return item
+end
+]]
+
+TEST [[
+---@type table<string, number>
+local typed = {}
+
+local key, value = next(typed)
+if value then
+    S = key:upper()
+end
+S = <!key!>:upper()
+]]

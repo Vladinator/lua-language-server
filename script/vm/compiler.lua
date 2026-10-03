@@ -2222,16 +2222,28 @@ local function bindReturnOfFunction(source, mfunc, index, args)
     end
 
     if returnNode then
+        local anySet, droppedGeneric = false, false
         for rnode in returnNode:eachObject() do
             if rnode.type ~= 'doc.generic.name' then
                 vm.setNode(source, rnode)
+                anySet = true
             elseif rnode._resolved then
                 -- Allow generics that resolved to another generic type
                 -- parameter (e.g. V -> T in generic method's ipairs(self)).
                 if vm.isResolvedToGeneric(rnode._resolved) then
                     vm.setNode(source, rnode)
+                    anySet = true
                 end
+            else
+                droppedGeneric = true
             end
+        end
+        -- a return that is only an unbound generic (`next({})`: nothing says what `K` is) is unknown,
+        -- not nothing -- an empty node plus the optional flag of `K?` would read as `nil`
+        -- (not for the iterator call of a `for k in pairs(t)`: the loop variable's other sources, a
+        -- declared type, would get an `unknown` merged in)
+        if droppedGeneric and not anySet and not (source.parent and source.parent.type == 'in') then
+            vm.setNode(source, vm.declareGlobal('type', 'unknown'))
         end
         if returnNode:isOptional() then
             vm.getNode(source):addOptional()

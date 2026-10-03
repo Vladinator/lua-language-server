@@ -188,8 +188,7 @@ function module(name, ...) end
 ---@generic K, V
 ---@param table table<K, V>
 ---@param index? K
----@return K?
----@return V?
+---@return (K, V) | (nil, nil)
 ---@nodiscard
 function next(table, index) end
 

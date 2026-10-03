@@ -48,6 +48,11 @@ local ok, err = pcall(function ()
     assert(on.ns == 'table', 'second argument: ' .. tostring(on.ns))
     assert(on.third == 'unknown', 'a third one is not typed: ' .. tostring(on.third))
     assert(on.inner == 'unknown', 'the `...` of a function is not the file argument: ' .. tostring(on.inner))
+    -- `select(2, ...)`, the other usual way to take the second one
+    local selected = typesOf('local ns = select(2, ...)\nreturn ns\n')
+    assert(selected.ns == 'table', 'select(2, ...): ' .. tostring(selected.ns))
+    local first = typesOf('local name = select(1, ...)\nreturn name\n')
+    assert(first.name == 'string', 'select(1, ...): ' .. tostring(first.name))
     -- no .toc: nothing
     os.remove(tocPath)
     require 'core.diagnostics.extra.wow-toc'.clearCache()

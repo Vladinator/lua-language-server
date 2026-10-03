@@ -1399,6 +1399,22 @@ local function mainVarargType(exp, index)
     return nil
 end
 
+--- The type a plugin gives to `select(N, ...)` written at the top of a file (N a number, the main chunk's `...`).
+---@param call parser.object
+---@return string?
+local function fileArgumentOfSelect(call)
+    if #mainVarargProviders == 0 or call.node.type ~= 'getglobal' or call.node[1] ~= 'select' then
+        return nil
+    end
+    local args = call.args
+    local first, second = args and args[1], args and args[2]
+    if first and (first.type == 'integer' or first.type == 'number')
+    and second and second.type == 'varargs' and not args[3] then
+        return mainVarargType(second, math.tointeger(first[1]) or 0)
+    end
+    return nil
+end
+
 ---@param list  parser.object[]
 ---@param index integer
 ---@return vm.node
@@ -1432,7 +1448,9 @@ function vm.selectNode(list, index)
 
     ---@type vm.node?
     local result
-    if exp.type == 'call' then
+    if exp.type == 'call' and index == 1 and fileArgumentOfSelect(exp) then
+        result = vm.createNode(vm.declareGlobal('type', fileArgumentOfSelect(exp) --[[@as string]]))
+    elseif exp.type == 'call' then
         result = getReturn(exp.node, index, exp.args)
         if result:isEmpty() then
             result:merge(vm.declareGlobal('type', 'unknown'))
@@ -2873,6 +2891,11 @@ local compilerSwitch = util.switch()
     ---@param source parser.object
     : call(function (source)
         local vararg = source.vararg
+        local fileArg = vararg.type == 'call' and source.sindex == 1 and fileArgumentOfSelect(vararg)
+        if fileArg then
+            vm.setNode(source, vm.declareGlobal('type', fileArg))
+            return
+        end
         if vararg.type == 'call' then
             local node = getReturn(vararg.node, source.sindex, vararg.args)
             if not node then
@@ -2904,6 +2927,12 @@ local compilerSwitch = util.switch()
     : call(function (source)
         -- ignore rawset
         if source.node.special == 'rawset' then
+            return
+        end
+        -- `select(N, ...)` at the top of a file: the file's argument N, when a plugin types them
+        local fileArg = fileArgumentOfSelect(source)
+        if fileArg then
+            vm.setNode(source, vm.declareGlobal('type', fileArg))
             return
         end
         local node = getReturn(source.node, 1, source.args)

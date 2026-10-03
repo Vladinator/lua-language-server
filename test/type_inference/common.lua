@@ -849,6 +849,12 @@ TEST '"no"' [[
 local <?y?>
 ]]
 
+-- `any` is both a match and a non-match: the union of the branches, like TypeScript
+TEST '"no"|"yes"' [[
+---@type (any extends string ? "yes" : "no")
+local <?y?>
+]]
+
 -- through a generic: `T` bound at the call site decides the branch.
 TEST '"other"' [[
 ---@class CondCommon.Point
@@ -6494,4 +6500,38 @@ local A = { First = 1 }
 local B = { Second = 'two' }
 
 local <?r?> = B.Second
+]]
+
+-- `x == true` / `x == false` (and `~=`) narrow the literal members of a boolean union
+TEST 'true' [[
+---@type true|false
+local b
+if b == true then
+    local <?r?> = b
+end
+]]
+
+TEST 'false' [[
+---@type true|false
+local b
+if b == false then
+    local <?r?> = b
+end
+]]
+
+TEST 'false' [[
+---@type true|false
+local b
+if b ~= true then
+    local <?r?> = b
+end
+]]
+
+TEST 'true' [[
+---@type true|false
+local b
+if b == false then
+    return
+end
+local <?r?> = b
 ]]

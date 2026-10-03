@@ -3111,6 +3111,11 @@ local compilerSwitch = util.switch()
         end
         local checkNode = vm.compileNode(source.check)
         local extendsNode = vm.compileNode(source.extends)
+        -- `any` is both: TypeScript gives the union of the two branches
+        if vm.getInfer(checkNode):hasAny(uri) and source.trueType and source.falseType then
+            vm.setNode(source, vm.compileNode(source.trueType):copy():merge(vm.compileNode(source.falseType)))
+            return
+        end
         local holds = vm.isSubType(uri, checkNode, extendsNode)
         if holds == nil then
             vm.setNode(source, vm.declareGlobal('type', 'unknown'))

@@ -1484,6 +1484,27 @@ local function propagateCases(state, key, newNode)
     return state
 end
 
+--- `x == true` / `x == false`: keep (or drop) the literal `true` / `false` members of `node`. Only the
+--- literal members are told apart; a plain `boolean` member stays whatever the comparison says.
+---@param node  vm.node
+---@param value boolean
+---@param keep  boolean  true: keep the literals equal to `value`; false: drop them
+---@return vm.node
+local function narrowBooleanLiteral(node, value, keep)
+    local out = node:copy()
+    for i = #out, 1, -1 do
+        local obj = out[i]
+        if obj.type == 'doc.type.boolean' or obj.type == 'boolean' then
+            local literal = obj[1]
+            if literal ~= nil and (literal == value) ~= keep then
+                table.remove(out, i)
+                out[obj] = nil
+            end
+        end
+    end
+    return out
+end
+
 --- Narrows what `expr` refers to in `state` with `fn`; `state` itself when it is nothing tracked.
 --- A path nothing has narrowed yet starts from its static type.
 ---@param state table<vm.flow.key, vm.node>
@@ -1715,6 +1736,11 @@ local function evalCondition(state, expr)
                 local arg = left.args[1]
                 yes = narrowRef(state, arg, function (node) return node:copy():narrow(uri, name) end)
                 no  = narrowRef(state, arg, function (node) return node:copy():remove(name) end)
+            elseif refKey(left) and right.type == 'boolean' and right[1] ~= nil then
+                -- if ok == true then / if ok == false then
+                local value = right[1] --[[@as boolean]]
+                yes = narrowRef(state, left, function (node) return narrowBooleanLiteral(node, value, true) end)
+                no  = narrowRef(state, left, function (node) return narrowBooleanLiteral(node, value, false) end)
             elseif refKey(left) then
                 -- if x == 'literal' then (the checker is anything with a literal type name)
                 local name = vm.getNodeName(right)
@@ -1766,6 +1792,7 @@ local function evalCondition(state, expr)
 end
 
 flow_evalCondition = evalCondition
+
 
 --- The right operands of the `and` / `or` inside a condition, as items a `---@cast` can attach to.
 ---@param expr  parser.object

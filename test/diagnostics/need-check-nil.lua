@@ -1260,3 +1260,25 @@ if ok then
 end
 S = <!v!>:len()
 ]]
+
+-- literal equality on the discriminant slot of a tuple-union return narrows the other slots like
+-- the truthiness forms do (`== true`, `== false`, `~= true`, `~= false`)
+TEST [[
+---@return (true, string) | (false, nil)
+local function f(c) end
+
+local ok, v = f(true)
+if ok == true then
+    S = v:len()
+end
+if ok ~= false then
+    S = v:len()
+end
+if ok == false then
+    S = v
+end
+if ok ~= true then
+    S = v
+end
+S = <!v!>:len()
+]]

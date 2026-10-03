@@ -203,3 +203,167 @@ local n
 n = u
 ]] },
 })
+
+-- `checkTableShape`: a table held in a variable (or returned) is checked against the class it is given to,
+-- field by field; off, any table is accepted. A table literal written at the call is checked field by field
+-- either way, so it is not what this setting decides.
+run('type.checkTableShape', {
+    { name = 'a table variable with a wrong field type', off = 0, on = 1, script = [[
+---@class TableShape.A
+---@field a number
+---@param s TableShape.A
+local function f(s) end
+local t = { a = 'x' }
+f(t)
+]] },
+    { name = 'a table variable missing a required field', off = 0, on = 1, script = [[
+---@class TableShape.B
+---@field a number
+---@param s TableShape.B
+local function f(s) end
+local t = {}
+f(t)
+]] },
+    { name = 'a returned table literal with a wrong field type', off = 0, on = 1, script = [[
+---@class TableShape.C
+---@field a number
+---@return TableShape.C
+local function f() return { a = 'x' } end
+]] },
+    { name = 'a table variable that fits', off = 0, on = 0, script = [[
+---@class TableShape.D
+---@field a number
+---@param s TableShape.D
+local function f(s) end
+local t = { a = 1 }
+f(t)
+]] },
+    { name = 'a missing OPTIONAL field is fine', off = 0, on = 0, script = [[
+---@class TableShape.E
+---@field a number
+---@field b? string
+---@param s TableShape.E
+local function f(s) end
+local t = { a = 1 }
+f(t)
+]] },
+    { name = 'a literal at the call with a wrong field type', off = 1, on = 1, script = [[
+---@class TableShape.F
+---@field a number
+---@param s TableShape.F
+local function f(s) end
+f({ a = 'x' })
+]] },
+})
+
+---@param key    string setting name after `Lua.`
+---@param values any[]  the values to try
+---@param cases  { name: string, script: string, want: table<any, integer> }[] findings per value
+local function runValues(key, values, cases)
+    local full = 'Lua.' .. key
+    local saved = config.get(nil, full)
+    for _, case in ipairs(cases) do
+        for _, value in ipairs(values) do
+            config.set(nil, full, value)
+            local got = mismatches(case.script)
+            local want = case.want[value]
+            -- (a value without an expectation is a boundary that is not pinned down on purpose)
+            if want ~= nil then
+                assert(got == want, ('%s = %s, case `%s`: wanted %d finding(s), got %d'):format(full, tostring(value), case.name, want, got))
+            end
+        end
+    end
+    config.set(nil, full, saved)
+end
+
+-- `maxUnionVariants`: a union with more variants than this is not checked (0: no limit)
+runValues('type.maxUnionVariants', { 0, 2, 100 }, {
+    { name = 'a union of 8 into a union of 2', want = { [0] = 1, [2] = 0, [100] = 1 }, script = [[
+---@type 1|2|3|4|5|6|7|8
+local u
+---@type 1|2
+local n
+n = u
+]] },
+    { name = 'a union of 2 into a union of 2 that fits', want = { [0] = 0, [2] = 0, [100] = 0 }, script = [[
+---@type 1|2
+local u
+---@type 1|2|3
+local n
+n = u
+]] },
+    { name = 'a small union that does not fit, well within the limit', want = { [0] = 1, [100] = 1 }, script = [[
+---@type 1|2
+local u
+---@type 3|4
+local n
+n = u
+]] },
+})
+
+-- the inferred type of a local of `script`, by name
+local guide = require 'parser.guide'
+local vm    = require 'vm'
+---@param script string
+---@param name   string
+---@return string?
+local function viewOf(script, name)
+    files.remove(TESTURI)
+    files.setText(TESTURI, script)
+    local state = assert(files.getState(TESTURI))
+    ---@type string?
+    local view
+    guide.eachSource(state.ast, function (src)
+        if src.type == 'local' and src[1] == name and not view then
+            view = vm.getInfer(src):view(TESTURI)
+        end
+    end)
+    files.remove(TESTURI)
+    return view
+end
+
+---@param key    string
+---@param values any[]
+---@param script string
+---@param name   string
+---@param want   table<any, string>
+local function runViews(key, values, script, name, want)
+    local full = 'Lua.' .. key
+    local saved = config.get(nil, full)
+    for _, value in ipairs(values) do
+        config.set(nil, full, value)
+        local got = viewOf(script, name)
+        assert(got == want[value], ('%s = %s: `%s` is `%s`, wanted `%s`'):format(full, tostring(value), name, tostring(got), want[value]))
+    end
+    config.set(nil, full, saved)
+end
+
+-- `inferTableSize`: how many leading elements of a table constructor take part when it is read with a variable
+-- index (0: none, so the element is unknown)
+runViews('type.inferTableSize', { 0, 2, 100 }, [[
+local t = {1, 2, 'a', 'b'}
+---@type integer
+local i
+local x = t[i]
+]], 'x', { [0] = 'unknown', [2] = 'integer', [100] = 'string|integer' })
+
+-- `inferParamType`: off, a parameter without a `@param` is `any` and what the function returns of it is unknown;
+-- on, it is what the callers pass
+runViews('type.inferParamType', { false, true }, [[
+local function f(a) return a end
+local r = f(1)
+]], 'r', { [false] = 'unknown', [true] = 'integer' })
+runViews('type.inferParamType', { false, true }, [[
+local function g(p)
+    local q = p
+end
+g('s')
+]], 'q', { [false] = 'any', [true] = 'string' })
+-- ... a documented parameter is never inferred from callers
+runViews('type.inferParamType', { false, true }, [[
+---@param p number
+local function g(p)
+    local q = p
+end
+g('s')
+]], 'q', { [false] = 'number', [true] = 'number' })

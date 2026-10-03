@@ -5,3 +5,6 @@ rawset(_G, 'TEST', true)
 
 require 'settings.type'
 require 'settings.hover'
+require 'settings.completion'
+require 'settings.hint'
+require 'settings.semantic'

@@ -370,6 +370,38 @@ local function nameOf(source)
     return nil
 end
 
+--- The function a local holds (`local function f` / `local f = function`) when `value` reads that local: how a guard
+--- written as a local function is exported (`ns.Util = { issecretvalue = issecretvalue }`,
+--- `ns.Util.issecretvalue = issecretvalue`). Only this one hop, within the file: nothing is compiled.
+---@param value parser.object?
+---@return parser.object?
+local function localFunctionOf(value)
+    if not value or value.type ~= 'getlocal' then
+        return nil
+    end
+    local declared = value.node and value.node.value
+    if declared and declared.type == 'function' then
+        return declared
+    end
+    return nil
+end
+
+--- Every export of a local function in this file: the table field or field assignment (`name`) and the function it
+--- holds.
+---@param ast parser.object
+---@param callback fun(name: string, func: parser.object)
+local function eachExportedLocalFunction(ast, callback)
+    for _, exportType in ipairs { 'tablefield', 'setfield' } do
+        guide.eachSourceType(ast, exportType, function (export)
+            local name = export.field and export.field[1]
+            local func = localFunctionOf(export.value)
+            if type(name) == 'string' and func then
+                callback(name, func)
+            end
+        end)
+    end
+end
+
 --- Every function declared in this file, by kind and name: `false` when the name is also used by
 --- an untagged function (of the same kind), or by both tags, in this same file (`getNames` below
 --- folds this across files the same way, so any one bad occurrence anywhere in the workspace makes
@@ -411,6 +443,27 @@ local function getFileNames(uri)
             end
         end
         local bucket  = found[kind]
+        local existing = bucket[name]
+        if existing == nil then
+            bucket[name] = tag
+        elseif existing ~= tag then
+            bucket[name] = false
+        end
+    end)
+    -- a guard written as a local function and exported through a table field
+    eachExportedLocalFunction(state.ast, function (name, func)
+        any = true
+        ---@type 'doc.secret-check'|'doc.secret-access-check'|false
+        local tag = false
+        for _, holder in ipairs { func, func.parent } do
+            for _, doc in ipairs(holder and holder.bindDocs or {}) do
+                local checkKind = checkKindOf(doc)
+                if checkKind then
+                    tag = checkKind
+                end
+            end
+        end
+        local bucket   = found.field
         local existing = bucket[name]
         if existing == nil then
             bucket[name] = tag
@@ -654,6 +707,10 @@ local function getFileCheckedIndices(uri)
         end
         any = true
         found[kind][name] = checkedIndicesOf(func)
+    end)
+    eachExportedLocalFunction(state.ast, function (name, func)
+        any = true
+        found.field[name] = checkedIndicesOf(func)
     end)
     indices = any and found or false
     cache['secret-check.checkedIndices'] = indices

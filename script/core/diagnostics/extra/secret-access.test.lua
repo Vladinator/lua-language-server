@@ -961,3 +961,113 @@ do
     assert(found['0:3'] == 7, '`@secret` is a documentation keyword')
     assert(found['2:3'] == 14, '`@secret-unwrap` is a documentation keyword')
 end
+
+-- A guard written as a LOCAL function and exported through a table field (`ns.Util = { guard = guard }`, or
+-- `ns.Util.guard = guard`), used from another file through `local alias = ns.Util.guard`: the usual way a WoW
+-- addon's util file shares it (found from a real addon, 2026-10-04: a false `secret-condition` on
+-- `not guard(state.isAFK) and state.isAFK`). The name registry only knew functions declared directly as a
+-- global / field, so the other file's alias was not recognised as a guard.
+do
+    local furi   = require 'file-uri'
+    local core   = require 'core.diagnostics'
+    local files  = require 'files'
+    local guide  = require 'parser.guide'
+
+    ---@diagnostic disable: await-in-sync
+    local SECRET_CODES = {
+        ['secret-arithmetic'] = true, ['secret-comparison'] = true, ['secret-condition'] = true,
+        ['secret-table-key'] = true, ['secret-access'] = true,
+    }
+    local utilUri = furi.encode(TESTROOT .. 'exported-guard-util.lua')
+    local useUri  = furi.encode(TESTROOT .. 'exported-guard-use.lua')
+
+    ---@param utilText string
+    ---@param useText  string
+    ---@return string[] codes the secret diagnostics report in the using file, as `code@line`
+    local function secretFindings(utilText, useText)
+        files.setText(utilUri, utilText)
+        files.setText(useUri, useText)
+        files.open(useUri)
+        ---@type string[]
+        local found = {}
+        local state = assert(files.getState(useUri))
+        core(useUri, false, function (result)
+            if SECRET_CODES[result.code or ''] then
+                found[#found+1] = (result.code or '') .. '@' .. (guide.rowColOf(result.start) + 1)
+            end
+        end)
+        files.remove(useUri)
+        files.remove(utilUri)
+        table.sort(found)
+        _ = state
+        return found
+    end
+
+    local NL = string.char(10)
+    local function lines(...)
+        return table.concat({ ... }, NL) .. NL
+    end
+
+    local state = lines(
+        '---@class ExportedState',
+        '---@field public isAFK? secret<boolean>',
+        '---@field public isDND? secret boolean',
+        '---@field public isPlayer boolean'
+    )
+
+    for _, case in ipairs {
+        { name = 'secret-check, table constructor',
+          tag  = '---@secret-check',
+          body = 'ns.Util = { guard = guard }' },
+        { name = 'secret-check, field assignment',
+          tag  = '---@secret-check',
+          body = 'ns.Util = {}' .. NL .. 'ns.Util.guard = guard' },
+        { name = 'secret-guard tag, table constructor',
+          tag  = '---@secret-guard value is-secret',
+          body = 'ns.Util = { guard = guard }' },
+    } do
+        local util = state .. lines(
+            'local ns = {} ---@class ExportedNS',
+            case.tag,
+            '---@param value any',
+            '---@return boolean',
+            'local function guard(value) return false end',
+            case.body
+        )
+        local use = lines(
+            'local ns = {} ---@class ExportedNS',
+            'local guard = ns.Util.guard',
+            '---@param state ExportedState',
+            'local function status(state)',
+            '    local text = ""',
+            '    if state.isPlayer then',
+            '        if not state.isPlayer then',
+            '            text = "a"',
+            '        elseif not guard(state.isAFK) and state.isAFK then',
+            '            text = "b"',
+            '        elseif not guard(state.isDND) and state.isDND then',
+            '            text = "c"',
+            '        elseif state.isDND then',
+            '            text = "d"',
+            '        end',
+            '    end',
+            '    local n = GetNumber()',
+            '    if not guard(n) then',
+            '        return n + 1',
+            '    end',
+            '    return text',
+            'end'
+        )
+        -- (`GetNumber` is secret: declared in the using file's own text so the case stands alone)
+        local withApi = lines(
+            '---@secret',
+            '---@return number',
+            'function GetNumber() return 0 end'
+        ) .. use
+        local found = secretFindings(util, withApi)
+        -- the guarded uses are quiet; the unguarded `elseif state.isDND` (line 13 of the using text, below the 3 lines of the API)
+        -- is the only report
+        assert(#found == 1 and found[1] == 'secret-condition@' .. (3 + 13),
+            case.name .. ': only the unguarded condition is reported, got ' .. table.concat(found, ' '))
+    end
+end

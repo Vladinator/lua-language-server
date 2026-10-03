@@ -2,6 +2,7 @@
 local vm        = require 'vm.vm'
 local guide     = require 'parser.guide'
 local config    = require 'config.config'
+local scope     = require 'workspace.scope'
 local util      = require 'utility'
 local lang      = require 'language'
 
@@ -386,17 +387,34 @@ end
 ---@type table<table, vm.type.checkConfig>
 local typeCheckConfigCache = setmetatable({}, { __mode = 'k' })
 
+--- The same 3 values per uri, valid while no configuration value and no workspace folder changed (`isSubType` is
+--- called for nearly every checked type, each time with a fresh `mark`).
+---@type table<uri|false, vm.type.checkConfig>
+local typeCheckConfigByUri = {}
+local typeCheckConfigVersion = -1
+---@type table<uri, scope|false>?
+local typeCheckConfigFolders
+
 ---@param uri  uri
 ---@param mark table<string, boolean>
 ---@return vm.type.checkConfig
 local function getTypeCheckConfig(uri, mark)
     local cfg = typeCheckConfigCache[mark]
     if not cfg then
-        cfg = {
-            weakUnionCheck   = config.get(uri, 'Lua.type.weakUnionCheck') or false,
-            weakNilCheck     = config.get(uri, 'Lua.type.weakNilCheck') or false,
-            maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0,
-        }
+        if typeCheckConfigVersion ~= config.version or typeCheckConfigFolders ~= scope.folderCache then
+            typeCheckConfigByUri = {}
+            typeCheckConfigVersion = config.version
+            typeCheckConfigFolders = scope.folderCache
+        end
+        cfg = typeCheckConfigByUri[uri or false]
+        if not cfg then
+            cfg = {
+                weakUnionCheck   = config.get(uri, 'Lua.type.weakUnionCheck') or false,
+                weakNilCheck     = config.get(uri, 'Lua.type.weakNilCheck') or false,
+                maxUnionVariants = config.get(uri, 'Lua.type.maxUnionVariants') or 0,
+            }
+            typeCheckConfigByUri[uri or false] = cfg
+        end
         typeCheckConfigCache[mark] = cfg
     end
     return cfg

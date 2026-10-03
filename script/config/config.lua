@@ -12,6 +12,10 @@ local template = require 'config.template'
 local m = {}
 m.watchList = {}
 
+--- Counts every change of any value (immediately, unlike the delayed `watch` events), so a caller that caches a
+--- derived value can tell whether its copy is still current.
+m.version = 0
+
 m.NULL = {}
 
 m.nullSymbols = {
@@ -23,6 +27,7 @@ m.nullSymbols = {
 ---@param nowValue any
 ---@param rawValue any
 local function update(scp, key, nowValue, rawValue)
+    m.version = m.version + 1
     local now = m.getNowTable(scp)
     local raw = m.getRawTable(scp)
 
@@ -210,6 +215,7 @@ end
 ---@param ...  table
 function m.update(scp, ...)
     local oldConfig = m.getNowTable(scp)
+    m.version = m.version + 1
     ---@type table<string, any>
     local newConfig = {}
     scp:set('config.now', newConfig)

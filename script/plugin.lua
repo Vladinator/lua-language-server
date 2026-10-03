@@ -35,6 +35,17 @@ local m = {}
 ---@type table<plugin.interface, string> # the file each loaded interface came from
 local paths = setmetatable({}, { __mode = 'k' })
 
+--- Interfaces that ship with the server (registered by the feature plugins of core/diagnostics/extra/): they apply to
+--- every scope and are asked only when no user plugin answered.
+---@type plugin.interface[]
+local builtinInterfaces = {}
+
+--- Register a built-in interface (`OnSetText` is the event they are used for).
+---@param interface plugin.interface
+function m.registerBuiltin(interface)
+    builtinInterfaces[#builtinInterfaces+1] = interface
+end
+
 --- The plugins that already reported an error since the last reload: one message box each, not
 --- one per event.
 ---@type table<string, true>
@@ -76,34 +87,48 @@ end
 function m.dispatch(event, uri, ...)
     local scp = scope.getScope(uri)
     local interfaces = scp:get('pluginInterfaces') --[[@as plugin.interface[]? ]]
-    if not interfaces then
+    if not interfaces and #builtinInterfaces == 0 then
         return false
     end
     local ran    = 0
     local failed = 0
     ---@type any
     local result
-    for _, interface in ipairs(interfaces) do
-        local method = interface[event] --[[@as function?]]
-        if type(method) == 'function' then
-            ran = ran + 1
-            local clock = os.clock()
-            tracy.ZoneBeginN('plugin dispatch:' .. event)
-            local suc, res = xpcall(method, onError, uri, ...)
-            tracy.ZoneEnd()
-            local passed = os.clock() - clock
-            if passed > 0.1 then
-                log.warn(('Call plugin event [%s] takes [%.3f] sec'):format(event, passed))
-            end
-            if not suc then
-                m.showError(paths[interface], res)
-                failed = failed + 1
-            elseif res ~= nil then
-                result = res
+    local args = table.pack(...)
+    ---@param list plugin.interface[]
+    local function run(list)
+        for _, interface in ipairs(list) do
+            local method = interface[event] --[[@as function?]]
+            if type(method) == 'function' then
+                ran = ran + 1
+                local clock = os.clock()
+                tracy.ZoneBeginN('plugin dispatch:' .. event)
+                local suc, res = xpcall(method, onError, uri, table.unpack(args, 1, args.n))
+                tracy.ZoneEnd()
+                local passed = os.clock() - clock
+                if passed > 0.1 then
+                    log.warn(('Call plugin event [%s] takes [%.3f] sec'):format(event, passed))
+                end
+                if not suc then
+                    m.showError(paths[interface], res)
+                    failed = failed + 1
+                elseif res ~= nil then
+                    result = res
+                end
             end
         end
     end
+    run(interfaces or {})
+    local userRan = ran
+    if result == nil then
+        run(builtinInterfaces)
+    end
     if ran == 0 then
+        return false
+    end
+    -- built-in interfaces that had nothing to say are not an answer: with no user plugin that ran, it is as if
+    -- nobody defined the event
+    if userRan == 0 and result == nil then
         return false
     end
     return failed == 0, result

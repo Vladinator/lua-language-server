@@ -2929,6 +2929,22 @@ integer
 500
 ```
 
+# workspace.tocSavedVariables
+
+**Missing description!!**
+
+## type
+
+```ts
+boolean
+```
+
+## default
+
+```jsonc
+false
+```
+
 # workspace.useGitIgnore
 
 Ignorar lista de arquivos em `.gitignore`.

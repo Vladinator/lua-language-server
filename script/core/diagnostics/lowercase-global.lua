@@ -67,6 +67,9 @@ return function (uri, callback)
         if not name or definedGlobal[name] then
             return
         end
+        if vm.isProvidedGlobal(uri, name) then
+            return
+        end
         local first = name:match '%w'
         if not first then
             return

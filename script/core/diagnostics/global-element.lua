@@ -65,6 +65,9 @@ return function (uri, callback)
         if not name or definedGlobal[name] then
             return
         end
+        if vm.isProvidedGlobal(uri, name) then
+            return
+        end
         -- If the assignment is marked as doc.class, then it is considered allowed 
         if isDocClass(source) then
             return

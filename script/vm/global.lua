@@ -644,11 +644,39 @@ local function checkIsUndefinedGlobal(src)
         return false
     end
 
+    -- a global that a plugin knows about (see `vm.registerGlobalProvider`)
+    if vm.isProvidedGlobal(uri, key) then
+        return false
+    end
+
     if checkIsGlobalRegex(uri, key) then
         return false
     end
 
     return true
+end
+
+---@type (fun(uri: uri, name: string): boolean)[]
+local globalProviders = {}
+
+--- Let a plugin say that some globals exist without any Lua assignment (the host program creates them): the
+--- global checks (undefined-global, lowercase-global, global-element) skip a name for which a provider answers true.
+---@param provider fun(uri: uri, name: string): boolean
+function vm.registerGlobalProvider(provider)
+    globalProviders[#globalProviders+1] = provider
+end
+
+--- Whether a registered provider says `name` is a defined global for the file `uri`.
+---@param uri  uri
+---@param name string
+---@return boolean
+function vm.isProvidedGlobal(uri, name)
+    for _, provider in ipairs(globalProviders) do
+        if provider(uri, name) then
+            return true
+        end
+    end
+    return false
 end
 
 ---@param src parser.object

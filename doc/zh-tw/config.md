@@ -2928,6 +2928,22 @@ integer
 500
 ```
 
+# workspace.tocSavedVariables
+
+**Missing description!!**
+
+## type
+
+```ts
+boolean
+```
+
+## default
+
+```jsonc
+false
+```
+
 # workspace.useGitIgnore
 
 忽略 `.gitignore` 中列舉的檔案。

@@ -2929,6 +2929,22 @@ integer
 500
 ```
 
+# workspace.tocSavedVariables
+
+**Missing description!!**
+
+## type
+
+```ts
+boolean
+```
+
+## default
+
+```jsonc
+false
+```
+
 # workspace.useGitIgnore
 
 `.gitignore` に記載されたファイルを無視します。

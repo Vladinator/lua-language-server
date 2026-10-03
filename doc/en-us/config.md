@@ -2932,6 +2932,23 @@ integer
 500
 ```
 
+# workspace.tocSavedVariables
+
+Treat the variables a WoW addon's `.toc` file declares with `## SavedVariables:` (and `SavedVariablesPerCharacter`, `SavedVariablesMachine`) as defined globals, so `undefined-global`, `lowercase-global` and `global-element` do not report them. The `.toc` is the one in the file's own folder or the nearest folder above it that has one.
+
+
+## type
+
+```ts
+boolean
+```
+
+## default
+
+```jsonc
+false
+```
+
 # workspace.useGitIgnore
 
 Ignore files list in `.gitignore` .

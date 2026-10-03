@@ -199,3 +199,37 @@ mt.init = function ()
     obj.x = 1
 end
 ]]
+
+-- `---@private` / `---@protected` on a function or a field assignment (wowlua-ls shares the tags)
+TEST [[
+---@class A
+local A = {}
+
+---@private
+function A:hidden() end
+
+---@protected
+function A:guarded() end
+
+function A:inside()
+    self:hidden()
+    self:guarded()
+end
+
+---@type A
+local a
+a:<!hidden!>()
+a:<!guarded!>()
+]]
+
+TEST [[
+---@class B
+local B = {}
+
+---@private
+B.secret = 1
+
+---@type B
+local b
+print(b.<!secret!>)
+]]

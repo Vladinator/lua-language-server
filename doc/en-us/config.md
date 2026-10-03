@@ -369,6 +369,7 @@ Array<string>
 * ``"global-close-attribute"``: Close attribute on a global variable
 * ``"global-element"``: Enable diagnostics to warn about global elements.
 * ``"global-in-nil-env"``: Enable cannot use global variables （ `_ENV` is set to `nil`） diagnostics.
+* ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
 * ``"incomplete-signature-doc"``: Incomplete @param or @return annotations for functions.
 * ``"index-in-func-name"``: Index in a function name
 * ``"inject-field"``: Injecting a field into an object
@@ -618,6 +619,7 @@ object<string, string>
     "codestyle": "Fallback",
     /*
     * global-element
+    * implicit-nil-return
     */
     "conventions": "Fallback",
     /*
@@ -776,6 +778,7 @@ object<string, string>
     "codestyle": "Fallback",
     /*
     * global-element
+    * implicit-nil-return
     */
     "conventions": "Fallback",
     /*
@@ -1052,6 +1055,10 @@ object<string, string>
     Enable cannot use global variables （ `_ENV` is set to `nil`） diagnostics.
     */
     "global-in-nil-env": "Any",
+    /*
+    Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+    */
+    "implicit-nil-return": "None",
     /*
     Incomplete @param or @return annotations for functions.
     */
@@ -1439,6 +1446,10 @@ object<string, string>
     Enable cannot use global variables （ `_ENV` is set to `nil`） diagnostics.
     */
     "global-in-nil-env": "Warning",
+    /*
+    Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+    */
+    "implicit-nil-return": "Hint",
     /*
     Incomplete @param or @return annotations for functions.
     */

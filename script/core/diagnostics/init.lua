@@ -95,6 +95,7 @@ require 'core.diagnostics.nil-table-key'
 require 'core.diagnostics.redundant-or'
 require 'core.diagnostics.redundant-and'
 require 'core.diagnostics.redundant-condition'
+require 'core.diagnostics.implicit-nil-return'
 -- unnecessary-assert.lua is NOT required here: it's disabled upstream
 -- (09900e7daf) and its own protoDiagnostic.register call is commented
 -- out, so requiring it would have nothing to trigger.

@@ -366,6 +366,7 @@ Array<string>
 * ``"global-close-attribute"``: グローバル変数への close 属性
 * ``"global-element"``: グローバル要素に関する警告診断を有効にします。
 * ``"global-in-nil-env"``: グローバル変数を使用できない（`_ENV` が `nil`）場合の診断を有効にします。
+* ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
 * ``"incomplete-signature-doc"``: 関数の @param または @return 注釈が不完全な場合の診断。
 * ``"index-in-func-name"``: 関数名にインデックスが含まれる
 * ``"inject-field"``: オブジェクトへのフィールド注入
@@ -615,6 +616,7 @@ object<string, string>
     "codestyle": "Fallback",
     /*
     * global-element
+    * implicit-nil-return
     */
     "conventions": "Fallback",
     /*
@@ -773,6 +775,7 @@ object<string, string>
     "codestyle": "Fallback",
     /*
     * global-element
+    * implicit-nil-return
     */
     "conventions": "Fallback",
     /*
@@ -1049,6 +1052,10 @@ object<string, string>
     グローバル変数を使用できない（`_ENV` が `nil`）場合の診断を有効にします。
     */
     "global-in-nil-env": "Any",
+    /*
+    Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+    */
+    "implicit-nil-return": "None",
     /*
     関数の @param または @return 注釈が不完全な場合の診断。
     */
@@ -1436,6 +1443,10 @@ object<string, string>
     グローバル変数を使用できない（`_ENV` が `nil`）場合の診断を有効にします。
     */
     "global-in-nil-env": "Warning",
+    /*
+    Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+    */
+    "implicit-nil-return": "Hint",
     /*
     関数の @param または @return 注釈が不完全な場合の診断。
     */

@@ -366,6 +366,7 @@ Array<string>
 * ``"global-close-attribute"``: 全域變數使用 close 屬性
 * ``"global-element"``: 對全域元素的警告
 * ``"global-in-nil-env"``: 不能使用全域變數（ `_ENV` 被設定為 `nil`）
+* ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
 * ``"incomplete-signature-doc"``: `@param` 或 `@return` 不完整
 * ``"index-in-func-name"``: 函式名稱中包含索引
 * ``"inject-field"``: 向物件注入欄位
@@ -615,6 +616,7 @@ object<string, string>
     "codestyle": "Fallback",
     /*
     * global-element
+    * implicit-nil-return
     */
     "conventions": "Fallback",
     /*
@@ -773,6 +775,7 @@ object<string, string>
     "codestyle": "Fallback",
     /*
     * global-element
+    * implicit-nil-return
     */
     "conventions": "Fallback",
     /*
@@ -1049,6 +1052,10 @@ object<string, string>
     不能使用全域變數（ `_ENV` 被設定為 `nil`）
     */
     "global-in-nil-env": "Any",
+    /*
+    Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+    */
+    "implicit-nil-return": "None",
     /*
     `@param` 或 `@return` 不完整
     */
@@ -1435,6 +1442,10 @@ object<string, string>
     不能使用全域變數（ `_ENV` 被設定為 `nil`）
     */
     "global-in-nil-env": "Warning",
+    /*
+    Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+    */
+    "implicit-nil-return": "Hint",
     /*
     `@param` 或 `@return` 不完整
     */

@@ -366,6 +366,7 @@ Array<string>
 * ``"global-close-attribute"``: Atributo close en una variable global
 * ``"global-element"``: Habilita el diagnóstico que alerta sobre elementos globales.
 * ``"global-in-nil-env"``: Habilita el diagnóstico para la prohibición de uso de variables globales (`_ENV` se fija a `nil`).
+* ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
 * ``"incomplete-signature-doc"``: Habilita el diagnóstico para anotaciones @param o @return incompletas para funciones.
 * ``"index-in-func-name"``: Índice en nombre de función
 * ``"inject-field"``: Inyectando un campo en un objeto
@@ -615,6 +616,7 @@ object<string, string>
     "codestyle": "Fallback",
     /*
     * global-element
+    * implicit-nil-return
     */
     "conventions": "Fallback",
     /*
@@ -773,6 +775,7 @@ object<string, string>
     "codestyle": "Fallback",
     /*
     * global-element
+    * implicit-nil-return
     */
     "conventions": "Fallback",
     /*
@@ -1049,6 +1052,10 @@ object<string, string>
     Habilita el diagnóstico para la prohibición de uso de variables globales (`_ENV` se fija a `nil`).
     */
     "global-in-nil-env": "Any",
+    /*
+    Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+    */
+    "implicit-nil-return": "None",
     /*
     Habilita el diagnóstico para anotaciones @param o @return incompletas para funciones.
     */
@@ -1436,6 +1443,10 @@ object<string, string>
     Habilita el diagnóstico para la prohibición de uso de variables globales (`_ENV` se fija a `nil`).
     */
     "global-in-nil-env": "Warning",
+    /*
+    Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+    */
+    "implicit-nil-return": "Hint",
     /*
     Habilita el diagnóstico para anotaciones @param o @return incompletas para funciones.
     */

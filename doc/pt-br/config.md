@@ -366,6 +366,7 @@ Array<string>
 * ``"global-close-attribute"``: Atributo close em variável global
 * ``"global-element"``: Habilita diagnóstico para avisar sobre elementos globais.
 * ``"global-in-nil-env"``: Não é possível usar variáveis globais (`_ENV` foi definido como `nil`)
+* ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
 * ``"incomplete-signature-doc"``: Anotações @param ou @return incompletas para funções.
 * ``"index-in-func-name"``: Índice em nome de função
 * ``"inject-field"``: Injetando um campo em um objeto
@@ -615,6 +616,7 @@ object<string, string>
     "codestyle": "Fallback",
     /*
     * global-element
+    * implicit-nil-return
     */
     "conventions": "Fallback",
     /*
@@ -773,6 +775,7 @@ object<string, string>
     "codestyle": "Fallback",
     /*
     * global-element
+    * implicit-nil-return
     */
     "conventions": "Fallback",
     /*
@@ -1049,6 +1052,10 @@ object<string, string>
     Não é possível usar variáveis globais (`_ENV` foi definido como `nil`)
     */
     "global-in-nil-env": "Any",
+    /*
+    Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+    */
+    "implicit-nil-return": "None",
     /*
     Anotações @param ou @return incompletas para funções.
     */
@@ -1436,6 +1443,10 @@ object<string, string>
     Não é possível usar variáveis globais (`_ENV` foi definido como `nil`)
     */
     "global-in-nil-env": "Warning",
+    /*
+    Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+    */
+    "implicit-nil-return": "Hint",
     /*
     Anotações @param ou @return incompletas para funções.
     */

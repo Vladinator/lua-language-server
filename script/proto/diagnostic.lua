@@ -91,6 +91,71 @@ function m.register(names)
     end
 end
 
+-- Names other tools use for one of our diagnostics (wowlua-ls: `type-mismatch` is our
+-- `param-type-mismatch`). The canonical name stays the original LuaLS one; an alias is
+-- accepted wherever a name is read from a user: `---@diagnostic`, `diagnostics.disable`,
+-- `severity` and `neededFileStatus`. It is no diagnostic of its own (no code, no setting entry).
+---@type table<string, string>
+local aliases = {}
+
+--- Accept `alias` as another name of the diagnostic `canonical`.
+---@param alias     string
+---@param canonical string
+function m.registerAlias(alias, canonical)
+    aliases[alias] = canonical
+end
+
+--- The canonical name for a name that may be an alias (a name that is none is returned as it is).
+---@param name string
+---@return string
+function m.resolveAlias(name)
+    return aliases[name] or name
+end
+
+-- wowlua-ls spellings of diagnostics we have under their original LuaLS name
+for alias, canonical in pairs {
+    ['type-mismatch']       = 'param-type-mismatch',
+    ['return-mismatch']     = 'return-type-mismatch',
+    ['access-private']      = 'invisible',
+    ['access-protected']    = 'invisible',
+    ['unknown-param-type']  = 'no-unknown',
+    ['unknown-return-type'] = 'no-unknown',
+    ['unknown-local-type']  = 'no-unknown',
+    ['unknown-field-type']  = 'no-unknown',
+} do
+    m.registerAlias(alias, canonical)
+end
+
+--- The names a per-diagnostic setting (`severity`, `neededFileStatus`) takes as key, sorted: the
+--- registered diagnostics and the aliases.
+---@return string[]
+function m.getDiagAndAliasNames()
+    ---@type table<string, true>
+    local names = {}
+    for name in pairs(m.diagnosticDatas) do
+        names[name] = true
+    end
+    for alias in pairs(aliases) do
+        names[alias] = true
+    end
+    return util.getTableKeys(names, true)
+end
+
+--- The aliases registered for the canonical name `canonical`.
+---@param canonical string
+---@return string[]
+function m.aliasesOf(canonical)
+    ---@type string[]
+    local list = {}
+    for alias, target in pairs(aliases) do
+        if target == canonical then
+            list[#list+1] = alias
+        end
+    end
+    table.sort(list)
+    return list
+end
+
 --- The live table of default severities (see above): do not modify it.
 ---@return table<string, DiagnosticSeverity>
 function m.getDefaultSeverity()
@@ -168,6 +233,9 @@ function m.getDiagAndErrNameMap()
     end
     for name in pairs(m.getDefaultSeverity()) do
         names[name] = true
+    end
+    for alias in pairs(aliases) do
+        names[alias] = true
     end
     return names
 end

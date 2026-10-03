@@ -4,6 +4,7 @@ local guide  = require 'parser.guide'
 ---@class vm
 local vm     = require 'vm.vm'
 local config = require 'config'
+local diagnostic = require 'proto.diagnostic'
 local scope  = require 'workspace.scope'
 
 ---@class parser.object
@@ -601,6 +602,7 @@ local function makeDiagRange(doc, results)
         for _, nameUnit in ipairs(doc.names) do
             local name = nameUnit[1]
             names[name] = true
+            names[diagnostic.resolveAlias(name)] = true
         end
     end
     local row = guide.rowColOf(doc.start)

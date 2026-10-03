@@ -168,12 +168,32 @@ local function checkSleep(uri, passed)
     sleepRest = sleepRest - sleeped
 end
 
+--- The value of a per-diagnostic setting for `name`. The settings table carries a default entry
+--- for every diagnostic, so the entry of an alias (only a user writes one) wins while the entry
+--- of the canonical name still has its default value.
+---@param map     table<string, string>
+---@param name    string
+---@param default string
+---@return string
+local function withAlias(map, name, default)
+    local value = map[name] or default
+    if value ~= default then
+        return value
+    end
+    for _, alias in ipairs(diagd.aliasesOf(name)) do
+        if map[alias] ~= nil then
+            return map[alias]
+        end
+    end
+    return value
+end
+
 ---@param uri  uri
 ---@param name string
 ---@return string
 local function getSeverity(uri, name)
-    local severity =   config.get(uri, 'Lua.diagnostics.severity')[name]
-                    or define.DiagnosticDefaultSeverity[name]
+    local severities = config.get(uri, 'Lua.diagnostics.severity')
+    local severity = withAlias(severities, name, define.DiagnosticDefaultSeverity[name])
     if severity:sub(-1) == '!' then
         return severity:sub(1, -2)
     end
@@ -202,8 +222,8 @@ end
 ---@param name string
 ---@return string
 local function getStatus(uri, name)
-    local status = config.get(uri, 'Lua.diagnostics.neededFileStatus')[name]
-                or define.DiagnosticDefaultNeededFileStatus[name]
+    local statuses = config.get(uri, 'Lua.diagnostics.neededFileStatus')
+    local status = withAlias(statuses, name, define.DiagnosticDefaultNeededFileStatus[name])
     if status:sub(-1) == '!' then
         return status:sub(1, -2)
     end
@@ -242,6 +262,11 @@ local function isEnabled(uri, name, ignoreFileOpenState)
     local disables = config.get(uri, 'Lua.diagnostics.disable')
     if util.arrayHas(disables, name) then
         return false
+    end
+    for _, alias in ipairs(diagd.aliasesOf(name)) do
+        if util.arrayHas(disables, alias) then
+            return false
+        end
     end
     local status = getStatus(uri, name)
     if status == 'None' then

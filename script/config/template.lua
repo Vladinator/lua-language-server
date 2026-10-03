@@ -319,7 +319,7 @@ local template = {
     -- they're the complete, current set.
     ['Lua.diagnostics.disable']             = Type.Array(Type.String << function () return util.getTableKeys(diag.getDiagAndErrNameMap(), true) end),
     ['Lua.diagnostics.severity']            = Type.Hash(
-                                                Type.String << function () return util.getTableKeys(diag.diagnosticDatas, true) end,
+                                                Type.String << function () return diag.getDiagAndAliasNames() end,
                                                 Type.String << {
                                                     'Error',
                                                     'Warning',
@@ -333,7 +333,7 @@ local template = {
                                             )
                                             >> util.deepCopy(define.DiagnosticDefaultSeverity),
     ['Lua.diagnostics.neededFileStatus']    = Type.Hash(
-                                                Type.String << function () return util.getTableKeys(diag.diagnosticDatas, true) end,
+                                                Type.String << function () return diag.getDiagAndAliasNames() end,
                                                 Type.String << {
                                                     'Any',
                                                     'Opened',

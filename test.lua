@@ -90,6 +90,7 @@ local function testAll()
     test 'document_symbol'
     test 'code_action'
     test 'other'
+    test 'settings'
     test 'fuzz_doc'
     test 'editor_sim'
     test 'order_diff'

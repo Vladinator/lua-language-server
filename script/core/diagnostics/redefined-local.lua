@@ -5,6 +5,10 @@ local protoDiagnostic = require 'proto.diagnostic'
 
 local MESSAGE = 'Redefined local `%s`.'
 
+-- wowlua-ls splits this into `redefined-local` (same scope) and `shadowed-local` (outer scope); here one
+-- diagnostic covers both, so its `shadowed-local` is accepted as another name for it
+protoDiagnostic.registerAlias('shadowed-local', 'redefined-local')
+
 protoDiagnostic.register {
     'redefined-local',
 } {

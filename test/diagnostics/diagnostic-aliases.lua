@@ -13,6 +13,7 @@ DIAG_CARE = {
     ['invisible']            = true,
     ['unfulfilled-expect']   = true,
     ['unknown-diag-code']    = true,
+    ['redefined-local']      = true,
 }
 
 -- param-type-mismatch: no alias, a report
@@ -63,6 +64,24 @@ TEST [[
 local function f()
     return <!'a'!>
 end
+]]
+
+-- redefined-local: wowlua-ls's `shadowed-local` (an outer-scope shadow, and the same-scope one)
+TEST [[
+local x = 1
+do
+    local <!x!> = 2
+    print(x)
+end
+]]
+TEST [[
+local x = 1
+do
+    ---@diagnostic disable-next-line: shadowed-local
+    local x = 2
+    print(x)
+end
+print(x)
 ]]
 
 -- invisible: both wowlua-ls codes

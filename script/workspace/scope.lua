@@ -163,6 +163,7 @@ function mt:remove()
     for i, scp in ipairs(m.folders) do
         if scp == self then
             table.remove(m.folders, i)
+            m.folderCache = {}
             break
         end
     end
@@ -189,6 +190,10 @@ end
 function m.reset()
     ---@type scope[]
     m.folders  = {}
+    -- uri -> the folder scope it belongs to (false: none): `getFolder` runs for nearly every config read and every
+    -- global lookup, and walks the folders comparing strings each time. Dropped whenever `m.folders` changes.
+    ---@type table<uri, scope|false>
+    m.folderCache = {}
     m.override = createScope 'override'
     m.fallback = createScope 'fallback'
 end
@@ -210,12 +215,14 @@ function m.createFolder(uri, folderName)
         assert(otherScope.uri)
         if #uri > #otherScope.uri then
             table.insert(m.folders, i, scope)
+            m.folderCache = {}
             inserted = true
             break
         end
     end
     if not inserted then
         table.insert(m.folders, scope)
+        m.folderCache = {}
     end
 
     return scope
@@ -224,11 +231,21 @@ end
 ---@param uri uri
 ---@return scope?
 function m.getFolder(uri)
+    if not uri then
+        return nil
+    end
+    local cache = m.folderCache
+    local hit = cache[uri]
+    if hit ~= nil then
+        return hit or nil
+    end
     for _, scope in ipairs(m.folders) do
         if scope:isChildUri(uri) then
+            cache[uri] = scope
             return scope
         end
     end
+    cache[uri] = false
     return nil
 end
 

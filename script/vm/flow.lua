@@ -219,6 +219,22 @@ local function isNilObject(obj)
     return obj.type == 'nil' or (obj.type == 'global' and obj.cate == 'type' and obj.name == 'nil')
 end
 
+--- Can `node` be nil: the optional flag, or an explicit `nil` member (a union with `unknown` or an
+--- unbound generic keeps its nil as a member instead of the flag).
+---@param node vm.node
+---@return boolean
+local function nodeMayBeNil(node)
+    if node:isOptional() then
+        return true
+    end
+    for i = 1, #node do
+        if isNilObject(node[i]) then
+            return true
+        end
+    end
+    return false
+end
+
 --- `node` without the objects that repeat an earlier one by `objectKey`, and without a redundant
 --- explicit `nil` member once `.optional` is set; the node itself when neither applies.
 ---@param node vm.node
@@ -819,6 +835,57 @@ end
 
 ---@alias vm.flow.returnSlotShape 'nil' | 'nonnil' | 'ambiguous'
 
+--- Expression kinds that never evaluate to nil whatever their operands are (an operator metamethod
+--- returning nil is the only way, and nobody writes that): the operators, literals, constructors.
+---@type table<string, true>
+local NON_NIL_OPERATORS = {
+    ['+'] = true, ['-'] = true, ['*'] = true, ['/'] = true, ['//'] = true, ['%'] = true, ['^'] = true,
+    ['..'] = true, ['=='] = true, ['~='] = true, ['<'] = true, ['>'] = true, ['<='] = true, ['>='] = true,
+    ['&'] = true, ['|'] = true, ['~'] = true, ['<<'] = true, ['>>'] = true,
+}
+---@type table<string, true>
+local NON_NIL_KINDS = {
+    string = true, number = true, integer = true, boolean = true, table = true, ['function'] = true,
+}
+
+--- Is `expr` non-nil by its syntax alone, for a value whose type is `unknown` (an untyped parameter
+--- in arithmetic): an operator result, a literal, a constructor, or a local only ever assigned its
+--- declaration's such value. `depth` bounds the chase through locals.
+---@param expr  parser.object?
+---@param depth integer
+---@return boolean
+local function syntacticNonNil(expr, depth)
+    if not expr then
+        return false
+    end
+    local tp = expr.type
+    if NON_NIL_KINDS[tp] then
+        return true
+    end
+    if tp == 'binary' then
+        return expr.op ~= nil and NON_NIL_OPERATORS[expr.op.type] == true
+    end
+    if tp == 'unary' then
+        return true
+    end
+    if tp == 'paren' then
+        return syntacticNonNil(expr.exp, depth)
+    end
+    if tp == 'getlocal' and depth > 0 then
+        local decl = expr.node
+        if not decl or decl.type ~= 'local' then
+            return false
+        end
+        for _, ref in ipairs(decl.ref or {}) do
+            if ref.type == 'setlocal' then
+                return false
+            end
+        end
+        return syntacticNonNil(decl.value, depth - 1)
+    end
+    return false
+end
+
 --- One `return` statement's own slot `index` (1-based), classified for inferred-correlation
 --- purposes: a missing trailing value (fewer returns than the statement with the most) is an
 --- implicit `nil`, same as Lua itself pads a short return list; anything whose compiled type mixes
@@ -839,6 +906,9 @@ local function classifyReturnSlot(expr)
         return 'nil'
     end
     if not node:isOptional() and hasTypes(node) then
+        return 'nonnil'
+    end
+    if syntacticNonNil(expr, 3) then
         return 'nonnil'
     end
     return 'ambiguous'
@@ -1192,7 +1262,7 @@ local function propagateCorrelated(state, key, current, newNode, expr)
     if not state then
         return state
     end
-    local wasOptional = current:isOptional() or isNilOnly(current)
+    local wasOptional = nodeMayBeNil(current) or isNilOnly(current)
     local nowNilOnly = isNilOnly(newNode)
     local nowNonNil = not newNode:isOptional() and not nowNilOnly and hasTypes(newNode)
     if not (wasOptional and (nowNilOnly or nowNonNil)) then
@@ -1222,7 +1292,7 @@ local function propagateCorrelated(state, key, current, newNode, expr)
             if nowNilOnly then
                 local nilNode = vm.createNode(vm.declareGlobal('type', 'nil'))
                 state = narrowedState(state, siblingKey, siblingCurrent, nilNode)
-            elseif nowNonNil and siblingCurrent:isOptional() then
+            elseif nowNonNil and nodeMayBeNil(siblingCurrent) then
                 state = narrowedState(state, siblingKey, siblingCurrent, siblingCurrent:copy():removeOptional())
             end
         end

@@ -1318,3 +1318,63 @@ if value then
 end
 S = <!key!>:upper()
 ]]
+
+-- inferred correlated returns with untyped arithmetic values: a return of operator results (their type
+-- is `unknown` for untyped parameters) is non-nil, so `return nil, nil, nil` vs `return a ^ 2, dx, dy`
+-- still pairs the slots (HereBeDragons' GetWorldDistance shape)
+TEST [[
+local function dist(a, b)
+    if not a or not b then
+        return nil, nil, nil
+    end
+    local dx, dy = b - a, a - b
+    return (dx * dx + dy * dy) ^ 0.5, dx, dy
+end
+
+local function vec(a, b)
+    local distance, dx, dy = dist(a, b)
+    if not distance then
+        return nil, nil
+    end
+    return -dx + dy
+end
+
+local d, x, y = dist(1, 2)
+print(-<!x!>)
+]]
+
+-- the same through a method call
+TEST [[
+local H = {}
+
+function H:dist(a)
+    if not a then
+        return nil, nil
+    end
+    return a + 1, a * 2
+end
+
+function H:vec(a)
+    local p, q = self:dist(a)
+    if p then
+        return q + 1
+    end
+end
+]]
+
+-- a local that is assigned again is not provably non-nil: no pairing, the check on one does not clear the other
+TEST [[
+local function f(a)
+    if not a then
+        return nil, nil
+    end
+    local x = a + 1
+    x = nil
+    return a + 1, x
+end
+
+local p, q = f(1)
+if p then
+    print(<!q!> + 1)
+end
+]]

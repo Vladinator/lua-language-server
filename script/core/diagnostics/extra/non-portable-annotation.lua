@@ -21,6 +21,7 @@ local await           = require 'await'
 local util            = require 'utility'
 local docTags         = require 'parser.docTags'
 local guide           = require 'parser.guide'
+local vm              = require 'vm'
 local protoDiagnostic = require 'proto.diagnostic'
 
 protoDiagnostic.register {
@@ -128,6 +129,24 @@ local function findWord(text, from, to, keyword)
     return foundStart, foundEnd
 end
 
+--- Type syntax (not tags, not keywords) and who reads it. The original LuaLS has none of these nodes: its parser
+--- has no `doc.type.keyof` / `.intersection` / `.indexed` / `.conditional` (checked in the base commit's
+--- luadoc.lua), and `never`, the utility types and `?T` / `T!` mean nothing to it.
+---@type table<string, {label: string, flavors: string[]}>
+local TYPE_NODES = {
+    ['doc.type.keyof']        = { label = 'keyof T',            flavors = { 'luals', 'wowluals' } },
+    ['doc.type.intersection'] = { label = 'A & B',              flavors = { 'luals', 'wowluals' } },
+    ['doc.type.indexed']      = { label = 'T[K]',               flavors = { 'luals', 'wowluals' } },
+    ['doc.type.conditional']  = { label = 'conditional type',   flavors = { 'luals' } },
+}
+--- Generic names in `Name<...>` that only some dialects know.
+---@type table<string, string[]>
+local SIGN_NAMES = {
+    returns    = { 'luals', 'wowluals' },
+    params     = { 'wowluals' },
+    expression = { 'wowluals' },
+}
+
 ---@async
 return function (uri, callback)
     ---@type string[]
@@ -163,6 +182,30 @@ return function (uri, callback)
         fieldKeywords[keyword] = true
     end
     guide.eachSource(state.ast.docs, function (source)
+        local node = TYPE_NODES[source.type]
+        if node then
+            report(dialects, node.flavors, node.label, source.start, source.finish, callback)
+        elseif source.type == 'doc.type' then
+            if source.prefixOptional then
+                report(dialects, { 'luals', 'wowluals' }, '?T', source.start, source.finish, callback)
+            end
+            if source.lateinit then
+                report(dialects, { 'luals', 'wowluals' }, 'T!', source.start, source.finish, callback)
+            end
+        elseif source.type == 'doc.type.name' then
+            if source[1] == 'never' then
+                report(dialects, { 'luals' }, 'never', source.start, source.finish, callback)
+            end
+        elseif source.type == 'doc.type.sign' then
+            local name = source.node and source.node[1]
+            if type(name) == 'string' then
+                if vm.isUtilityTypeName(name) then
+                    report(dialects, { 'luals' }, name .. '<...>', source.start, source.finish, callback)
+                elseif SIGN_NAMES[name] then
+                    report(dialects, SIGN_NAMES[name], name .. '<...>', source.start, source.finish, callback)
+                end
+            end
+        end
         ---@type string[]
         local words = {}
         if source.type == 'doc.type' then

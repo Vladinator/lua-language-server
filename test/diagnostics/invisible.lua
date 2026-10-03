@@ -227,9 +227,9 @@ TEST [[
 local B = {}
 
 ---@private
-B.secret = 1
+B.hiddenField = 1
 
 ---@type B
 local b
-print(b.<!secret!>)
+print(b.<!hiddenField!>)
 ]]

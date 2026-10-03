@@ -160,3 +160,97 @@ with({ 'legacyluals' }, function ()
 local function f(a) end
 ]]
 end)
+
+-- type syntax: what each dialect knows (legacyluals has none of it)
+with({ 'legacyluals' }, function ()
+    TEST [[
+---@generic T
+---@param a <!keyof T!>
+local function f(a) end
+]]
+    TEST [[
+---@param a <!A & B!>
+local function f(a) end
+]]
+    TEST [[
+---@param a <!T[K]!>
+local function f(a) end
+]]
+    TEST [[
+---@param a (<!string extends number ? 1 : 2)!>
+local function f(a) end
+]]
+    -- (`---@param a ?string` reads the `?` as the optional-parameter marker: only the type positions are checked)
+    TEST [[
+---@type ?<!string!>
+local a
+]]
+    TEST [[
+---@param a <!string!!>
+local function f(a) end
+]]
+    TEST [[
+---@param a <!never!>
+local function f(a) end
+]]
+    TEST [[
+---@param a <!Partial<table>!>
+local function f(a) end
+]]
+    TEST [[
+---@param a <!returns<f>!>
+local function f(a) end
+]]
+    TEST [[
+---@param a <!params<f>!>
+local function f(a) end
+]]
+    -- the plain forms are fine
+    TEST [[
+---@param a string?
+---@param b table<string, number>
+---@param c string[]
+local function f(a, b, c) end
+]]
+end)
+-- luals knows all of it but the wowlua-ls only generics
+with({ 'luals' }, function ()
+    TEST [[
+---@generic T
+---@param a keyof T
+---@param b A & B
+---@param c T[K]
+---@param d (string extends number ? 1 : 2)
+---@param e string
+---@param f string!
+---@param g never
+---@param h Partial<table>
+---@param i returns<f>
+---@param j <!params<f>!>
+local function f(a, b, c, d, e, f, g, h, i, j) end
+]]
+end)
+-- wowluals: no conditional types, no never, no utility types
+with({ 'wowluals' }, function ()
+    TEST [[
+---@generic T
+---@param a keyof T
+---@param b A & B
+---@param c T[K]
+---@param d (<!string extends number ? 1 : 2)!>
+---@param e string
+---@param f string!
+---@param g <!never!>
+---@param h <!Partial<table>!>
+---@param i returns<f>
+---@param j params<f>
+local function f(a, b, c, d, e, f, g, h, i, j) end
+]]
+end)
+-- the default flags no syntax either
+TEST [[
+---@param a keyof T
+---@param b ?string
+---@param c never
+local function f(a, b, c) end
+]]

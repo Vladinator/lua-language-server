@@ -1338,6 +1338,7 @@ function parseType(parent)
     end
     if prefixOptional then
         result.optional = true
+        result.prefixOptional = true
     end
     if keywordField then
         -- plugin-supplied field name, not known statically

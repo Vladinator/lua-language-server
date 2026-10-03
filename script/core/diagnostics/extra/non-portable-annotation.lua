@@ -11,7 +11,8 @@
 -- tags the parser itself handles (measured against the base commit and this fork's parser) and the tags only
 -- wowlua-ls documents; the tags of this fork's own features say where they come from through
 -- `docTags.setTagFlavors` in their own files. Parsing is not affected: every spelling is always read.
--- Only tags are checked so far (not type syntax such as `nosecret`, `?T`, `params<F>`).
+-- Checked: the tags, and the field / type keywords of the registries (`secret`, `readonly`, ...). Not yet
+-- checked: the other type syntax (`?T`, `T!`, `never`, `params<F>`, ...).
 -- Deleting this file removes the setting's effect and the lint. Its tests are next to it.
 
 local files           = require 'files'
@@ -19,6 +20,7 @@ local config          = require 'config'
 local await           = require 'await'
 local util            = require 'utility'
 local docTags         = require 'parser.docTags'
+local guide           = require 'parser.guide'
 local protoDiagnostic = require 'proto.diagnostic'
 
 protoDiagnostic.register {
@@ -68,6 +70,64 @@ local function knownBy(name)
     return flavorsOf[name] or (docTags.getMarkerTagType(name) and docTags.getTagFlavors(name)) or nil
 end
 
+--- Report `what` (a tag or keyword at start..finish) when none of `dialects` knows it.
+---@param dialects string[]
+---@param known    string[]?
+---@param what     string
+---@param start    integer
+---@param finish   integer
+---@param callback fun(result: proto.diagnostic.result)
+local function report(dialects, known, what, start, finish, callback)
+    if not known then
+        -- nobody knows it: a typo, or a plugin's own
+        callback {
+            start   = start,
+            finish  = finish,
+            message = ('`%s` is not a known annotation of any dialect: it is ignored.'):format(what),
+        }
+        return
+    end
+    for _, flavor in ipairs(known) do
+        if util.arrayHas(dialects, flavor) then
+            return
+        end
+    end
+    callback {
+        start   = start,
+        finish  = finish,
+        message = ('`%s` is only known to %s: the dialects listed in `Lua.annotations.dialects` ignore it.'):format(what, table.concat(known, ', ')),
+    }
+end
+
+--- Where the last word `keyword` stands in `text` between the positions `from` and `to`, when it is there.
+---@param text    string
+---@param from    integer
+---@param to      integer
+---@param keyword string
+---@return integer?
+---@return integer?
+local function findWord(text, from, to, keyword)
+    local head = text:sub(from, to)
+    ---@type integer?
+    local foundStart
+    ---@type integer?
+    local foundEnd
+    local pos = 1
+    while true do
+        local s, e = head:find(keyword, pos, true)
+        if not s or not e then
+            break
+        end
+        local before = head:sub(s - 1, s - 1)
+        local after  = head:sub(e + 1, e + 1)
+        if not before:find('[%w_]') and not after:find('[%w_]') then
+            foundStart, foundEnd = from + s - 1, from + e - 1
+        end
+        pos = e + 1
+    end
+    return foundStart, foundEnd
+end
+
 ---@async
 return function (uri, callback)
     ---@type string[]
@@ -88,26 +148,46 @@ return function (uri, callback)
             goto CONTINUE
         end
         await.delay()
-        local known = knownBy(tag)
-        if not known then
-            -- a tag no dialect knows: a typo, or a plugin's own
-            callback {
-                start   = comm.start + 2 + #dashes,
-                finish  = comm.start + 2 + #dashes + #tag,
-                message = ('`@%s` is not a known annotation of any dialect: it is ignored.'):format(tag),
-            }
-            goto CONTINUE
-        end
-        for _, flavor in ipairs(known) do
-            if util.arrayHas(dialects, flavor) then
-                goto CONTINUE
-            end
-        end
-        callback {
-            start   = comm.start + 2 + #dashes,
-            finish  = comm.start + 2 + #dashes + #tag,
-            message = ('`@%s` is only known to %s: the dialects listed in `Lua.annotations.dialects` ignore it.'):format(tag, table.concat(known, ', ')),
-        }
+        report(dialects, knownBy(tag), '@' .. tag, comm.start + 2 + #dashes, comm.start + 2 + #dashes + #tag, callback)
         ::CONTINUE::
     end
+
+    -- the keywords of the annotations (`secret string`, `---@field x readonly number`)
+    if not state.ast.docs then
+        return
+    end
+    local text = files.getText(uri) or ''
+    ---@type table<string, true>
+    local fieldKeywords = {}
+    for keyword in docTags.eachFieldKeyword() do
+        fieldKeywords[keyword] = true
+    end
+    guide.eachSource(state.ast.docs, function (source)
+        ---@type string[]
+        local words = {}
+        if source.type == 'doc.type' then
+            words = docTags.getTypeKeywordsOf(source)
+        elseif source.type == 'doc.field' then
+            for keyword in pairs(fieldKeywords) do
+                if source[docTags.getFieldKeyword(keyword)] then
+                    words[#words+1] = keyword
+                end
+            end
+            table.sort(words)
+        end
+        for _, keyword in ipairs(words) do
+            -- the keyword of a type stands in front of the type node, the one of a field inside the field
+            local first = guide.positionToOffset(state, source.start + 1)
+            local last  = guide.positionToOffset(state, source.finish)
+            local from  = source.type == 'doc.type' and math.max(1, first - 64) or first
+            local to    = source.type == 'doc.type' and first - 1 or last
+            local start, finish = findWord(text, from, to, keyword)
+            if start and finish then
+                report(dialects, docTags.getKeywordFlavors(keyword), keyword,
+                    guide.offsetToPosition(state, start - 1), guide.offsetToPosition(state, finish), callback)
+            else
+                report(dialects, docTags.getKeywordFlavors(keyword), keyword, source.start, source.finish, callback)
+            end
+        end
+    end)
 end

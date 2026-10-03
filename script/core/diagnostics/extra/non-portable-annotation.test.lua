@@ -116,3 +116,47 @@ local s = "---@secret"
 local function f(a) end
 ]]
 end)
+
+-- keywords of the annotations: in front of a type and in front of a field's type
+with({ 'legacyluals' }, function ()
+    TEST [[
+---@param a <!secret!> string
+---@param b <!nosecret!> string
+---@param c <!readonly!> table
+---@field x <!readonly!> number
+---@return string
+local function f(a, b, c) end
+]]
+end)
+with({ 'wowluals' }, function ()
+    TEST [[
+---@param a secret string
+---@param b <!nosecret!> string
+---@param c <!readonly!> table
+---@param d secret<string>
+local function f(a, b, c, d) end
+]]
+end)
+with({ 'luals' }, function ()
+    TEST [[
+---@param a secret string
+---@param b nosecret string
+---@param c readonly table
+---@field x readonly number
+local function f(a, b, c) end
+]]
+end)
+-- the default flags no keyword either
+TEST [[
+---@param a nosecret string
+---@param c readonly table
+local function f(a, c) end
+]]
+-- a class that is called like a keyword is a plain type name, not a keyword use
+with({ 'legacyluals' }, function ()
+    TEST [[
+---@class readonly
+---@param a readonly
+local function f(a) end
+]]
+end)

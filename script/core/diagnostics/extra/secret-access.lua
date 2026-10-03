@@ -70,6 +70,8 @@ for _, name in ipairs { 'secret', 'secret-unwrap', 'nosecret', 'secret-check', '
     docTags.setTagFlavors(name, { 'luals' })
 end
 docTags.setTagFlavors('secret-guard', { 'luals', 'wowluals' })
+-- and the keywords: `secret T` / `secret<T>` is wowlua-ls's `secret<T>` too
+docTags.setKeywordFlavors('secret', { 'luals', 'wowluals' })
 docTags.registerNameListTag('secret', 'doc.secret',
     'Marks a value as secret: using it before it is checked raises `secret-arithmetic`, `secret-comparison`, `secret-condition`, `secret-table-key` or `secret-access`.\n\n'
     .. '`---@secret` marks everything it is bound to; `---@secret a, b` only the named locals.')

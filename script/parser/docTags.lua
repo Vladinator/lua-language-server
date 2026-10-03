@@ -102,6 +102,24 @@ function m.getTagFlavors(name)
     return tagFlavors[name] or { 'luals' }
 end
 
+---@type table<string, string[]>
+local keywordFlavors = {}
+
+--- Say which annotation dialects know the field / type keyword `keyword` (see `setTagFlavors`). A
+--- keyword that never says is taken as `luals` only.
+---@param keyword string
+---@param flavors string[]
+function m.setKeywordFlavors(keyword, flavors)
+    keywordFlavors[keyword] = flavors
+end
+
+--- The dialects that know a registered keyword.
+---@param keyword string
+---@return string[]
+function m.getKeywordFlavors(keyword)
+    return keywordFlavors[keyword] or { 'luals' }
+end
+
 ---@param name string
 ---@return string?
 function m.getMarkerTagType(name)

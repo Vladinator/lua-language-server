@@ -345,6 +345,7 @@ Array<string>
 * ``"index-in-func-name"``: 函数名中包含索引
 * ``"inject-field"``: 向对象注入字段
 * ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+* ``"invalid-secret-guard"``: Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
 * ``"invisible"``: 使用不可见的值
 * ``"jump-local-scope"``: 跳入局部变量作用域
 * ``"keyword"``: 关键字使用不当
@@ -594,6 +595,7 @@ object<string, string>
     * duplicate-doc-param
     * incomplete-signature-doc
     * invalid-guard
+    * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -738,6 +740,7 @@ object<string, string>
     * duplicate-doc-param
     * incomplete-signature-doc
     * invalid-guard
+    * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -990,6 +993,10 @@ object<string, string>
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Opened",
+    /*
+    Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
+    */
+    "invalid-secret-guard": "Opened",
     /*
     使用不可见的值
     */
@@ -1332,6 +1339,10 @@ object<string, string>
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Warning",
+    /*
+    Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
+    */
+    "invalid-secret-guard": "Warning",
     /*
     使用不可见的值
     */

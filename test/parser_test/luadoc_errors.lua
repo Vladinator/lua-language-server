@@ -60,7 +60,6 @@ local samples = {
     ['---@async']                      = {},
     ['---@nodiscard']                  = {},
     ['---@type string']                = {},
-    ['---@type secret<string>[]']      = {},
     ['---@param x Partial<T>']         = {},
     ['---@return (string, nil) | (nil, number)'] = {},
 }

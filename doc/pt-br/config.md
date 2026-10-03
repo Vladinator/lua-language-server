@@ -345,6 +345,7 @@ Array<string>
 * ``"index-in-func-name"``: Índice em nome de função
 * ``"inject-field"``: Injetando um campo em um objeto
 * ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+* ``"invalid-secret-guard"``: Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
 * ``"invisible"``: Habilita diagnóstico para acessos a campos invisíveis.
 * ``"jump-local-scope"``: Pulando para um escopo de variável local
 * ``"keyword"``: Uso impróprio de palavra-chave
@@ -594,6 +595,7 @@ object<string, string>
     * duplicate-doc-param
     * incomplete-signature-doc
     * invalid-guard
+    * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -738,6 +740,7 @@ object<string, string>
     * duplicate-doc-param
     * incomplete-signature-doc
     * invalid-guard
+    * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -990,6 +993,10 @@ object<string, string>
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Opened",
+    /*
+    Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
+    */
+    "invalid-secret-guard": "Opened",
     /*
     Habilita diagnóstico para acessos a campos invisíveis.
     */
@@ -1333,6 +1340,10 @@ object<string, string>
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Warning",
+    /*
+    Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
+    */
+    "invalid-secret-guard": "Warning",
     /*
     Habilita diagnóstico para acessos a campos invisíveis.
     */

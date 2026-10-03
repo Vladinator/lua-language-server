@@ -345,6 +345,7 @@ Array<string>
 * ``"index-in-func-name"``: 函式名稱中包含索引
 * ``"inject-field"``: 向物件注入欄位
 * ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+* ``"invalid-secret-guard"``: Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
 * ``"invisible"``: 嘗試存取不可見的欄位
 * ``"jump-local-scope"``: 跳入區域變數作用域
 * ``"keyword"``: 關鍵字使用不當
@@ -594,6 +595,7 @@ object<string, string>
     * duplicate-doc-param
     * incomplete-signature-doc
     * invalid-guard
+    * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -738,6 +740,7 @@ object<string, string>
     * duplicate-doc-param
     * incomplete-signature-doc
     * invalid-guard
+    * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
     * undefined-doc-class
@@ -990,6 +993,10 @@ object<string, string>
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Opened",
+    /*
+    Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
+    */
+    "invalid-secret-guard": "Opened",
     /*
     嘗試存取不可見的欄位
     */
@@ -1332,6 +1339,10 @@ object<string, string>
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Warning",
+    /*
+    Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
+    */
+    "invalid-secret-guard": "Warning",
     /*
     嘗試存取不可見的欄位
     */

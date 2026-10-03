@@ -220,6 +220,17 @@ function m.registerTypeKeyword(keyword, resultField, description)
     keywordDescriptions['type:' .. keyword] = description
 end
 
+---@type table<string, string>
+local typeKeywordAliases = {}
+
+--- Another spelling of a registered type keyword (the same result field): parsed like it, but neither
+--- offered by completion nor shown in a type's view, which use the canonical spelling.
+---@param alias   string
+---@param keyword string an already registered type keyword
+function m.registerTypeKeywordAlias(alias, keyword)
+    typeKeywordAliases[alias] = assert(typeKeywords[keyword], 'register the keyword before its alias')
+end
+
 --- The registered type keywords with their descriptions, sorted, for completion.
 ---@return fun(): string?, string?
 function m.eachTypeKeyword()
@@ -229,7 +240,7 @@ end
 ---@param keyword string
 ---@return string?
 function m.getTypeKeyword(keyword)
-    return typeKeywords[keyword]
+    return typeKeywords[keyword] or typeKeywordAliases[keyword]
 end
 
 --- The registered type keywords whose result field is set on `source` (a `doc.type`), sorted.

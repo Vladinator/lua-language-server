@@ -36,8 +36,29 @@ else
 end
 ]]
 
--- `secretguard` on a non-first parameter: the guard narrows whichever argument it marks, not
+-- `secretcheck` on a non-first parameter: the check narrows whichever argument it marks, not
 -- just the first one (2026-09-27, closes the gap found comparing against wowlua-ls)
+-- (`secretcheck`, the earlier spelling, stays an alias: tested right after)
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret-check
+---@param a any
+---@param b secretcheck any
+local function chk2(a, b) return false end
+
+local x = f()
+local y = f()
+if not chk2(y, x) then
+    print(x + 5)
+else
+    print(<!x!> + 5)
+end
+]]
+
+-- `secretguard` and `secretguard<T>`: the earlier spelling, an alias with the same behavior
 TEST [[
 ---@secret
 ---@return number
@@ -48,16 +69,22 @@ local function f() return 0 end
 ---@param b secretguard any
 local function chk2(a, b) return false end
 
+---@secret-check
+---@param a any
+---@param b secretguard<any>
+local function chk3(a, b) return false end
+
 local x = f()
 local y = f()
 if not chk2(y, x) then
     print(x + 5)
-else
-    print(<!x!> + 5)
+end
+if not chk3(y, x) then
+    print(x + 5)
 end
 ]]
 
--- `secretguard<T>` (the generic-wrapper spelling) is pure sugar for the `secretguard T` prefix
+-- `secretcheck<T>` (the generic-wrapper spelling) is pure sugar for the `secretcheck T` prefix
 -- form -- same behavior, same narrowing
 TEST [[
 ---@secret
@@ -66,7 +93,7 @@ local function f() return 0 end
 
 ---@secret-check
 ---@param a any
----@param b secretguard<any>
+---@param b secretcheck<any>
 local function chk2(a, b) return false end
 
 local x = f()
@@ -78,7 +105,7 @@ else
 end
 ]]
 
--- without `secretguard` on either parameter, only the first still narrows -- the pre-existing,
+-- without `secretcheck` on either parameter, only the first still narrows -- the pre-existing,
 -- backward-compatible default
 TEST [[
 ---@secret
@@ -97,7 +124,7 @@ if not chk2(y, x) then
 end
 ]]
 
--- two parameters both marked `secretguard`: both narrow together on the same call, the
+-- two parameters both marked `secretcheck`: both narrow together on the same call, the
 -- equivalent of a multi-value guard like `canaccessallvalues(a, b)`
 TEST [[
 ---@secret
@@ -105,8 +132,8 @@ TEST [[
 local function f() return 0 end
 
 ---@secret-check
----@param a secretguard any
----@param b secretguard any
+---@param a secretcheck any
+---@param b secretcheck any
 local function chk3(a, b) return false end
 
 local x = f()
@@ -721,6 +748,9 @@ do
     -- the keyword in front of a field name and in front of a type
     assertOffers('---@class A\n---@field sec<??> string\n', 'secret', keyword)
     assertOffers('---@param token sec<??>\nlocal function f(token) end\n', 'secret', keyword)
+    -- the parameter keyword: `secretcheck` is offered, its alias `secretguard` is not
+    assertOffers('---@param token secretc<??>\nlocal function f(token) end\n', 'secretcheck', keyword)
+    assert(offered('---@param token secretg<??>\nlocal function f(token) end\n')['secretguard'] == nil, 'the alias is not offered')
     -- the locals a `---@secret a, b` can name
     local names = offered('---@secret a<??>\nlocal abc, xyz = 1, 2\n')
     assert(names['abc'] == variable and not names['xyz'], 'names in `---@secret a`')

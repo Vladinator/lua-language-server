@@ -7,6 +7,7 @@ local guide  = require 'parser.guide'
 local vm     = require 'vm'
 local core   = require 'core.diagnostics'
 local converter = require 'proto.converter'
+local furi = require 'file-uri'
 
 ---@diagnostic disable: await-in-sync
 
@@ -112,6 +113,26 @@ local ok, err = pcall(function ()
     -- only the top level of the file: a declaration inside a block is left as it is
     local nested = analyse('do\n    local addonName, ns = ...\n    return addonName, ns\nend\n')
     assert(nested.ns == 'table', 'indented: ' .. tostring(nested.ns))
+
+    -- the namespace is shared by the files of the addon: a field written in one file is known in the other
+    local aUri = furi.encode(TESTROOT .. 'ns-a.lua')
+    local bUri = furi.encode(TESTROOT .. 'ns-b.lua')
+    files.setText(aUri, table.concat({ 'local addonName, ns = ...', 'ns.Shared = 1', 'function ns.Make() return "x" end' }, '\n'))
+    files.setText(bUri, table.concat({ 'local addonName, ns = ...', 'local n = ns.Shared', 'local m = ns.Make()', 'local o = ns.NotThere', 'return n, m, o' }, '\n'))
+    files.open(bUri)
+    ---@type table<string, string>
+    local shared = {}
+    guide.eachSourceType(assert(files.getState(bUri)).ast, 'local', function (source)
+        local name = source[1]
+        if type(name) == 'string' then
+            shared[name] = vm.getInfer(source):view(bUri)
+        end
+    end)
+    files.remove(aUri)
+    files.remove(bUri)
+    assert(shared.n == 'integer', 'a field of the other file: ' .. tostring(shared.n))
+    assert(shared.m == 'string', 'a function of the other file: ' .. tostring(shared.m))
+    assert(shared.o == 'unknown' or shared.o == 'nil', 'a field nobody sets: ' .. tostring(shared.o))
 
     -- no .toc: nothing
     os.remove(tocPath)

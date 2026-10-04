@@ -144,6 +144,73 @@ print(c .. 'x')
 print(<!d!> + 1)
 ]]
 
+-- the same on an `---@overload` signature (no fallback: `T?`): the overload's return is a signature of its own
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@generic T
+---@param v T
+---@param fallback nosecret<T>
+---@return nosecret<T>
+---@overload fun<T>(v: T): nosecret<T>?
+local function clean(v, fallback) return v end
+
+---@generic T
+---@param v T
+---@param fallback T
+---@return T
+---@overload fun<T>(v: T): T?
+local function keep(v, fallback) return v end
+
+local x = f()
+print(clean(x) + 1)
+print(clean(x, 2) + 1)
+local a = clean(x)
+print(a + 1)
+print(<!keep(x)!> + 1)
+print(<!keep(x, 2)!> + 1)
+]]
+
+-- a secret that enters a generic through a LATER argument of the same `T` (the type of `T` is the first one's, the
+-- secrecy of every argument comes out of it), and through the return of a callback typed `fun(): T`
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@generic T
+---@param first T
+---@param second T
+---@return T
+local function pick(first, second) return first end
+
+---@generic T
+---@param fn fun(): T
+---@return T
+local function call(fn) return fn() end
+
+---@generic T
+---@param fn fun(): T
+---@return nosecret<T>
+local function callClean(fn) return fn() end
+
+---@secret
+---@return number
+function GlobalSecret() return 0 end
+
+local x = f()
+print(<!pick(x, 1)!> + 1)
+print(<!pick(1, x)!> + 1)
+print(pick(1, 2) + 1)
+print(<!call(f)!> + 1)
+print(<!call(GlobalSecret)!> + 1)
+print(callClean(GlobalSecret) + 1)
+print(callClean(f) + 1)
+print(call(function() return 1 end) + 1)
+]]
+
 -- the same through a table the function is exported in (a shared namespace), read through an alias
 TEST [[
 ---@secret

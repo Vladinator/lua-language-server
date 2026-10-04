@@ -398,6 +398,14 @@ function mt:resolve(uri, args)
             -- the rebuilt node is a fresh one: carry the argument's flags (e.g. a taint bit)
             vm.propagateFlags(argNode, newArgNode)
             resolve(sign, newArgNode)
+        else
+            -- `T` is already bound (by an earlier argument: the first one wins, as the type of `T` goes), but what this
+            -- argument carries (a registered flag, see vm/flags.lua) can still come back out through `T`: keep it
+            for name in pairs(genericNames) do
+                if resolved[name] then
+                    vm.propagateFlags(argNode, resolved[name])
+                end
+            end
         end
     end
 

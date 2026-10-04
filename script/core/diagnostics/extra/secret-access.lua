@@ -261,7 +261,15 @@ local function returnsNoSecret(callee, slot)
     end
     local found = false
     for obj in node:eachObject() do
-        if obj.type == 'function' then
+        if obj.type == 'doc.type.function' then
+            -- (an `---@overload fun(...): nosecret T` signature, or a `fun(): nosecret T` type)
+            ---@cast obj parser.object
+            local ret = obj.returns and obj.returns[slot]
+            if not (ret and ret.nosecret) then
+                return false
+            end
+            found = true
+        elseif obj.type == 'function' then
             ---@cast obj parser.object
             local declared = false
             for _, doc in ipairs(obj.bindDocs or {}) do

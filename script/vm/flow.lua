@@ -182,12 +182,43 @@ end
 --- compiler makes up (`a == b` gives a `boolean` with `parent = source`): a new one for each
 --- compile of the same source, equal in everything that matters. Without this a loop that assigns
 --- from such an expression never settles (each pass adds one more equal-looking object).
+---
+--- Asked for the same objects over and over (every comparison of two states of a loop, `nodeEqual`), so the key of an
+--- object is made once and remembered, and the parent is named by a small integer instead of `tostring(table)`
+--- (which formats the address into a new string each time: 3.6% of a whole diagnosis on wow-addon-console).
+---@type table<table, integer>
+local identities = setmetatable({}, { __mode = 'k' })
+local nextIdentity = 0
+
+---@param value any
+---@return any
+local function identityOf(value)
+    if type(value) ~= 'table' then
+        return value
+    end
+    local id = identities[value]
+    if not id then
+        nextIdentity = nextIdentity + 1
+        id = nextIdentity
+        identities[value] = id
+    end
+    return id
+end
+
+---@type table<table, string>
+local objectKeys = setmetatable({}, { __mode = 'k' })
+
 ---@param obj vm.node.object
 ---@return any
 local function objectKey(obj)
     if type(obj) == 'table' and obj.start and obj.finish and obj.parent and obj.type ~= 'global' then
-        return ('%s@%s-%s#%s#%s'):format(tostring(obj.type), tostring(obj.start), tostring(obj.finish),
-            tostring(obj.parent), tostring(obj[1]))
+        local key = objectKeys[obj]
+        if not key then
+            key = ('%s@%s-%s#%s#%s'):format(tostring(obj.type), tostring(obj.start), tostring(obj.finish),
+                tostring(identityOf(obj.parent)), tostring(identityOf(obj[1])))
+            objectKeys[obj] = key
+        end
+        return key
     end
     return obj
 end
@@ -2245,6 +2276,33 @@ function vm.buildFlowUnguarded(main)
     return result
 end
 
+---@class vm.flow.docIndex
+---@field casts      parser.object[] the `doc.cast`s of a file, in order
+---@field correlated parser.object[] the `doc.correlated`s of a file, in order
+
+--- Every function of a file builds its own flow, and each one used to walk all the docs of the file to find its
+--- `---@cast` / `---@correlated` (functions x docs). The two kinds are listed once per file.
+---@type table<table, vm.flow.docIndex>
+local docIndexes = setmetatable({}, { __mode = 'k' })
+
+---@param docs parser.object[]
+---@return vm.flow.docIndex
+local function docIndexOf(docs)
+    local index = docIndexes[docs]
+    if not index then
+        index = { casts = {}, correlated = {} }
+        for _, doc in ipairs(docs) do
+            if doc.type == 'doc.cast' then
+                index.casts[#index.casts+1] = doc
+            elseif doc.type == 'doc.correlated' then
+                index.correlated[#index.correlated+1] = doc
+            end
+        end
+        docIndexes[docs] = index
+    end
+    return index
+end
+
 ---@param main parser.object
 ---@return vm.flow
 function vm.buildFlowBody(main)
@@ -2300,8 +2358,9 @@ function vm.buildFlowBody(main)
     local castsInside = {}
     ---@type parser.object[]
     local rootDocs = guide.getRoot(main).docs or {}
-    for _, doc in ipairs(rootDocs) do
-        if doc.type == 'doc.cast' and doc.name and doc.start >= main.start and doc.finish <= main.finish then
+    local docIndex = docIndexOf(rootDocs)
+    for _, doc in ipairs(docIndex.casts) do
+        if doc.name and doc.start >= main.start and doc.finish <= main.finish then
             ---@type parser.object?, parser.object?
             local before, after
             for _, item in ipairs(items) do
@@ -2343,8 +2402,8 @@ function vm.buildFlowBody(main)
     -- declaration, keyed by each member's own declaration (matching `refKey`'s shape for a local).
     ---@type table<vm.flow.key, vm.flow.key[]>
     local correlatedGroups = {}
-    for _, doc in ipairs(rootDocs) do
-        if doc.type == 'doc.correlated' and doc.names
+    for _, doc in ipairs(docIndex.correlated) do
+        if doc.names
         and doc.start >= main.start and doc.finish <= main.finish then
             ---@type parser.object[]
             local decls = {}

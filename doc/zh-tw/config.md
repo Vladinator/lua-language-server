@@ -363,6 +363,7 @@ Array<string>
 * ``"err-nonstandard-symbol"``
 * ``"err-then-as-do"``
 * ``"exp-in-action"``: 表達式出現在陳述式位置
+* ``"generic-param-mismatch"``: Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
 * ``"global-close-attribute"``: 全域變數使用 close 屬性
 * ``"global-element"``: 對全域元素的警告
 * ``"global-in-nil-env"``: 不能使用全域變數（ `_ENV` 被設定為 `nil`）
@@ -694,6 +695,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
     * mutate-readonly
@@ -854,6 +856,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
     * mutate-readonly
@@ -1047,6 +1050,10 @@ object<string, string>
     空程式碼區塊
     */
     "empty-block": "Opened",
+    /*
+    Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
+    */
+    "generic-param-mismatch": "Opened",
     /*
     對全域元素的警告
     */
@@ -1441,6 +1448,10 @@ object<string, string>
     空程式碼區塊
     */
     "empty-block": "Hint",
+    /*
+    Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
+    */
+    "generic-param-mismatch": "Warning",
     /*
     對全域元素的警告
     */

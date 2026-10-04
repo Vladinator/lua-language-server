@@ -363,6 +363,7 @@ Array<string>
 * ``"err-nonstandard-symbol"``
 * ``"err-then-as-do"``
 * ``"exp-in-action"``: 文の位置に式が出現
+* ``"generic-param-mismatch"``: Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
 * ``"global-close-attribute"``: グローバル変数への close 属性
 * ``"global-element"``: グローバル要素に関する警告診断を有効にします。
 * ``"global-in-nil-env"``: グローバル変数を使用できない（`_ENV` が `nil`）場合の診断を有効にします。
@@ -694,6 +695,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
     * mutate-readonly
@@ -854,6 +856,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
     * mutate-readonly
@@ -1047,6 +1050,10 @@ object<string, string>
     空のコードブロック診断を有効にします。
     */
     "empty-block": "Opened",
+    /*
+    Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
+    */
+    "generic-param-mismatch": "Opened",
     /*
     グローバル要素に関する警告診断を有効にします。
     */
@@ -1442,6 +1449,10 @@ object<string, string>
     空のコードブロック診断を有効にします。
     */
     "empty-block": "Hint",
+    /*
+    Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
+    */
+    "generic-param-mismatch": "Warning",
     /*
     グローバル要素に関する警告診断を有効にします。
     */

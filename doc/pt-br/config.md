@@ -363,6 +363,7 @@ Array<string>
 * ``"err-nonstandard-symbol"``
 * ``"err-then-as-do"``
 * ``"exp-in-action"``: Expressão usada na posição de instrução
+* ``"generic-param-mismatch"``: Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
 * ``"global-close-attribute"``: Atributo close em variável global
 * ``"global-element"``: Habilita diagnóstico para avisar sobre elementos globais.
 * ``"global-in-nil-env"``: Não é possível usar variáveis globais (`_ENV` foi definido como `nil`)
@@ -694,6 +695,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
     * mutate-readonly
@@ -854,6 +856,7 @@ object<string, string>
     * assign-type-mismatch
     * cast-local-type
     * cast-type-mismatch
+    * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
     * mutate-readonly
@@ -1047,6 +1050,10 @@ object<string, string>
     Bloco vazio
     */
     "empty-block": "Opened",
+    /*
+    Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
+    */
+    "generic-param-mismatch": "Opened",
     /*
     Habilita diagnóstico para avisar sobre elementos globais.
     */
@@ -1442,6 +1449,10 @@ object<string, string>
     Bloco vazio
     */
     "empty-block": "Hint",
+    /*
+    Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
+    */
+    "generic-param-mismatch": "Warning",
     /*
     Habilita diagnóstico para avisar sobre elementos globais.
     */

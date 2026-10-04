@@ -100,3 +100,20 @@ function vm.applyDerivedFlags(source, node)
         end
     end
 end
+
+--- Make the registered flags of `node` what `value` carries (a value that was assigned), plus what `declaration` stands
+--- for by itself (a plugin's flag derived from the declaration's own docs, see `vm.registerFlagDeriver`). For a node
+--- that was rebuilt from a variable's own node: that one holds the flags of every value the variable was ever given.
+---@param node        vm.node
+---@param value       vm.node
+---@param declaration parser.object?
+function vm.resetFlags(node, value, declaration)
+    local declared = declaration and vm.deriveFlags(declaration)
+    for name in pairs(propagatingFlags) do
+        if value:hasFlag(name) or (declared and declared[name]) then
+            node:setFlag(name)
+        else
+            node:clearFlag(name)
+        end
+    end
+end

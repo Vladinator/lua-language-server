@@ -20,6 +20,19 @@ vm.registerGenesisRule('local', function (source, node)
     end
 end)
 
+--- what `local function zzFlaggedFn` returns is flagged (a plugin tagging a function: the value of every call carries it)
+vm.registerGenesisRule('function.return', function (source, node)
+    local func = source.parent
+    local holder = func and func.parent
+    if holder and holder.type == 'local' and type(holder[1]) == 'string' and holder[1]:find('^zzFlaggedFn') then
+        node:setFlag(FLAG)
+    end
+end)
+--- ... and a local named `zzFlagged...` is flagged by its declaration, which stays true whatever is assigned to it
+vm.registerFlagDeriver(FLAG, function (source)
+    return source.type == 'local' and type(source[1]) == 'string' and source[1]:find('^zzFlagged') ~= nil
+end)
+
 local script = table.concat({
     '---@generic T',
     '---@param first T',
@@ -40,6 +53,30 @@ local script = table.concat({
     'local r_none   = pick(1, plain)',
     'local r_same   = same(zzFlaggedValue)',
     'local r_clean  = same(plain)',
+    '',
+    'local function zzFlaggedFn() return 1 end',
+    -- a value that carries the flag, then values that do not: the variable follows what it holds NOW
+    'local inheritedA = zzFlaggedFn()',
+    'inheritedA = 1',
+    'local r_literalInt = inheritedA',
+    'local inheritedB = zzFlaggedFn()',
+    'inheritedB = "s"',
+    'local r_literalStr = inheritedB',
+    'local inheritedC = zzFlaggedFn()',
+    'inheritedC = plain',
+    'local r_variable = inheritedC',
+    'local inheritedD = zzFlaggedFn()',
+    'if plain > 1 then inheritedD = 1 else inheritedD = 2 end',
+    'local r_branches = inheritedD',
+    'local inheritedE = 1',
+    'inheritedE = zzFlaggedFn()',
+    'local r_flaggedLater = inheritedE',
+    'local inheritedF = zzFlaggedFn()',
+    'local r_untouched = inheritedF',
+    -- a declaration that is flagged by itself stays flagged
+    'local zzFlaggedDeclared = 1',
+    'zzFlaggedDeclared = 2',
+    'local r_declared = zzFlaggedDeclared',
 }, string.char(10)) .. string.char(10)
 
 local expected = {
@@ -48,6 +85,13 @@ local expected = {
     r_none     = false,
     r_same     = true,
     r_clean    = false,
+    r_literalInt = false,
+    r_literalStr = false,
+    r_variable   = false,
+    r_branches   = false,
+    r_flaggedLater = true,
+    r_untouched  = true,
+    r_declared   = true,   -- the declaration itself is flagged: an assignment does not clear that
 }
 
 files.setText(TESTURI, script)
@@ -62,7 +106,7 @@ guide.eachSourceType(state.ast, 'local', function (source)
             ('%s: flag %s, expected %s'):format(name, tostring(flagged), tostring(expected[name])))
     end
 end)
-assert(seen == 5, 'every case was looked at: ' .. seen)
+assert(seen == 12, 'every case was looked at: ' .. seen)
 
 -- the type of `T` is the first candidate's, whatever the later arguments are (TypeScript's inference of one candidate)
 guide.eachSourceType(state.ast, 'local', function (source)

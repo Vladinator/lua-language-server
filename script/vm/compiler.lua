@@ -2520,7 +2520,13 @@ local compilerSwitch = util.switch()
         if  locNode.hasDefined
         and guide.isLiteral(source.value) then
             vm.setNode(source, locNode)
-            vm.getNode(source):narrow(guide.getUri(source), source.value.type)
+            local assigned = vm.getNode(source)
+            if assigned then
+                assigned:narrow(guide.getUri(source), source.value.type)
+                -- (built from the variable's node, which holds the flags of every value it was ever given: the flags of
+                -- what is assigned NOW are the value's own, plus what the declaration itself stands for)
+                vm.resetFlags(assigned, valueNode, source.node)
+            end
         else
             vm.setNode(source, valueNode)
         end

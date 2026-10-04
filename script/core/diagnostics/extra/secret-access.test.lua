@@ -211,6 +211,88 @@ print(callClean(f) + 1)
 print(call(function() return 1 end) + 1)
 ]]
 
+-- the flag of a variable follows the value it holds NOW: assigning a literal (any kind) clears what an earlier secret
+-- value gave it (found 2026-10-04: `a = 1` left `a` secret, `a = plain` did not)
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+local plain = 5
+local a = f()
+a = 1
+print(a + 1)
+local b = f()
+b = 's'
+print(#b)
+local c = f()
+c = true
+print(c == true)
+local d = f()
+d = -1
+print(d + 1)
+local e = f()
+d = 1.5
+print(d + 1)
+local g = f()
+if plain > 1 then g = 1 else g = 2 end
+print(g + 1)
+local h = f()
+h = plain
+print(h + 1)
+-- a secret again after a later assignment
+local i = 1
+i = f()
+print(<!i!> + 1)
+local j = f()
+j = 1
+j = f()
+print(<!j!> + 1)
+-- still secret where the clean assignment did not happen
+local k = f()
+print(<!k!> + 1)
+if plain > 1 then k = 1 end
+print(<!k!> + 1)
+]]
+
+-- a local that is declared secret stays secret whatever is assigned to it
+TEST [[
+---@secret
+local declared = 1
+declared = 2
+print(<!declared!> + 1)
+declared = 's'
+print(<!declared!> == 's')
+]]
+
+-- a multiple assignment takes effect after every value was read: a swap moves the secret to the other variable
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+local x, y = f(), 1
+x, y = y, x
+print(x + 1)
+print(<!y!> + 1)
+-- the same back
+x, y = y, x
+print(<!x!> + 1)
+print(y + 1)
+-- a rotation
+local p, q, r = f(), 1, 2
+p, q, r = q, r, p
+print(p + 1)
+print(q + 1)
+print(<!r!> + 1)
+-- separate statements are not parallel
+local m, n = f(), 1
+m = n
+n = m
+print(m + 1)
+print(n + 1)
+]]
+
 -- the same through a table the function is exported in (a shared namespace), read through an alias
 TEST [[
 ---@secret

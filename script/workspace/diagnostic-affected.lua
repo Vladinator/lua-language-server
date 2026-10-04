@@ -15,7 +15,13 @@
 --     always affected, at file granularity (never asks which export a requirer actually reads).
 --  2. Global-name reachability: a file whose `getglobal` references intersect a changed file's
 --     `setglobal` declarations is affected. A pure superset of any real relationship a shared name
---     could cause, so it can only over-include.
+--     could cause, so it can only over-include. A global that only carries a field, a method or an
+--     index written by the changed file (`Foo.bar = 1`, `function Foo:run() end`) counts as declared
+--     too: the other files see those members through the same name.
+--  3. Type-name reachability: a file that names a type (`---@type T`, `---@param x T`,
+--     `---@class C : T`, ...) is affected by a changed file that declares `---@class T`,
+--     `---@alias T` or `---@enum T`; a file that declares the same class is affected as well (the
+--     fields of a class are the union of its declarations).
 -- A file with a *dynamic* (non-literal-argument) `require` call is always affected, workspace-wide,
 -- whenever this module is asked at all: its true require target is unknown, so it can't be proven
 -- unrelated to the change.
@@ -32,6 +38,8 @@ local m = {}
 ---@class diagnostic-affected.fileInfo
 ---@field declaresGlobal table<string, true>
 ---@field refsGlobal     table<string, true>
+---@field declaresType   table<string, true> -- names of `---@class` / `---@alias` / `---@enum`
+---@field refsType       table<string, true> -- every type name the file's docs mention (declared ones included)
 ---@field requires       uri[]
 ---@field dynamic        boolean -- has a require() call whose target could not be resolved statically
 
@@ -41,6 +49,10 @@ local m = {}
 -- used to declare `Foo`, now declares `Bar` instead) must still be matched against `Foo` for one
 -- more pass, or a file that only referenced the old name would wrongly look unaffected.
 m.lastDeclares = {}
+
+---@type table<uri, table<string, true>>
+-- The same for the declared type names (a class renamed or removed must still reach the files that name it).
+m.lastTypes = {}
 
 ---@param uri uri
 ---@return diagnostic-affected.fileInfo?
@@ -60,7 +72,7 @@ local function getFileInfo(uri)
         return nil
     end
     ---@type diagnostic-affected.fileInfo
-    local found = { declaresGlobal = {}, refsGlobal = {}, requires = {}, dynamic = false }
+    local found = { declaresGlobal = {}, refsGlobal = {}, declaresType = {}, refsType = {}, requires = {}, dynamic = false }
     guide.eachSourceType(state.ast, 'setglobal', function (src)
         local name = src[1]
         if type(name) == 'string' then
@@ -71,6 +83,24 @@ local function getFileInfo(uri)
         local name = src[1]
         if type(name) == 'string' then
             found.refsGlobal[name] = true
+            local parent = src.parent
+            if parent and parent.node == src
+            and (parent.type == 'setfield' or parent.type == 'setmethod' or parent.type == 'setindex') then
+                found.declaresGlobal[name] = true
+            end
+        end
+    end)
+    guide.eachSource(state.ast.docs, function (doc)
+        local kind = doc.type
+        local name = doc[1]
+        if type(name) ~= 'string' then
+            return
+        end
+        if kind == 'doc.class.name' or kind == 'doc.alias.name' or kind == 'doc.enum.name' then
+            found.declaresType[name] = true
+            found.refsType[name] = true
+        elseif kind == 'doc.type.name' or kind == 'doc.extends.name' or kind == 'doc.see.name' then
+            found.refsType[name] = true
         end
     end)
     guide.eachSourceType(state.ast, 'call', function (call)
@@ -158,6 +188,9 @@ function m.getAffectedUris(suri, changedUris)
         local declares = info.declaresGlobal
         local previous = m.lastDeclares[u]
         m.lastDeclares[u] = declares
+        local declaredTypes = info.declaresType
+        local previousTypes = m.lastTypes[u]
+        m.lastTypes[u] = declaredTypes
         for fileUri in files.eachFile(suri) do
             if not affected[fileUri] then
                 local finfo = getFileInfo(fileUri)
@@ -172,6 +205,22 @@ function m.getAffectedUris(suri, changedUris)
                     if not hit and previous then
                         for name in pairs(previous) do
                             if finfo.refsGlobal[name] then
+                                hit = true
+                                break
+                            end
+                        end
+                    end
+                    if not hit then
+                        for name in pairs(declaredTypes) do
+                            if finfo.refsType[name] then
+                                hit = true
+                                break
+                            end
+                        end
+                    end
+                    if not hit and previousTypes then
+                        for name in pairs(previousTypes) do
+                            if finfo.refsType[name] then
                                 hit = true
                                 break
                             end

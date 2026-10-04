@@ -185,6 +185,12 @@ return function (uri, callback)
         local node = TYPE_NODES[source.type]
         if node then
             report(dialects, node.flavors, node.label, source.start, source.finish, callback)
+        elseif source.type == 'doc.param' then
+            -- `---@param a ?string`: the parser takes the `?` for the optional marker and sets the flag here
+            local extends = source.extends
+            if source.prefixOptional and extends then
+                report(dialects, { 'luals', 'wowluals' }, '?T', extends.start, extends.finish, callback)
+            end
         elseif source.type == 'doc.type' then
             if source.prefixOptional then
                 report(dialects, { 'luals', 'wowluals' }, '?T', source.start, source.finish, callback)

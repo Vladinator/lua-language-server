@@ -241,6 +241,20 @@ local function getFinish()
     return TokenFinishs[Ci] + Offset + 1
 end
 
+--- After a param / field name that ends at `nameFinish`: is the `?` that follows the `?T` prefix form (a space
+--- before it, none after it: `---@param a ?string`) rather than the optional marker (`a? string`, `a?: string`)?
+---@param nameFinish integer
+---@return boolean
+local function isPrefixOptionalAfterName(nameFinish)
+    local questionStart, questionFinish = TokenStarts[Ci + 1], TokenFinishs[Ci + 1]
+    local typeStart = TokenStarts[Ci + 2]
+    if not questionStart or not questionFinish or not typeStart then
+        return false
+    end
+    return questionStart + Offset > nameFinish
+       and typeStart == questionFinish + 1
+end
+
 local function getMark()
     return TokenMarks[Ci]
 end
@@ -1544,6 +1558,7 @@ local docSwitch = util.switch()
         end
         result.param = paramNode
         if checkToken('symbol', '?', 1) then
+            result.prefixOptional = isPrefixOptionalAfterName(paramNode.finish) or nil
             nextToken()
             result.optional = true
         end

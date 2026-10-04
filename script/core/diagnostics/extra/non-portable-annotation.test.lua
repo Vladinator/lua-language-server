@@ -180,7 +180,17 @@ local function f(a) end
 ---@param a (<!string extends number ? 1 : 2)!>
 local function f(a) end
 ]]
-    -- (`---@param a ?string` reads the `?` as the optional-parameter marker: only the type positions are checked)
+    TEST [[
+---@param a ?<!string!>
+local function f(a) end
+]]
+    -- the optional marker itself is portable, also with spaces around it
+    TEST [[
+---@param a? string
+---@param b ? string
+---@param c?  string
+local function f(a, b, c) end
+]]
     TEST [[
 ---@type ?<!string!>
 local a

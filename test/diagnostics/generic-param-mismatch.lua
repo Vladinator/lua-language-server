@@ -16,7 +16,7 @@ f(1, <!'asd'!>)
 f('a', <!true!>)
 ]]
 
--- `T?` and `nosecret<T>`-style wrappers around `T` bind and check the same way
+-- an optional parameter of `T` binds and checks the same way
 TEST [[
 ---@generic T
 ---@param value T
@@ -129,10 +129,10 @@ plain(1, 'x')
 TEST [[
 ---@generic T
 ---@param value T
----@param fallback nosecret<T>
----@return nosecret<T>
----@overload fun<T>(value: T): nosecret<T>?
----@overload fun<T>(value: T, fallback: nil): nosecret<T>?
+---@param fallback T
+---@return T
+---@overload fun<T>(value: T): T?
+---@overload fun<T>(value: T, fallback: nil): T?
 local function orFallback(value, fallback) return value end
 
 ---@type number

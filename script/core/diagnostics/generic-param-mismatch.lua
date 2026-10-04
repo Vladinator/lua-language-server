@@ -39,7 +39,7 @@ local function candidateOf(uri, node)
     return out:removeOptional()
 end
 
---- The type parameters a parameter's declared type names directly (`T`, `T?`, `T|nil`, `nosecret<T>`), not inside a
+--- The type parameters a parameter's declared type names directly (`T`, `T?`, `T|nil`, or `T` under a type keyword a plugin registers), not inside a
 --- container (`T[]`, `fun(x: T)`): those are bound through their elements.
 ---@param signNode vm.node
 ---@return string[]

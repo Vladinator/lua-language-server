@@ -6646,3 +6646,73 @@ if v then
     local <?r?> = k
 end
 ]]
+
+-- An overload parameter declared as exactly `nil` takes only a nil argument: the overload with the nil slot is not a
+-- candidate for a call that passes a value (it used to be kept, and its `T?` return joined the right signature's `T`).
+TEST 'number' [[
+---@param value number
+---@param fallback number
+---@return number
+---@overload fun(value: number, fallback: nil): number?
+local function f(value, fallback) return value end
+
+local <?r?> = f(5, 10)
+]]
+
+TEST 'number?' [[
+---@param value number
+---@param fallback number
+---@return number
+---@overload fun(value: number, fallback: nil): number?
+local function f(value, fallback) return value end
+
+local <?r?> = f(5, nil)
+]]
+
+TEST 'number?' [[
+---@param value number
+---@param fallback number
+---@return number
+---@overload fun(value: number, fallback: nil): number?
+local function f(value, fallback) return value end
+
+local <?r?> = f(5)
+]]
+
+-- a nilable argument can be the nil one: both signatures stay candidates
+TEST 'number?' [[
+---@param value number
+---@param fallback number
+---@return number
+---@overload fun(value: number, fallback: nil): number?
+local function f(value, fallback) return value end
+
+---@type number?
+local maybe
+local <?r?> = f(5, maybe)
+]]
+
+-- the same with a generic `T`
+TEST 'integer' [[
+---@generic T
+---@param value T
+---@param fallback T
+---@return T
+---@overload fun<T>(value: T): T?
+---@overload fun<T>(value: T, fallback: nil): T?
+local function f(value, fallback) return value end
+
+local <?r?> = f(5, 10)
+]]
+
+TEST 'integer?' [[
+---@generic T
+---@param value T
+---@param fallback T
+---@return T
+---@overload fun<T>(value: T): T?
+---@overload fun<T>(value: T, fallback: nil): T?
+local function f(value, fallback) return value end
+
+local <?r?> = f(5, nil)
+]]

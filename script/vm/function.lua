@@ -402,6 +402,13 @@ local function isAllParamMatched(uri, args, params)
         end
         local argNode = vm.compileNode(args[i])
         local defNode = vm.compileNode(params[i])
+        -- a parameter declared as exactly `nil` (`---@overload fun(a: T, b: nil)`) takes only a nil argument. canCastType
+        -- lets anything into a `nil` slot (the leniency for `local x = nil`), which kept such an overload next to the
+        -- signature that really matches and made its `T?` return win a union with the right one
+        if vm.getInfer(defNode):viewIfUnknownOrNil(uri) == 'nil'
+        and not (argNode:isNullable() or vm.isSubType(uri, argNode, 'nil')) then
+            return false
+        end
         if not vm.canCastType(uri, defNode, argNode) then
             return false
         end

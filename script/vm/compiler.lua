@@ -3579,8 +3579,12 @@ local frames    = {}
 local depth     = 0
 ---@type table<any, vm.compileFrame>
 local compiling = {}
+-- Weak keys: an entry is dropped when its frame closes, but not every path gets there (the ancestor frame
+-- moved on, the node was recompiled), and a strong table kept the whole AST of a file alive for good after
+-- every edit of it (found 2026-10-04: raiderio-addon retained ~190 MB per save). The value (the ancestor
+-- frame) points back at the key through `tainted`: an ephemeron, which Lua collects correctly.
 ---@type table<any, vm.compileFrame>
-local taintedBy = {}
+local taintedBy = setmetatable({}, { __mode = 'k' })
 
 --- Set (by vm/flow.lua, behind `LLS_FLOW=1`) to a function called on a source's first-ever
 --- compile, whether the stack is empty or this compile is nested inside another (a `require`d

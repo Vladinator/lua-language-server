@@ -2,6 +2,7 @@
 require 'other.view-string'
 require 'other.configuration'
 require 'other.compile-order'
+require 'other.retention'
 require 'other.core-features'
 require 'other.require-dofile'
 require 'other.diagnostic-order'

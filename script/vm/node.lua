@@ -567,7 +567,8 @@ function vm.clearNodeCache()
         return
     end
     log.debug('clearNodeCache')
-    vm.nodeCache = {}
+    -- weak keys like the first cache (line 10): a plain table kept the sources of an edited file alive until the next clear
+    vm.nodeCache = setmetatable({}, util.MODE_K)
 end
 
 local ID = 0

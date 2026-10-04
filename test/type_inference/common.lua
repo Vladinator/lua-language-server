@@ -6716,3 +6716,86 @@ local function f(value, fallback) return value end
 
 local <?r?> = f(5, nil)
 ]]
+
+-- The targets of one multiple assignment take effect together, after every value was read: `x, y = y, x` swaps. The
+-- flow engine applied the targets one after the other and read the second value in the state the first had just
+-- written (found 2026-10-04 with a secret swapped into a variable).
+TEST 'integer' [[
+local x = 1
+local y = 's'
+x, y = y, x
+local <?r?> = y
+]]
+
+TEST 'string' [[
+local x = 1
+local y = 's'
+x, y = y, x
+local <?r?> = x
+]]
+
+-- nil on one side
+TEST 'integer' [[
+local p, q = 1, nil
+p, q = q, p
+local <?r?> = q
+]]
+
+TEST 'nil' [[
+local p, q = 1, nil
+p, q = q, p
+local <?r?> = p
+]]
+
+-- a value computed from the old ones
+TEST 'integer' [[
+local a, b = 1, 2
+a, b = b, a + b
+local <?r?> = a
+]]
+
+-- three targets (a rotation)
+TEST 'boolean' [[
+local x, y, z = 1, 's', true
+x, y, z = z, x, y
+local <?r?> = x
+]]
+
+TEST 'integer' [[
+local x, y, z = 1, 's', true
+x, y, z = z, x, y
+local <?r?> = y
+]]
+
+TEST 'string' [[
+local x, y, z = 1, 's', true
+x, y, z = z, x, y
+local <?r?> = z
+]]
+
+-- inside a branch and a loop
+TEST 'string|integer' [[
+local x = 1
+local y = 's'
+if x then
+    x, y = y, x
+end
+local <?r?> = y
+]]
+
+-- separate statements are NOT parallel: the second one reads what the first wrote
+TEST 'string' [[
+local x = 1
+local y = 's'
+x = y
+y = x
+local <?r?> = y
+]]
+
+-- the old value still counts where the swapped value is read in the same statement
+TEST 'string' [[
+local x = 1
+local y = 's'
+x, y = y, x
+local <?r?> = x
+]]

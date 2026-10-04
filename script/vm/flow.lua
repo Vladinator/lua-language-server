@@ -670,19 +670,20 @@ end
 ---@param state table<vm.flow.key, vm.node>
 ---@param stmt  parser.object
 ---@param ctx vm.flow.context
-local function applyStmt(state, stmt, ctx)
+---@param readState? table<vm.flow.key, vm.node> the state the right-hand side is read in, when that is not `state` (see `applyStmts`)
+local function applyStmt(state, stmt, ctx, readState)
     applyCasts(state, ctx.castsAt[stmt])
     local t = stmt.type
     if t == 'local' then
         if ctx.interesting[stmt] then
-            state[stmt] = assignNode(stmt, state, ctx)
+            state[stmt] = assignNode(stmt, readState or state, ctx)
         end
     elseif t == 'setlocal' then
         local decl = stmt.node
         if decl then
             killBelow(state, declKey(decl))
             if state[decl] then
-                state[decl] = assignNode(stmt, state, ctx)
+                state[decl] = assignNode(stmt, readState or state, ctx)
             end
         end
     elseif t == 'setfield' or t == 'setindex' then
@@ -690,7 +691,7 @@ local function applyStmt(state, stmt, ctx)
         if key then
             killBelow(state, key)
             if ctx.interesting[key] then
-                state[key] = assignNode(stmt, state, ctx)
+                state[key] = assignNode(stmt, readState or state, ctx)
             end
         end
     elseif t == 'setglobal' then
@@ -698,7 +699,7 @@ local function applyStmt(state, stmt, ctx)
         if globalVar then
             killBelow(state, declKey(globalVar --[[@as parser.object]]))
             if ctx.interesting[globalVar] then
-                state[globalVar] = assignNode(stmt, state, ctx)
+                state[globalVar] = assignNode(stmt, readState or state, ctx)
             end
         end
     elseif t == 'call' and stmt.node and stmt.node.special == 'assert'
@@ -724,6 +725,44 @@ local function applyStmt(state, stmt, ctx)
                     end
                 end
             end
+        end
+    end
+end
+
+--- Applies the statements of a block in order. The targets of ONE multiple assignment (`x, y = y, x`) take effect together,
+--- after every value was read (they share the statement's `effect`): the right-hand side of the second one is read in the
+--- state before the first one was applied, or the swap would read what it has just written.
+---@param state    table<vm.flow.key, vm.node>
+---@param stmts    parser.object[]
+---@param ctx      vm.flow.context
+---@param stmtIn?  table<parser.object, table<vm.flow.key, vm.node>> where to remember the state before each statement
+local function applyStmts(state, stmts, ctx, stmtIn)
+    ---@type table<vm.flow.key, vm.node>?
+    local before
+    ---@type integer?
+    local groupEffect
+    for i, stmt in ipairs(stmts) do
+        if stmtIn then
+            stmtIn[stmt] = copyState(state)
+        end
+        local effect = stmt.effect
+        local following = stmts[i + 1]
+        local sharesWithNext = effect ~= nil and following ~= nil and following.effect == effect
+            and stmt.value ~= nil and following.value ~= nil
+        if effect ~= nil and effect == groupEffect then
+            applyStmt(state, stmt, ctx, before)
+        else
+            groupEffect = nil
+            before = nil
+            if sharesWithNext then
+                before = copyState(state)
+                groupEffect = effect
+            end
+            applyStmt(state, stmt, ctx)
+        end
+        if not sharesWithNext then
+            groupEffect = nil
+            before = nil
         end
     end
 end
@@ -2765,9 +2804,7 @@ function vm.buildFlowBody(main)
             activeCorrelated = ctx.correlatedGroups
             activeCaseGroups = ctx.caseGroups
             local state = copyState(stateIn)
-            for _, stmt in ipairs(block.stmts) do
-                applyStmt(state, stmt, ctx)
-            end
+            applyStmts(state, block.stmts, ctx)
             for _, expr in ipairs(block.exprs or {}) do
                 applyCasts(state, ctx.castsAt[expr])
             end
@@ -2823,10 +2860,7 @@ function vm.buildFlowBody(main)
         local stateIn = result.stateIn[block]
         if stateIn then
             local state = copyState(stateIn)
-            for _, stmt in ipairs(block.stmts) do
-                stmtIn[stmt] = copyState(state)
-                applyStmt(state, stmt, ctx)
-            end
+            applyStmts(state, block.stmts, ctx, stmtIn)
             blockEnd[block] = state
         end
     end

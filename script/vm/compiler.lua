@@ -848,6 +848,46 @@ local function literalKeyOf(obj)
     return nil
 end
 
+--- The named members of an object shape that is not a class: an inline `{ name: string }` type or a table literal
+--- (`local o = { name = 'x' }`). `keyof T` and `T[K]` read these the same way they read a class's fields.
+---@param obj      vm.node.object
+---@param callback fun(key: string|integer, value: parser.object)
+local function eachShapeMember(obj, callback)
+    if obj.type == 'doc.type.table' then
+        ---@cast obj parser.object
+        for _, field in ipairs(obj.fields or {}) do
+            local name = field.name
+            if name and name.type == 'doc.field.name' and type(name[1]) == 'string' and field.extends then
+                callback(name[1] --[[@as string]], field.extends)
+            end
+        end
+    elseif obj.type == 'table' then
+        ---@cast obj parser.object
+        for _, child in ipairs(obj) do
+            if (child.type == 'tablefield' or child.type == 'tableindex') and child.value then
+                local key = guide.getKeyName(child)
+                if type(key) == 'string' or math.type(key) == 'integer' then
+                    callback(key --[[@as string|integer]], child.value)
+                end
+            end
+        end
+    end
+end
+
+--- The string keys of `eachShapeMember`, in order.
+---@param obj vm.node.object
+---@return string[]
+local function shapeKeys(obj)
+    ---@type string[]
+    local keys = {}
+    eachShapeMember(obj, function (key)
+        if type(key) == 'string' then
+            keys[#keys+1] = key
+        end
+    end)
+    return keys
+end
+
 --- `literalKeyOf` limited to what can name a field: a string or an integer.
 ---@param obj vm.node.object
 ---@return string|integer?
@@ -3037,6 +3077,20 @@ local compilerSwitch = util.switch()
         local seen = {}
         local any = false
         for opNode in operandNode:eachObject() do
+            for _, key in ipairs(shapeKeys(opNode)) do
+                if not seen[key] then
+                    seen[key] = true
+                    any = true
+                    vm.setNode(source, {
+                        type   = 'doc.type.string',
+                        start  = source.start,
+                        finish = source.finish,
+                        parent = source,
+                        [1]    = key,
+                        [2]    = '"',
+                    })
+                end
+            end
             ---@type vm.global?
             local globalVar
             if opNode.type == 'global' and opNode.cate == 'type' then
@@ -3087,6 +3141,17 @@ local compilerSwitch = util.switch()
         local keyNode = vm.compileNode(source.key)
         local any = false
         for opNode in operandNode:eachObject() do
+            for kn in keyNode:eachObject() do
+                local literalKey = fieldKeyOf(kn)
+                if literalKey ~= nil then
+                    eachShapeMember(opNode, function (key, value)
+                        if key == literalKey then
+                            any = true
+                            vm.setNode(source, vm.compileNode(value))
+                        end
+                    end)
+                end
+            end
             if opNode.type == 'global' and opNode.cate == 'type' then
                 ---@cast opNode vm.global
                 for kn in keyNode:eachObject() do

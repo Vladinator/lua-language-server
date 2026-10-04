@@ -45,6 +45,129 @@ else
 end
 ]]
 
+-- The result of a call is a use like any other read: an operand, an index base, a condition or a table key is checked
+-- where it stands, not only after it was stored in a local (found 2026-10-04: `GetSecretNumber() + 1` was silent).
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@secret
+---@return string
+local function s() return '' end
+
+---@secret
+---@return boolean
+local function b() return false end
+
+local t = {}
+print(<!f()!> + 1)
+print(-<!f()!>)
+print(<!s()!> == 'x')
+print(<!s()!>:upper())
+print(#<!s()!>)
+t[<!f()!>] = 1
+if <!b()!> then end
+print(not <!b()!>)
+-- (not a use of the value: argument, assignment, concatenation, statement, a `local`)
+print(f())
+local x = f()
+print(s() .. 'x')
+f()
+local y = (f())
+]]
+
+-- parentheses around a secret read do not hide it
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+local x = f()
+print(<!(x)!> + 1)
+print(<!(f())!> + 1)
+local y = (x)
+]]
+
+-- a `nosecret` return is a sanitiser: whatever secrecy a generic result would inherit stops there. Without the
+-- declaration (`---@return T`) the secrecy of the argument is inherited.
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@generic T
+---@param v T
+---@param fallback? nosecret<T>
+---@return nosecret<T>
+local function clean(v, fallback) return v end
+
+---@generic T
+---@param v T
+---@return T
+local function keep(v) return v end
+
+---@param v any
+---@return nosecret number
+local function plain(v) return 0 end
+
+---@param v any
+---@return nosecret string, any
+local function slots(v) return '', v end
+
+local x = f()
+print(clean(x, 2) + 5)
+local a = clean(x, 2)
+print(a + 5)
+print(plain(x) + 5)
+local first = slots(x)
+print(first .. 'x')
+print(<!keep(x)!> + 5)
+local b = keep(x)
+print(<!b!> + 5)
+]]
+
+-- only the declared slot is clean: the other one of the same function still carries the secrecy of `T`
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@generic T
+---@param v T
+---@return nosecret string, T
+local function pair(v) return '', v end
+
+local x = f()
+local c, d = pair(x)
+print(c .. 'x')
+print(<!d!> + 1)
+]]
+
+-- the same through a table the function is exported in (a shared namespace), read through an alias
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@generic T
+---@param v T
+---@return nosecret<T>
+local function clean(v) return v end
+
+---@generic T
+---@param v T
+---@return T
+local function keep(v) return v end
+
+local ns = { Util = { clean = clean, keep = keep } }
+local aliasClean = ns.Util.clean
+local x = f()
+print(aliasClean(x) + 1)
+print(ns.Util.clean(x) + 1)
+print(<!ns.Util.keep(x)!> + 1)
+]]
+
 -- `secretguard` on a non-first parameter: the check narrows whichever argument it marks, not
 -- just the first one (2026-09-27, closes the gap found comparing against wowlua-ls)
 -- (`secretguard`, the earlier spelling, stays an alias: tested right after)

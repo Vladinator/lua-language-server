@@ -246,6 +246,42 @@ local function isUnwrap(value)
     return checkSecretDoc(value, 'doc.secret-unwrap')
 end
 
+--- Does every function `callee` can be declare their return slot `slot` as `nosecret` (`---@return nosecret<T>`,
+--- `---@return nosecret string`)? Such a return is a sanitiser by declaration: whatever secrecy the arguments carried
+--- into a generic result (`T` bound to a secret type) stops at it, like at a `---@secret-unwrap` function. Read from the
+--- callee's compiled node, so an alias, a field of an exported table or another file's function all count. Only the
+--- cached node: asking for it must not start a compile from a genesis rule.
+---@param callee parser.object
+---@param slot   integer
+---@return boolean
+local function returnsNoSecret(callee, slot)
+    local node = vm.getNode(callee)
+    if not node then
+        return false
+    end
+    local found = false
+    for obj in node:eachObject() do
+        if obj.type == 'function' then
+            ---@cast obj parser.object
+            local declared = false
+            for _, doc in ipairs(obj.bindDocs or {}) do
+                if doc.type == 'doc.return' then
+                    for _, ret in ipairs(doc.returns or {}) do
+                        if ret.returnIndex == slot and ret.nosecret then
+                            declared = true
+                        end
+                    end
+                end
+            end
+            if not declared then
+                return false
+            end
+            found = true
+        end
+    end
+    return found
+end
+
 ---@param value parser.object
 ---@return boolean
 local function isSecretCheck(value)
@@ -878,7 +914,7 @@ vm.registerGenesisRule('call', function (source, node)
     local secret = isSecret(source.node)
     if secret or node:hasFlag('secret') then
         -- a `---@secret-unwrap` function is a sanitizer: its results are plain
-        if isUnwrap(source.node) then
+        if isUnwrap(source.node) or returnsNoSecret(source.node, 1) then
             node:clearFlag('secret')
         elseif secret then
             node:setFlag('secret')
@@ -890,7 +926,8 @@ end)
 -- a `---@secret-unwrap` function has to clear the flag there too.
 vm.registerGenesisRule('select', function (source, node)
     local call = source.vararg
-    if call and call.type == 'call' and node:hasFlag('secret') and isUnwrap(call.node) then
+    if call and call.type == 'call' and node:hasFlag('secret')
+    and (isUnwrap(call.node) or returnsNoSecret(call.node, source.sindex or 1)) then
         node:clearFlag('secret')
     end
 end)
@@ -967,6 +1004,17 @@ local function isDirectCondition(parent, src)
     return false
 end
 
+--- The parents in which the result of a call or a parenthesised expression is *used* (an operand, an index base, a
+--- condition, a callee); anywhere else (a statement, an argument, an assignment) nothing is done with the value yet.
+---@type table<string, true>
+local USED_IN = {
+    binary = true, unary = true, paren = true,
+    getindex = true, setindex = true, tableindex = true,
+    getfield = true, setfield = true, getmethod = true, setmethod = true,
+    call = true, callargs = true,
+    ifblock = true, elseifblock = true, ['while'] = true, ['repeat'] = true,
+}
+
 ---@class secret.use
 ---@field start  integer
 ---@field finish integer
@@ -1007,11 +1055,15 @@ local function getUses(uri)
 
     ---@async
     ---@param src parser.object
-    guide.eachSourceTypes(state.ast, {'getlocal', 'getglobal', 'getfield', 'getindex', 'getmethod'}, function (src)
+    guide.eachSourceTypes(state.ast, {'getlocal', 'getglobal', 'getfield', 'getindex', 'getmethod', 'call', 'paren'}, function (src)
         delayer:delay()
 
         local parent = src.parent
         if not parent then
+            return
+        end
+        -- (a call result or a parenthesised value is only looked at where it is used: a call is on every other line)
+        if (src.type == 'call' or src.type == 'paren') and not USED_IN[parent.type] then
             return
         end
 

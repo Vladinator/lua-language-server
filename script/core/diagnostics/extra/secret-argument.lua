@@ -3,7 +3,8 @@
 -- (an API of the game that raises an error for one): a call that passes a value known to be
 -- secret there is reported on the argument. A value that was checked with a
 -- `---@secret-check` function is not secret any more, and a parameter without the keyword
--- takes anything, as before. The `nosecret` keyword belongs to the secret vocabulary and is registered
+-- takes anything, as before. wowlua-ls's `---@secret-args none|untainted [names]` above a function says the same for the named
+-- parameters (all of them with no names). The `nosecret` keyword belongs to the secret vocabulary and is registered
 -- next to `secret` in secret-access.lua; this file only reads it.
 
 local files           = require 'files'
@@ -23,6 +24,27 @@ protoDiagnostic.register {
     description = 'Enable diagnostics for passing a secret value to a parameter that is declared `nosecret` (`---@param str nosecret string`).',
 }
 
+--- Does the function say, with wowlua-ls's `---@secret-args none|untainted [names]`, that this parameter refuses a secret?
+--- No names: every parameter does.
+---@param param parser.object a function parameter (`local` or `...`)
+---@return boolean
+local function refusedBySecretArgs(param)
+    local func = guide.getParentFunction(param)
+    for _, doc in ipairs(func and func.bindDocs or {}) do
+        if doc.type == 'doc.secret-args' and (doc.kind == 'none' or doc.kind == 'untainted') then
+            if not doc.names then
+                return true
+            end
+            for _, name in ipairs(doc.names) do
+                if name[1] == param[1] then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 --- The name of a parameter that is declared `nosecret`, or nil.
 ---@param param parser.object a function parameter (`local`) or the argument of a `fun(...)` type
 ---@return string?
@@ -33,6 +55,9 @@ local function getNoSecretName(param)
             return param.name and param.name[1]
         end
         return nil
+    end
+    if refusedBySecretArgs(param) then
+        return param[1]
     end
     local docs = param.bindDocs
     if not docs then
@@ -75,6 +100,13 @@ return function (uri, callback)
             for def in funcNode:eachObject() do
                 if def.type == 'function' or def.type == 'doc.type.function' then
                     local param = def.args and def.args[i]
+                    if not param and def.args then
+                        -- an argument past the named parameters goes to the variadic one
+                        local last = def.args[#def.args]
+                        if last and last.type == '...' then
+                            param = last
+                        end
+                    end
                     if param then
                         local refused = getNoSecretName(param)
                         if refused then

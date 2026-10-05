@@ -202,6 +202,36 @@ function m.getParamKinds(docType)
     return paramKindTags[docType]
 end
 
+---@type table<string, table<string, true>>
+local kindParamsTags = {}
+
+--- A tag with one word out of a fixed list and then parameter names, separated by spaces:
+--- `---@mytag none`, `---@mytag none a b`, `---@mytag none ...` (`...` for the vararg), produced as
+--- `{ type = docType, kind = <the word>, names = { <name nodes> } }` (`names` is unset when the line has none). Anything
+--- that does not read like that (a word that is not in the list, a comma, a string) leaves the tag bare, so a plugin can
+--- report it.
+---@param name        string tag name after the `@`, e.g. 'secret-args'
+---@param docType     string produced node's `.type`, e.g. 'doc.secret-args'
+---@param kinds       string[] the words accepted first (hyphens allowed)
+---@param description? string shown by completion (markdown)
+function m.registerKindParamsTag(name, docType, kinds, description)
+    m.registerMarkerTag(name, docType, description)
+    ---@type table<string, true>
+    local set = {}
+    for _, kind in ipairs(kinds) do
+        set[kind] = true
+    end
+    kindParamsTags[docType] = set
+    -- so the tree walkers (hover, references...) reach the names
+    guide.registerChildren(docType, {'#names'})
+end
+
+---@param docType string
+---@return table<string, true>?
+function m.getKindParams(docType)
+    return kindParamsTags[docType]
+end
+
 ---@type table<string, true>
 local continuesAfterClassGroup = {}
 

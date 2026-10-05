@@ -2441,6 +2441,47 @@ local function convertTokens(doc)
                 else
                     Ci = savePoint
                 end
+            elseif docTags.getKindParams(docType) then
+                -- `---@secret-args none a b`: one word of the tag's list, then names (or `...`) separated by spaces
+                result.start = getStart()
+                local savePoint = Ci
+                -- (the kind is one name token, a hyphenated word such as `kind-one` included; the next name starts the list)
+                local kindTp, kindText = peekToken()
+                -- (a first token that is no name is not consumed below, so the names loop leaves the tag bare)
+                local kind = tostring(kindText)
+                if kindTp == 'name' then
+                    nextToken()
+                end
+                local kinds = docTags.getKindParams(docType)
+                ---@type parser.object[]
+                local names = {}
+                local clean = kinds ~= nil and kinds[kind] == true
+                while clean and peekToken() do
+                    local name = parseName(docType .. '.name', result)
+                    if not name and checkToken('symbol', '...', 1) then
+                        nextToken()
+                        ---@type parser.object
+                        name = {
+                            type   = docType .. '.name',
+                            start  = getStart(),
+                            finish = getFinish(),
+                            parent = result,
+                            [1]    = '...',
+                        }
+                    end
+                    if name then
+                        names[#names+1] = name
+                    else
+                        clean = false
+                    end
+                end
+                if clean then
+                    result.kind   = kind
+                    result.names  = #names > 0 and names or nil
+                    result.finish = getFinish()
+                else
+                    Ci = savePoint
+                end
             elseif docTags.isGuardTag(docType) then
                 -- `---@guard x is T` / `---@guard x is not T`
                 result.start = getStart()

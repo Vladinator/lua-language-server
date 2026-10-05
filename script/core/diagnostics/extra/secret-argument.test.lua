@@ -164,3 +164,190 @@ do
     end
     assert(found, '`nosecret` is offered as a keyword')
 end
+
+-- wowlua-ls's `---@secret-args none|untainted [param...]` is the function-level spelling of `nosecret` slots: the named
+-- parameters (all of them with no list) refuse a secret value. `tainted` accepts one, like a plain parameter.
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@secret-args none str
+---@param delimiter string
+---@param str string
+---@param pieces? number
+local function split(delimiter, str, pieces) end
+
+local id = get()
+split(',', <!id!>)
+split(id, 'a,b')
+split(',', 'a,b', 2)
+]]
+
+-- no parameter list: every parameter refuses a secret
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@secret-args none
+---@param a string
+---@param b string
+local function two(a, b) end
+
+local id = get()
+two(<!id!>, 'x')
+two('x', <!id!>)
+two('x', 'y')
+]]
+
+-- `untainted` is rejected in addon code like `none`
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@secret-args untainted a
+---@param a string
+---@param b string
+local function f(a, b) end
+
+local id = get()
+f(<!id!>, 'x')
+f('x', id)
+]]
+
+-- `tainted` takes a secret: nothing is reported
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@secret-args tainted a
+---@param a string
+local function f(a) end
+
+local id = get()
+f(id)
+]]
+
+-- several names, a vararg, a checked value, a plain parameter list
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@secret-check
+---@param v any
+---@return boolean
+local function issecretvalue(v) return false end
+
+---@secret-args none a c
+---@param a string
+---@param b string
+---@param c string
+local function f(a, b, c) end
+
+local id = get()
+f(<!id!>, id, <!id!>)
+if not issecretvalue(id) then
+    f(id, id, id)
+end
+]]
+
+-- `...` names the variadic parameter: every extra argument refuses a secret
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@secret-args none ...
+---@param first string
+---@param ... string
+local function f(first, ...) end
+
+local id = get()
+f(id, 'a')
+f('a', <!id!>, <!id!>)
+]]
+
+-- a name the function does not have, and a tag on something that is not a function, do nothing
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@secret-args none nothere
+---@param a string
+local function f(a) end
+
+local id = get()
+f(id)
+]]
+
+-- the original spelling keeps working next to it
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@param a nosecret string
+local function f(a) end
+
+---@secret-args none b
+---@param b string
+local function g(b) end
+
+local id = get()
+f(<!id!>)
+g(<!id!>)
+]]
+
+-- both spellings on the same parameter report once
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@secret-args none a
+---@param a nosecret string
+local function f(a) end
+
+local id = get()
+f(<!id!>)
+]]
+
+-- a method called with a colon: the receiver is the first argument, the tag names parameters as written
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@class Obj
+local Obj = {}
+
+---@secret-args none text
+---@param text string
+function Obj:say(text) end
+
+---@type Obj
+local o
+local id = get()
+o:say(<!id!>)
+o:say('plain')
+]]
+
+-- the original spelling on a variadic parameter: every extra argument refuses a secret too
+TEST [[
+---@secret
+---@return string
+local function get() return '' end
+
+---@param first string
+---@param ... nosecret string
+local function f(first, ...) end
+
+local id = get()
+f(id, 'a')
+f('a', <!id!>, <!id!>)
+]]

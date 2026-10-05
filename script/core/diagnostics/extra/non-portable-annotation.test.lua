@@ -264,3 +264,26 @@ TEST [[
 ---@param c never
 local function f(a, b, c) end
 ]]
+
+-- `@secret-args` (wowlua-ls's `secret-args`, read by this fork too): not the original's, known to the other two
+with({ 'legacyluals' }, function ()
+    TEST [[
+---@<!secret-args!> none a
+---@param a string
+local function f(a) end
+]]
+end)
+with({ 'luals' }, function ()
+    TEST [[
+---@secret-args none a
+---@param a string
+local function f(a) end
+]]
+end)
+with({ 'wowluals' }, function ()
+    TEST [[
+---@secret-args none a
+---@param a string
+local function f(a) end
+]]
+end)

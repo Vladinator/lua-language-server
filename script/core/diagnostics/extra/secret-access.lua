@@ -70,6 +70,7 @@ for _, name in ipairs { 'secret', 'secret-unwrap', 'nosecret', 'secret-check', '
     docTags.setTagFlavors(name, { 'luals' })
 end
 docTags.setTagFlavors('secret-guard', { 'luals', 'wowluals' })
+docTags.setTagFlavors('secret-args', { 'luals', 'wowluals' })
 -- and the keywords: `secret T` / `secret<T>` is wowlua-ls's `secret<T>` too
 docTags.setKeywordFlavors('secret', { 'luals', 'wowluals' })
 docTags.registerNameListTag('secret', 'doc.secret',
@@ -91,6 +92,12 @@ docTags.registerMarkerTag('secret-access-check', 'doc.secret-access-check',
 docTags.registerParamKindTag('secret-guard', 'doc.secret-guard', { 'is-secret', 'accessible', 'any-secret' },
     'Declares a function that tells whether a parameter is secret, naming the parameter: `---@secret-guard value is-secret` (true = secret, like `@secret-check`), `accessible` (true = safe, like `@secret-access-check`), `any-secret` (true = secret).')
 
+-- wowlua-ls's function-level spelling of `nosecret` slots: `---@secret-args none str` (the parameter `str` refuses a secret
+-- value), no names = every parameter. `untainted` (accepted from Blizzard code only) is rejected from addon code like `none`;
+-- `tainted` takes a secret, like a parameter without the tag. Read by secret-argument.lua.
+docTags.registerKindParamsTag('secret-args', 'doc.secret-args', { 'none', 'tainted', 'untainted' },
+    'Declares which parameters of a function refuse a secret value (wowlua-ls): `---@secret-args none str` (the parameter `str`), `---@secret-args none` (every parameter), `untainted` is rejected from addon code like `none`, `tainted` accepts one. Passing a secret to a refusing parameter is reported by `secret-argument`.')
+
 docTags.registerContinuesAfterClassGroup('doc.secret')
 docTags.registerClassGroupDoc('doc.secret')
 
@@ -110,6 +117,9 @@ docTags.registerBindRule('doc.secret-access-check', function (doc, source, isPar
     return source.type == 'function'
 end)
 docTags.registerBindRule('doc.secret-guard', function (doc, source, isParam)
+    return source.type == 'function'
+end)
+docTags.registerBindRule('doc.secret-args', function (doc, source, isParam)
     return source.type == 'function'
 end)
 

@@ -47,7 +47,7 @@ local LEGACY_AND_LUALS = { 'vararg', 'version', 'module', 'async', 'operator', '
 local WOWLUALS_ONLY = {
     'type-narrows', 'narrows-arg', 'defclass', 'builds-field', 'built-name', 'built-extends', 'constructor',
     'accessor', 'creates-global', 'generates-events', 'returns-enum', 'returns-class-name', 'requires',
-    'event', 'callback-event-arg', 'flavor-narrows', 'secret-args', 'secret-unless', 'secret-when',
+    'event', 'callback-event-arg', 'flavor-narrows', 'secret-unless', 'secret-when',
     'secret-clears', 'secret-restriction-guard', 'secret-precondition', 'secret-satisfies', 'secret-aspect',
 }
 

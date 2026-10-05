@@ -424,6 +424,18 @@ The annotation dialects the project is written for: `legacyluals` (the original 
 
 A `---@tag` that none of the listed dialects knows is reported as a hint (`non-portable-annotation`) instead of being silently ignored. Parsing is not changed: every spelling is always read.
 ]]
+config.diagnostics.enableScheme =
+'The URI schemes of the files that are diagnosed (`file` for files on disk). A file with another scheme (an untitled buffer, a virtual file system) gets no diagnostics.'
+config.type.maxUnionVariants =
+'How many variants of a union type a weak union check (`Lua.type.weakUnionCheck`) compares before it stops looking. `0` (the default) means all of them; a limit trades precision for speed on very large unions.'
+config.annotations.dialects.legacyluals =
+'The original LuaLS (3.19.1, the base of this fork). A tag, keyword or type syntax it does not read is reported.'
+config.annotations.dialects.luals       =
+'This fork: the original plus what it added (secret values, `readonly`, `keyof`, utility types, `---@diagnostic expect-line`, ...).'
+config.annotations.dialects.wowluals    =
+'wowlua-ls: its own tags and the shared ones; a tag only the original or this fork reads is reported.'
+config.annotations.dialects.mixed       =
+'All three dialects: nothing is reported (the default).'
 config.type.inferTableSize               =
 'Maximum number of table fields analyzed during type inference.'
 config.doc.privateName                   =

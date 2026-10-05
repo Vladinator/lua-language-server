@@ -77,10 +77,10 @@ Array<string>
 
 ## enum
 
-* ``"legacyluals"``
-* ``"luals"``
-* ``"wowluals"``
-* ``"mixed"``
+* ``"legacyluals"``: The original LuaLS (3.19.1, the base of this fork). A tag, keyword or type syntax it does not read is reported.
+* ``"luals"``: This fork: the original plus what it added (secret values, `readonly`, `keyof`, utility types, `---@diagnostic expect-line`, ...).
+* ``"wowluals"``: wowlua-ls: its own tags and the shared ones; a tag only the original or this fork reads is reported.
+* ``"mixed"``: All three dialects: nothing is reported (the default).
 
 ## default
 
@@ -531,7 +531,7 @@ true
 
 # diagnostics.enableScheme
 
-**Missing description!!**
+The URI schemes of the files that are diagnosed (`file` for files on disk). A file with another scheme (an untitled buffer, a virtual file system) gets no diagnostics.
 
 ## type
 
@@ -2776,7 +2776,7 @@ integer
 
 # type.maxUnionVariants
 
-**Missing description!!**
+How many variants of a union type a weak union check (`Lua.type.weakUnionCheck`) compares before it stops looking. `0` (the default) means all of them; a limit trades precision for speed on very large unions.
 
 ## type
 

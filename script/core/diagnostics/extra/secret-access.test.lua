@@ -293,6 +293,46 @@ print(m + 1)
 print(n + 1)
 ]]
 
+-- the parameter of a lambda takes the type of the parameter it is passed for, and what that type stands for: a callback
+-- declared `fun(v: secret number)` hands a secret to its function (found 2026-10-04: it came out a plain number)
+TEST [[
+---@param cb fun(v: secret number)
+local function withSecret(cb) end
+
+---@param cb fun(v: number)
+local function withPlain(cb) end
+
+---@param cb fun(a: number, b: secret<string>)
+local function withPair(cb) end
+
+withSecret(function(v)
+    print(<!v!> + 1)
+end)
+withPlain(function(v)
+    print(v + 1)
+end)
+withPair(function(a, b)
+    print(a + 1)
+    print(#<!b!>)
+end)
+withPair(function(a, b)
+    if b then end
+    print(a .. b)
+end)
+]]
+
+-- the same for a method declared over a typed field
+TEST [[
+---@class Handlers
+---@field onValue fun(self: Handlers, v: secret number)
+
+---@type Handlers
+local handlers
+function handlers:onValue(received)
+    print(<!received!> + 1)
+end
+]]
+
 -- the same through a table the function is exported in (a shared namespace), read through an alias
 TEST [[
 ---@secret

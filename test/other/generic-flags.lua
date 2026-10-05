@@ -8,6 +8,10 @@
 local files = require 'files'
 local guide = require 'parser.guide'
 local vm    = require 'vm'
+require 'docfixture'
+
+---@class parser.object
+---@field fixtureType? boolean -- set by the fixture's type keyword (test/docfixture.lua)
 
 local FLAG = 'zz-generic-test-flag'
 
@@ -16,6 +20,13 @@ vm.registerPropagatingFlag(FLAG)
 vm.registerGenesisRule('local', function (source, node)
     local name = source[1]
     if type(name) == 'string' and name:find('^zzFlagged') then
+        node:setFlag(FLAG)
+    end
+end)
+
+--- a type written with the fixture's type keyword (`---@param v fixturetype number`) is flagged
+vm.registerGenesisRule('doc.type', function (source, node)
+    if source.fixtureType then
         node:setFlag(FLAG)
     end
 end)
@@ -77,6 +88,21 @@ local script = table.concat({
     'local zzFlaggedDeclared = 1',
     'zzFlaggedDeclared = 2',
     'local r_declared = zzFlaggedDeclared',
+    '',
+    -- a lambda takes the type of the parameter it is passed for, and what that type stands for
+    '---@param cb fun(v: fixturetype number)',
+    'local function withFlagged(cb) end',
+    '---@param cb fun(v: number)',
+    'local function withPlain(cb) end',
+    'local r_lambdaFlagged, r_lambdaPlain',
+    'withFlagged(function(lambdaFlagged) r_lambdaFlagged = lambdaFlagged end)',
+    'withPlain(function(lambdaPlain) r_lambdaPlain = lambdaPlain end)',
+    -- the same for a function declared to override a typed one
+    '---@class zzBase',
+    '---@field handler fun(self: zzBase, v: fixturetype number)',
+    '---@type zzBase',
+    'local zzObj',
+    'function zzObj:handler(overridden) local r_overridden = overridden end',
 }, string.char(10)) .. string.char(10)
 
 local expected = {
@@ -92,6 +118,9 @@ local expected = {
     r_flaggedLater = true,
     r_untouched  = true,
     r_declared   = true,   -- the declaration itself is flagged: an assignment does not clear that
+    lambdaFlagged = true,  -- the parameter of a lambda passed for `fun(v: <flagged>)` is flagged
+    lambdaPlain   = false,
+    overridden    = true,  -- the same for a method declared over a typed field
 }
 
 files.setText(TESTURI, script)
@@ -106,7 +135,7 @@ guide.eachSourceType(state.ast, 'local', function (source)
             ('%s: flag %s, expected %s'):format(name, tostring(flagged), tostring(expected[name])))
     end
 end)
-assert(seen == 12, 'every case was looked at: ' .. seen)
+assert(seen == 15, 'every case was looked at: ' .. seen)
 
 -- the type of `T` is the first candidate's, whatever the later arguments are (TypeScript's inference of one candidate)
 guide.eachSourceType(state.ast, 'local', function (source)

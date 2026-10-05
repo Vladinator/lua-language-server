@@ -1814,6 +1814,11 @@ local function compileFunctionParam(func, source)
                         vm.setNode(source, an)
                     end
                 end
+                -- (the objects above carry no node flags: what the expected parameter type stands for comes along)
+                local paramNode = vm.getNode(source)
+                if paramNode then
+                    vm.propagateFlags(argNode, paramNode)
+                end
                 -- NOTE: keep existing behavior for function as argument which only set type based on the 1st match
                 return true
             end
@@ -1846,6 +1851,10 @@ local function compileFunctionParam(func, source)
                     if an.type ~= 'doc.generic.name' then
                         vm.setNode(source, an)
                     end
+                end
+                local paramNode = vm.getNode(source)
+                if paramNode then
+                    vm.propagateFlags(argNode, paramNode)
                 end
                 found = true
             end

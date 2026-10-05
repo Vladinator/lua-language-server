@@ -98,7 +98,9 @@ local cases = {
     { 'table of arrays',     L('---@generic K, T', '---@param t table<K, T[]>', '---@return T', 'local function f(t) return next(t)[1] end', '---@type table<string, boolean[]>', 'local s', 'local r = f(s)'), 'r', 'boolean', '' },
     { 'array of tables',     L('---@generic T', '---@param l table<string, T>[]', '---@return T', 'local function f(l) return next(l[1]) end', '---@type table<string, number>[]', 'local s', 'local r = f(s)'), 'r', 'number', '' },
     { 'callback returns array', L('---@generic T, U', '---@param l T[]', '---@param fn fun(x: T): U[]', '---@return U[]', 'local function flat(l, fn) return {} end', 'local r = flat({1}, function(x) return {"a"} end)'), 'r', 'string[]', '' },
-    { 'nested function type', L('---@generic T', '---@param f fun(): fun(): T', '---@return T', 'local function f(g) return g()() end', 'local r = f(function() return function() return 1 end end)'), 'r', 'integer', 'a callback that returns a callback does not bind T', 'unknown' },
+    { 'nested function type', L('---@generic T', '---@param g fun(): fun(): T', '---@return T', 'local function f(g) return g()() end', 'local r = f(function() return function() return 1 end end)'), 'r', 'integer', 'a callback that returns a callback binds T' },
+    { 'nested function, named', L('---@generic T', '---@param g fun(): fun(): T', '---@return T', 'local function f(g) return g()() end', 'local function inner() return 1 end', 'local function outer() return inner end', 'local r = f(outer)'), 'r', 'integer', '' },
+    { 'nested function, typed', L('---@generic T', '---@param g fun(): fun(): T', '---@return T', 'local function f(g) return g()() end', '---@type fun(): fun(): string', 'local h', 'local r = f(h)'), 'r', 'string', '' },
     -- aliases, builders, methods, tuples
     { 'generic alias, table', L('---@alias Dict<V> table<string, V>', '---@type Dict<number>', 'local d', 'local r = d.x'), 'r', 'number', '' },
     { 'generic alias, param', L('---@alias Maybe<T> T?', '---@param v Maybe<string>', 'local function f(v) local inner = v end'), 'inner', 'string?', 'the alias is shown next to its expansion', '(string|Maybe<string>)?' },

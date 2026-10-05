@@ -3288,7 +3288,17 @@ local compilerSwitch = util.switch()
             vm.setNode(source, vm.compileNode(source.trueType):copy():merge(vm.compileNode(source.falseType)))
             return
         end
-        local holds = vm.isSubType(uri, checkNode, extendsNode)
+        ---@type boolean?
+        local holds
+        local extendsInfer = vm.getInfer(extendsNode)
+        if vm.getInfer(checkNode):viewIfUnknownOrNil(uri) == 'unknown'
+        and extendsInfer:viewIfUnknownOrNil(uri) ~= 'unknown'
+        and not extendsInfer:hasAny(uri) then
+            -- `unknown` is TypeScript's top type: it extends only `unknown` / `any` (`any` was answered above)
+            holds = false
+        else
+            holds = vm.isSubType(uri, checkNode, extendsNode)
+        end
         if holds == nil then
             vm.setNode(source, vm.declareGlobal('type', 'unknown'))
             return

@@ -944,6 +944,33 @@ TEST '"no"|"yes"' [[
 local <?y?>
 ]]
 
+-- `unknown` is TypeScript's top type: it extends only `unknown` and `any`, nothing narrower (it used to match everything)
+TEST '"no"' [[
+---@type (unknown extends string ? "yes" : "no")
+local <?y?>
+]]
+
+TEST '"no"' [[
+---@type (unknown extends table ? "yes" : "no")
+local <?y?>
+]]
+
+TEST '"yes"' [[
+---@type (unknown extends unknown ? "yes" : "no")
+local <?y?>
+]]
+
+TEST '"yes"' [[
+---@type (unknown extends any ? "yes" : "no")
+local <?y?>
+]]
+
+-- a known type is not affected, and `nil` / optional keep their answers
+TEST '"yes"' [[
+---@type (string extends unknown ? "yes" : "no")
+local <?y?>
+]]
+
 -- through a generic: `T` bound at the call site decides the branch.
 TEST '"other"' [[
 ---@class CondCommon.Point

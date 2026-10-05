@@ -1886,7 +1886,8 @@ local docSwitch = util.switch()
             if not result.start then
                 result.start = object.start
             end
-            if checkToken('symbol', ':', 1) then
+            -- `T: Base`, or TypeScript's `T extends Base`
+            if checkToken('symbol', ':', 1) or checkToken('name', 'extends', 1) then
                 nextToken()
                 object.extends = parseType(object)
             end

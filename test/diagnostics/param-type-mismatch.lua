@@ -630,3 +630,23 @@ p:put('a', 1)
 p:put(<!1!>, 1)
 p:put('a', <!'x'!>)
 ]]
+
+-- `---@generic T extends Base` (TypeScript's spelling) is the same constraint as `T: Base`
+TEST [[
+---@class ExtendsAnimal
+---@class ExtendsDog: ExtendsAnimal
+---@class ExtendsRock
+
+---@generic T extends ExtendsAnimal
+---@param x T
+---@return T
+local function feed(x) return x end
+
+---@type ExtendsDog
+local dog
+---@type ExtendsRock
+local rock
+
+feed(dog)
+feed(<!rock!>)
+]]

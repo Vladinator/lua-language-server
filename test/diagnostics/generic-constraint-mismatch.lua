@@ -143,3 +143,106 @@ get(p, <!'z'!>)
     local message = reported[1].message
     assert(not message:find('does not fit', 1, true), message)
 end)
+
+-- `K extends keyof T` is the same constraint as `K: keyof T`
+TEST [[
+---@generic T, K extends keyof T
+---@param obj T
+---@param key K
+---@return T[K]
+local function get(obj, key) return obj[key] end
+
+---@class Point
+---@field x number
+---@type Point
+local p
+
+get(p, 'x')
+get(p, <!'z'!>)
+]]
+
+-- a parameter typed `keyof T` takes only keys of the type `T` was bound to by another argument
+TEST [[
+---@class Point
+---@field x number
+---@field y number
+---@type Point
+local p
+
+---@generic T: table
+---@param tbl T
+---@param key keyof T
+local function one(tbl, key) end
+
+one(p, 'x')
+one(p, 'y')
+one(p, <!'zz'!>)
+one(p, <!5!>)
+]]
+
+-- `---@param ... keyof T`: every extra argument is checked
+TEST [[
+---@class Point
+---@field x number
+---@field y number
+---@type Point
+local p
+
+---@generic T: table
+---@param tbl T
+---@param ... keyof T
+local function many(tbl, ...) end
+
+many(p)
+many(p, 'x')
+many(p, 'x', 'y')
+many(p, 'x', <!'zz'!>)
+many(p, <!'aa'!>, 'x', <!'bb'!>)
+many(p, 'x', <!5!>)
+]]
+
+-- a method called with a colon: its first argument is the receiver (`self`)
+TEST [[
+---@class Point
+---@field x number
+---@type Point
+local p
+
+---@class Holder
+local Holder = {}
+
+---@generic T: table
+---@param tbl T
+---@param ... keyof T
+function Holder:check(tbl, ...) end
+
+Holder:check(p, 'x')
+Holder:check(p, <!'zz'!>)
+Holder.check(Holder, p, <!'zz'!>)
+]]
+
+-- unknown arguments and a parameter with no `keyof` are left alone
+TEST [[
+---@class Point
+---@field x number
+---@type Point
+local p
+---@type any
+local anything
+local unknown = nil
+
+---@generic T: table
+---@param tbl T
+---@param ... keyof T
+local function many(tbl, ...) end
+
+---@generic T: table
+---@param tbl T
+---@param ... number
+local function numbers(tbl, ...) end
+
+many(p, anything)
+many(p, unknown)
+-- (a wrong type for a parameter with no `keyof` is `param-type-mismatch`'s business, not this diagnostic's)
+numbers(p, 'zz', 'anything goes')
+]]

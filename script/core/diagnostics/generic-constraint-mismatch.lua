@@ -5,6 +5,7 @@ local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
 
 local MESSAGE = 'Type `%s` does not satisfy the constraint `%s` of type parameter `%s`.'
+local KEYOF   = 'Argument `%s` does not match `%s`, the keys of the other argument.'
 local MEMBER  = 'Type `%s` does not satisfy the constraint `%s` of type parameter `%s`: `%s` does not fit.'
 
 protoDiagnostic.register {
@@ -13,7 +14,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
-    description = 'Enable diagnostics for calls of a generic function where the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`). A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The argument that binds the type parameter is reported (the wowlua-ls diagnostic of the same name).',
+    description = 'Enable diagnostics for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.',
 }
 
 --- Does the constraint name a type parameter (`keyof T`)? One that does not is checked by `param-type-mismatch` already (as `<T:Base>`).
@@ -40,6 +41,74 @@ local function namesDirectly(signNode, name)
         end
     end
     return false
+end
+
+--- The `---@param` doc of a parameter, by its name (`...` for the variadic one).
+---@param func parser.object
+---@param name string|integer
+---@return parser.object?
+local function paramDoc(func, name)
+    for _, doc in ipairs(func.bindDocs or {}) do
+        if doc.type == 'doc.param' and doc.param and doc.param[1] == name then
+            return doc
+        end
+    end
+    return nil
+end
+
+--- Does the type contain a `keyof`?
+---@param typeDoc parser.object
+---@return boolean
+local function hasKeyof(typeDoc)
+    local found = false
+    guide.eachSource(typeDoc, function (src)
+        if src.type == 'doc.type.keyof' then
+            found = true
+        end
+    end)
+    return found
+end
+
+--- A parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) takes the argument
+--- against the keys of the type `T` was bound to by another argument.
+---@async
+---@param uri      uri
+---@param call     parser.object
+---@param func     parser.object
+---@param resolved table<string, vm.node>
+---@param callback fun(result: table)
+local function checkKeyofParams(uri, call, func, resolved, callback)
+    local params = func.args or {}
+    -- (a call with a colon has the receiver as its first argument, as the parameter list of the method has `self`)
+    local last = params[#params]
+    for i, arg in ipairs(call.args or {}) do
+        local param = params[i]
+        if not param and last and last.type == '...' then
+            param = last
+        end
+        local doc = param and paramDoc(func, param[1])
+        local typeDoc = doc and doc.extends
+        if not typeDoc or not hasKeyof(typeDoc) then
+            goto CONTINUE
+        end
+        do
+            local expected = vm.compileNode(vm.cloneObject(typeDoc, resolved) --[[@as parser.object]])
+            local given    = vm.compileNode(arg)
+            local givenView = arg.type == 'string' and ('"%s"'):format(arg[1]) or vm.getInfer(given):view(uri)
+            if givenView == 'unknown' or givenView == 'nil' or vm.getInfer(given):hasAny(uri) then
+                goto CONTINUE
+            end
+            if vm.canCastType(uri, expected, given) then
+                goto CONTINUE
+            end
+            callback {
+                start   = arg.start,
+                finish  = arg.finish,
+                message = KEYOF:format(givenView, vm.getInfer(expected):view(uri)),
+            }
+        end
+        ::CONTINUE::
+    end
 end
 
 ---@async
@@ -76,6 +145,7 @@ return function (uri, callback)
         if not resolved then
             return
         end
+        checkKeyofParams(uri, call, funcs[1], resolved, callback)
         for _, doc in ipairs(sign.docGeneric) do
             for _, object in ipairs(doc.generics) do
                 local name = object.generic and object.generic[1] --[[@as string?]]

@@ -2589,6 +2589,27 @@ do
     files.remove(TESTURI)
 end
 
+-- the name of a parameter in `---@param name T` hovers as the parameter does in the code
+hoverContains([[
+---@param <?value?> string
+local function f(value) return value end
+]], '(parameter) value: string')
+
+hoverContains([[
+---@param value string
+---@param <?count?>? number
+local function f(value, count) return value end
+]], '(parameter) count: number?')
+
+-- a name that is no parameter of the function shows nothing of it
+do
+    local text, catched = catch('---@param <?nothere?> string' .. string.char(10) .. 'local function f(value) return value end' .. string.char(10), '?')
+    files.setText(TESTURI, text)
+    local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
+    assert(not hover or not hover:string():find('(parameter)', 1, true), 'a name that is no parameter has no hover')
+    files.remove(TESTURI)
+end
+
 hoverContains([[
 ---@class (<?exact?>) A
 ]], 'not declared')

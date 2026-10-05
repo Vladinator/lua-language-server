@@ -156,6 +156,7 @@ local accept = {
     ['number']         = true,
     ['integer']        = true,
     ['doc.type.name']  = true,
+    ['doc.param.name'] = true,
     ['doc.class.name'] = true,
     ['doc.enum.name']  = true,
     ['function']       = true,
@@ -195,6 +196,14 @@ local function findPluginDoc(state, position)
     end
 end
 
+--- The parameter a `---@param name T` tag is bound to: what the name in the tag stands for. (A tag naming no parameter of the
+--- function is bound to nothing.)
+---@param name parser.object a `doc.param.name`
+---@return parser.object?
+local function paramOfDocName(name)
+    return name.parent and name.parent.bindSource
+end
+
 ---@async
 ---@param uri uri
 ---@param position integer
@@ -208,6 +217,10 @@ local function getHoverByUri(uri, position, level)
         return nil
     end
     local source = findSource(ast, position, accept) or findPluginDoc(ast, position)
+    if source and source.type == 'doc.param.name' then
+        -- `---@param value string`: hover the parameter itself (nothing for a name the function has no parameter of)
+        source = paramOfDocName(source)
+    end
     if not source then
         return nil
     end

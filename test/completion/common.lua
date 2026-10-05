@@ -4730,6 +4730,142 @@ local abc, xyz = 1, 2
     },
 }
 
+-- the keys of a `keyof T` argument: the fields of the type `T` was bound to by an earlier argument, for a parameter typed `keyof T`,
+-- a type parameter constrained by it (`K: keyof T`), and every extra argument of a `...: keyof T`
+TEST [[
+---@class KeyPoint
+---@field kx number
+---@field ky number
+
+---@generic T: table
+---@param tbl T
+---@param key keyof T
+local function one(tbl, key) end
+
+---@type KeyPoint
+local p
+one(p, <??>)
+]]
+{
+    include = true,
+    {
+        label = '"kx"',
+        kind  = define.CompletionItemKind.EnumMember,
+    },
+    {
+        label = '"ky"',
+        kind  = define.CompletionItemKind.EnumMember,
+    },
+}
+
+TEST [[
+---@class KeyPoint
+---@field kx number
+---@field ky number
+
+---@generic T, K: keyof T
+---@param tbl T
+---@param key K
+local function get(tbl, key) end
+
+---@type KeyPoint
+local p
+get(p, <??>)
+]]
+{
+    include = true,
+    {
+        label = '"kx"',
+        kind  = define.CompletionItemKind.EnumMember,
+    },
+    {
+        label = '"ky"',
+        kind  = define.CompletionItemKind.EnumMember,
+    },
+}
+
+TEST [[
+---@class KeyPoint
+---@field kx number
+---@field ky number
+
+---@generic T: table
+---@param tbl T
+---@param ... keyof T
+local function many(tbl, ...) end
+
+---@type KeyPoint
+local p
+many(p, "kx", <??>)
+]]
+{
+    include = true,
+    {
+        label = '"kx"',
+        kind  = define.CompletionItemKind.EnumMember,
+    },
+    {
+        label = '"ky"',
+        kind  = define.CompletionItemKind.EnumMember,
+    },
+}
+
+-- a constraint alone completes too: the literals it allows
+TEST [[
+---@generic T: "ca" | "cb"
+---@param x T
+local function pick(x) end
+pick(<??>)
+]]
+{
+    include = true,
+    {
+        label = '"ca"',
+        kind  = define.CompletionItemKind.EnumMember,
+    },
+    {
+        label = '"cb"',
+        kind  = define.CompletionItemKind.EnumMember,
+    },
+}
+
+-- inside the quotes of a string already started
+TEST [[
+---@class KeyPoint
+---@field kx number
+---@field ky number
+
+---@generic T: table
+---@param tbl T
+---@param key keyof T
+local function one(tbl, key) end
+
+---@type KeyPoint
+local p
+one(p, 'k<??>')
+]]
+{
+    include = true,
+    {
+        label = "'kx'",
+        kind  = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+}
+
+-- a type nothing is known about offers no keys, and a parameter that is not a `keyof` is not touched
+TEST [[
+---@generic T: table
+---@param tbl T
+---@param key keyof T
+local function one(tbl, key) end
+
+---@type any
+local anything
+one(anything, <??>)
+]]
+(nil)
+
 -- the parts of the tag shapes plugins register: the parameter names of the bound function, the kind words of the tag
 TEST [[
 ---@fixture-param-kind <??>

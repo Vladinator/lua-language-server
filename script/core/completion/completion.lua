@@ -1968,6 +1968,68 @@ local function checkTableLiteralField(state, position, tbl, fields, results)
     end
 end
 
+--- What an argument of a generic function can be once the type parameters are bound by the arguments before it: a parameter typed
+--- `keyof T` (`---@param key keyof T`, `---@param ... keyof T` for every extra argument), or a type parameter constrained by
+--- a type that names others (`---@generic T, K: keyof T`; a constraint alone completes as well, `T: "a"|"b"`).
+---@param state    parser.state
+---@param call     parser.object
+---@param argIndex integer
+---@return vm.node?
+local function keyofArgNode(state, call, argIndex)
+    -- the one function the call can be
+    ---@type parser.object?
+    local func
+    for obj in vm.compileNode(call.node):eachObject() do
+        if obj.type == 'function' then
+            func = obj --[[@as parser.object]]
+        end
+    end
+    local sign = func and vm.getSign(func)
+    if not func or not sign then
+        return nil
+    end
+    local params = func.args or {}
+    local param  = params[argIndex]
+    local last   = params[#params]
+    if not param and last and last.type == '...' then
+        param = last
+    end
+    if not param then
+        return nil
+    end
+    ---@type parser.object?
+    local typeDoc
+    for _, doc in ipairs(func.bindDocs or {}) do
+        if doc.type == 'doc.param' and doc.param and doc.param[1] == param[1] then
+            typeDoc = doc.extends
+            break
+        end
+    end
+    if not typeDoc then
+        return nil
+    end
+    -- a type parameter alone (`key: K`): complete by its constraint
+    ---@type parser.object
+    local target = typeDoc
+    local unit = typeDoc.types and #typeDoc.types == 1 and typeDoc.types[1]
+    if unit and unit.type == 'doc.generic.name' then
+        for _, genericDoc in ipairs(sign.docGeneric) do
+            for _, object in ipairs(genericDoc.generics) do
+                if object.generic and object.generic[1] == unit[1] and object.extends then
+                    target = object.extends
+                end
+            end
+        end
+    end
+    ---@type parser.object[]
+    local before = {}
+    for i = 1, argIndex - 1 do
+        before[i] = call.args and call.args[i]
+    end
+    local resolved = sign:resolve(state.uri, before)
+    return vm.compileNode(vm.cloneObject(target, resolved) --[[@as parser.object]])
+end
+
 ---@param state    parser.state
 ---@param position integer
 ---@param results completion.results
@@ -1981,14 +2043,17 @@ local function tryCallArg(state, position, results)
         return
     end
     local node = vm.compileCallArg({ type = 'dummyarg', uri = state.uri }, call, argIndex)
-    if not node then
-        return
-    end
 
     ---@type table[]
     local enums = {}
-    for src in node:eachObject() do
+    for src in (node and node:eachObject() or function () end) do
         insertEnum(state, position, src, enums, arg and arg.type == 'table')
+    end
+    if #enums == 0 then
+        local keys = keyofArgNode(state, call, argIndex)
+        for src in (keys and keys:eachObject() or function () end) do
+            insertEnum(state, position, src, enums, false)
+        end
     end
     cleanEnums(enums, arg)
     for _, enum in ipairs(enums) do

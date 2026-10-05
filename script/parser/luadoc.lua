@@ -2420,11 +2420,17 @@ local function convertTokens(doc)
                     -- the word may contain hyphens (`is-secret`): name and `-` tokens joined
                     ---@type string[]
                     local parts = {}
+                    ---@type integer?
+                    local kindStart
+                    ---@type integer?
+                    local kindFinish
                     while true do
                         local tp, content = peekToken()
                         if tp == 'name' or (tp == 'symbol' and content == '-' and #parts > 0) then
                             parts[#parts+1] = tostring(content)
                             nextToken()
+                            kindStart  = kindStart or getStart()
+                            kindFinish = getFinish()
                         else
                             break
                         end
@@ -2434,6 +2440,8 @@ local function convertTokens(doc)
                     if kinds and kinds[kind] and not peekToken() then
                         result.param  = param
                         result.kind   = kind
+                        result.kindStart  = kindStart
+                        result.kindFinish = kindFinish
                         result.finish = getFinish()
                     else
                         Ci = savePoint
@@ -2449,8 +2457,13 @@ local function convertTokens(doc)
                 local kindTp, kindText = peekToken()
                 -- (a first token that is no name is not consumed below, so the names loop leaves the tag bare)
                 local kind = tostring(kindText)
+                ---@type integer?
+                local kindStart
+                ---@type integer?
+                local kindFinish
                 if kindTp == 'name' then
                     nextToken()
+                    kindStart, kindFinish = getStart(), getFinish()
                 end
                 local kinds = docTags.getKindParams(docType)
                 ---@type parser.object[]
@@ -2477,6 +2490,8 @@ local function convertTokens(doc)
                 end
                 if clean then
                     result.kind   = kind
+                    result.kindStart  = kindStart
+                    result.kindFinish = kindFinish
                     result.names  = #names > 0 and names or nil
                     result.finish = getFinish()
                 else

@@ -1198,6 +1198,28 @@ do
     local names = offered('---@secret a<??>\nlocal abc, xyz = 1, 2\n')
     assert(names['abc'] == variable and not names['xyz'], 'names in `---@secret a`')
 
+    -- the parts of `---@secret-guard <param> <kind>` and `---@secret-args <kind> <names>`: the parameters of the function the tag
+    -- is bound to, the kind words
+    local enumMember = define.CompletionItemKind.EnumMember
+    local guardParams = offered('---@secret-guard <??>\nlocal function g(value, other) end\n')
+    assert(guardParams['value'] == variable and guardParams['other'] == variable, '`@secret-guard`: the parameters')
+    assert(guardParams['is-secret'] == nil, '`@secret-guard`: no kind word where the parameter goes')
+    local guardKinds = offered('---@secret-guard value <??>\nlocal function g(value) end\n')
+    assert(guardKinds['is-secret'] == enumMember and guardKinds['accessible'] == enumMember
+        and guardKinds['any-secret'] == enumMember, '`@secret-guard`: the kind words')
+    assert(guardKinds['value'] == nil, '`@secret-guard`: no parameter where the kind goes')
+    assert(offered('---@secret-guard value acc<??>\nlocal function g(value) end\n')['accessible'] == enumMember, 'a half typed kind')
+    assert(next(offered('---@secret-guard value is-secret <??>\nlocal function g(value) end\n')) == nil, 'nothing after the kind')
+    local argKinds = offered('---@secret-args <??>\nlocal function g(a) end\n')
+    assert(argKinds['none'] == enumMember and argKinds['tainted'] == enumMember and argKinds['untainted'] == enumMember,
+        '`@secret-args`: the kind words')
+    assert(argKinds['a'] == nil, '`@secret-args`: no parameter where the kind goes')
+    local argNames = offered('---@secret-args none <??>\nlocal function g(a, ...) end\n')
+    assert(argNames['a'] == variable and argNames['...'] == variable, '`@secret-args`: the parameters, `...` included')
+    assert(argNames['none'] == nil, '`@secret-args`: no kind word after the kind')
+    argNames = offered('---@secret-args none a <??>\nlocal function g(a, b) end\n')
+    assert(argNames['b'] == variable and argNames['a'] == nil, '`@secret-args`: a name already listed is not offered again')
+
     -- hover
     local text, catched = catch('---@<?secret?>\nlocal x = 1\n', '?')
     files.setText(TESTURI, text)
@@ -1272,6 +1294,35 @@ do
     end
     assert(found['0:3'] == 7, '`@secret` is a documentation keyword')
     assert(found['2:3'] == 14, '`@secret-unwrap` is a documentation keyword')
+
+    -- the parts of `@secret-guard` and `@secret-args` are tokens, not comment text: the parameters, the kind word
+    ---@param text string
+    ---@return table<string, integer[]> byPosition `line:char` -> { length, type }
+    local function tokensAt(text)
+        files.setText(TESTURI, text)
+        local tokenData = semantic(TESTURI, 0, math.huge) --[[@as integer[] ]]
+        files.remove(TESTURI)
+        ---@type table<string, integer[]>
+        local at = {}
+        local row, col = 0, 0
+        for i = 1, #tokenData, 5 do
+            row = row + tokenData[i]
+            col = (tokenData[i] == 0) and (col + tokenData[i + 1]) or tokenData[i + 1]
+            at[row .. ':' .. col] = { tokenData[i + 2], tokenData[i + 3] }
+        end
+        return at
+    end
+    local parameter  = define.TokenTypes.parameter
+    local enumMember = define.TokenTypes.enumMember
+    local at = tokensAt('---@secret-guard value is-secret' .. string.char(10) .. 'local function f(value) end' .. string.char(10))
+    assert(at['0:17'] and at['0:17'][1] == 5 and at['0:17'][2] == parameter, '`@secret-guard`: the parameter')
+    assert(at['0:23'] and at['0:23'][1] == 9 and at['0:23'][2] == enumMember, '`@secret-guard`: the kind word')
+    at = tokensAt('---@secret-args none a b' .. string.char(10) .. 'local function f(a, b) end' .. string.char(10))
+    assert(at['0:16'] and at['0:16'][1] == 4 and at['0:16'][2] == enumMember, '`@secret-args`: the kind word')
+    assert(at['0:21'] and at['0:21'][1] == 1 and at['0:21'][2] == parameter, '`@secret-args`: the first name')
+    assert(at['0:23'] and at['0:23'][1] == 1 and at['0:23'][2] == parameter, '`@secret-args`: the second name')
+    at = tokensAt('---@secret-guard value nokind' .. string.char(10) .. 'local function f(value) end' .. string.char(10))
+    assert(not at['0:17'], '`@secret-guard` with an unknown kind stays plain text')
 end
 
 -- A guard written as a LOCAL function and exported through a table field (`ns.Util = { guard = guard }`, or

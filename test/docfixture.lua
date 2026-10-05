@@ -12,6 +12,16 @@ docTags.registerNameListTag('fixture-names', 'doc.fixture-names',
 docTags.registerBindRule('doc.fixture-names', function (_doc, _source, isParam)
     return not isParam
 end)
+docTags.registerParamKindTag('fixture-param-kind', 'doc.fixture-param-kind', { 'alpha', 'beta' },
+    'A tag with a parameter and a kind, registered by the tests.')
+docTags.registerKindParamsTag('fixture-kind-params', 'doc.fixture-kind-params', { 'alpha', 'beta', 'kind-with-hyphen' },
+    'A tag with a kind and parameter names, registered by the tests.')
+docTags.registerBindRule('doc.fixture-param-kind', function (_doc, source, _isParam)
+    return source.type == 'function'
+end)
+docTags.registerBindRule('doc.fixture-kind-params', function (_doc, source, _isParam)
+    return source.type == 'function'
+end)
 docTags.registerFieldKeyword('fixturefield', 'fixtureField',
     'A field keyword, registered by the tests.')
 docTags.registerTypeKeyword('fixturetype', 'fixtureType',

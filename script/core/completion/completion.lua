@@ -2807,11 +2807,104 @@ local function getAttrSource(attr, position)
     return attr
 end
 
+--- The parts after the tag word of the tag shapes a plugin registers, by the position of the word under the cursor:
+--- `---@mytag <param> <kind>` (parameter name, then a kind word), `---@mytag <kind> <name>...` (a kind word, then parameter
+--- names not named yet). The names are the parameters of the function the tag is bound to, the kinds the tag's list. The tag
+--- is read from the text of the line, as what is typed so far does not parse into a clean tag yet.
+---@param state    parser.state
+---@param position integer
+---@param results  completion.results
+---@return boolean
+local function tryTagArguments(state, position, results)
+    -- the text of the short comment the cursor is in, up to the cursor (`text` starts with the second dash)
+    ---@type string?
+    local before
+    for _, comm in ipairs(state.comms) do
+        if comm.type == 'comment.short' and position >= comm.start and position <= comm.finish then
+            before = comm.text:sub(1, position - comm.start - 1)
+            break
+        end
+    end
+    if not before then
+        return false
+    end
+    local tag, rest = before:match('^%-+%s*@([%w_%-]+)(.*)$')
+    if not tag or not rest or not rest:find('^%s') then
+        return false
+    end
+    local docType = docTags.getMarkerTagType(tag)
+    local paramFirst = docType and docTags.getParamKinds(docType)
+    local kindFirst  = docType and docTags.getKindParams(docType)
+    local kinds = paramFirst or kindFirst
+    if not docType or not kinds then
+        return false
+    end
+    ---@type string[]
+    local words = {}
+    for word in (rest:gmatch('%S+') --[[@as fun(): string]]) do
+        words[#words+1] = word
+    end
+    local partial = ''
+    if not rest:find('%s$') then
+        partial = table.remove(words) --[[@as string]]
+    end
+    local index = #words + 1
+    -- the function the tag is bound to
+    local row = guide.rowColOf(position)
+    ---@type parser.object?
+    local func
+    for _, doc in ipairs(state.ast.docs) do
+        if doc.type == docType and guide.rowColOf(doc.start) == row then
+            func = doc.bindSource
+            break
+        end
+    end
+    local wantParams = (paramFirst and index == 1) or (kindFirst and index >= 2)
+    local wantKinds  = (paramFirst and index == 2) or (kindFirst and index == 1)
+    ---@param label string
+    ---@param kind   integer
+    local function offer(label, kind)
+        if matchKey(partial, label) then
+            results[#results+1] = {
+                label    = label,
+                kind     = kind,
+                textEdit = {
+                    start   = position - #partial,
+                    finish  = position,
+                    newText = label,
+                },
+            }
+        end
+    end
+    if wantParams and func then
+        ---@type table<string, true>
+        local used = {}
+        for i = 2, #words do
+            used[words[i]] = true
+        end
+        for _, arg in ipairs(func.args or {}) do
+            local name = arg[1]
+            if type(name) == 'string' and not (kindFirst and used[name]) then
+                offer(name, define.CompletionItemKind.Variable)
+            end
+        end
+    end
+    if wantKinds then
+        for kind in util.sortPairs(kinds) do
+            offer(kind, define.CompletionItemKind.EnumMember)
+        end
+    end
+    return true
+end
+
 ---@async
 ---@param state    parser.state
 ---@param position integer
 ---@param results completion.results
 local function tryLuaDoc(state, position, results)
+    if tryTagArguments(state, position, results) then
+        return
+    end
     local doc = getLuaDoc(state, position)
     if not doc then
         return

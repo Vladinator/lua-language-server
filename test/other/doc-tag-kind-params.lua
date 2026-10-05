@@ -1,12 +1,9 @@
 -- A tag with a kind word and an optional list of parameter names (`---@mytag <kind> [a b ...]`), produced as
 -- `{ kind = <word>, names = { <name nodes> } }`: what a plugin registers with `docTags.registerKindParamsTag` (wowlua-ls's
--- `---@secret-args none a b`). Registered here under a name of its own, so the test passes with the whole extra/ folder removed.
+-- `---@secret-args none a b`). The fixture tag is registered in test/docfixture.lua, so the test passes with the whole extra/ folder removed.
 local files   = require 'files'
 local guide   = require 'parser.guide'
-local docTags = require 'parser.docTags'
-
-docTags.registerKindParamsTag('fixture-kind-params', 'doc.fixture-kind-params', { 'alpha', 'beta', 'kind-with-hyphen' },
-    'A tag with a kind and parameter names, registered by the tests.')
+require 'docfixture'
 
 ---@param line string the text after `---@fixture-kind-params `
 ---@return parser.object? doc the parsed tag, or nil when the tag was not produced

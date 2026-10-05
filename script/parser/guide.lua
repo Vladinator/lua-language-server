@@ -60,6 +60,8 @@ local type         = type
 ---@field param                 parser.object
 ---@field negated?               true -- `doc.guard` / `doc.asserts`: the tag says `x is not T`
 ---@field kind?                  string -- a param-kind tag (`doc.secret-guard`): the word after the parameter name; a kind-params tag (`doc.secret-args`): the first word
+---@field kindStart?             integer -- a param-kind / kind-params tag: where the kind word starts
+---@field kindFinish?            integer -- ... and ends
 ---@field overload              parser.object
 ---@field docParamMap           table<string, integer>
 ---@field upvalues              table<string, string[]>

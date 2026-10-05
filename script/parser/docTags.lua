@@ -40,6 +40,17 @@ local function eachKeyword(keywords, prefix)
     end
 end
 
+---@type table<string, string>
+local tagNameRoles = {}
+
+--- What the names a tag shape produces are, for the editor's colouring: `<docType>.name` nodes of a registered tag are tokens of
+--- that kind (`parameter`, `variable`). Set by the registerXTag functions below; read by the semantic tokens.
+---@param nameType string e.g. 'doc.secret-guard.name'
+---@return string? role the semantic token type name, nil for a node type no tag shape produces
+function m.getTagNameRole(nameType)
+    return tagNameRoles[nameType]
+end
+
 --- Register a "marker" LuaDoc tag that takes no arguments -- e.g.
 --- `---@mytag` -- and just produces a bare
 --- `{type = docType, start = ..., finish = ...}` node, the same shape as
@@ -140,6 +151,7 @@ local nameListTags = {}
 ---@param description? string shown by completion (markdown)
 function m.registerNameListTag(name, docType, description)
     m.registerMarkerTag(name, docType, description)
+    tagNameRoles[docType .. '.name'] = 'variable'
     nameListTags[docType] = true
     -- so the tree walkers (hover, completion, references...) reach the names
     guide.registerChildren(docType, {'#names'})
@@ -163,6 +175,7 @@ local guardTags = {}
 ---@param description? string shown by completion (markdown)
 function m.registerGuardTag(name, docType, description)
     m.registerMarkerTag(name, docType, description)
+    tagNameRoles[docType .. '.name'] = 'parameter'
     guardTags[docType] = true
     -- so the tree walkers (hover, completion, references, undefined-doc-name...) reach both parts
     guide.registerChildren(docType, {'param', 'extends'})
@@ -187,6 +200,7 @@ local paramKindTags = {}
 ---@param description? string shown by completion (markdown)
 function m.registerParamKindTag(name, docType, kinds, description)
     m.registerMarkerTag(name, docType, description)
+    tagNameRoles[docType .. '.name'] = 'parameter'
     ---@type table<string, true>
     local set = {}
     for _, kind in ipairs(kinds) do
@@ -216,6 +230,7 @@ local kindParamsTags = {}
 ---@param description? string shown by completion (markdown)
 function m.registerKindParamsTag(name, docType, kinds, description)
     m.registerMarkerTag(name, docType, description)
+    tagNameRoles[docType .. '.name'] = 'parameter'
     ---@type table<string, true>
     local set = {}
     for _, kind in ipairs(kinds) do

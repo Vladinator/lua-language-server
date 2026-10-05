@@ -6,6 +6,7 @@ local util           = require 'utility'
 local guide          = require 'parser.guide'
 local converter      = require 'proto.converter'
 local config         = require 'config'
+local docTags        = require 'parser.docTags'
 local linkedTable    = require 'linked-table'
 local client         = require 'client'
 
@@ -1064,6 +1065,25 @@ return function (uri, start, finish)
         -- skip virtual source
         if source.virtual then
             return
+        end
+        -- the parts of a registered tag (the parameter names, the names of a list, the kind word) have no handler of their own
+        local role = docTags.getTagNameRole(source.type)
+        if role then
+            if options.annotation then
+                results[#results+1] = {
+                    start  = source.start,
+                    finish = source.finish,
+                    type   = define.TokenTypes[role],
+                }
+            end
+            return
+        end
+        if source.kindStart and source.kindFinish and options.annotation then
+            results[#results+1] = {
+                start  = source.kindStart,
+                finish = source.kindFinish,
+                type   = define.TokenTypes.enumMember,
+            }
         end
         Care(source.type, source, options, results)
         n = n + 1

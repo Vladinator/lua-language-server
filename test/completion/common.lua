@@ -4678,11 +4678,19 @@ local x
 {
     include = true,
     {
+        label = 'fixture-kind-params',
+        kind  = define.CompletionItemKind.Event,
+    },
+    {
         label = 'fixture-marker',
         kind  = define.CompletionItemKind.Event,
     },
     {
         label = 'fixture-names',
+        kind  = define.CompletionItemKind.Event,
+    },
+    {
+        label = 'fixture-param-kind',
         kind  = define.CompletionItemKind.Event,
     },
 }
@@ -4722,6 +4730,158 @@ local abc, xyz = 1, 2
     },
 }
 
+-- the parts of the tag shapes plugins register: the parameter names of the bound function, the kind words of the tag
+TEST [[
+---@fixture-param-kind <??>
+local function f(p, q) end
+]]
+{
+    {
+        label = 'p',
+        kind  = define.CompletionItemKind.Variable,
+        textEdit = { start = 23, finish = 23, newText = 'p' },
+    },
+    {
+        label = 'q',
+        kind  = define.CompletionItemKind.Variable,
+        textEdit = { start = 23, finish = 23, newText = 'q' },
+    },
+}
+
+TEST [[
+---@fixture-param-kind q<??>
+local function f(p, q) end
+]]
+{
+    {
+        label = 'q',
+        kind  = define.CompletionItemKind.Variable,
+        textEdit = { start = 23, finish = 24, newText = 'q' },
+    },
+}
+
+TEST [[
+---@fixture-param-kind p <??>
+local function f(p, q) end
+]]
+{
+    {
+        label = 'alpha',
+        kind  = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 25, finish = 25, newText = 'alpha' },
+    },
+    {
+        label = 'beta',
+        kind  = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 25, finish = 25, newText = 'beta' },
+    },
+}
+
+TEST [[
+---@fixture-param-kind p be<??>
+local function f(p, q) end
+]]
+{
+    {
+        label = 'beta',
+        kind  = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 25, finish = 27, newText = 'beta' },
+    },
+}
+
+TEST [[
+---@fixture-kind-params <??>
+local function f(p, q) end
+]]
+{
+    {
+        label = 'alpha',
+        kind  = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 24, finish = 24, newText = 'alpha' },
+    },
+    {
+        label = 'beta',
+        kind  = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 24, finish = 24, newText = 'beta' },
+    },
+    {
+        label = 'kind-with-hyphen',
+        kind  = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 24, finish = 24, newText = 'kind-with-hyphen' },
+    },
+}
+
+TEST [[
+---@fixture-kind-params alpha <??>
+local function f(p, ...) end
+]]
+{
+    {
+        label = 'p',
+        kind  = define.CompletionItemKind.Variable,
+        textEdit = { start = 30, finish = 30, newText = 'p' },
+    },
+    {
+        label = '...',
+        kind  = define.CompletionItemKind.Variable,
+        textEdit = { start = 30, finish = 30, newText = '...' },
+    },
+}
+
+-- a name that is already in the list is not offered again
+TEST [[
+---@fixture-kind-params alpha p <??>
+local function f(p, q) end
+]]
+{
+    {
+        label = 'q',
+        kind  = define.CompletionItemKind.Variable,
+        textEdit = { start = 32, finish = 32, newText = 'q' },
+    },
+}
+
+-- a second tag in the file: the parameters of ITS function, not of the first one
+TEST [[
+---@fixture-param-kind p
+local function first(p) end
+
+---@fixture-param-kind <??>
+local function second(x, y) end
+]]
+{
+    {
+        label = 'x',
+        kind  = define.CompletionItemKind.Variable,
+        textEdit = { start = 30023, finish = 30023, newText = 'x' },
+    },
+    {
+        label = 'y',
+        kind  = define.CompletionItemKind.Variable,
+        textEdit = { start = 30023, finish = 30023, newText = 'y' },
+    },
+}
+
+-- the cursor right after the tag word (no space yet): that is the tag name, not a parameter
+TEST [[
+---@fixture-param-kind<??>
+local function f(p, q) end
+]]
+(nil)
+
+-- nothing to complete after the last part of a param-kind tag, or when the tag is bound to no function
+TEST [[
+---@fixture-param-kind p alpha <??>
+local function f(p, q) end
+]]
+(nil)
+
+TEST [[
+---@fixture-param-kind <??>
+local notAFunction = 1
+]]
+(nil)
+
 TEST [[
 ---@diagnostic expect-n<??>
 ]]
@@ -4734,13 +4894,22 @@ TEST [[
     },
 }
 
+-- (the match is fuzzy: `n` also finds the other fixture tags with an n)
 TEST [[
 ---@fixture-n<??>
 local x
 ]]
 {
     {
+        label = 'fixture-kind-params',
+        kind  = define.CompletionItemKind.Event,
+    },
+    {
         label = 'fixture-names',
+        kind  = define.CompletionItemKind.Event,
+    },
+    {
+        label = 'fixture-param-kind',
         kind  = define.CompletionItemKind.Event,
     },
 }

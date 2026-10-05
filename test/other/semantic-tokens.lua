@@ -51,3 +51,44 @@ local tokens = tokensOf('---@fixture-marker\nlocal a\n---@fixture-names a\nlocal
 assert(has(tokens, 0, 3, 15, keyword, doc), '`@fixture-marker`')
 assert(has(tokens, 2, 3, 14, keyword, doc), '`@fixture-names` with names')
 assert(has(tokens, 4, 3, 11, keyword, doc), '`@deprecated`')
+
+-- the parts of a tag the registry lets a plugin add are tokens too, not comment text: the names of a list are variables, the
+-- parameter names of the other shapes are parameters, a kind word is an enum member
+local parameter  = define.TokenTypes.parameter
+local variable   = define.TokenTypes.variable
+local enumMember = define.TokenTypes.enumMember
+
+tokens = tokensOf('---@fixture-names a, b\nlocal a, b\n')
+assert(has(tokens, 0, 18, 1, variable, 0), 'a name of a list')
+assert(has(tokens, 0, 21, 1, variable, 0), 'the second name of a list')
+
+tokens = tokensOf('---@fixture-param-kind value alpha\nlocal function f(value) end\n')
+assert(has(tokens, 0, 23, 5, parameter, 0), 'the parameter of a param-kind tag')
+assert(has(tokens, 0, 29, 5, enumMember, 0), 'the kind word of a param-kind tag')
+
+tokens = tokensOf('---@fixture-kind-params alpha value other\nlocal function f(value, other) end\n')
+assert(has(tokens, 0, 24, 5, enumMember, 0), 'the kind word of a kind-params tag')
+assert(has(tokens, 0, 30, 5, parameter, 0), 'the first name of a kind-params tag')
+assert(has(tokens, 0, 36, 5, parameter, 0), 'the second name of a kind-params tag')
+
+tokens = tokensOf('---@fixture-kind-params kind-with-hyphen value\nlocal function f(value) end\n')
+assert(has(tokens, 0, 24, 16, enumMember, 0), 'a hyphenated kind word is one token')
+
+-- a tag that did not read cleanly (unknown kind) stays bare: no part is a token
+tokens = tokensOf('---@fixture-param-kind value nokind\nlocal function f(value) end\n')
+assert(not has(tokens, 0, 23, 5, parameter, 0), 'an unclean param-kind tag has no parameter token')
+assert(not has(tokens, 0, 29, 6, enumMember, 0), 'an unclean param-kind tag has no kind token')
+tokens = tokensOf('---@fixture-kind-params nokind value\nlocal function f(value) end\n')
+assert(not has(tokens, 0, 24, 6, enumMember, 0), 'an unclean kind-params tag has no kind token')
+
+-- no kind, no names: only the tag itself
+tokens = tokensOf('---@fixture-kind-params alpha\nlocal function f() end\n')
+assert(has(tokens, 0, 24, 5, enumMember, 0), 'a kind with no names')
+
+-- `Lua.semantic.annotation` off: no annotation tokens at all
+local config = require 'config'
+config.set(nil, 'Lua.semantic.annotation', false)
+tokens = tokensOf('---@fixture-param-kind value alpha\nlocal function f(value) end\n')
+assert(not has(tokens, 0, 23, 5, parameter, 0), 'annotation tokens switched off: the parameter')
+assert(not has(tokens, 0, 29, 5, enumMember, 0), 'annotation tokens switched off: the kind')
+config.set(nil, 'Lua.semantic.annotation', true)

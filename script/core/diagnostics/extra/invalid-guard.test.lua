@@ -322,3 +322,38 @@ end
     assert(joined:find(',string,', 1, true) and joined:find(',table,', 1, true), 'loose file: ' .. joined)
     files.remove(looseUri)
 end
+
+-- completion in `---@guard x is T` / `---@asserts x is T`: the parameters of the function the tag is bound to where the parameter goes;
+-- the rest of the line is a type, which completes as any type does
+do
+    local completion = require 'core.completion'
+    local define     = require 'proto.define'
+    local nl = string.char(10)
+
+    ---@param script string a script with one `<??>`
+    ---@return table<string, integer> labels with their kinds
+    local function offered(script)
+        local text, catched = catch(script, '?')
+        files.setText(TESTURI, text)
+        local items = completion.completion(TESTURI, catched['?'][1][2], nil) or {}
+        ---@type table<string, integer>
+        local labels = {}
+        for _, item in ipairs(items) do
+            labels[item.label] = item.kind
+        end
+        files.remove(TESTURI)
+        return labels
+    end
+    local variable = define.CompletionItemKind.Variable
+
+    for _, tag in ipairs { 'guard', 'asserts' } do
+        local labels = offered('---@' .. tag .. ' <??>' .. nl .. 'local function f(value, other) end' .. nl)
+        assert(labels['value'] == variable and labels['other'] == variable, '`@' .. tag .. '`: the parameters')
+        labels = offered('---@' .. tag .. ' va<??>' .. nl .. 'local function f(value, other) end' .. nl)
+        assert(labels['value'] == variable and labels['other'] == nil, '`@' .. tag .. '`: a half typed parameter')
+        -- after the parameter the line is a type: no parameter name is offered there
+        labels = offered('---@' .. tag .. ' value is <??>' .. nl .. 'local function f(value, other) end' .. nl)
+        assert(labels['value'] == nil and labels['other'] == nil, '`@' .. tag .. '`: no parameter where the type goes')
+        assert(labels['string'] ~= nil, '`@' .. tag .. '`: the type completes as any type does')
+    end
+end

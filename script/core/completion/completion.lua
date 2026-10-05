@@ -2900,8 +2900,10 @@ local function tryTagArguments(state, position, results)
     local docType = docTags.getMarkerTagType(tag)
     local paramFirst = docType and docTags.getParamKinds(docType)
     local kindFirst  = docType and docTags.getKindParams(docType)
+    -- `---@mytag x is T`: a parameter, then a type (which completes as any type does)
+    local guardFirst = docType and docTags.isGuardTag(docType)
     local kinds = paramFirst or kindFirst
-    if not docType or not kinds then
+    if not docType or not (kinds or guardFirst) then
         return false
     end
     ---@type string[]
@@ -2924,7 +2926,10 @@ local function tryTagArguments(state, position, results)
             break
         end
     end
-    local wantParams = (paramFirst and index == 1) or (kindFirst and index >= 2)
+    if guardFirst and index > 1 then
+        return false
+    end
+    local wantParams = (paramFirst and index == 1) or (kindFirst and index >= 2) or guardFirst
     local wantKinds  = (paramFirst and index == 2) or (kindFirst and index == 1)
     ---@param label string
     ---@param kind   integer
@@ -2955,7 +2960,7 @@ local function tryTagArguments(state, position, results)
         end
     end
     if wantKinds then
-        for kind in util.sortPairs(kinds) do
+        for kind in util.sortPairs(kinds or {}) do
             offer(kind, define.CompletionItemKind.EnumMember)
         end
     end

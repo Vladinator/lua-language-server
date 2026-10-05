@@ -335,6 +335,7 @@ Array<string>
 * ``"await-in-sync"``: 同步函式中呼叫非同步函式
 * ``"block-after-else"``: `else` 之後的程式碼區塊
 * ``"break-outside"``: 在迴圈外使用 `break`
+* ``"cannot-call"``: Enable diagnostics for calling a local variable or a literal whose every known type is one that cannot be called (a number, a string, a boolean). Anything that could be callable (a function, a table, a class, `any`, an unknown value, a union with one of those) is left alone, and so are field and method accesses, whose type is not certain; a value that may be `nil` is `need-check-nil`.
 * ``"cast-local-type"``: 已顯式定義變數類型不符合要定義的值的類型
 * ``"cast-type-mismatch"``: 變數被轉換為不符合其初始類型的類型
 * ``"circle-doc-class"``: `@class` 繼承出現循環
@@ -372,6 +373,7 @@ Array<string>
 * ``"incomplete-signature-doc"``: `@param` 或 `@return` 不完整
 * ``"index-in-func-name"``: 函式名稱中包含索引
 * ``"inject-field"``: 向物件注入欄位
+* ``"invalid-class-parent"``: Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
 * ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
 * ``"invalid-secret-guard"``: Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
 * ``"invisible"``: 嘗試存取不可見的欄位
@@ -420,9 +422,12 @@ Array<string>
 * ``"missing-fields"``: 缺少欄位
 * ``"missing-global-doc"``: 全域變數缺少標註（全域函式必須為所有參數和回傳值提供標註）
 * ``"missing-local-export-doc"``: 匯出的區域函式缺少標註（匯出的區域函式、所有的參數和回傳值都必須有標註）
+* ``"missing-param-annotation"``: Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) with a parameter that has no `---@param`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
 * ``"missing-parameter"``: 函式呼叫的引數數量比函式標註的參數數量少
 * ``"missing-return"``: 函式有 `@return` 標註卻沒有 `return` 陳述式
+* ``"missing-return-annotation"``: Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) whose body returns a value but has no `---@return`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
 * ``"missing-return-value"``: 函式沒有回傳值，但使用了 `@return` 標註了回傳值
+* ``"mixed-enum-values"``: Enable diagnostics for an `---@enum` whose values are not all numbers or all strings: a value of another kind than the first literal one is reported, and so is a value that is neither (a boolean, a table, a function).
 * ``"multi-close"``: 多重 close 操作
 * ``"mutate-readonly"``: Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
 * ``"name-style-check"``: 變數命名風格檢查
@@ -644,6 +649,8 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * missing-param-annotation
+    * missing-return-annotation
     * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
@@ -693,11 +700,14 @@ object<string, string>
     /*
     * assign-readonly
     * assign-type-mismatch
+    * cannot-call
     * cast-local-type
     * cast-type-mismatch
     * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
+    * invalid-class-parent
+    * mixed-enum-values
     * mutate-readonly
     * need-check-nil
     * nil-index
@@ -805,6 +815,8 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * missing-param-annotation
+    * missing-return-annotation
     * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
@@ -854,11 +866,14 @@ object<string, string>
     /*
     * assign-readonly
     * assign-type-mismatch
+    * cannot-call
     * cast-local-type
     * cast-type-mismatch
     * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
+    * invalid-class-parent
+    * mixed-enum-values
     * mutate-readonly
     * need-check-nil
     * nil-index
@@ -983,6 +998,10 @@ object<string, string>
     */
     "await-in-sync": "None",
     /*
+    Enable diagnostics for calling a local variable or a literal whose every known type is one that cannot be called (a number, a string, a boolean). Anything that could be callable (a function, a table, a class, `any`, an unknown value, a union with one of those) is left alone, and so are field and method accesses, whose type is not certain; a value that may be `nil` is `need-check-nil`.
+    */
+    "cannot-call": "Opened",
+    /*
     已顯式定義變數類型不符合要定義的值的類型
     */
     "cast-local-type": "Opened",
@@ -1079,6 +1098,10 @@ object<string, string>
     */
     "inject-field": "Opened",
     /*
+    Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
+    */
+    "invalid-class-parent": "None",
+    /*
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Opened",
@@ -1107,6 +1130,10 @@ object<string, string>
     */
     "missing-local-export-doc": "None",
     /*
+    Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) with a parameter that has no `---@param`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
+    */
+    "missing-param-annotation": "None",
+    /*
     函式呼叫的引數數量比函式標註的參數數量少
     */
     "missing-parameter": "Any",
@@ -1115,9 +1142,17 @@ object<string, string>
     */
     "missing-return": "Any",
     /*
+    Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) whose body returns a value but has no `---@return`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
+    */
+    "missing-return-annotation": "None",
+    /*
     函式沒有回傳值，但使用了 `@return` 標註了回傳值
     */
     "missing-return-value": "Any",
+    /*
+    Enable diagnostics for an `---@enum` whose values are not all numbers or all strings: a value of another kind than the first literal one is reported, and so is a value that is neither (a boolean, a table, a function).
+    */
+    "mixed-enum-values": "Opened",
     /*
     Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
     */
@@ -1381,6 +1416,10 @@ object<string, string>
     */
     "await-in-sync": "Warning",
     /*
+    Enable diagnostics for calling a local variable or a literal whose every known type is one that cannot be called (a number, a string, a boolean). Anything that could be callable (a function, a table, a class, `any`, an unknown value, a union with one of those) is left alone, and so are field and method accesses, whose type is not certain; a value that may be `nil` is `need-check-nil`.
+    */
+    "cannot-call": "Warning",
+    /*
     已顯式定義變數類型不符合要定義的值的類型
     */
     "cast-local-type": "Warning",
@@ -1477,6 +1516,10 @@ object<string, string>
     */
     "inject-field": "Warning",
     /*
+    Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
+    */
+    "invalid-class-parent": "Warning",
+    /*
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Warning",
@@ -1505,6 +1548,10 @@ object<string, string>
     */
     "missing-local-export-doc": "Warning",
     /*
+    Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) with a parameter that has no `---@param`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
+    */
+    "missing-param-annotation": "Hint",
+    /*
     函式呼叫的引數數量比函式標註的參數數量少
     */
     "missing-parameter": "Warning",
@@ -1513,9 +1560,17 @@ object<string, string>
     */
     "missing-return": "Warning",
     /*
+    Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) whose body returns a value but has no `---@return`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
+    */
+    "missing-return-annotation": "Hint",
+    /*
     函式沒有回傳值，但使用了 `@return` 標註了回傳值
     */
     "missing-return-value": "Warning",
+    /*
+    Enable diagnostics for an `---@enum` whose values are not all numbers or all strings: a value of another kind than the first literal one is reported, and so is a value that is neither (a boolean, a table, a function).
+    */
+    "mixed-enum-values": "Warning",
     /*
     Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
     */

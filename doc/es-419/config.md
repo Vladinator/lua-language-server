@@ -335,6 +335,7 @@ Array<string>
 * ``"await-in-sync"``: Habilita el diagnóstico para llamadas a funciones asíncronas dentro de una función síncrona.
 * ``"block-after-else"``: Bloque después de `else`
 * ``"break-outside"``: Usando `break` fuera de un bucle
+* ``"cannot-call"``: Enable diagnostics for calling a local variable or a literal whose every known type is one that cannot be called (a number, a string, a boolean). Anything that could be callable (a function, a table, a class, `any`, an unknown value, a union with one of those) is left alone, and so are field and method accesses, whose type is not certain; a value that may be `nil` is `need-check-nil`.
 * ``"cast-local-type"``: Habilita el diagnóstico para conversión de tipos de variables locales donde el tipo objetivo no calza con el tipo definido.
 * ``"cast-type-mismatch"``: Habilita el diagnóstico para conversiones de tipos donde el tipo objetivo no calza con el tipo inicial.
 * ``"circle-doc-class"``: Herencia circular de `@class`
@@ -372,6 +373,7 @@ Array<string>
 * ``"incomplete-signature-doc"``: Habilita el diagnóstico para anotaciones @param o @return incompletas para funciones.
 * ``"index-in-func-name"``: Índice en nombre de función
 * ``"inject-field"``: Inyectando un campo en un objeto
+* ``"invalid-class-parent"``: Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
 * ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
 * ``"invalid-secret-guard"``: Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
 * ``"invisible"``: Habilita el diagnóstico para accesos a campos que son invisibles.
@@ -420,9 +422,12 @@ Array<string>
 * ``"missing-fields"``: Campos faltantes
 * ``"missing-global-doc"``: Habilita el diagnóstico para globales faltantes. Las funciones globales deben tener un comentario y anotaciones para todos sus parámetros y valores retornados.
 * ``"missing-local-export-doc"``: Habilita el diagnóstico para locales exportadas. Las funciones locales deben tener un comentario y anotaciones para todos sus parámetros y valores retornados.
+* ``"missing-param-annotation"``: Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) with a parameter that has no `---@param`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
 * ``"missing-parameter"``: Habilita el diagnóstico para llamados de funciones donde el número de argumentos es menore que el número de parámetros anotados de la función.
 * ``"missing-return"``: Habilita el diagnóstico para para funciones con anotaciones de retorno que no tienen la expresión `return …`.
+* ``"missing-return-annotation"``: Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) whose body returns a value but has no `---@return`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
 * ``"missing-return-value"``: Habilita el diagnóstico para expresiones `return …` sin valores aunque la función que la contiene declare retornos.
+* ``"mixed-enum-values"``: Enable diagnostics for an `---@enum` whose values are not all numbers or all strings: a value of another kind than the first literal one is reported, and so is a value that is neither (a boolean, a table, a function).
 * ``"multi-close"``: Múltiples operaciones close
 * ``"mutate-readonly"``: Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
 * ``"name-style-check"``: Habilita el diagnóstico para el estilo de nombres.
@@ -644,6 +649,8 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * missing-param-annotation
+    * missing-return-annotation
     * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
@@ -693,11 +700,14 @@ object<string, string>
     /*
     * assign-readonly
     * assign-type-mismatch
+    * cannot-call
     * cast-local-type
     * cast-type-mismatch
     * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
+    * invalid-class-parent
+    * mixed-enum-values
     * mutate-readonly
     * need-check-nil
     * nil-index
@@ -805,6 +815,8 @@ object<string, string>
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
+    * missing-param-annotation
+    * missing-return-annotation
     * nil-table-key
     * non-portable-annotation
     * undefined-doc-class
@@ -854,11 +866,14 @@ object<string, string>
     /*
     * assign-readonly
     * assign-type-mismatch
+    * cannot-call
     * cast-local-type
     * cast-type-mismatch
     * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
+    * invalid-class-parent
+    * mixed-enum-values
     * mutate-readonly
     * need-check-nil
     * nil-index
@@ -983,6 +998,10 @@ object<string, string>
     */
     "await-in-sync": "None",
     /*
+    Enable diagnostics for calling a local variable or a literal whose every known type is one that cannot be called (a number, a string, a boolean). Anything that could be callable (a function, a table, a class, `any`, an unknown value, a union with one of those) is left alone, and so are field and method accesses, whose type is not certain; a value that may be `nil` is `need-check-nil`.
+    */
+    "cannot-call": "Opened",
+    /*
     Habilita el diagnóstico para conversión de tipos de variables locales donde el tipo objetivo no calza con el tipo definido.
     */
     "cast-local-type": "Opened",
@@ -1079,6 +1098,10 @@ object<string, string>
     */
     "inject-field": "Opened",
     /*
+    Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
+    */
+    "invalid-class-parent": "None",
+    /*
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Opened",
@@ -1107,6 +1130,10 @@ object<string, string>
     */
     "missing-local-export-doc": "None",
     /*
+    Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) with a parameter that has no `---@param`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
+    */
+    "missing-param-annotation": "None",
+    /*
     Habilita el diagnóstico para llamados de funciones donde el número de argumentos es menore que el número de parámetros anotados de la función.
     */
     "missing-parameter": "Any",
@@ -1115,9 +1142,17 @@ object<string, string>
     */
     "missing-return": "Any",
     /*
+    Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) whose body returns a value but has no `---@return`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
+    */
+    "missing-return-annotation": "None",
+    /*
     Habilita el diagnóstico para expresiones `return …` sin valores aunque la función que la contiene declare retornos.
     */
     "missing-return-value": "Any",
+    /*
+    Enable diagnostics for an `---@enum` whose values are not all numbers or all strings: a value of another kind than the first literal one is reported, and so is a value that is neither (a boolean, a table, a function).
+    */
+    "mixed-enum-values": "Opened",
     /*
     Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
     */
@@ -1382,6 +1417,10 @@ object<string, string>
     */
     "await-in-sync": "Warning",
     /*
+    Enable diagnostics for calling a local variable or a literal whose every known type is one that cannot be called (a number, a string, a boolean). Anything that could be callable (a function, a table, a class, `any`, an unknown value, a union with one of those) is left alone, and so are field and method accesses, whose type is not certain; a value that may be `nil` is `need-check-nil`.
+    */
+    "cannot-call": "Warning",
+    /*
     Habilita el diagnóstico para conversión de tipos de variables locales donde el tipo objetivo no calza con el tipo definido.
     */
     "cast-local-type": "Warning",
@@ -1478,6 +1517,10 @@ object<string, string>
     */
     "inject-field": "Warning",
     /*
+    Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
+    */
+    "invalid-class-parent": "Warning",
+    /*
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Warning",
@@ -1506,6 +1549,10 @@ object<string, string>
     */
     "missing-local-export-doc": "Warning",
     /*
+    Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) with a parameter that has no `---@param`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
+    */
+    "missing-param-annotation": "Hint",
+    /*
     Habilita el diagnóstico para llamados de funciones donde el número de argumentos es menore que el número de parámetros anotados de la función.
     */
     "missing-parameter": "Warning",
@@ -1514,9 +1561,17 @@ object<string, string>
     */
     "missing-return": "Warning",
     /*
+    Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) whose body returns a value but has no `---@return`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
+    */
+    "missing-return-annotation": "Hint",
+    /*
     Habilita el diagnóstico para expresiones `return …` sin valores aunque la función que la contiene declare retornos.
     */
     "missing-return-value": "Warning",
+    /*
+    Enable diagnostics for an `---@enum` whose values are not all numbers or all strings: a value of another kind than the first literal one is reported, and so is a value that is neither (a boolean, a table, a function).
+    */
+    "mixed-enum-values": "Warning",
     /*
     Enable diagnostics for mutating a value through a reference declared `readonly` (`---@param t readonly T`, `---@type readonly T`): assigning one of its fields/indices, or passing it to a mutating stdlib call (`table.insert`, `table.remove`, `table.sort`, `rawset`).
     */

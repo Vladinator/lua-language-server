@@ -6,6 +6,8 @@
             "incomplete-signature-doc",
             "missing-global-doc",
             "missing-local-export-doc",
+            "missing-param-annotation",
+            "missing-return-annotation",
             "nil-index",
             "redefined-local",
             "unchecked-array-index",

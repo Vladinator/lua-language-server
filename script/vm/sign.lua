@@ -212,7 +212,10 @@ function mt:resolve(uri, args)
                         end)
                     elseif n.type == 'table' and #n >= 1 then
                         -- { x } / { ... } -> T[]
-                        resolve(object.node, vm.compileNode(n[1]))
+                        -- (the element expression itself: the `tableexp` wrapper of a nested literal is compiled as the type
+                        -- it is expected to be, `T[]`, which has lost its elements)
+                        local element = n[1]
+                        resolve(object.node, vm.compileNode(element.type == 'tableexp' and element.value or element))
                     end
                 end
             end

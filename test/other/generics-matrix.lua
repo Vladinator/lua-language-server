@@ -90,7 +90,11 @@ local cases = {
     { 'T[K] missing key',    L('---@generic T, K', '---@param t T', '---@param k K', '---@return T[K]', 'local function get(t, k) return t[k] end', 'local o = {name = "x"}', 'local r = get(o, "age")'), 'r', 'unknown', 'no such member: unknown' },
     -- containers of containers, callbacks returning containers, nested function types
     { 'nested array typed',  L('---@generic T', '---@param l T[][]', '---@return T', 'local function f(l) return l[1][1] end', '---@type string[][]', 'local s', 'local r = f(s)'), 'r', 'string', '' },
-    { 'nested array literal', L('---@generic T', '---@param l T[][]', '---@return T', 'local function f(l) return l[1][1] end', 'local r = f({{1}})'), 'r', 'integer', 'a nested table literal does not bind T (the typed form does)', '<T>' },
+    { 'nested array literal', L('---@generic T', '---@param l T[][]', '---@return T', 'local function f(l) return l[1][1] end', 'local r = f({{1}})'), 'r', 'integer', 'a nested table literal binds T (it used to stay <T>: the literal was typed as the expected T[])' },
+    { 'nested literal, two rows', L('---@generic T', '---@param l T[][]', '---@return T', 'local function f(l) return l[1][1] end', 'local r = f({{1}, {2}})'), 'r', 'integer', '' },
+    { 'nested literal, strings', L('---@generic T', '---@param l T[][]', '---@return T', 'local function f(l) return l[1][1] end', 'local r = f({{"a"}})'), 'r', 'string', '' },
+    { 'nested, row in a local', L('---@generic T', '---@param l T[][]', '---@return T', 'local function f(l) return l[1][1] end', 'local row = {true}', 'local r = f({row})'), 'r', 'boolean', '' },
+    { 'nested, local table', L('---@generic T', '---@param l T[][]', '---@return T', 'local function f(l) return l[1][1] end', 'local x = {{1}}', 'local r = f(x)'), 'r', 'integer', '' },
     { 'table of arrays',     L('---@generic K, T', '---@param t table<K, T[]>', '---@return T', 'local function f(t) return next(t)[1] end', '---@type table<string, boolean[]>', 'local s', 'local r = f(s)'), 'r', 'boolean', '' },
     { 'array of tables',     L('---@generic T', '---@param l table<string, T>[]', '---@return T', 'local function f(l) return next(l[1]) end', '---@type table<string, number>[]', 'local s', 'local r = f(s)'), 'r', 'number', '' },
     { 'callback returns array', L('---@generic T, U', '---@param l T[]', '---@param fn fun(x: T): U[]', '---@return U[]', 'local function flat(l, fn) return {} end', 'local r = flat({1}, function(x) return {"a"} end)'), 'r', 'string[]', '' },

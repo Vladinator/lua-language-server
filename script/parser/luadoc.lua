@@ -807,6 +807,8 @@ local function wrapKeywordSign(unit)
         finish = unit.finish,
         parent = unit.parent,
         types  = { inner },
+        kwStart  = unit.node.start,
+        kwFinish = unit.node.finish,
         [wrapperField] = true,
     }
     inner.parent = wrapped
@@ -1070,6 +1072,7 @@ local function parseParen(parent)
     -- exactly the shape that would have silently misparsed without this restriction.
     if tp and checkToken('name', 'extends', 1) then
         nextToken()
+        local kwStart, kwFinish = getStart(), getFinish()
         local extendsType = parseType(tp)
         if not extendsType then
             pushWarning {
@@ -1094,6 +1097,8 @@ local function parseParen(parent)
         ---@type parser.object
         local condResult = {
             type      = 'doc.type.conditional',
+            kwStart   = kwStart,
+            kwFinish  = kwFinish,
             start     = tp.start,
             finish    = getFinish(),
             parent    = parent,
@@ -1128,6 +1133,7 @@ local function parseTypeUnitKeyof(parent)
     end
     nextToken()
     local kwStart = getStart()
+    local kwFinish = getFinish()
     local node = parseTypeUnit(parent)
     if not node then
         pushWarning {
@@ -1144,6 +1150,8 @@ local function parseTypeUnitKeyof(parent)
         finish = node.finish,
         node   = node,
         parent = parent,
+        kwStart  = kwStart,
+        kwFinish = kwFinish,
     }
     node.parent = result
     return result
@@ -1268,6 +1276,10 @@ function parseType(parent)
     -- a plugin type keyword (`secret string`): only when a type follows it
     ---@type string?
     local keywordField
+    ---@type integer?
+    local keywordStart
+    ---@type integer?
+    local keywordFinish
     local keywordTp, keyword = peekToken()
     if keywordTp == 'name' and keyword then
         ---@cast keyword string -- a 'name' token always carries its text
@@ -1280,6 +1292,7 @@ function parseType(parent)
                 keywordField = nil
             else
                 nextToken()
+                keywordStart, keywordFinish = getStart(), getFinish()
             end
         end
     end
@@ -1294,6 +1307,7 @@ function parseType(parent)
             prefixOptional = true
         end
     end
+    result.kwStart, result.kwFinish = keywordStart, keywordFinish
     while true do
         local typeUnit = parseTypeIntersection(result)
         if not typeUnit then
@@ -1333,6 +1347,7 @@ function parseType(parent)
                 inner.parent = result
                 result.types[1] = inner
                 result[wrapperField] = true
+                result.kwStart, result.kwFinish = sole.node.start, sole.node.finish
             end
         end
     end
@@ -1887,8 +1902,13 @@ local docSwitch = util.switch()
                 result.start = object.start
             end
             -- `T: Base`, or TypeScript's `T extends Base`
-            if checkToken('symbol', ':', 1) or checkToken('name', 'extends', 1) then
+            local isExtendsWord = checkToken('name', 'extends', 1)
+            if checkToken('symbol', ':', 1) or isExtendsWord then
                 nextToken()
+                if isExtendsWord then
+                    -- (the word is a keyword to colour; the colon is a symbol)
+                    object.kwStart, object.kwFinish = getStart(), getFinish()
+                end
                 object.extends = parseType(object)
             end
             -- `---@generic T = string` (TypeScript's default type parameter): the type `resolve()`

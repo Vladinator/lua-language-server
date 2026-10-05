@@ -1339,6 +1339,14 @@ do
     assert(at['0:23'] and at['0:23'][1] == 1 and at['0:23'][2] == parameter, '`@secret-args`: the second name')
     at = tokensAt('---@secret-guard value nokind' .. string.char(10) .. 'local function f(value) end' .. string.char(10))
     assert(not at['0:17'], '`@secret-guard` with an unknown kind stays plain text')
+    -- the type keywords: in front of a type, and as a one-argument generic
+    local keywordType = define.TokenTypes.keyword
+    at = tokensAt('---@type secret string' .. string.char(10) .. 'local x' .. string.char(10))
+    assert(at['0:9'] and at['0:9'][1] == 6 and at['0:9'][2] == keywordType, '`secret` in front of a type')
+    at = tokensAt('---@type nosecret<string>' .. string.char(10) .. 'local x' .. string.char(10))
+    assert(at['0:9'] and at['0:9'][1] == 8 and at['0:9'][2] == keywordType, '`nosecret<T>`')
+    at = tokensAt('---@type secret<string>' .. string.char(10) .. 'local x' .. string.char(10))
+    assert(at['0:9'] and at['0:9'][1] == 6 and at['0:9'][2] == keywordType, '`secret<T>`')
 end
 
 -- A guard written as a LOCAL function and exported through a table field (`ns.Util = { guard = guard }`, or

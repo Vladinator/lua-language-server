@@ -92,3 +92,36 @@ tokens = tokensOf('---@fixture-param-kind value alpha\nlocal function f(value) e
 assert(not has(tokens, 0, 23, 5, parameter, 0), 'annotation tokens switched off: the parameter')
 assert(not has(tokens, 0, 29, 5, enumMember, 0), 'annotation tokens switched off: the kind')
 config.set(nil, 'Lua.semantic.annotation', true)
+
+-- the words of the type syntax are keywords too, not comment text: `keyof`, `extends` (a generic's constraint and a conditional type), and a type
+-- keyword a plugin registers, in front of a type or as a one-argument generic
+tokens = tokensOf('---@param k keyof T\nlocal function f(k) end\n')
+assert(has(tokens, 0, 12, 5, keyword, 0), '`keyof`')
+
+tokens = tokensOf('---@generic T extends table\nlocal function f() end\n')
+assert(has(tokens, 0, 14, 7, keyword, 0), '`extends` of a generic')
+tokens = tokensOf('---@generic T: table\nlocal function f() end\n')
+assert(not has(tokens, 0, 13, 5, keyword, 0), 'the colon form has no keyword')
+for _, t in ipairs(tokens) do
+    assert(not (t[1] == 0 and t[4] == keyword and t[2] > 11), 'the colon form: no keyword token after the tag word')
+end
+
+tokens = tokensOf('---@type (T extends string ? number : boolean)\nlocal x\n')
+assert(has(tokens, 0, 12, 7, keyword, 0), '`extends` of a conditional type')
+
+tokens = tokensOf('---@param v fixturetype number\nlocal function f(v) end\n')
+assert(has(tokens, 0, 12, 11, keyword, 0), 'a type keyword in front of a type')
+tokens = tokensOf('---@param v fixturetype<number>\nlocal function f(v) end\n')
+assert(has(tokens, 0, 12, 11, keyword, 0), 'a type keyword as a one-argument generic')
+tokens = tokensOf('---@param v fixturetype<number>[]\nlocal function f(v) end\n')
+assert(has(tokens, 0, 12, 11, keyword, 0), 'a type keyword as a generic on an array element')
+tokens = tokensOf('---@param v number\nlocal function f(v) end\n')
+for _, t in ipairs(tokens) do
+    assert(not (t[1] == 0 and t[4] == keyword and t[2] > 8), 'a plain type has no keyword token')
+end
+
+-- annotation tokens off: no keyword tokens either
+config.set(nil, 'Lua.semantic.annotation', false)
+tokens = tokensOf('---@param k keyof T\nlocal function f(k) end\n')
+assert(not has(tokens, 0, 12, 5, keyword, 0), '`keyof` with annotation tokens off')
+config.set(nil, 'Lua.semantic.annotation', true)

@@ -1078,6 +1078,13 @@ return function (uri, start, finish)
             end
             return
         end
+        if source.kwStart and source.kwFinish and options.annotation then
+            results[#results+1] = {
+                start  = source.kwStart,
+                finish = source.kwFinish,
+                type   = define.TokenTypes.keyword,
+            }
+        end
         if source.kindStart and source.kindFinish and options.annotation then
             results[#results+1] = {
                 start  = source.kindStart,

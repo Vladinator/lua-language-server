@@ -7,9 +7,10 @@
 -- line is respected: nothing is added then. WoW-specific, so it is a plugin; deleting this file removes it. Its tests are
 -- next to it.
 
-local config = require 'config'
-local vm     = require 'vm'
-local plugin = require 'plugin'
+local config    = require 'config'
+local vm        = require 'vm'
+local plugin    = require 'plugin'
+local reachable = require 'core.diagnostics.helper.reachable-function'
 
 ---@class wow-file-varargs.toc
 ---@field findToc fun(uri: uri): table<string, true>?, string?
@@ -34,6 +35,25 @@ local function tocOf(uri)
     end
     return toc, dir:match('([^/\\]+)$')
 end
+
+-- The value of `local x = <value>` comes from the file's `...`: the addon's shared namespace every file receives. So the
+-- functions of that table are reachable from the other files (`missing-param-annotation` / `missing-return-annotation`).
+reachable.registerExportedLocalRule(function (loc)
+    local value = loc.value
+    if not value then
+        return false
+    end
+    if value.type == 'select' and value.vararg ~= nil and value.vararg.type == 'varargs' then
+        return true
+    end
+    -- `local ns = select(2, ...)`: the value is a `select` of the call
+    local call = value.type == 'select' and value.vararg or value
+    if call and call.type == 'call' and call.node and call.node.type == 'getglobal' and call.node[1] == 'select' and call.args then
+        local last = call.args[#call.args]
+        return last ~= nil and last.type == 'varargs'
+    end
+    return false
+end)
 
 vm.registerMainVarargProvider(function (uri, index)
     local _, folder = tocOf(uri)

@@ -148,3 +148,37 @@ if createdDir then
 end
 toc.clearCache()
 assert(ok, err)
+
+-- the shared namespace is reachable from the other files: the functions of `ns` (`local _, ns = ...` or `select(2, ...)`) are what
+-- `missing-param-annotation` / `missing-return-annotation` look at; a table of the file's own is not
+do
+    ---@param script string
+    ---@return string[] codes `code@line` of the two hints in the file
+    local function hints(script)
+        files.remove(TESTURI)
+        files.setText(TESTURI, script)
+        files.open(TESTURI)
+        ---@type string[]
+        local found = {}
+        core(TESTURI, false, function (result)
+            if result.code == 'missing-param-annotation' or result.code == 'missing-return-annotation' then
+                found[#found+1] = result.code .. '@' .. (converter.packPosition(assert(files.getState(TESTURI)), result.start).line + 1)
+            end
+        end)
+        files.remove(TESTURI)
+        table.sort(found)
+        return found
+    end
+    local nl = string.char(10)
+    local function join(...)
+        return table.concat({ ... }, nl) .. nl
+    end
+    assert(table.concat(hints(join('local addonName, ns = ...', 'function ns.Run(a) return 1 end')), ',')
+        == 'missing-param-annotation@2,missing-return-annotation@2', 'the namespace of `local _, ns = ...`')
+    assert(table.concat(hints(join('local ns2 = select(2, ...)', 'function ns2.Other(b) end')), ',')
+        == 'missing-param-annotation@2', 'the namespace of `select(2, ...)`')
+    assert(table.concat(hints(join('local first = ...', 'function first.run(c) end')), ',')
+        == 'missing-param-annotation@2', 'the first value of `...`')
+    assert(#hints(join('local own = {}', 'function own.Run(a) return 1 end')) == 0, 'a table of the file is not shared')
+    assert(#hints(join('local function private(a) return 1 end')) == 0, 'a local function is not shared')
+end

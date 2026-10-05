@@ -28,10 +28,15 @@ local Returned = {}
 return Returned
 ]]
 
--- the addon's shared namespace
+-- a local that a registered rule calls shared: its functions are reachable (a fake rule of this test, as in `missing-param-annotation`'s)
+require('core.diagnostics.helper.reachable-function').registerExportedLocalRule(function (loc)
+    return type(loc[1]) == 'string' and loc[1]:find('^zzShared') ~= nil
+end)
 TEST [[
-local addonName, ns = ...
-<!function!> ns.Run() return 1 end
+local zzShared = {}
+<!function!> zzShared.run() return 1 end
+local notShared = {}
+function notShared.run() return 2 end
 ]]
 
 -- not reachable

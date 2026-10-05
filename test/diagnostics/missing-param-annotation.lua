@@ -40,12 +40,16 @@ local Constructed = { run = function(<!w!>) end }
 return Returned, Constructed
 ]]
 
--- the addon's shared namespace taken from `...` is shared by every file
+-- a local that a registered rule calls shared (a host that hands every file the same table): its functions are reachable. The rule is
+-- a fake one of this test (a local named `zzShared...`); what a real plugin registers is tested next to that plugin
+require('core.diagnostics.helper.reachable-function').registerExportedLocalRule(function (loc)
+    return type(loc[1]) == 'string' and loc[1]:find('^zzShared') ~= nil
+end)
 TEST [[
-local addonName, ns = ...
-function ns.Run(<!a!>) end
-local ns2 = select(2, ...)
-function ns2.Other(<!b!>) end
+local zzShared = {}
+function zzShared.run(<!a!>) end
+local notShared = {}
+function notShared.run(b) end
 ]]
 
 -- not reachable: local functions, private tables, callbacks

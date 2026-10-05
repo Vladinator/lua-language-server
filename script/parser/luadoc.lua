@@ -2635,6 +2635,18 @@ local function bindGeneric(binded)
                 local name = obj.generic[1] --[[@as string|integer]]
                 generics[name] = obj
             end
+            -- a constraint or a default may name the other type parameters of the same line (`K: keyof T`), in any order
+            for _, obj in ipairs(doc.generics) do
+                for _, part in pairs { extends = obj.extends, default = obj.defaultType } do
+                    -- (`eachSource`, not `eachSourceType`: that one caches the types of the walked tree, which are changed here)
+                    guide.eachSource(part, function (src)
+                        if src.type == 'doc.type.name' and generics[src[1]] then
+                            src.type = 'doc.generic.name'
+                            src.generic = generics[src[1]]
+                        end
+                    end)
+                end
+            end
         end
         if doc.type == 'doc.class'
         or doc.type == 'doc.alias' then

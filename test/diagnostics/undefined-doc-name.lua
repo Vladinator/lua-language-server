@@ -65,3 +65,29 @@ function Container:getBad()
     return {}
 end
 ]]
+
+-- a constraint or a default may name another type parameter of the same `---@generic` line, in any order
+TEST [[
+---@generic T, K: keyof T
+---@param obj T
+---@param key K
+---@return T[K]
+local function get(obj, key) return obj[key] end
+
+---@generic K: keyof T, T
+---@param obj T
+---@param key K
+local function reversed(obj, key) end
+
+---@generic T, U = T[]
+---@param a T
+---@param b U
+local function withDefault(a, b) end
+]]
+
+-- ...but a name no `---@generic` line declares is still undefined
+TEST [[
+---@generic K: keyof <!Missing!>
+---@param key K
+local function f(key) end
+]]

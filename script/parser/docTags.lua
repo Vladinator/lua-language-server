@@ -247,6 +247,17 @@ function m.getKindParams(docType)
     return kindParamsTags[docType]
 end
 
+--- Does the tag shape take arguments after the tag word (names, a parameter and a kind, a kind and names, a guard)? The node of
+--- such a tag starts at the tag word and, when the line read cleanly, runs to the end of the arguments.
+---@param docType string
+---@return boolean
+function m.isArgumentTag(docType)
+    return nameListTags[docType] == true
+        or paramKindTags[docType] ~= nil
+        or kindParamsTags[docType] ~= nil
+        or guardTags[docType] == true
+end
+
 ---@type table<string, true>
 local continuesAfterClassGroup = {}
 

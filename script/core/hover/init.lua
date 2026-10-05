@@ -180,9 +180,16 @@ local function findPluginDoc(state, position)
         end
         local name = docTags.getTagInfo(doc.type)
         if name then
-            local from = docTags.isNameListTag(doc.type) and doc.start or doc.finish - #name
-            if position >= from and position <= from + #name then
-                return doc
+            if docTags.isArgumentTag(doc.type) then
+                -- the tag word and the arguments after it: all of them show the tag's help
+                if position >= doc.start and position <= doc.finish then
+                    return doc
+                end
+            else
+                local from = doc.finish - #name
+                if position >= from and position <= from + #name then
+                    return doc
+                end
             end
         end
     end

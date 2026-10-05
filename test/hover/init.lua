@@ -2538,6 +2538,57 @@ hoverContains([[
 local a = 1
 ]], 'list of names')
 
+-- the tag word of the shapes with arguments (a parameter and a kind, a kind and names, a list of names), whether the line parsed
+-- cleanly or not yet, and the parts after it: all show the tag's help
+hoverContains([[
+---@<?fixture-param-kind?> p alpha
+local function f(p) end
+]], 'A tag with a parameter and a kind')
+
+hoverContains([[
+---@fixture-param-kind <?p?> alpha
+local function f(p) end
+]], 'A tag with a parameter and a kind')
+
+hoverContains([[
+---@fixture-param-kind p <?alpha?>
+local function f(p) end
+]], 'A tag with a parameter and a kind')
+
+hoverContains([[
+---@<?fixture-param-kind?> p
+local function f(p) end
+]], 'A tag with a parameter and a kind')
+
+hoverContains([[
+---@<?fixture-kind-params?> alpha p
+local function f(p) end
+]], 'A tag with a kind and parameter names')
+
+hoverContains([[
+---@fixture-kind-params alpha <?p?>
+local function f(p) end
+]], 'A tag with a kind and parameter names')
+
+hoverContains([[
+---@<?fixture-kind-params?> bogus
+local function f(p) end
+]], 'A tag with a kind and parameter names')
+
+hoverContains([[
+---@fixture-names <?a?>
+local a = 1
+]], 'list of names')
+
+-- ... but only there: what comes after the tag shows nothing of it
+do
+    local text, catched = catch('---@fixture-param-kind p alpha' .. string.char(10) .. 'local function f(p) end' .. string.char(10) .. '-- a plain <?comment?>' .. string.char(10), '?')
+    files.setText(TESTURI, text)
+    local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
+    assert(not hover or not hover:string():find('A tag with a parameter and a kind', 1, true), 'the tag help must not leak')
+    files.remove(TESTURI)
+end
+
 hoverContains([[
 ---@class (<?exact?>) A
 ]], 'not declared')

@@ -1228,6 +1228,22 @@ do
     assert(shown:string():find('secret', 1, true))
     files.remove(TESTURI)
 
+    -- hover on `@secret-guard` / `@secret-args`: the tag word and the arguments after it show the tag's help
+    for _, probe in ipairs {
+        { '---@<?secret-guard?> value is-secret\nlocal function g(value) end\n', 'secret-guard' },
+        { '---@secret-guard <?value?> is-secret\nlocal function g(value) end\n', 'secret-guard' },
+        { '---@secret-guard value <?is-secret?>\nlocal function g(value) end\n', 'secret-guard' },
+        { '---@<?secret-args?> none value\nlocal function g(value) end\n', 'secret-args' },
+        { '---@secret-args none <?value?>\nlocal function g(value) end\n', 'secret-args' },
+        { '---@<?secret-args?> bogus\nlocal function g(value) end\n', 'secret-args' },
+    } do
+        local probeText, probeCatched = catch(probe[1], '?')
+        files.setText(TESTURI, probeText)
+        local probeShown = hover.byUri(TESTURI, probeCatched['?'][1][1] --[[@as integer]], 1)
+        assert(probeShown and probeShown:string():find('`@' .. probe[2] .. '`', 1, true), 'hover in ' .. probe[1])
+        files.remove(TESTURI)
+    end
+
     -- a type keyword on a nested type keeps showing in the inferred type (`secret<string>[]`)
     local vm = require 'vm'
     local guide = require 'parser.guide'

@@ -2,7 +2,7 @@
 -- and on and states how many type-mismatch findings it must give in each (a positive case and a negative
 -- case for both values, so a change to the checker that moves a boundary shows up here).
 --
--- Findings counted: assign-type-mismatch, param-type-mismatch, return-type-mismatch, cast-local-type.
+-- Findings counted: assign-type-mismatch, param-type-mismatch, return-type-mismatch, cast-local-type, generic-param-mismatch.
 local files  = require 'files'
 local core   = require 'core.diagnostics'
 local config = require 'config'
@@ -14,6 +14,7 @@ local COUNTED = {
     ['param-type-mismatch']  = true,
     ['return-type-mismatch'] = true,
     ['cast-local-type']      = true,
+    ['generic-param-mismatch'] = true,
 }
 
 ---@param script string
@@ -171,6 +172,61 @@ local n
 n = u
 ]] },
 })
+
+-- `generic-param-mismatch` (two arguments of one type parameter) judges a later argument in BOTH directions (assignable to what
+-- `T` was bound to, or wider), so the weak checks must not change what it reports: the same count with each setting off and on.
+local GENERIC_ROWS = {
+    { name = 'a later argument of another type', off = 1, on = 1, script = [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function f(a, b) return a end
+f(1, 'x')
+]] },
+    { name = 'a later union argument that contains the first type', off = 0, on = 0, script = [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function f(a, b) return a end
+---@type string|number
+local u
+f(1, u)
+]] },
+    { name = 'a later optional argument', off = 0, on = 0, script = [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function f(a, b) return a end
+---@type number?
+local o
+f(1, o)
+]] },
+    { name = 'a first union argument, a later member of it', off = 0, on = 0, script = [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function f(a, b) return a end
+---@type string|number
+local u
+f(u, 1)
+]] },
+    { name = 'a union of two unrelated types as the later argument', off = 1, on = 1, script = [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function f(a, b) return a end
+---@type string|boolean
+local u
+f(1, u)
+]] },
+}
+run('type.weakUnionCheck', GENERIC_ROWS)
+run('type.weakNilCheck', GENERIC_ROWS)
 
 -- `castNumberToInteger`: a `number` may be assigned to an `integer` (the other way round always works)
 run('type.castNumberToInteger', {

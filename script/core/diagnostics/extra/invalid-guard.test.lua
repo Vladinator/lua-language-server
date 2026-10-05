@@ -326,6 +326,7 @@ end
 -- completion in `---@guard x is T` / `---@asserts x is T`: the parameters of the function the tag is bound to where the parameter goes;
 -- the rest of the line is a type, which completes as any type does
 do
+    ---@diagnostic disable: await-in-sync
     local completion = require 'core.completion'
     local define     = require 'proto.define'
     local nl = string.char(10)

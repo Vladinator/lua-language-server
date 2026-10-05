@@ -2,7 +2,7 @@
 -- and on and states how many type-mismatch findings it must give in each (a positive case and a negative
 -- case for both values, so a change to the checker that moves a boundary shows up here).
 --
--- Findings counted: assign-type-mismatch, param-type-mismatch, return-type-mismatch, cast-local-type, generic-param-mismatch.
+-- Findings counted: assign-type-mismatch, param-type-mismatch, return-type-mismatch, cast-local-type, generic-param-mismatch, generic-constraint-mismatch.
 local files  = require 'files'
 local core   = require 'core.diagnostics'
 local config = require 'config'
@@ -15,6 +15,7 @@ local COUNTED = {
     ['return-type-mismatch'] = true,
     ['cast-local-type']      = true,
     ['generic-param-mismatch'] = true,
+    ['generic-constraint-mismatch'] = true,
 }
 
 ---@param script string
@@ -226,6 +227,70 @@ f(1, u)
 ]] },
 }
 run('type.weakUnionCheck', GENERIC_ROWS)
+
+-- a generic constraint (`---@generic T: table`) is checked by `param-type-mismatch` (as `<T:table>`) and only by it:
+-- `generic-constraint-mismatch` leaves a constraint that names no other type parameter alone, so a violation counts 1. A union is
+-- accepted by the weak check when one member fits (`string[]` is a table); a type that fits no way, or only a wrong member, is not.
+run('type.weakUnionCheck', {
+    { name = 'a union with one member that fits the constraint', off = 1, on = 0, script = [[
+---@generic T: table
+---@param x T
+---@return T
+local function f(x) return x end
+---@type "all"|string[]
+local u
+f(u)
+]] },
+    { name = 'a type that does not fit the constraint', off = 1, on = 1, script = [[
+---@generic T: table
+---@param x T
+---@return T
+local function f(x) return x end
+f(5)
+]] },
+    { name = 'a union with no member that fits the constraint', off = 1, on = 1, script = [[
+---@generic T: table
+---@param x T
+---@return T
+local function f(x) return x end
+---@type "all"|number
+local u
+f(u)
+]] },
+    { name = 'a key that is no field of the other argument (keyof)', off = 1, on = 1, script = [[
+---@generic T, K: keyof T
+---@param obj T
+---@param key K
+---@return T[K]
+local function get(obj, key) return obj[key] end
+---@class KeyOf.A
+---@field x number
+---@type KeyOf.A
+local a
+get(a, 'z')
+]] },
+    { name = 'a key that is a field of the other argument (keyof)', off = 0, on = 0, script = [[
+---@generic T, K: keyof T
+---@param obj T
+---@param key K
+---@return T[K]
+local function get(obj, key) return obj[key] end
+---@class KeyOf.B
+---@field x number
+---@type KeyOf.B
+local a
+get(a, 'x')
+]] },
+    { name = 'a union where every member fits', off = 0, on = 0, script = [[
+---@generic T: table
+---@param x T
+---@return T
+local function f(x) return x end
+---@type string[]|{ a: number }
+local u
+f(u)
+]] },
+})
 run('type.weakNilCheck', GENERIC_ROWS)
 
 -- `castNumberToInteger`: a `number` may be assigned to an `integer` (the other way round always works)

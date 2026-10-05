@@ -5,6 +5,7 @@ local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
 
 local MESSAGE = 'Type `%s` does not satisfy the constraint `%s` of type parameter `%s`.'
+local MEMBER  = 'Type `%s` does not satisfy the constraint `%s` of type parameter `%s`: `%s` does not fit.'
 
 protoDiagnostic.register {
     'generic-constraint-mismatch',
@@ -12,8 +13,21 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
-    description = 'Enable diagnostics for calls of a generic function where the type bound to a type parameter does not satisfy its constraint (`---@generic T: Base`, `---@generic K: keyof T`). The argument that binds the type parameter is reported (the wowlua-ls diagnostic of the same name).',
+    description = 'Enable diagnostics for calls of a generic function where the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`). A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The argument that binds the type parameter is reported (the wowlua-ls diagnostic of the same name).',
 }
+
+--- Does the constraint name a type parameter (`keyof T`)? One that does not is checked by `param-type-mismatch` already (as `<T:Base>`).
+---@param constraint parser.object
+---@return boolean
+local function namesTypeParameter(constraint)
+    local found = false
+    guide.eachSource(constraint, function (src)
+        if src.type == 'doc.generic.name' then
+            found = true
+        end
+    end)
+    return found
+end
 
 --- The type parameters a parameter's declared type names directly (`T`, `T?`, `T|nil`), not inside a container.
 ---@param signNode vm.node
@@ -65,7 +79,7 @@ return function (uri, callback)
         for _, doc in ipairs(sign.docGeneric) do
             for _, object in ipairs(doc.generics) do
                 local name = object.generic and object.generic[1] --[[@as string?]]
-                if not name or not object.extends or not resolved[name] then
+                if not name or not object.extends or not resolved[name] or not namesTypeParameter(object.extends) then
                     goto CONTINUE
                 end
                 do
@@ -83,10 +97,24 @@ return function (uri, callback)
                             break
                         end
                     end
+                    -- a union names the member that does not fit
+                    ---@type string[]
+                    local failing = {}
+                    local count = 0
+                    for member in bound:copy():removeOptional():eachObject() do
+                        count = count + 1
+                        local single = vm.createNode(member)
+                        if not vm.canCastType(uri, constraint, single) then
+                            failing[#failing+1] = vm.getInfer(single):view(uri)
+                        end
+                    end
+                    local constraintView = vm.getInfer(constraint):view(uri)
                     callback {
                         start   = target.start,
                         finish  = target.finish,
-                        message = MESSAGE:format(view, vm.getInfer(constraint):view(uri), name),
+                        message = count > 1 and #failing > 0 and #failing < count and failing[1] ~= view
+                            and MEMBER:format(view, constraintView, name, table.concat(failing, '`, `'))
+                            or MESSAGE:format(view, constraintView, name),
                     }
                 end
                 ::CONTINUE::

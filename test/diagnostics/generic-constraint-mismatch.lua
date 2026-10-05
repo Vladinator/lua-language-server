@@ -1,70 +1,8 @@
--- The type bound to a type parameter has to satisfy its constraint (`---@generic T: Base`, `---@generic K: keyof T`).
--- The argument that binds the type parameter is reported.
+-- A type bound to a type parameter has to satisfy a constraint that names another type parameter (`---@generic K: keyof T`).
+-- The argument that binds the type parameter is reported. A constraint on its own (`T: Base`) is already reported by
+-- `param-type-mismatch` (as `<T:Base>`): this diagnostic leaves it alone, so the same call is not marked twice.
 
--- a class constraint: the class itself and its subclasses fit, an unrelated type does not
-TEST [[
----@class Animal
----@class Dog: Animal
----@class Rock
-
----@generic T: Animal
----@param x T
----@return T
-local function feed(x) return x end
-
----@type Animal
-local animal
----@type Dog
-local dog
----@type Rock
-local rock
-
-feed(animal)
-feed(dog)
-feed(<!rock!>)
-feed(<!5!>)
-]]
-
--- a primitive constraint
-TEST [[
----@generic T: number
----@param x T
----@return T
-local function double(x) return x end
-
-double(1)
-double(1.5)
-double(<!'a'!>)
-double(<!true!>)
-]]
-
--- a union constraint
-TEST [[
----@generic T: string|number
----@param x T
----@return T
-local function show(x) return x end
-
-show('a')
-show(1)
-show(<!true!>)
-]]
-
--- unknown / any arguments, and nothing given, say nothing
-TEST [[
----@generic T: number
----@param x? T
----@return T?
-local function f(x) return x end
-
----@type any
-local anything
-f(anything)
-f()
-f(nil)
-]]
-
--- `keyof` constraint: the key has to be a field of the other argument
+-- `keyof`: the key has to be a field of the other argument
 TEST [[
 ---@generic T, K: keyof T
 ---@param obj T
@@ -83,6 +21,59 @@ get(p, 'y')
 get(p, <!'z'!>)
 ]]
 
+-- the key can be an inline table's field too
+TEST [[
+---@generic T, K: keyof T
+---@param obj T
+---@param key K
+---@return T[K]
+local function get(obj, key) return obj[key] end
+
+get({ a = 1 }, 'a')
+get({ a = 1 }, <!'b'!>)
+]]
+
+-- a constraint that stands alone is not this diagnostic's: class, primitive and union constraints are reported by param-type-mismatch
+TEST [[
+---@class Animal
+---@class Rock
+
+---@generic T: Animal
+---@param x T
+---@return T
+local function feed(x) return x end
+
+---@generic T: number
+---@param x T
+---@return T
+local function double(x) return x end
+
+---@type Rock
+local rock
+feed(rock)
+feed(5)
+double('a')
+]]
+
+-- unknown / any keys and nothing given say nothing
+TEST [[
+---@generic T, K: keyof T
+---@param obj T
+---@param key? K
+---@return T
+local function f(obj, key) return obj end
+
+---@class Point
+---@field x number
+---@type Point
+local p
+---@type any
+local anything
+f(p, anything)
+f(p)
+f(p, nil)
+]]
+
 -- a generic without a constraint is never reported
 TEST [[
 ---@generic T
@@ -97,19 +88,6 @@ id(nil)
 
 -- inside another generic function the argument is still a type parameter: nothing is decided yet
 TEST [[
----@generic T: number
----@param x T
----@return T
-local function double(x) return x end
-
----@generic U
----@param u U
----@return U
-local function outer(u)
-    double(u)
-    return u
-end
-
 ---@generic T, K: keyof T
 ---@param obj T
 ---@param key K
@@ -118,7 +96,50 @@ local function get(obj, key) return obj[key] end
 
 ---@generic U
 ---@param u U
-local function outer2(u)
+local function outer(u)
     get(u, 'anything')
 end
 ]]
+
+-- the message of a union key names the member that does not fit; a plain key does not
+TEST [[
+---@generic T, K: keyof T
+---@param obj T
+---@param key K
+---@return T[K]
+local function get(obj, key) return obj[key] end
+
+---@class Point
+---@field x number
+---@type Point
+local p
+---@type 'x'|'z'
+local mixed
+
+get(p, <!mixed!>)
+]]
+(function (diags)
+    local reported = diags --[[@as { message: string }[] ]]
+    local message = reported[1].message
+    assert(message:find("`\"z\"` does not fit", 1, true) or message:find("`'z'` does not fit", 1, true), message)
+end)
+
+TEST [[
+---@generic T, K: keyof T
+---@param obj T
+---@param key K
+---@return T[K]
+local function get(obj, key) return obj[key] end
+
+---@class Point
+---@field x number
+---@type Point
+local p
+
+get(p, <!'z'!>)
+]]
+(function (diags)
+    local reported = diags --[[@as { message: string }[] ]]
+    local message = reported[1].message
+    assert(not message:find('does not fit', 1, true), message)
+end)

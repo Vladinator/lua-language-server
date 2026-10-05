@@ -185,6 +185,12 @@ return function (uri, callback)
         local node = TYPE_NODES[source.type]
         if node then
             report(dialects, node.flavors, node.label, source.start, source.finish, callback)
+        elseif source.type == 'doc.diagnostic' then
+            -- `---@diagnostic expect-line: code`: the original reports the mode as invalid (and suppresses nothing)
+            if source.mode == 'expect-line' or source.mode == 'expect-next-line' then
+                -- (the node runs on to the end of the code list: report the mode word only)
+                report(dialects, { 'luals' }, source.mode, source.start, source.start + #source.mode, callback)
+            end
         elseif source.type == 'doc.param' then
             -- `---@param a ?string`: the parser takes the `?` for the optional marker and sets the flag here
             local extends = source.extends

@@ -287,3 +287,46 @@ with({ 'wowluals' }, function ()
 local function f(a) end
 ]]
 end)
+
+-- `---@diagnostic expect-line` / `expect-next-line` are this fork's: the original LuaLS reports them as an invalid mode and
+-- suppresses nothing, wowlua-ls documents only `disable`. `disable-line`, `disable-next-line`, `disable` and `enable` are
+-- everybody's.
+with({ 'legacyluals' }, function ()
+    TEST [[
+local a ---@diagnostic <!expect-line!>: unused-local
+---@diagnostic <!expect-next-line!>: unused-local
+local b
+local c ---@diagnostic disable-line: unused-local
+---@diagnostic disable-next-line: unused-local
+local d
+---@diagnostic disable: unused-local
+---@diagnostic enable: unused-local
+]]
+end)
+with({ 'wowluals' }, function ()
+    TEST [[
+local a ---@diagnostic <!expect-line!>: unused-local
+---@diagnostic <!expect-next-line!>: unused-local
+local b
+local c ---@diagnostic disable-line: unused-local
+]]
+end)
+with({ 'luals' }, function ()
+    TEST [[
+local a ---@diagnostic expect-line: unused-local
+---@diagnostic expect-next-line: unused-local
+local b
+]]
+end)
+-- a list is a union: one dialect that knows it is enough
+with({ 'luals', 'wowluals' }, function ()
+    TEST [[
+local a ---@diagnostic expect-line: unused-local
+]]
+end)
+-- the default (`mixed`) reports nothing
+with({ 'mixed' }, function ()
+    TEST [[
+local a ---@diagnostic expect-line: unused-local
+]]
+end)

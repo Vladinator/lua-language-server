@@ -364,6 +364,7 @@ Array<string>
 * ``"err-nonstandard-symbol"``
 * ``"err-then-as-do"``
 * ``"exp-in-action"``: Expresión usada en posición de sentencia
+* ``"generic-constraint-mismatch"``: Enable diagnostics for calls of a generic function where the type bound to a type parameter does not satisfy its constraint (`---@generic T: Base`, `---@generic K: keyof T`). The argument that binds the type parameter is reported (the wowlua-ls diagnostic of the same name).
 * ``"generic-param-mismatch"``: Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
 * ``"global-close-attribute"``: Atributo close en una variable global
 * ``"global-element"``: Habilita el diagnóstico que alerta sobre elementos globales.
@@ -703,6 +704,7 @@ object<string, string>
     * cannot-call
     * cast-local-type
     * cast-type-mismatch
+    * generic-constraint-mismatch
     * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
@@ -869,6 +871,7 @@ object<string, string>
     * cannot-call
     * cast-local-type
     * cast-type-mismatch
+    * generic-constraint-mismatch
     * generic-param-mismatch
     * grouped-return-mismatch
     * inject-field
@@ -1069,6 +1072,10 @@ object<string, string>
     Habilita el diagnóstico de bloques de código vacíos.
     */
     "empty-block": "Opened",
+    /*
+    Enable diagnostics for calls of a generic function where the type bound to a type parameter does not satisfy its constraint (`---@generic T: Base`, `---@generic K: keyof T`). The argument that binds the type parameter is reported (the wowlua-ls diagnostic of the same name).
+    */
+    "generic-constraint-mismatch": "Opened",
     /*
     Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
     */
@@ -1488,6 +1495,10 @@ object<string, string>
     Habilita el diagnóstico de bloques de código vacíos.
     */
     "empty-block": "Hint",
+    /*
+    Enable diagnostics for calls of a generic function where the type bound to a type parameter does not satisfy its constraint (`---@generic T: Base`, `---@generic K: keyof T`). The argument that binds the type parameter is reported (the wowlua-ls diagnostic of the same name).
+    */
+    "generic-constraint-mismatch": "Warning",
     /*
     Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
     */

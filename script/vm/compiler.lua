@@ -923,6 +923,36 @@ local function hasUnresolvedGeneric(node)
     return found
 end
 
+--- `tbl[key]` inside the body of a generic function, `tbl` typed `T` and `key` typed `keyof T` (both still
+--- unbound): the value stays the symbolic `T[keyof T]`, as in TypeScript. A synthetic `doc.type.indexed` carries it;
+--- it defers like every unresolved generic, and `vm.cloneObject` substitutes it per call.
+---@param source parser.object
+---@param key vm.node
+local function symbolicIndexOf(source, key)
+    local tableNode = vm.compileNode(source.node)
+    for tableObj in tableNode:eachObject() do
+        if tableObj.type == 'doc.generic.name' and vm.isGenericUnsolved(tableObj) then
+            for keyObj in key:eachObject() do
+                ---@cast keyObj parser.object
+                local operand = keyObj.type == 'doc.type.keyof' and keyObj.node
+                if operand and operand.type == 'doc.generic.name' and operand.generic == tableObj.generic then
+                    ---@type parser.object
+                    local indexed = {
+                        type   = 'doc.type.indexed',
+                        start  = source.start,
+                        finish = source.finish,
+                        parent = source,
+                        node   = operand,
+                        key    = keyObj,
+                    }
+                    vm.setNode(source, indexed)
+                    return
+                end
+            end
+        end
+    end
+end
+
 --- A synthetic `doc.type.field` carrying an already-resolved node, bypassing the normal
 --- `.extends` -> `vm.compileNode` parse step (there is no source text for it to parse): both the
 --- field and its `.extends` (a bare placeholder of a type no compiler case ever needs to know
@@ -2591,6 +2621,7 @@ local compilerSwitch = util.switch()
                     end)
                 end
             end
+            symbolicIndexOf(source, key)
         else
             ---@cast key string
             vm.compileByParentNode(source.node, key, function (src)

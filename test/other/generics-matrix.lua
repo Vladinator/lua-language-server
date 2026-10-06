@@ -134,7 +134,10 @@ local cases = {
     { 'body: vararg keyof T', L('---@generic T: table', '---@param tbl T', '---@param ... keyof T', 'local function f(tbl, ...)', '    local first = ...', 'end'), 'first', 'keyof T', '' },
     { 'body: vararg keyof T ipairs', L('---@generic T: table', '---@param tbl T', '---@param ... keyof T', 'local function f(tbl, ...)', '    for _, key in ipairs({...}) do local item = key end', 'end'), 'item', 'keyof T', '' },
     { 'body: K constrained', L('---@generic T, K: keyof T', '---@param tbl T', '---@param key K', 'local function f(tbl, key)', '    local k = key', 'end'), 'k', '<K:keyof T>', 'TS prints K; the constraint is shown here' },
-    { 'body: tbl[key] with keyof T', L('---@generic T: table', '---@param tbl T', '---@param key keyof T', 'local function f(tbl, key)', '    local v = tbl[key]', 'end'), 'v', 'T[keyof T]', 'TS: T[keyof T]; an index type is not modelled', 'unknown' },
+    { 'body: tbl[key] with keyof T', L('---@generic T: table', '---@param tbl T', '---@param key keyof T', 'local function f(tbl, key)', '    local v = tbl[key]', 'end'), 'v', 'T[keyof T]', 'TS: T[keyof T]; kept symbolic' },
+    { 'body: tbl[key] in a nested function', L('---@generic T: table', '---@param tbl T', '---@param key keyof T', 'local function f(tbl, key)', '    local function inner()', '        local v = tbl[key]', '    end', 'end'), 'v', 'T[keyof T]', 'the closure sees the T of the function around it' },
+    { 'body: tbl[key] in a nested block', L('---@generic T: table', '---@param tbl T', '---@param key keyof T', 'local function f(tbl, key)', '    for _ = 1, 2 do', '        local v = tbl[key]', '    end', 'end'), 'v', 'T[keyof T]', '' },
+    { 'body: tbl[key] with a plain string key', L('---@generic T: table', '---@param tbl T', '---@param key string', 'local function f(tbl, key)', '    local v = tbl[key]', 'end'), 'v', 'unknown', 'only keyof T of the same T is symbolic' },
 }
 
 for _, case in ipairs(cases) do

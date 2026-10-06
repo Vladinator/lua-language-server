@@ -191,6 +191,17 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
         end
         return 'keyof ' .. operand
     end)
+    : case 'doc.type.indexed'
+    -- `T[K]` of operands nothing has bound yet: stays symbolic, as TypeScript keeps `T[keyof T]`
+    ---@param source parser.object
+    ---@param _infer vm.infer
+    ---@param uri uri
+    ---@return string
+    : call(function (source, _infer, uri)
+        local operand = source.node.type == 'doc.generic.name' and tostring(source.node[1])
+            or vm.getInfer(source.node):view(uri)
+        return ('%s[%s]'):format(operand, vm.getInfer(source.key):view(uri))
+    end)
     : case 'doc.type.array'
     ---@param source parser.object
     ---@param infer vm.infer

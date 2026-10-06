@@ -180,3 +180,30 @@ function CycA:Show() end
 local c
 c:<!Show!>()
 ]]
+
+-- a parent named without type arguments, and a class that has no type parameters although the receiver is written with arguments:
+-- nothing says what `T` stands for, nothing is reported
+TEST [[
+---@class Frame
+---@class Widget<T>
+local Widget = {}
+
+---@requires T: Frame
+function Widget:Show() end
+
+---@class Plain: Widget
+
+---@type Plain
+local p
+p:Show()
+
+---@class Flat
+local Flat = {}
+
+---@requires T: Frame
+function Flat:Show() end
+
+---@type Flat<number>
+local f
+f:Show()
+]]

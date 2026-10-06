@@ -448,6 +448,7 @@ Array<string>
 * ``"redefined-label"``: Rótulo redefinido
 * ``"redefined-local"``: Variável local redefinida
 * ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
+* ``"redundant-class-generic"``: Enable diagnostics for a method whose `---@generic` names a type parameter its class already declares (`---@class Box<T>`): the class-level one is the one in scope. The wowlua-ls diagnostic of the same name.
 * ``"redundant-condition"``: Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
 * ``"redundant-or"``: Enable diagnostics for `a or b` where `a` is always truthy: `b` is never evaluated.
 * ``"redundant-parameter"``: Chamada de função com parâmetros em excesso
@@ -655,6 +656,7 @@ object<string, string>
     * missing-return-annotation
     * nil-table-key
     * non-portable-annotation
+    * redundant-class-generic
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
@@ -823,6 +825,7 @@ object<string, string>
     * missing-return-annotation
     * nil-table-key
     * non-portable-annotation
+    * redundant-class-generic
     * undefined-doc-class
     * undefined-doc-name
     * undefined-doc-param
@@ -1219,6 +1222,10 @@ object<string, string>
     Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
     */
     "redundant-and": "None",
+    /*
+    Enable diagnostics for a method whose `---@generic` names a type parameter its class already declares (`---@class Box<T>`): the class-level one is the one in scope. The wowlua-ls diagnostic of the same name.
+    */
+    "redundant-class-generic": "Opened",
     /*
     Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
     */
@@ -1646,6 +1653,10 @@ object<string, string>
     Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
     */
     "redundant-and": "Hint",
+    /*
+    Enable diagnostics for a method whose `---@generic` names a type parameter its class already declares (`---@class Box<T>`): the class-level one is the one in scope. The wowlua-ls diagnostic of the same name.
+    */
+    "redundant-class-generic": "Warning",
     /*
     Enable diagnostics for an `if` / `elseif` / `while` condition that is provably constant: always truthy or always falsy by its type, or a value compared with itself.
     */

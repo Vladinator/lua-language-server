@@ -650,3 +650,19 @@ local rock
 feed(dog)
 feed(<!rock!>)
 ]]
+
+-- ... and so is passing it on, also through `...`
+TEST [[
+---@generic T: table
+---@param tbl T
+---@param ... keyof T
+local function f(tbl, ...)
+    for _, key in ipairs({...}) do
+        local text = tostring(key)
+        local raw = rawget(tbl, key)
+        print(type(key), key)
+    end
+    local first = ...
+    return rawget(tbl, first)
+end
+]]

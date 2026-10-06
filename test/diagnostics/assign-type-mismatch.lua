@@ -582,3 +582,18 @@ local function area(s)
     end
 end
 ]]
+
+-- inside the body of a generic function a `keyof T` stays symbolic and is a string-like key: assigning, concatenating and using it as a key are fine
+TEST [[
+---@generic T: table
+---@param tbl T
+---@param key keyof T
+local function f(tbl, key)
+    ---@type string|number
+    local asKey = key
+    ---@type string
+    local joined = "k:" .. key
+    tbl[key] = nil
+    local t = { [key] = true }
+end
+]]

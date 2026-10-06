@@ -3071,9 +3071,52 @@ local function bindCommentsAndFields(binded)
     end
 end
 
+--- The functions of this file that declare type parameters (`---@generic T`), in file order, with the `doc.generic` that declares them: the
+--- docs inside their body can name those type parameters. Filled while the docs are bound (a function's own comment block comes before its body).
+---@type {func: parser.object, doc: parser.object}[]
+local genericFuncs = {}
+
+--- The type parameters of the functions around a group of docs are in scope for it: `---@type T` above a local in the body of
+--- `---@generic T` is the type parameter, not an undefined name. The nearest function wins (later entries are inner ones).
+--- What the group's own `---@generic` binds was done before and stays.
+---@param binded parser.object[]
+local function bindEnclosingGenerics(binded)
+    if #genericFuncs == 0 then
+        return
+    end
+    local pos = binded[1].start
+    ---@type table<string|integer, parser.object>?
+    local generics
+    for _, entry in ipairs(genericFuncs) do
+        local func = entry.func
+        if func.start < pos and pos < func.finish then
+            generics = generics or {}
+            for _, obj in ipairs(entry.doc.generics) do
+                ---@diagnostic expect-next-line: need-check-nil -- .generic is always set on a 'doc.generic.object'
+                local name = obj.generic[1] --[[@as string|integer]]
+                generics[name] = obj
+            end
+        end
+    end
+    if not generics then
+        return
+    end
+    for _, doc in ipairs(binded) do
+        if doc.type ~= 'doc.generic' then
+            -- (`eachSource`, not `eachSourceType`: that one caches the types of the walked tree, which are changed here)
+            guide.eachSource(doc, function (src)
+                if src.type == 'doc.type.name' and generics[src[1]] then
+                    src.type = 'doc.generic.name'
+                    src.generic = generics[src[1]]
+                end
+            end)
+        end
+    end
+end
+
 ---@param sources parser.object[]
 ---@param binded parser.object[]?
-local function bindDocWithSources(sources, binded)
+local function bindDocWithSourcesBase(sources, binded)
     if not binded then
         return
     end
@@ -3085,6 +3128,7 @@ local function bindDocWithSources(sources, binded)
         doc.bindGroup = binded
     end
     bindGeneric(binded)
+    bindEnclosingGenerics(binded)
     bindCommentsAndFields(binded)
     bindReturnIndex(binded)
 
@@ -3102,6 +3146,18 @@ local function bindDocWithSources(sources, binded)
     local suc = bindDocsBetween(sources, binded, guide.positionOf(row, 0), lastDoc.start)
     if not suc then
         bindDocsBetween(sources, binded, guide.positionOf(row + 1, 0), guide.positionOf(row + 2, 0))
+    end
+end
+
+---@param sources parser.object[]
+---@param binded parser.object[]?
+local function bindDocWithSources(sources, binded)
+    bindDocWithSourcesBase(sources, binded)
+    -- a function that declares type parameters: its body's docs can name them (see `bindEnclosingGenerics`)
+    for _, doc in ipairs(binded or {}) do
+        if doc.type == 'doc.generic' and doc.bindSource and doc.bindSource.type == 'function' then
+            genericFuncs[#genericFuncs+1] = { func = doc.bindSource, doc = doc }
+        end
     end
 end
 
@@ -3151,6 +3207,7 @@ local bindDocAccept = {
 
 ---@param state parser.state
 local function bindDocs(state)
+    genericFuncs = {}
     local text = state.lua
     ---@type parser.object[]
     local sources = {}

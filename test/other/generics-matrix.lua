@@ -118,6 +118,23 @@ local cases = {
     { 'tuple result',       L('---@generic A, B', '---@param a A', '---@param b B', '---@return [A, B]', 'local function t(a, b) return {a, b} end', 'local r = t(1, "s")'), 'r', '[integer, string]', 'a tuple is viewed as a table with indices', '{ [1]: integer, [2]: string }' },
     { 'pcall result',       L('local function f() return 1 end', 'local ok, r = pcall(f)'), 'r', 'integer', '' },
     { 'K itself',            L('---@generic T, K: keyof T', '---@param t T', '---@param k K', '---@return K', 'local function key(t, k) return k end', '---@type {name: string, age: number}', 'local o', 'local r = key(o, "age")'), 'r', '"age"', 'TS: K is the literal "age"', 'string' },
+    -- INSIDE the body of a generic function (TypeScript keeps `T` as `T` there, an opaque type parameter; the engine prints it `<T>`)
+    { 'body: param copy',    L('---@generic T', '---@param x T', 'local function f(x)', '    local y = x', 'end'), 'y', '<T>', '' },
+    { 'body: @type T',       L('---@generic T', '---@param x T', 'local function f(x)', '    ---@type T', '    local z = x', 'end'), 'z', '<T>', 'T is in scope in the whole body, as in TS' },
+    { 'body: @type T[]',     L('---@generic T', '---@param x T', 'local function f(x)', '    ---@type T[]', '    local z = {}', 'end'), 'z', '<T>[]', '' },
+    { 'body: vararg T',      L('---@generic T', '---@param ... T', 'local function f(...)', '    local first = ...', 'end'), 'first', '<T>', '' },
+    { 'body: vararg T {...}', L('---@generic T', '---@param ... T', 'local function f(...)', '    local t = {...}', 'end'), 't', '<T>[]', '' },
+    { 'body: vararg T ipairs', L('---@generic T', '---@param ... T', 'local function f(...)', '    for _, v in ipairs({...}) do local item = v end', 'end'), 'item', '<T>', '' },
+    { 'body: vararg string',  L('---@param ... string', 'local function f(...)', '    local first = ...', 'end'), 'first', 'string', '' },
+    { 'body: vararg string ipairs', L('---@param ... string', 'local function f(...)', '    for _, v in ipairs({...}) do local item = v end', 'end'), 'item', 'string', '' },
+    { 'body: select on a typed vararg', L('---@param ... string', 'local function f(...)', '    local a = select(1, ...)', 'end'), 'a', 'string', 'TS: string', 'any' },
+    { 'body: nested, the inner T wins', L('---@generic T: string', '---@param a T', 'local function outer(a)', '    ---@generic T: number', '    ---@param b T', '    local function inner(b)', '        ---@type T', '        local z = b', '    end', 'end'), 'z', '<T:number>', 'the nearest declaration of T, as in TS' },
+    { 'body: nested, the outer T', L('---@generic T: string', '---@param a T', 'local function outer(a)', '    ---@generic U', '    ---@param b U', '    local function inner(b)', '        ---@type T', '        local z = a', '    end', 'end'), 'z', '<T:string>', 'an inner function sees the T of the function around it' },
+    { 'body: param keyof T', L('---@generic T: table', '---@param tbl T', '---@param key keyof T', 'local function f(tbl, key)', '    local k = key', 'end'), 'k', 'keyof T', '' },
+    { 'body: vararg keyof T', L('---@generic T: table', '---@param tbl T', '---@param ... keyof T', 'local function f(tbl, ...)', '    local first = ...', 'end'), 'first', 'keyof T', '' },
+    { 'body: vararg keyof T ipairs', L('---@generic T: table', '---@param tbl T', '---@param ... keyof T', 'local function f(tbl, ...)', '    for _, key in ipairs({...}) do local item = key end', 'end'), 'item', 'keyof T', '' },
+    { 'body: K constrained', L('---@generic T, K: keyof T', '---@param tbl T', '---@param key K', 'local function f(tbl, key)', '    local k = key', 'end'), 'k', '<K:keyof T>', 'TS prints K; the constraint is shown here' },
+    { 'body: tbl[key] with keyof T', L('---@generic T: table', '---@param tbl T', '---@param key keyof T', 'local function f(tbl, key)', '    local v = tbl[key]', 'end'), 'v', 'T[keyof T]', 'TS: T[keyof T]; an index type is not modelled', 'unknown' },
 }
 
 for _, case in ipairs(cases) do

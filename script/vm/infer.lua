@@ -175,6 +175,22 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
             return ('<%s>'):format(source[1])
         end
     end)
+    : case 'doc.type.keyof'
+    -- `keyof T` of a type parameter nothing has bound yet (inside the body of a generic function, or the declared type of one
+    -- before a call binds it): the type stays symbolic, as TypeScript keeps `keyof T`
+    ---@param source parser.object
+    ---@param _infer vm.infer
+    ---@param uri uri
+    ---@return string
+    : call(function (source, _infer, uri)
+        -- (the type parameter by its name: its view carries the constraint, `<T:table>`)
+        local operand = source.node.type == 'doc.generic.name' and tostring(source.node[1])
+            or vm.getInfer(source.node):view(uri)
+        if operand:sub(1, 1) == '<' and operand:sub(-1) == '>' then
+            operand = operand:sub(2, -2)
+        end
+        return 'keyof ' .. operand
+    end)
     : case 'doc.type.array'
     ---@param source parser.object
     ---@param infer vm.infer

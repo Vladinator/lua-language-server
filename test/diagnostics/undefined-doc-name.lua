@@ -91,3 +91,85 @@ TEST [[
 ---@param key K
 local function f(key) end
 ]]
+
+-- the type parameters of a function are in scope for the doc comments inside its body (`---@type T`, `---@cast`, a nested block)
+TEST [[
+---@generic T
+---@param x T
+---@return T
+local function f(x)
+    ---@type T
+    local a = x
+    ---@type T[]
+    local b = { x }
+    ---@type table<string, T>
+    local c = {}
+    if x then
+        ---@type T?
+        local d = x
+    end
+    return a
+end
+]]
+
+-- ... the nearest function wins, and an inner function sees the outer one's parameters too
+TEST [[
+---@generic T
+---@param x T
+local function outer(x)
+    ---@generic U
+    ---@param y U
+    local function inner(y)
+        ---@type T
+        local fromOuter = x
+        ---@type U
+        local fromInner = y
+    end
+end
+]]
+
+-- ... a constraint, and a default, count the same
+TEST [[
+---@generic T: table, K: keyof T
+---@param tbl T
+---@param key K
+local function get(tbl, key)
+    ---@type K
+    local k = key
+    ---@type (keyof T)[]
+    local keys = { key }
+end
+]]
+
+-- ... but only inside that function: before it, after it and in another function the name is undefined
+TEST [[
+---@type <!T!>
+local before
+
+---@generic T
+---@param x T
+local function f(x)
+    ---@type T
+    local inside = x
+end
+
+---@type <!T!>
+local after
+
+local function other()
+    ---@type <!T!>
+    local elsewhere
+end
+]]
+
+-- ... and a name the function does not declare is still undefined
+TEST [[
+---@generic T
+---@param x T
+local function f(x)
+    ---@type <!Missing!>
+    local a
+    ---@type T
+    local b = x
+end
+]]

@@ -2614,21 +2614,19 @@ hoverContains([[
 local unused = 1
 ]], 'local variable')
 
--- a diagnostic with no description of its own (a plugin's, here a fake one of this test) and a name nobody registered show nothing
+-- a diagnostic with no description of its own (a plugin's: here a fake entry of this test, put back afterwards, as a registered
+-- name would need a module of its own) and a name nobody registered show nothing
 do
     local protoDiagnostic = require 'proto.diagnostic'
-    protoDiagnostic.register { 'zz-hover-nodescription' } {
-        group    = 'unused',
-        severity = 'Hint',
-        status   = 'None',
-    }
+    protoDiagnostic.diagnosticDatas['zz-hover-nodescription'] = { severity = 'Hint', status = 'None' }
     for _, name in ipairs { 'zz-hover-nodescription', 'zz-hover-unknown' } do
         local text, catched = catch('---@diagnostic disable-next-line: <?' .. name .. '?>' .. string.char(10) .. 'local x = 1' .. string.char(10), '?')
         files.setText(TESTURI, text)
         local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
-        assert(not hover or hover:string() == '', 'no text for ' .. name .. ': ' .. tostring(hover and hover:string()))
         files.remove(TESTURI)
+        assert(not hover or hover:string() == '', 'no text for ' .. name .. ': ' .. tostring(hover and hover:string()))
     end
+    protoDiagnostic.diagnosticDatas['zz-hover-nodescription'] = nil
 end
 
 hoverContains([[

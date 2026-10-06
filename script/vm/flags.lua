@@ -17,6 +17,38 @@ function vm.registerPropagatingFlag(name)
     propagatingFlags[name] = true
 end
 
+--- A flag that a narrowing can set only for the branch that proved it. `proofFlag` marks a node whose `flag` holds ONLY because of such a
+--- proof (a guard that said "this value is secret" about a value whose type said it was not): where two paths join, the proof does not
+--- survive unless every path had it, so it never leaks past the `if` that established it, and a `flag` the value really had stays.
+---@type table<string, string>
+local branchLocalFlags = {}
+
+---@param flag      string
+---@param proofFlag string
+function vm.registerBranchLocalFlag(flag, proofFlag)
+    branchLocalFlags[flag] = proofFlag
+end
+
+--- The node a join of `a` and `b` gives, `joined` being their merge: the flags registered with `registerBranchLocalFlag` keep only what
+--- does not rest on a proof of one path alone.
+---@param joined vm.node the merge of `a` and `b`, changed in place
+---@param a      vm.node
+---@param b      vm.node
+---@return vm.node
+function vm.joinBranchLocalFlags(joined, a, b)
+    for flag, proof in pairs(branchLocalFlags) do
+        local bothProven = a:hasFlag(proof) and b:hasFlag(proof)
+        local own = (a:hasFlag(flag) and not a:hasFlag(proof)) or (b:hasFlag(flag) and not b:hasFlag(proof))
+        if not (own or bothProven) then
+            joined:clearFlag(flag)
+        end
+        if not bothProven then
+            joined:clearFlag(proof)
+        end
+    end
+    return joined
+end
+
 --- Copy every registered flag that `from` has onto `to`.
 ---@param from vm.node
 ---@param to   vm.node

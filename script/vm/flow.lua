@@ -403,7 +403,7 @@ local function stateJoin(a, b)
         elseif not current then
             out[decl] = node
         elseif not nodeEqual(current, node) then
-            out[decl] = dedupe(current:copy():merge(node))
+            out[decl] = dedupe(vm.joinBranchLocalFlags(current:copy():merge(node), current, node))
         end
     end
     for key in pairs(out) do

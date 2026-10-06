@@ -387,6 +387,137 @@ if flowKeyIsString(x, key) then
 end
 ]], { '-', '-' })
 
+-- a flag that a narrowing sets for ONE branch (vm.registerBranchLocalFlag): `zzFlag` holds because of a proof (`zzProof` marks that) and the
+-- proof does not survive a join unless every path has it; a `zzFlag` a value really has stays
+vm.registerPropagatingFlag('zzFlag')
+vm.registerBranchLocalFlag('zzFlag', 'zzProof')
+vm.registerFlowNarrowing {
+    statement = true,
+    match = function (callee)
+        return callee.type == 'getglobal' and (callee[1] == 'flowProve' or callee[1] == 'flowProveNow' or callee[1] == 'flowOwn')
+    end,
+    ---@param call parser.object
+    ---@return vm.flow.narrowing[]
+    narrowings = function (call)
+        local target = call.args and call.args[1]
+        if not target then
+            return {}
+        end
+        local name = call.node[1]
+        ---@type fun(node: vm.node): vm.node
+        local prove = function (node)
+            local out = node:copy()
+            out:setFlag('zzFlag')
+            if name ~= 'flowOwn' then
+                out:setFlag('zzProof')
+            end
+            return out
+        end
+        if name == 'flowProveNow' then
+            return { { target = target, after = prove } }
+        end
+        return { { target = target, whenTrue = prove } }
+    end,
+}
+
+---@param script   string a snippet whose only local named `x` is the one to follow; every read of `x` (source order) is checked
+---@param expected boolean[] whether the read carries `zzFlag`
+local function checkBranchFlag(script, expected)
+    files.setText(TESTURI, script)
+    local state = assert(files.getState(TESTURI))
+    ---@type parser.object?
+    local declNode
+    guide.eachSourceType(state.ast, 'local', function (loc)
+        if loc[1] == 'x' then
+            declNode = loc
+        end
+    end)
+    assert(declNode, 'no local named x found')
+    ---@type parser.object[]
+    local reads = {}
+    guide.eachSourceType(state.ast, 'getlocal', function (read)
+        if read.node == declNode then
+            reads[#reads+1] = read
+        end
+    end)
+    table.sort(reads, function (a, b) return a.start < b.start end)
+    local flow = vm.buildFlow(state.ast)
+    assert(#reads == #expected, ('expected %d reads, found %d'):format(#expected, #reads))
+    for i, read in ipairs(reads) do
+        local node = flow:getNode(read)
+        local has = node ~= nil and node:hasFlag('zzFlag')
+        assert(has == expected[i], ('read %d: expected flag %s, got %s'):format(i, tostring(expected[i]), tostring(has)))
+    end
+end
+
+-- the proof holds in its branch, not in the other one, not after the join
+checkBranchFlag([[
+---@type number
+local x
+if flowProve(x) then
+    print(x)
+else
+    print(x)
+end
+print(x)
+]], { false, true, false, false }) -- (the first read is the argument of the guard itself)
+
+-- an early exit: the path that goes on is the proven one
+checkBranchFlag([[
+---@type number
+local x
+if not flowProve(x) then
+    return
+end
+print(x)
+]], { false, true })
+
+-- every path has it (a statement that proves it, on both sides): it stays
+checkBranchFlag([[
+---@type number
+local x
+local c = 1
+if c > 0 then
+    flowProveNow(x)
+else
+    flowProveNow(x)
+end
+print(x)
+]], { false, false, true })
+
+-- every path has it, and the paths differ in their types (the join really merges two nodes): it stays
+checkBranchFlag([[
+---@type number|string
+local x
+if type(x) == 'number' then
+    flowProveNow(x)
+else
+    flowProveNow(x)
+end
+print(x)
+]], { false, false, false, true })
+
+-- one path only: it does not
+checkBranchFlag([[
+---@type number
+local x
+local c = 1
+if c > 0 then
+    flowProveNow(x)
+end
+print(x)
+]], { false, false })
+
+-- a flag the value really has (no proof) is not a proof: it survives the join
+checkBranchFlag([[
+---@type number
+local x
+if flowOwn(x) then
+    print(x)
+end
+print(x)
+]], { false, true, true })
+
 -- (LLS_FLOW_EVAL=1) a `for` variable's type is evaluated where the loop starts
 if os.getenv('LLS_FLOW_EVAL') ~= '0' then
     files.setText(TESTURI, [[

@@ -666,3 +666,47 @@ local function f(tbl, ...)
     return rawget(tbl, first)
 end
 ]]
+
+-- the type parameters of a class are read through the classes that inherit from it: a parent written with arguments, with a renamed
+-- parameter forwarded, two levels down
+TEST [[
+---@class InhBox<T>
+local InhBox = {}
+
+---@param value T
+function InhBox:set(value) end
+
+---@class InhRenamed<U>: InhBox<U>
+---@class InhNumbers: InhBox<number>
+---@class InhDeep: InhNumbers
+
+---@type InhRenamed<string>
+local renamed
+---@type InhNumbers
+local numbers
+---@type InhDeep
+local deep
+
+renamed:set('x')
+renamed:set(<!1!>)
+numbers:set(1)
+numbers:set(<!'x'!>)
+deep:set(1)
+deep:set(<!'x'!>)
+]]
+
+-- a parameter of the child with the same name as the parent's is not the parent's: the method of the parent is read with ITS argument
+TEST [[
+---@class InhBase<T>
+local InhBase = {}
+
+---@param value T
+function InhBase:take(value) end
+
+---@class InhMixed<T>: InhBase<string>
+
+---@type InhMixed<number>
+local mixed
+mixed:take('x')
+mixed:take(<!1!>)
+]]

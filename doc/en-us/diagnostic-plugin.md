@@ -130,6 +130,7 @@ do for "secret") uses these:
 | --- | --- |
 | `vm.registerPropagatingFlag(name)`, `vm.registerFlagDeriver(name, deriver)` | a boolean on a compiled node (`node:setFlag` / `hasFlag`), carried through merges and generics |
 | `vm.registerGenesisRule(sourceType, rule)` | runs once for each compiled source of a type, and may set flags on its node |
+| `vm.registerBranchLocalFlag(flag, proofFlag)` | a narrowing may set `flag` for ONE branch only (a guard that proves a value secret, when its type said it was not): it also sets `proofFlag`, and at a join of two paths `flag` stays only if one path has it for real or every path has the proof, so a proof never leaks past the `if` that made it |
 | `vm.registerCallNarrowing { match, narrow }` | a call in a condition narrows its arguments (a "checker" function) |
 | `vm.registerEqualityNarrowing { match, narrow }` | `x == literal` style narrowing |
 | `vm.registerFlowNarrowing { match, narrowings }` | the same for the flow analysis (`vm/flow.lua`): `narrowings(call)` lists `{ target, whenTrue?, whenFalse?, after? }`, and the flow applies them on the right edges. `target` is an argument of the call or a made-up `getfield` node (`{ type = 'getfield', node = <base>, field = { type = 'field', [1] = name } }`) for a field the call is about, as `secret-access.lua` does for the keys of a guard |

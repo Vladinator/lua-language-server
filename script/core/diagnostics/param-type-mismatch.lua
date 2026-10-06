@@ -52,7 +52,8 @@ end
 ---@param uri uri
 ---@param source parser.object
 ---@return table<string, vm.node>?
-local function getReceiverGenericMap(uri, source)
+---@param funcNode vm.node what the call resolves to
+local function getReceiverGenericMap(uri, source, funcNode)
     local callNode = source.node
     if not callNode then
         return nil
@@ -65,12 +66,24 @@ local function getReceiverGenericMap(uri, source)
     if not receiver then
         return nil
     end
+    -- the method the call resolves to: which class declares it decides which type arguments it is read with
+    ---@type parser.object?
+    local method
+    for f in funcNode:eachObject() do
+        if f.type == 'function' then
+            ---@cast f parser.object
+            method = f
+            break
+        end
+    end
     local receiverNode = vm.compileNode(receiver)
     for rn in receiverNode:eachObject() do
-        if rn.type == 'doc.type.sign' and rn.signs and rn.node and rn.node[1] then
-            local classGlobal = vm.getGlobal('type', rn.node[1])
-            if classGlobal then
-                return vm.getClassGenericMap(uri, classGlobal, rn.signs)
+        -- `Box<number>`, or a class that inherits from one (`---@class NumberBox: Box<number>`)
+        if rn.type == 'doc.type.sign' or (rn.type == 'global' and rn.cate == 'type') then
+            ---@cast rn parser.object|vm.global
+            local map = vm.getReceiverGenericMap(uri, rn, method)
+            if map then
+                return map
             end
         end
     end
@@ -151,7 +164,7 @@ return function (uri, callback)
         await.delay()
         local funcNode = vm.compileNode(source.node)
         -- Get the class generic map for method calls on generic class instances
-        local classGenericMap = getReceiverGenericMap(uri, source)
+        local classGenericMap = getReceiverGenericMap(uri, source, funcNode)
         for i, arg in ipairs(source.args) do
             ---@type vm.node
             local refNode = vm.compileNode(arg)

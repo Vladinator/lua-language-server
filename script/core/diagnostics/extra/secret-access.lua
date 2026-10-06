@@ -818,52 +818,6 @@ local function getCheckedParamIndices(calleeNode)
     return idx or {1}
 end
 
-vm.registerCallNarrowing {
-    match = function (calleeNode)
-        return isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-check')
-            or isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-access-check')
-    end,
-    ---@param tracer vm.tracer
-    ---@param action parser.object
-    ---@param topNode vm.node
-    ---@param outNode? vm.node
-    ---@return vm.node
-    ---@return vm.node?
-    narrow = function (tracer, action, topNode, outNode)
-        if not action.args then
-            return topNode, outNode
-        end
-        -- the traced variable can be read at any checked position, not just the first
-        -- argument (secretguard, see above); find the one that matches, if any
-        ---@type parser.object?
-        local value
-        for _, i in ipairs(getCheckedParamIndices(action.node)) do
-            local arg = action.args[i]
-            if arg and tracer.getMap[arg] then
-                value = arg
-                break
-            end
-        end
-        if not value then
-            return topNode, outNode
-        end
-        local isAccessCheck = not isSecretCheck(action.node) and isSecretAccessCheck(action.node)
-        tracer:lookIntoChild(value, topNode, outNode)
-        if isAccessCheck then
-            topNode = topNode:copy():clearFlag('secret')
-            if outNode then
-                outNode = outNode:copy()
-            end
-        else
-            topNode = topNode:copy()
-            if outNode then
-                outNode = outNode:copy():clearFlag('secret')
-            end
-        end
-        return topNode, outNode
-    end,
-}
-
 --- The type a `---@param` doc gives to the parameter at `index`, or nil.
 ---@param funcNode parser.object
 ---@param index    integer
@@ -905,6 +859,80 @@ local function keyParamsOf(funcNode, checkedIndex)
     end
     return result
 end
+
+--- `secret` for the branch that a guard proved it in, on a value whose type did not say so (see `vm.registerBranchLocalFlag`).
+---@param node vm.node
+---@return vm.node
+local function markSecretNode(node)
+    if node:hasFlag('secret') then
+        return node:copy()
+    end
+    local marked = node:copy()
+    marked:setFlag('secret')
+    marked:setFlag('secretProven')
+    return marked
+end
+
+--- Does the other answer of this guard prove the value secret? A guard on ONE value (several checked parameters do not say which one is
+--- secret), that is not about KEYS of it (a `keyof T` parameter: the answer is then about the fields they name, not about the table).
+---@param calleeNode parser.object
+---@return boolean
+local function provesSecret(calleeNode)
+    local checked = getCheckedParamIndices(calleeNode)
+    if #checked ~= 1 then
+        return false
+    end
+    local funcNode = resolveSecretCheckFunction(calleeNode)
+    return not funcNode or #keyParamsOf(funcNode, checked[1]) == 0
+end
+
+vm.registerCallNarrowing {
+    match = function (calleeNode)
+        return isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-check')
+            or isDirectOrAliasedSecretCheck(calleeNode, 'doc.secret-access-check')
+    end,
+    ---@param tracer vm.tracer
+    ---@param action parser.object
+    ---@param topNode vm.node
+    ---@param outNode? vm.node
+    ---@return vm.node
+    ---@return vm.node?
+    narrow = function (tracer, action, topNode, outNode)
+        if not action.args then
+            return topNode, outNode
+        end
+        -- the traced variable can be read at any checked position, not just the first
+        -- argument (secretguard, see above); find the one that matches, if any
+        ---@type parser.object?
+        local value
+        for _, i in ipairs(getCheckedParamIndices(action.node)) do
+            local arg = action.args[i]
+            if arg and tracer.getMap[arg] then
+                value = arg
+                break
+            end
+        end
+        if not value then
+            return topNode, outNode
+        end
+        local isAccessCheck = not isSecretCheck(action.node) and isSecretAccessCheck(action.node)
+        tracer:lookIntoChild(value, topNode, outNode)
+        -- the other answer proves the value secret (see the flow rule below: one checked value, and no `keyof` parameters)
+        local prove = provesSecret(action.node)
+        if isAccessCheck then
+            topNode = topNode:copy():clearFlag('secret'):clearFlag('secretProven')
+            if outNode then
+                outNode = prove and markSecretNode(outNode) or outNode:copy()
+            end
+        else
+            topNode = prove and markSecretNode(topNode) or topNode:copy()
+            if outNode then
+                outNode = outNode:copy():clearFlag('secret'):clearFlag('secretProven')
+            end
+        end
+        return topNode, outNode
+    end,
+}
 
 --- The field reads `tbl.key` a call looks at: a made-up `getfield` per literal key, which the flow analysis tracks like any read of that path.
 --- One per key argument, remembered, so the same node is handed out on every walk of the call.
@@ -957,18 +985,34 @@ vm.registerFlowNarrowing {
         end
         local isAccessCheck = not isSecretCheck(call.node) and isSecretAccessCheck(call.node)
         ---@type fun(node: vm.node): vm.node
-        local declassify = function (node) return node:copy():clearFlag('secret') end
+        local declassify = function (node) return node:copy():clearFlag('secret'):clearFlag('secretProven') end
+        ---@type fun(node: vm.node): vm.node
+        local markSecret = function (node)
+            if node:hasFlag('secret') then
+                return node
+            end
+            -- (a value that was not secret by its type: secret for this branch only, see `registerBranchLocalFlag`)
+            local marked = node:copy()
+            marked:setFlag('secret')
+            marked:setFlag('secretProven')
+            return marked
+        end
         local funcNode = resolveSecretCheckFunction(call.node)
-        for _, i in ipairs(getCheckedParamIndices(call.node)) do
+        local checked = getCheckedParamIndices(call.node)
+        for _, i in ipairs(checked) do
             local arg = call.args[i]
             if arg then
+                -- the other answer proves the value secret: a guard on ONE value, and one that is not about KEYS of it (`keyof T`
+                -- parameters: then the answer is about the fields they name, not about the table)
+                local keyParams = funcNode and keyParamsOf(funcNode, i) or {}
+                local proof = #checked == 1 and #keyParams == 0 and markSecret or nil
                 if isAccessCheck then
-                    result[#result+1] = { target = arg, whenTrue = declassify }
+                    result[#result+1] = { target = arg, whenTrue = declassify, whenFalse = proof }
                 else
-                    result[#result+1] = { target = arg, whenFalse = declassify }
+                    result[#result+1] = { target = arg, whenFalse = declassify, whenTrue = proof }
                 end
                 -- the keys the call names: `canaccesstablekey(tbl, "hp")` clears `tbl.hp` too
-                for _, keyParam in ipairs(funcNode and keyParamsOf(funcNode, i) or {}) do
+                for _, keyParam in ipairs(keyParams) do
                     local last = keyParam.vararg and #call.args or keyParam.index
                     for k = keyParam.index, last do
                         local keyArg = call.args[k]
@@ -1065,6 +1109,7 @@ end)
 -- automatically) ask these two generic registries instead of ever naming
 -- "secret" themselves -- see vm/flags.lua.
 vm.registerPropagatingFlag('secret')
+vm.registerBranchLocalFlag('secret', 'secretProven')
 vm.registerFlagDeriver('secret', isSecret)
 
 -- The diagnostic itself.

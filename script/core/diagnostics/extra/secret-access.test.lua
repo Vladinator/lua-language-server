@@ -560,6 +560,77 @@ if canAccessOther(u, u, "hp") then
 end
 ]]
 
+-- WHAT A GUARD PROVES ON THE OTHER BRANCH. A check that says "this value IS secret" makes it secret in the true branch even when its
+-- type says it is not (a plain `number` parameter); a check that says "this value is safe" does the same for its false branch.
+-- The branch where the answer is "clean" clears it (that part is older). Each case below: the proven branch is reported, the cleared
+-- branch and the code outside the check are not.
+TEST [[
+---@secret-guard value is-secret
+---@param value any
+---@return boolean
+local function isSecret(value) return false end
+
+---@param n number
+local function f(n)
+    local before = n + 1
+    if isSecret(n) then
+        local yes = <!n!> + 1
+    else
+        local no = n + 1
+    end
+    -- (the proof belongs to its branch: after the `if` the annotation speaks again)
+    local after = n + 1
+end
+]]
+
+TEST [[
+---@secret-guard value accessible
+---@param value any
+---@return boolean
+local function canAccess(value) return true end
+
+---@param n number
+local function f(n)
+    if canAccess(n) then
+        local clean = n + 1
+    else
+        local yes = <!n!> + 1
+    end
+    if not canAccess(n) then
+        local yes = <!n!> + 1
+    end
+end
+]]
+
+-- the other kinds of the same two spellings: @secret-check (true = secret), @secret-access-check (true = safe), `any-secret`
+TEST [[
+---@secret-check
+---@param value any
+---@return boolean
+local function isSecret(value) return false end
+
+---@secret-access-check
+---@param value any
+---@return boolean
+local function canAccess(value) return true end
+
+---@secret-guard value any-secret
+---@param value any
+---@return boolean
+local function anySecret(value) return false end
+
+---@param a number
+---@param b number
+---@param c number
+local function f(a, b, c)
+    if isSecret(a) then local x = <!a!> + 1 end
+    if not canAccess(b) then local y = <!b!> + 1 end
+    if anySecret(c) then local z = <!c!> + 1 end
+end
+]]
+
+-- (the elaborate matrix of this lives in the parent repo: lua-tests/17_secret_proof.lua, checked by `tools/validate.py`)
+
 -- the named parameter is the one that narrows, not the first
 TEST [[
 ---@secret

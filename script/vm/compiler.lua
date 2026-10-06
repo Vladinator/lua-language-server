@@ -334,6 +334,137 @@ function vm.getClassGenericMap(uri, classGlobal, signs)
     return nil
 end
 
+---@param uri         uri
+---@param classGlobal vm.global
+---@param signs       parser.object[]
+---@param outer?      table<string, vm.node> what the type parameters of the class that names this one stand for
+---@return table<string, vm.node>?
+local function classArgumentsOf(uri, classGlobal, signs, outer)
+    for _, set in ipairs(classGlobal:getSets(uri)) do
+        if set.type == 'doc.class' and set.signs then
+            ---@type table<string, vm.node>
+            local resolved = {}
+            for i, signName in ipairs(set.signs) do
+                local signType = signs[i]
+                local name = signName[1] --[[@as string?]]
+                if signType and name then
+                    -- an argument that is itself a type parameter of the class this one is named from (`---@class Child<U>: Box<U>`)
+                    -- takes what that parameter stands for
+                    local unit = signType
+                    if signType.type == 'doc.type' and signType.types and #signType.types == 1 then
+                        unit = signType.types[1]
+                    end
+                    local outerNode = outer and unit.type == 'doc.generic.name' and outer[unit[1] --[[@as string]]]
+                    resolved[name] = outerNode or vm.compileNode(signType)
+                end
+            end
+            return next(resolved) and resolved or nil
+        end
+    end
+    return nil
+end
+
+---@class vm.classGenericEntry
+---@field class     string the class name
+---@field arguments table<string, vm.node>? what its type parameters stand for, when the receiver says (directly or through the classes below it)
+
+---@param uri         uri
+---@param classGlobal vm.global
+---@param arguments?  table<string, vm.node>
+---@param out         vm.classGenericEntry[]
+---@param seen        table<vm.global, true>
+local function collectClassChain(uri, classGlobal, arguments, out, seen)
+    if seen[classGlobal] then
+        return
+    end
+    seen[classGlobal] = true
+    out[#out+1] = { class = classGlobal.name, arguments = arguments }
+    for _, set in ipairs(classGlobal:getSets(uri)) do
+        if set.type == 'doc.class' then
+            for _, parent in ipairs(set.extends or {}) do
+                if parent.type == 'doc.type.sign' and parent.node and parent.signs then
+                    local parentGlobal = vm.getGlobal('type', parent.node[1])
+                    if parentGlobal then
+                        collectClassChain(uri, parentGlobal, classArgumentsOf(uri, parentGlobal, parent.signs, arguments), out, seen)
+                    end
+                elseif parent.type == 'doc.extends.name' then
+                    -- (a parent written without type arguments: `---@class Deep: NumberBox`)
+                    local parentGlobal = vm.getGlobal('type', parent[1])
+                    if parentGlobal then
+                        collectClassChain(uri, parentGlobal, nil, out, seen)
+                    end
+                end
+            end
+        end
+    end
+end
+
+--- The class of a receiver and its parents, each with the types its type parameters stand for given what the receiver says
+--- (`Box<number>`, or a class that inherits from one: `---@class NumberBox: Box<number>`, `Child<U>: Box<U>`, any depth; a loop is
+--- walked once).
+---@param uri      uri
+---@param receiver parser.object|vm.global a `doc.type.sign`, or the global of a class
+---@return vm.classGenericEntry[]
+function vm.getClassGenericChain(uri, receiver)
+    ---@type vm.classGenericEntry[]
+    local chain = {}
+    if receiver.type == 'doc.type.sign' and receiver.node and receiver.signs then
+        ---@cast receiver parser.object
+        local classGlobal = vm.getGlobal('type', receiver.node[1])
+        if classGlobal then
+            collectClassChain(uri, classGlobal, classArgumentsOf(uri, classGlobal, receiver.signs), chain, {})
+        end
+    elseif receiver.type == 'global' and receiver.cate == 'type' then
+        ---@cast receiver vm.global
+        collectClassChain(uri, receiver, nil, chain, {})
+    end
+    return chain
+end
+
+--- The classes a method (a `function` node) belongs to: `function Widget:Show()` is stored in a variable typed with the class.
+---@param func parser.object
+---@return table<string, true>
+function vm.getMethodOwners(func)
+    ---@type table<string, true>
+    local owners = {}
+    local holder = func.parent and (func.parent.type == 'setmethod' or func.parent.type == 'setfield') and func.parent.node
+    if not holder then
+        return owners
+    end
+    for obj in vm.compileNode(holder):eachObject() do
+        if obj.type == 'global' and obj.cate == 'type' then
+            ---@cast obj vm.global
+            owners[obj.name] = true
+        end
+    end
+    return owners
+end
+
+--- What the type parameters of the class a method belongs to stand for, for a call of it on `receiver`: the arguments the chain gives
+--- the class that declares the method (a method of a parent class is read through `---@class NumberBox: Box<number>`); without a
+--- known owner, the receiver's own arguments. Nil when the receiver says nothing.
+---@param uri      uri
+---@param receiver parser.object|vm.global
+---@param func?    parser.object the method the call resolved to
+---@return table<string, vm.node>?
+function vm.getReceiverGenericMap(uri, receiver, func)
+    local chain = vm.getClassGenericChain(uri, receiver)
+    local owners = func and func.type == 'function' and vm.getMethodOwners(func) or {}
+    if next(owners) then
+        for _, entry in ipairs(chain) do
+            if entry.arguments and owners[entry.class] then
+                return entry.arguments
+            end
+        end
+    end
+    for _, entry in ipairs(chain) do
+        if entry.arguments then
+            return entry.arguments
+        end
+    end
+    return nil
+end
+
 ---@param uri uri
 ---@param classGlobal vm.global
 ---@param field parser.object | vm.generic
@@ -2338,10 +2469,11 @@ local function bindReturnOfFunction(source, mfunc, index, args)
             if receiver then
                 local receiverNode = vm.compileNode(receiver)
                 for rn in receiverNode:eachObject() do
-                    if rn.type == 'doc.type.sign' and rn.signs and rn.node and rn.node[1] then
-                        local classGlobal = vm.getGlobal('type', rn.node[1])
-                        if classGlobal then
-                            local genericMap = vm.getClassGenericMap(guide.getUri(source), classGlobal, rn.signs)
+                    if rn.type == 'doc.type.sign' or (rn.type == 'global' and rn.cate == 'type') then
+                        -- (`Box<number>`, or a class that inherits from one: the chain gives the arguments of the class that declares the method)
+                        do
+                            ---@cast rn parser.object|vm.global
+                            local genericMap = vm.getReceiverGenericMap(guide.getUri(source), rn, mfunc)
                             if genericMap and mfunc.bindDocs then
                                 for _, doc in ipairs(mfunc.bindDocs) do
                                     if doc.type == 'doc.return' then

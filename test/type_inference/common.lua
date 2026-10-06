@@ -6137,6 +6137,36 @@ local holder
 local <?v?> = holder.value
 ]]
 
+-- the return type of a METHOD of a generic class, read through a class that inherits from it
+TEST 'string' [[
+---@class MethodBase<T>
+local MethodBase = {}
+
+---@return T
+function MethodBase:get() end
+
+---@class MethodString: MethodBase<string>
+
+---@type MethodString
+local holder
+local <?v?> = holder:get()
+]]
+
+TEST 'number' [[
+---@class MethodBase<T>
+local MethodBase = {}
+
+---@return T
+function MethodBase:get() end
+
+---@class MethodRenamed<U>: MethodBase<U>
+---@class MethodDeep: MethodRenamed<number>
+
+---@type MethodDeep
+local holder
+local <?v?> = holder:get()
+]]
+
 TEST 'boolean' [[
 ---@class Container<K, V>
 ---@field key K

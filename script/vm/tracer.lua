@@ -922,7 +922,15 @@ local lookIntoChild = util.switch()
             mainNode:merge(vm.declareGlobal('type', 'unknown'))
         end
         for _, blockNode in ipairs(blockNodes) do
-            mainNode:merge(blockNode)
+            if #mainNode == 0 then
+                -- (nothing joined yet: an `else` cleared it)
+                mainNode:merge(blockNode)
+            else
+                -- a proof one path has (vm.registerBranchLocalFlag) does not survive the join unless every path has it
+                local before = mainNode:copy()
+                mainNode:merge(blockNode)
+                vm.joinBranchLocalFlags(mainNode, before, blockNode)
+            end
         end
         topNode = mainNode
         return topNode, outNode

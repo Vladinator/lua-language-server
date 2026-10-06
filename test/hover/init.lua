@@ -2668,6 +2668,53 @@ do
     files.remove(TESTURI)
 end
 
+-- the member lines of an alias hover as the value, with the description after the `#`
+hoverContains([[
+---@alias Mode
+---| "f<?a?>st" # runs quickly
+---| "slow" # runs slowly
+]], '(alias member) Mode: "fast"')
+
+hoverContains([[
+---@alias Mode
+---| "fast" # runs quickly
+---| "s<?l?>ow" # runs slowly
+]], 'runs slowly')
+
+hoverContains([[
+---@alias Level
+---| <?1?> # the lowest
+---| 2
+]], '(alias member) Level: 1')
+
+-- a member with no description still names its alias, so does a value of an inline union; a literal in an ordinary type is no member
+hoverContains([[
+---@alias Level
+---| 1 # the lowest
+---| <?2?>
+]], '(alias member) Level: 2')
+
+hoverContains([[
+---@alias Flag "on"|<?"off"?>
+]], '(alias member) Flag: "off"')
+
+hoverContains([[
+---@alias Switch <?true?>|false
+]], '(alias member) Switch: true')
+
+for _, snippet in ipairs {
+    '---@param x <?"a"?>|"b"' .. string.char(10) .. 'local function f(x) end' .. string.char(10),
+    '---@type <?"a"?>' .. string.char(10) .. 'local x' .. string.char(10),
+    '---@type <?1?>|2' .. string.char(10) .. 'local x' .. string.char(10),
+    '---@class A' .. string.char(10) .. '---@field x <?true?>' .. string.char(10),
+} do
+    local text, catched = catch(snippet, '?')
+    files.setText(TESTURI, text)
+    local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
+    assert(not hover or hover:string() == '', 'a literal of a plain type has no hover: ' .. tostring(hover and hover:string()))
+    files.remove(TESTURI)
+end
+
 -- the name of a returned value, the variable of a cast and the signature of an overload
 hoverContains([[
 ---@return string <?result?>

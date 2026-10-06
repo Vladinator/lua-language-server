@@ -10,6 +10,29 @@ local wssymbol   = require 'core.workspace-symbol'
 local docTags    = require 'parser.docTags'
 local diag       = require 'proto.diagnostic'
 
+---@type table<string, true>
+local memberTypes = {
+    ['doc.type.string']  = true,
+    ['doc.type.integer'] = true,
+    ['doc.type.boolean'] = true,
+}
+
+--- The alias name for a literal that is a value of an alias (`---| "value" # description`, or `---@alias Mode "fast"|"slow"`): those
+--- nodes hang straight under the type of the `---@alias`, and a member line carries its description as a plain string.
+---@param source parser.object
+---@return parser.object? aliasName the `doc.alias.name` node of the alias
+local function aliasOfMember(source)
+    if not memberTypes[source.type] then
+        return nil
+    end
+    local list = source.parent
+    local alias = list and list.parent
+    if list and list.type == 'doc.type' and alias and alias.type == 'doc.alias' then
+        return alias.alias
+    end
+    return nil
+end
+
 ---@async
 ---@param source parser.object
 ---@param level integer
@@ -51,6 +74,17 @@ local function getHover(source, level)
             md:add('md', ('`%s`'):format(source[1]))
             md:add('md', data.description)
             return md, 0
+        end
+        return md, 0
+    end
+
+    local alias = aliasOfMember(source)
+    if alias then
+        -- `---| "fast" # runs quickly`: a value of the alias, with the description after the `#`
+        md:add('lua', ('(alias member) %s: %s'):format(alias[1], vm.getInfer(source):view(guide.getUri(source))))
+        local description = source.comment
+        if type(description) == 'string' and description ~= '' then
+            md:add('md', description)
         end
         return md, 0
     end
@@ -188,6 +222,9 @@ local accept = {
     ['doc.module']     = true,
     ['doc.see.name']   = true,
     ['doc.return.name'] = true,
+    ['doc.type.string'] = true,
+    ['doc.type.integer'] = true,
+    ['doc.type.boolean'] = true,
     ['doc.cast.name']  = true,
     ['doc.type.function'] = true,
 }

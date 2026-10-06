@@ -1078,6 +1078,15 @@ return function (uri, start, finish)
             end
             return
         end
+        if source.punctuation and options.annotation then
+            for _, op in ipairs(source.punctuation) do
+                results[#results+1] = {
+                    start  = op.start,
+                    finish = op.finish,
+                    type   = define.TokenTypes.operator,
+                }
+            end
+        end
         if source.kwStart and source.kwFinish and options.annotation then
             results[#results+1] = {
                 start  = source.kwStart,

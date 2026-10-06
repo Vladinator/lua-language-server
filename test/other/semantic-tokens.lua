@@ -125,3 +125,26 @@ config.set(nil, 'Lua.semantic.annotation', false)
 tokens = tokensOf('---@param k keyof T\nlocal function f(k) end\n')
 assert(not has(tokens, 0, 12, 5, keyword, 0), '`keyof` with annotation tokens off')
 config.set(nil, 'Lua.semantic.annotation', true)
+
+-- the parentheses of a type are tokens (operators), not comment text: they change the meaning of `("a"|string)[]`
+local operator = define.TokenTypes.operator
+-- (`---@field x ("all"|string)[]`: the `(` is at column 12, the `)` at 25)
+tokens = tokensOf('---@class A' .. string.char(10) .. '---@field x ("all"|string)[]' .. string.char(10) .. 'local a')
+assert(has(tokens, 1, 12, 1, operator, 0), 'the opening parenthesis')
+assert(has(tokens, 1, 25, 1, operator, 0), 'the closing parenthesis')
+tokens = tokensOf('---@param x ((string))' .. string.char(10) .. 'local function f(x) end' .. string.char(10))
+assert(has(tokens, 0, 12, 1, operator, 0) and has(tokens, 0, 13, 1, operator, 0), 'nested: both opening parentheses')
+assert(has(tokens, 0, 20, 1, operator, 0) and has(tokens, 0, 21, 1, operator, 0), 'nested: both closing parentheses')
+tokens = tokensOf('---@type (T extends string ? number : boolean)' .. string.char(10) .. 'local x' .. string.char(10))
+assert(has(tokens, 0, 9, 1, operator, 0), 'the opening parenthesis of a conditional type')
+assert(has(tokens, 0, 45, 1, operator, 0), 'the closing parenthesis of a conditional type')
+-- no parentheses, no operator tokens in the type
+tokens = tokensOf('---@param x string|number' .. string.char(10) .. 'local function f(x) end' .. string.char(10))
+for _, t in ipairs(tokens) do
+    assert(not (t[1] == 0 and t[4] == operator), 'a type without parentheses has no operator token')
+end
+-- annotation tokens off: none
+config.set(nil, 'Lua.semantic.annotation', false)
+tokens = tokensOf('---@param x (string)' .. string.char(10) .. 'local function f(x) end' .. string.char(10))
+assert(not has(tokens, 0, 12, 1, operator, 0), 'annotation tokens switched off')
+config.set(nil, 'Lua.semantic.annotation', true)

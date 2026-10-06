@@ -1054,6 +1054,15 @@ local function parseBoolean(parent)
     return boolean
 end
 
+--- Remember where the punctuation of a node's syntax stands (the parentheses of a type), so the editor can colour it.
+---@param node   parser.object
+---@param start  integer
+---@param finish integer
+local function addOperator(node, start, finish)
+    node.punctuation = node.punctuation or {}
+    node.punctuation[#node.punctuation+1] = { start = start, finish = finish }
+end
+
 ---@param parent parser.object
 ---@return parser.object?
 local function parseParen(parent)
@@ -1061,6 +1070,7 @@ local function parseParen(parent)
         return
     end
     nextToken()
+    local openStart, openFinish = getStart(), getFinish()
     local tp = parseType(parent)
     -- `(T extends U ? X : Y)` (TypeScript's conditional types): checked here, inside the parens
     -- and before they close, rather than as a general postfix on any type -- a bare `extends`
@@ -1117,11 +1127,19 @@ local function parseParen(parent)
         if falseType then
             falseType.parent = condResult
         end
-        nextSymbolOrError(')')
+        addOperator(condResult, openStart, openFinish)
+        if nextSymbolOrError(')') then
+            addOperator(condResult, getStart(), getFinish())
+        end
         condResult.finish = getFinish()
         return condResult
     end
-    nextSymbolOrError(')')
+    if tp then
+        addOperator(tp, openStart, openFinish)
+    end
+    if nextSymbolOrError(')') and tp then
+        addOperator(tp, getStart(), getFinish())
+    end
     return tp
 end
 

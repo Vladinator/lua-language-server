@@ -364,7 +364,7 @@ Array<string>
 * ``"err-nonstandard-symbol"``
 * ``"err-then-as-do"``
 * ``"exp-in-action"``: Expresión usada en posición de sentencia
-* ``"generic-constraint-mismatch"``: Enable diagnostics for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.
+* ``"generic-constraint-mismatch"``: Enable diagnostics for the type arguments of a class or an alias that do not satisfy the constraint of their type parameter (`Widget<number>` where `---@class Widget<T: Frame>`), and for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.
 * ``"generic-param-mismatch"``: Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
 * ``"global-close-attribute"``: Atributo close en una variable global
 * ``"global-element"``: Habilita el diagnóstico que alerta sobre elementos globales.
@@ -443,7 +443,7 @@ Array<string>
 * ``"no-visible-label"``: Etiqueta invisible
 * ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
 * ``"not-yieldable"``: Habilita el diagnóstico para llamadas a `coroutine.yield()` cuando no esté permitido.
-* ``"param-constraint-mismatch"``: Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+* ``"param-constraint-mismatch"``: Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The receiver may also inherit the method from a parent class (`---@class Numbers: Widget<number>`). The wowlua-ls diagnostic of the same name.
 * ``"param-type-mismatch"``: Habilita el diagnóstico para llamadas a funciones donde el tipo de un parámetro provisto no calza con el tipo de la definición anotado de la función.
 * ``"redefined-label"``: Etiqueta redefinida
 * ``"redefined-local"``: Habilita el diagnóstico de variables locals redefinidas.
@@ -1076,7 +1076,7 @@ object<string, string>
     */
     "empty-block": "Opened",
     /*
-    Enable diagnostics for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.
+    Enable diagnostics for the type arguments of a class or an alias that do not satisfy the constraint of their type parameter (`Widget<number>` where `---@class Widget<T: Frame>`), and for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.
     */
     "generic-constraint-mismatch": "Opened",
     /*
@@ -1204,7 +1204,7 @@ object<string, string>
     */
     "not-yieldable": "None",
     /*
-    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The receiver may also inherit the method from a parent class (`---@class Numbers: Widget<number>`). The wowlua-ls diagnostic of the same name.
     */
     "param-constraint-mismatch": "Opened",
     /*
@@ -1503,7 +1503,7 @@ object<string, string>
     */
     "empty-block": "Hint",
     /*
-    Enable diagnostics for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.
+    Enable diagnostics for the type arguments of a class or an alias that do not satisfy the constraint of their type parameter (`Widget<number>` where `---@class Widget<T: Frame>`), and for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.
     */
     "generic-constraint-mismatch": "Warning",
     /*
@@ -1631,7 +1631,7 @@ object<string, string>
     */
     "not-yieldable": "Warning",
     /*
-    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The receiver may also inherit the method from a parent class (`---@class Numbers: Widget<number>`). The wowlua-ls diagnostic of the same name.
     */
     "param-constraint-mismatch": "Warning",
     /*

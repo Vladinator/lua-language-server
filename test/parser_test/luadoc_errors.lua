@@ -54,6 +54,13 @@ local samples = {
     ['---@cast']                       = { 'LUADOC_MISS_LOCAL_NAME' },
     ['---@cast x']                     = { 'LUADOC_MISS_TYPE_NAME' },
     ['---@as']                         = { 'LUADOC_MISS_TYPE_NAME' },
+    -- a tag with a name and a type (`@requires`), a type parameter with a constraint
+    ['---@requires']                   = { 'LUADOC_MISS_GENERIC_NAME' },
+    ['---@requires T']                 = { 'LUADOC_MISS_SYMBOL' },
+    ['---@requires T:']                = { 'LUADOC_MISS_TYPE_NAME' },
+    ['---@requires T extends']         = { 'LUADOC_MISS_TYPE_NAME' },
+    ['---@class A<T:>']                = { 'LUADOC_MISS_TYPE_NAME' },
+    ['---@alias A<T extends> string']  = { 'LUADOC_MISS_TYPE_NAME' },
     -- well formed: nothing to report
     ['---@version 5.x']                = {},
     ['---@enum']                       = {},
@@ -62,6 +69,12 @@ local samples = {
     ['---@nodiscard']                  = {},
     ['---@type string']                = {},
     ['---@param x Partial<T>']         = {},
+    ['---@requires T: Frame']          = {},
+    ['---@requires T extends Frame']   = {},
+    ['---@requires T: Frame the widget must be a frame'] = {},
+    ['---@class A<T: Frame, U>']       = {},
+    ['---@class A<T extends Frame>']   = {},
+    ['---@alias A<K: string, V> V']    = {},
     ['---@return (string, nil) | (nil, number)'] = {},
 }
 

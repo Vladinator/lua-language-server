@@ -101,7 +101,7 @@ local noArgs
 noArgs:Show()
 ]]
 
--- (not followed yet: a method declared on a parent class is checked only when the receiver is typed with the parent's own arguments)
+-- a class that inherits the method: the parent's type arguments are the ones that count
 TEST [[
 ---@class Frame
 ---@class Widget<T>
@@ -112,7 +112,71 @@ function Widget:Show() end
 
 ---@class Numbers: Widget<number>
 
+---@class Frames: Widget<Frame>
+
 ---@type Numbers
 local n
-n:Show()
+n:<!Show!>()
+
+---@type Frames
+local f
+f:Show()
+]]
+
+-- through a type parameter of the child (`Child<U>: Widget<U>`), and through two levels
+TEST [[
+---@class Frame
+---@class Widget<T>
+local Widget = {}
+
+---@requires T: Frame
+function Widget:Show() end
+
+---@class Child<U>: Widget<U>
+
+---@class Grand: Child<string>
+
+---@type Child<number>
+local bad
+bad:<!Show!>()
+
+---@type Child<Frame>
+local good
+good:Show()
+
+---@type Grand
+local deep
+deep:<!Show!>()
+]]
+
+-- a child with a type parameter of the same name that is unrelated to the parent's: the parent's argument is checked
+TEST [[
+---@class Frame
+---@class Widget<T>
+local Widget = {}
+
+---@requires T: Frame
+function Widget:Show() end
+
+---@class Other<T>: Widget<Frame>
+
+---@type Other<number>
+local o
+o:Show()
+]]
+
+-- a hierarchy that loops back on itself is walked once
+TEST [[
+---@class Frame
+---@class CycA<T>: CycB<T>
+local CycA = {}
+
+---@class CycB<T>: CycA<T>
+
+---@requires T: Frame
+function CycA:Show() end
+
+---@type CycB<number>
+local c
+c:<!Show!>()
 ]]

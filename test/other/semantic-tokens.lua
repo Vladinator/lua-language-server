@@ -165,6 +165,11 @@ assert(marksOf('---@diagnostic disable: unused-local, undefined-global' .. strin
 assert(marksOf('---@param a string: not a mark, a tail comment' .. string.char(10) .. 'local function f(a) end') == '', 'a colon and a comma in the tail comment')
 assert(marksOf('---@param a string (see the manual)' .. string.char(10) .. 'local function f(a) end') == '', 'parentheses in the tail comment')
 assert(marksOf('---@type string' .. string.char(10) .. 'local x') == '', 'a plain type has no mark')
+-- the constraint of a class type parameter: `extends` is a keyword, the parameter a type parameter, the colon an operator
+tokens = tokensOf('---@class A<T extends B>' .. string.char(10) .. 'local a' .. string.char(10))
+assert(has(tokens, 0, 14, 7, keyword, 0), '`extends` of a class type parameter')
+assert(has(tokens, 0, 12, 1, define.TokenTypes.type, define.TokenModifiers.modification), 'the class type parameter')
+assert(marksOf('---@class A<T: B>' .. string.char(10) .. 'local a') == '11,13,16', 'class sign list: < : >')
 -- no parentheses, no operator tokens in the type
 tokens = tokensOf('---@param x string' .. string.char(10) .. 'local function f(x) end' .. string.char(10))
 for _, t in ipairs(tokens) do

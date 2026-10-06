@@ -7,6 +7,7 @@ local protoDiagnostic = require 'proto.diagnostic'
 local MESSAGE = 'Type `%s` does not satisfy the constraint `%s` of type parameter `%s`.'
 local KEYOF   = 'Argument `%s` does not match `%s`, the keys of the other argument.'
 local MEMBER  = 'Type `%s` does not satisfy the constraint `%s` of type parameter `%s`: `%s` does not fit.'
+local ARGUMENT = 'Type `%s` does not satisfy the constraint `%s` of type parameter `%s` of `%s`.'
 
 protoDiagnostic.register {
     'generic-constraint-mismatch',
@@ -14,7 +15,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
-    description = 'Enable diagnostics for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.',
+    description = 'Enable diagnostics for the type arguments of a class or an alias that do not satisfy the constraint of their type parameter (`Widget<number>` where `---@class Widget<T: Frame>`), and for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.',
 }
 
 --- Does the constraint name a type parameter (`keyof T`)? One that does not is checked by `param-type-mismatch` already (as `<T:Base>`).
@@ -111,12 +112,72 @@ local function checkKeyofParams(uri, call, func, resolved, callback)
     end
 end
 
+--- Does the type name something that is not defined (`undefined-doc-name` reports that already)?
+---@param typeDoc parser.object
+---@return boolean
+local function namesUndefinedType(typeDoc)
+    local found = false
+    guide.eachSourceType(typeDoc, 'doc.type.name', function (src)
+        local typeGlobal = vm.getGlobal('type', src[1] --[[@as string]])
+        if not typeGlobal or #typeGlobal:getSets(guide.getUri(src)) == 0 then
+            found = true
+        end
+    end)
+    return found
+end
+
+--- `Widget<number>` where the class says `---@class Widget<T: Frame>` (an alias too: `---@alias Pair<K: string, V>`): each type argument has
+--- to satisfy the constraint of its type parameter. (An argument that is a type parameter of the function around it, or a constraint that names
+--- another type parameter, compiles to something that casts: nothing is reported for them.)
+---@async
+---@param uri      uri
+---@param state    parser.state
+---@param callback fun(result: table)
+local function checkTypeArguments(uri, state, callback)
+    guide.eachSourceType(state.ast, 'doc.type.sign', function (usage)
+        if not usage.node or not usage.signs then
+            return
+        end
+        local typeGlobal = vm.getGlobal('type', usage.node[1] --[[@as string]])
+        if not typeGlobal then
+            return
+        end
+        ---@type parser.object[]?
+        local declared
+        for _, set in ipairs(typeGlobal:getSets(uri)) do
+            if (set.type == 'doc.class' or set.type == 'doc.alias') and set.signs then
+                declared = set.signs
+                break
+            end
+        end
+        for i, sign in ipairs(declared or {}) do
+            local arg = usage.signs[i]
+            if arg and sign.extends and not namesUndefinedType(arg) then
+                local given = vm.compileNode(arg)
+                local view  = vm.getInfer(given):view(uri)
+                do
+                    local constraint = vm.compileNode(sign.extends)
+                    if not vm.canCastType(uri, constraint, given:copy():removeOptional()) then
+                        callback {
+                            start   = arg.start,
+                            finish  = arg.finish,
+                            message = ARGUMENT:format(view, vm.getInfer(constraint):view(uri), tostring(sign[1]), tostring(usage.node[1])),
+                        }
+                    end
+                end
+            end
+        end
+    end)
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
     if not state then
         return
     end
+
+    checkTypeArguments(uri, state, callback)
 
     local delayer = await.newThrottledDelayer(500)
     ---@async

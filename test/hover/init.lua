@@ -2668,6 +2668,21 @@ do
     files.remove(TESTURI)
 end
 
+-- a type parameter of a class (and of an alias) with a constraint, at its declaration and where it is used
+hoverContains([[
+---@class Frame
+---@class Widget<<?T?>: Frame>
+]], '(type parameter) T: Frame')
+
+hoverContains([[
+---@class Frame
+---@class Widget<<?T?> extends Frame>
+]], '(type parameter) T: Frame')
+
+hoverContains([[
+---@alias Pair<<?K?>: string, V> { [K]: V }
+]], '(type parameter) K: string')
+
 -- the member lines of an alias hover as the value, with the description after the `#`
 hoverContains([[
 ---@alias Mode

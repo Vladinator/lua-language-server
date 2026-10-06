@@ -246,3 +246,75 @@ many(p, unknown)
 -- (a wrong type for a parameter with no `keyof` is `param-type-mismatch`'s business, not this diagnostic's)
 numbers(p, 'zz', 'anything goes')
 ]]
+
+-- the type arguments of a class (or an alias) with a constrained type parameter: `---@class Widget<T: Frame>`
+TEST [[
+---@class Frame
+---@class Button: Frame
+---@class Widget<T: Frame>
+
+---@type Widget<Frame>
+local a
+---@type Widget<Button>
+local b
+---@type Widget<<!number!>>
+local c
+---@type Widget<Frame?>
+local d
+---@type Widget<<!Frame|number!>>
+local e
+]]
+
+-- the `extends` spelling, an alias, the argument that is checked is the one of its own parameter
+TEST [[
+---@alias Pair<K: string, V extends number> { [K]: V }
+
+---@type Pair<string, number>
+local ok
+---@type Pair<<!integer!>, number>
+local badKey
+---@type Pair<string, <!string!>>
+local badValue
+]]
+
+-- left alone: no constraint, an argument that is unknown or `any`, a constraint or an argument that names another type parameter
+TEST [[
+---@class Frame
+---@class Plain<T>
+---@class Widget<T: Frame>
+---@class Keyed<K: keyof T, T>
+
+---@type Plain<number>
+local plain
+---@type Widget<any>
+local anything
+---@type Widget<Missing>
+local unknown
+
+---@generic U
+---@param w Widget<U>
+local function f(w) end
+]]
+
+-- an argument that is a type parameter of the function around it is not checked (what it stands for is known at a call); nor is a
+-- constraint that names another type parameter of the class
+TEST [[
+---@class Frame
+---@class Widget<T: Frame>
+
+---@generic U: Frame
+---@param w Widget<U>
+local function ok(w) end
+
+---@generic V
+---@param w Widget<V>
+local function free(w) end
+
+---@generic N: number
+---@param w Widget<N>
+local function bad(w) end
+
+---@class Keyed<K: keyof T, T>
+---@type Keyed<string, Frame>
+local keyed
+]]

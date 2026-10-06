@@ -192,7 +192,7 @@ local nameTypeTags = {}
 
 --- A tag with a name and a type, `---@mytag T: Type` or `---@mytag T extends Type`, produced as `{ type = docType, name = <name node>,
 --- extends = <doc.type> }` (the colon form has no keyword node, the `extends` form has `kwStart` / `kwFinish`). Anything that does
---- not read like that leaves the tag bare, so a plugin or a diagnostic can report it.
+--- not read like that leaves the tag bare, and pushes the syntax warning of what is missing (a name, the colon, the type).
 ---@param name        string tag name after the `@`, e.g. 'requires'
 ---@param docType     string produced node's `.type`, e.g. 'doc.requires'
 ---@param description? string shown by completion (markdown)

@@ -578,6 +578,22 @@ local function parseSigns(parent)
             }
             break
         end
+        -- `---@class Widget<T: Frame>`, or TypeScript's `T extends Frame`
+        local isExtendsWord = checkToken('name', 'extends', 1)
+        if checkToken('symbol', ':', 1) or isExtendsWord then
+            nextToken()
+            if isExtendsWord then
+                sign.kwStart, sign.kwFinish = getStart(), getFinish()
+            end
+            sign.extends = parseType(sign)
+            if not sign.extends then
+                pushWarning {
+                    type   = 'LUADOC_MISS_TYPE_NAME',
+                    start  = getFinish(),
+                    finish = getFinish(),
+                }
+            end
+        end
         signs[#signs+1] = sign
         if checkToken('symbol', ',', 1) then
             nextToken()
@@ -1483,6 +1499,10 @@ local docSwitch = util.switch()
         result.finish = getFinish()
         ---@diagnostic expect-next-line: assign-type-mismatch
         result.signs  = parseSigns(result)
+        if result.signs then
+            -- (the type parameter list belongs to the class, not to the tail comment after it)
+            result.finish = getFinish()
+        end
         if not checkToken('symbol', ':', 1) then
             return result
         end
@@ -2551,9 +2571,21 @@ local function convertTokens(doc)
                         end
                         result.finish  = getFinish()
                     else
+                        pushWarning {
+                            type   = 'LUADOC_MISS_TYPE_NAME',
+                            start  = getFinish(),
+                            finish = getFinish(),
+                        }
                         Ci = savePoint
                     end
                 else
+                    -- a tag that is not `name: Type` leaves the tag bare, and says what is missing
+                    pushWarning {
+                        type   = name and 'LUADOC_MISS_SYMBOL' or 'LUADOC_MISS_GENERIC_NAME',
+                        start  = getFinish(),
+                        finish = getFinish(),
+                        info   = name and { symbol = ':' } or nil,
+                    }
                     Ci = savePoint
                 end
             elseif docTags.isGuardTag(docType) then

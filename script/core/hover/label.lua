@@ -47,12 +47,19 @@ local function asDocTypeName(source)
     end
 end
 
---- A type parameter, where it is declared (`---@generic T: table`) or used (`---@param x T`).
+--- A type parameter, where it is declared (`---@generic T: table`, `---@class Widget<T: Frame>`) or used (`---@param x T`).
 ---@param source parser.object a `doc.generic.name`
 ---@return string?
 local function asDocGenericName(source)
     local object = source.generic or source.parent
-    if not object or object.type ~= 'doc.generic.object' then
+    if not object then
+        return nil
+    end
+    -- (the type parameter of a class or an alias is its own declaration, and what a use of it points at: it carries the
+    -- constraint itself)
+    if object.type == 'doc.class' or object.type == 'doc.alias' then
+        object = source
+    elseif object.type ~= 'doc.generic.name' and object.type ~= 'doc.generic.object' then
         return nil
     end
     local name = source[1]

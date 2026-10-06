@@ -864,6 +864,82 @@ vm.registerCallNarrowing {
     end,
 }
 
+--- The type a `---@param` doc gives to the parameter at `index`, or nil.
+---@param funcNode parser.object
+---@param index    integer
+---@return parser.object?
+local function paramTypeOf(funcNode, index)
+    local param = funcNode.args and funcNode.args[index]
+    for _, doc in ipairs(param and param.bindDocs or {}) do
+        if doc.type == 'doc.param' and doc.param and doc.param[1] == param[1] and doc.extends then
+            return doc.extends
+        end
+    end
+    return nil
+end
+
+--- The parameters of a guard that name KEYS of the guarded one: with `---@param tbl T` guarded, a parameter typed `keyof T`
+--- (`---@param key keyof T`, or `---@param ... keyof T`) says which fields of `tbl` the call looked at. Any function of that
+--- shape qualifies, whatever it is called.
+---@param funcNode     parser.object
+---@param checkedIndex integer
+---@return {index: integer, vararg: boolean}[]
+local function keyParamsOf(funcNode, checkedIndex)
+    ---@type {index: integer, vararg: boolean}[]
+    local result = {}
+    local checkedType = paramTypeOf(funcNode, checkedIndex)
+    local operand = checkedType and checkedType.types and checkedType.types[1]
+    if not operand or operand.type ~= 'doc.generic.name' then
+        return result
+    end
+    for i, param in ipairs(funcNode.args or {}) do
+        local paramType = i ~= checkedIndex and paramTypeOf(funcNode, i)
+        local unit = paramType and paramType.types and paramType.types[1]
+        if  unit
+        and unit.type == 'doc.type.keyof'
+        and unit.node
+        and unit.node.type == 'doc.generic.name'
+        and unit.node[1] == operand[1] then
+            result[#result+1] = { index = i, vararg = param[1] == '...' }
+        end
+    end
+    return result
+end
+
+--- The field reads `tbl.key` a call looks at: a made-up `getfield` per literal key, which the flow analysis tracks like any read of that path.
+--- One per key argument, remembered, so the same node is handed out on every walk of the call.
+---@type table<parser.object, parser.object>
+local keyReads = setmetatable({}, { __mode = 'k' })
+
+---@param call    parser.object
+---@param base    parser.object the guarded argument
+---@param keyArg  parser.object a string literal argument
+---@return parser.object
+local function keyReadOf(call, base, keyArg)
+    local read = keyReads[keyArg]
+    if read and read.node == base then
+        return read
+    end
+    ---@type parser.object
+    read = {
+        type   = 'getfield',
+        start  = keyArg.start,
+        finish = keyArg.finish,
+        parent = call,
+        node   = base,
+        virtual = true,
+    }
+    read.field = {
+        type   = 'field',
+        start  = keyArg.start,
+        finish = keyArg.finish,
+        parent = read,
+        [1]    = keyArg[1],
+    }
+    keyReads[keyArg] = read
+    return read
+end
+
 --- The same rule for the flow analysis (vm/flow.lua): every checked argument is narrowed, not only
 --- the one the old tracer happened to be following.
 vm.registerFlowNarrowing {
@@ -882,6 +958,7 @@ vm.registerFlowNarrowing {
         local isAccessCheck = not isSecretCheck(call.node) and isSecretAccessCheck(call.node)
         ---@type fun(node: vm.node): vm.node
         local declassify = function (node) return node:copy():clearFlag('secret') end
+        local funcNode = resolveSecretCheckFunction(call.node)
         for _, i in ipairs(getCheckedParamIndices(call.node)) do
             local arg = call.args[i]
             if arg then
@@ -889,6 +966,21 @@ vm.registerFlowNarrowing {
                     result[#result+1] = { target = arg, whenTrue = declassify }
                 else
                     result[#result+1] = { target = arg, whenFalse = declassify }
+                end
+                -- the keys the call names: `canaccesstablekey(tbl, "hp")` clears `tbl.hp` too
+                for _, keyParam in ipairs(funcNode and keyParamsOf(funcNode, i) or {}) do
+                    local last = keyParam.vararg and #call.args or keyParam.index
+                    for k = keyParam.index, last do
+                        local keyArg = call.args[k]
+                        if keyArg and keyArg.type == 'string' and type(keyArg[1]) == 'string' then
+                            local read = keyReadOf(call, arg, keyArg)
+                            if isAccessCheck then
+                                result[#result+1] = { target = read, whenTrue = declassify }
+                            else
+                                result[#result+1] = { target = read, whenFalse = declassify }
+                            end
+                        end
+                    end
                 end
             end
         end

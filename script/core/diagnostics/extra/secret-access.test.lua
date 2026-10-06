@@ -427,6 +427,139 @@ else
 end
 ]]
 
+-- a guard whose later parameters are `keyof T` of the guarded table (`canaccesstablekey(tbl, ...)`) clears the NAMED fields of the table, not the
+-- table: the keys must be literals, any other field of the table stays secret
+TEST [[
+---@class KeyGuard.Unit
+---@field hp secret number
+---@field mana secret number
+
+---@secret-guard tbl accessible
+---@generic T
+---@param tbl T
+---@param ... keyof T
+---@return boolean
+local function canAccessKeys(tbl, ...) return true end
+
+---@type KeyGuard.Unit
+local u
+local before = <!u.hp!> + 1
+if canAccessKeys(u, "hp") then
+    local ok = u.hp + 1
+    local still = <!u.mana!> + 1
+end
+if canAccessKeys(u, "hp", "mana") then
+    local both = u.hp + u.mana
+end
+]]
+
+-- one `key keyof T` parameter instead of a vararg; the true branch only; another table and a variable key stay as they were
+TEST [[
+---@class KeyGuard.Unit
+---@field hp secret number
+---@field mana secret number
+
+---@secret-guard tbl accessible
+---@generic T
+---@param tbl T
+---@param key keyof T
+---@return boolean
+local function canAccessKey(tbl, key) return true end
+
+---@type KeyGuard.Unit
+local u
+---@type KeyGuard.Unit
+local v
+---@type "hp"|"mana"
+local hp
+if canAccessKey(u, "hp") then
+    local ok = u.hp + 1
+    local other = <!v.hp!> + 1
+else
+    local no = <!u.hp!> + 1
+end
+if canAccessKey(u, hp) then
+    local dynamic = <!u.hp!> + 1
+end
+]]
+
+-- the `is-secret` kind clears on the false branch; a guard that does not relate the keys to the table clears the table only
+TEST [[
+---@class KeyGuard.Unit
+---@field hp secret number
+---@field mana secret number
+
+---@secret-guard tbl is-secret
+---@generic T
+---@param tbl T
+---@param ... keyof T
+---@return boolean
+local function anySecretKey(tbl, ...) return true end
+
+---@secret-guard tbl accessible
+---@param tbl any
+---@param ... string
+---@return boolean
+local function canAccessPlain(tbl, ...) return true end
+
+---@type KeyGuard.Unit
+local u
+if anySecretKey(u, "hp") then
+    local yes = <!u.hp!> + 1
+else
+    local no = u.hp + 1
+end
+if canAccessPlain(u, "hp") then
+    local stillSecret = <!u.hp!> + 1
+end
+]]
+
+-- through an alias of the guard, with the keys of a second table kept apart, and a written field is secret again
+TEST [[
+---@class KeyGuard.Unit
+---@field hp secret number
+---@field mana secret number
+
+---@secret-guard tbl accessible
+---@generic T
+---@param tbl T
+---@param ... keyof T
+---@return boolean
+local function canAccessKeys(tbl, ...) return true end
+local alias = canAccessKeys
+
+---@type KeyGuard.Unit
+local u
+---@type KeyGuard.Unit
+local v
+if alias(u, "hp") and alias(v, "mana") then
+    local a = u.hp + 1
+    local b = v.mana + 1
+    local c = <!u.mana!> + 1
+    local d = <!v.hp!> + 1
+end
+]]
+
+-- keys of ANOTHER type parameter are no keys of the guarded table
+TEST [[
+---@class KeyGuard.Unit
+---@field hp secret number
+
+---@secret-guard tbl accessible
+---@generic T, U
+---@param tbl T
+---@param other U
+---@param key keyof U
+---@return boolean
+local function canAccessOther(tbl, other, key) return true end
+
+---@type KeyGuard.Unit
+local u
+if canAccessOther(u, u, "hp") then
+    local a = <!u.hp!> + 1
+end
+]]
+
 -- the named parameter is the one that narrows, not the first
 TEST [[
 ---@secret

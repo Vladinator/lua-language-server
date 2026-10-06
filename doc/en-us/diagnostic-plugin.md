@@ -105,10 +105,14 @@ A plugin can teach the parser new tags. These are registries the parser consults
 | `registerMarkerTag(name, docType, description?)` | `---@name`, a bare tag: a node `{ type = docType }` |
 | `registerNameListTag(name, docType, description?)` | `---@name a, b`: also a list of names, as `node.names` (each `{ type = docType .. '.name' }`) |
 | `registerGuardTag(name, docType, description?)` | `---@name x is T` / `---@name x is not T`: a parameter name and a type, as `node.param` (a name node), `node.extends` (a `doc.type`) and `node.negated`; anything else leaves the tag bare |
+| `registerParamKindTag(name, docType, kinds, description?)` | `---@name x kind`: a parameter name (`...` for the vararg) and one word out of `kinds`, as `node.param` and `node.kind`; anything else leaves the tag bare |
+| `registerKindParamsTag(name, docType, kinds, description?)` | `---@name kind [a b ...]`: one word out of `kinds`, then parameter names, as `node.kind` and `node.names`; anything else leaves the tag bare |
 | `registerBindRule(docType, rule)` | which declaration the tag binds to: `rule(doc, source, isParam)` |
 | `registerFieldKeyword(keyword, resultField, description?)` | a word before a field name: `---@field name mykeyword string` sets `resultField` on the `doc.field` |
 | `registerTypeKeyword(keyword, resultField, description?)` | a word before a type item: `---@param x mykeyword string`; only when a type follows it |
 | `registerAttribute(docType, name, description?)` | an attribute in parentheses: `---@class (name) A` (`docType` is `doc.class`, `doc.alias` or `doc.enum`) |
+| `registerTypeKeywordAlias(alias, keyword)` | another spelling of a registered type keyword: parsed the same, not offered by completion |
+| `setTagFlavors(name, flavors)`, `setKeywordFlavors(keyword, flavors)` | which annotation dialects (`legacyluals`, `luals`, `wowluals`) know the tag / keyword, for the `non-portable-annotation` lint; the default is `luals` only |
 | `registerContinuesAfterClassGroup(docType)`, `registerClassGroupDoc(docType)` | the tag may sit inside a `---@class` comment group / binds to the class |
 
 Descriptions are what completion shows after `---@`, at the field-name and type positions, in the attribute
@@ -127,9 +131,26 @@ do for "secret") uses these:
 | `vm.registerGenesisRule(sourceType, rule)` | runs once for each compiled source of a type, and may set flags on its node |
 | `vm.registerCallNarrowing { match, narrow }` | a call in a condition narrows its arguments (a "checker" function) |
 | `vm.registerEqualityNarrowing { match, narrow }` | `x == literal` style narrowing |
+| `vm.registerFlowNarrowing { match, narrowings }` | the same for the flow analysis (`vm/flow.lua`): `narrowings(call)` lists `{ target, whenTrue?, whenFalse?, after? }`, and the flow applies them on the right edges. `target` is an argument of the call or a made-up `getfield` node (`{ type = 'getfield', node = <base>, field = { type = 'field', [1] = name } }`) for a field the call is about, as `secret-access.lua` does for the keys of a guard |
 
 Flow analysis is the tracer's job (`vm/tracer.lua`); these hooks give a plugin a place in it without
 editing it.
+
+## Feature plugins
+
+A plugin that adds no diagnostic registers nothing with `proto.diagnostic` and returns nothing: the loader accepts it. It
+extends the server through a registry of the core, and its tests sit next to it like any plugin's. What is about Lua in
+general belongs in the core; what is about one host (a game, a product) goes in a plugin, and when it needs a hook the core
+gets a generic one first.
+
+| Call | What for |
+| --- | --- |
+| `proto.diagnostic.registerAlias(alias, canonical)` | another name of a diagnostic, accepted wherever a name is read from the user |
+| `vm.registerGlobalProvider(fn)` | `fn(uri, name)` says a global exists although no Lua assigns it (the host creates it) |
+| `vm.registerMainVarargProvider(fn)` | `fn(uri, index)` names the type of the argument the host passes to a file (`...` of the main chunk) |
+| `require('core.diagnostics.helper.reachable-function').registerExportedLocalRule(rule)` | `rule(loc)` says a local table is shared with other files, so its functions count as reachable |
+
+Test each hook in the shared tests with a fake name only that test uses, so they still pass with `extra/` removed.
 
 ## Tests: next to the plugin
 
@@ -162,5 +183,7 @@ Check it with `mv extra extra_off`, the suite (`bin/lua-language-server test.lua
 2. `register` with `group`, `severity`, `status` and an English `description` (and `reads` if it reads settings).
 3. A `<name>.test.lua` next to it.
 4. If it has tags: descriptions on them, and a bind rule.
-5. Run `py -3 tools/validate.py <files> --seeds 4`: a plugin that changes what other checks infer shows up as
+5. Run `py -3 tools/check_plugin_isolation.py --run` after a plugin or a shared hook: no word of a plugin in shared code, and the
+   suite passes with `extra/` moved away.
+6. Run `py -3 tools/validate.py <files> --seeds 4`: a plugin that changes what other checks infer shows up as
    an order-dependent finding, and the suite proves the plugin can be removed.

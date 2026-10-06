@@ -85,7 +85,7 @@ end
 --- what makes a rule independent of how the analysis is built.
 ---
 ---@class vm.flow.narrowing
----@field target     parser.object            the argument expression to narrow (a local or a field path; anything else is ignored)
+---@field target     parser.object            the argument expression to narrow (a local or a field path; anything else is ignored). A field the call is about but the code does not write (`canaccesstablekey(t, "hp")` and `t.hp`) is a made-up `getfield` node: `{ type = 'getfield', node = <base>, field = { type = 'field', [1] = name } }`
 ---@field whenTrue?  fun(node: vm.node, uri: uri): vm.node  its type where the call, used as a condition, is truthy
 ---@field whenFalse? fun(node: vm.node, uri: uri): vm.node  ... where it is falsy
 ---@field after?     fun(node: vm.node, uri: uri): vm.node  its type after the call used as a statement (an assertion)

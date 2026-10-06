@@ -73,9 +73,15 @@ local function checkPath(script, expected)
     assert(#reads == #expected, ('expected %d reads, found %d'):format(#expected, #reads))
     for i, read in ipairs(reads) do
         local node = flow:getNode(read)
+        if expected[i] == '-' then
+            -- nothing narrows this path: no answer, the compiler's type stands
+            assert(node == nil or os.getenv('LLS_FLOW_EVAL') ~= '0', ('path read %d: expected no answer'):format(i))
+            goto continue
+        end
         assert(node, ('path read %d: no answer from the flow analysis'):format(i))
         local actual = vm.getInfer(node):view(TESTURI)
         assert(actual == expected[i], ('path read %d: expected %q, got %q'):format(i, expected[i], actual))
+        ::continue::
     end
 end
 
@@ -320,6 +326,66 @@ local x
 flowAssertString(x)
 print(x)
 ]], { 'string|number', 'string' })
+
+-- a rule may narrow a FIELD of its argument without that field being written in the code: the target is a made-up `getfield`
+-- node (base = the argument, field = the key it is about), which the flow tracks like a read of that path
+---@type table<parser.object, parser.object>
+local madeUpReads = {}
+vm.registerFlowNarrowing {
+    match = function (callee)
+        return callee.type == 'getglobal' and callee[1] == 'flowKeyIsString'
+    end,
+    ---@param call parser.object
+    ---@return vm.flow.narrowing[]
+    narrowings = function (call)
+        local base, key = call.args and call.args[1], call.args and call.args[2]
+        if not base or not key or key.type ~= 'string' then
+            return {}
+        end
+        local read = madeUpReads[key]
+        if not read then
+            ---@type parser.object
+            read = { type = 'getfield', start = key.start, finish = key.finish, parent = call, node = base, virtual = true }
+            read.field = { type = 'field', start = key.start, finish = key.finish, parent = read, [1] = key[1] }
+            madeUpReads[key] = read
+        end
+        return { {
+            target    = read,
+            whenTrue  = function (node, uri) return node:copy():narrow(uri, 'string') end,
+            whenFalse = function (node) return node:copy():remove('string') end,
+        } }
+    end,
+}
+
+checkPath([[
+---@class FlowKey.Box
+---@field y string|number
+---@field z string|number
+---@type FlowKey.Box
+local x
+if flowKeyIsString(x, 'y') then
+    print(x.y)
+else
+    print(x.y)
+end
+]], { 'string', 'number' })
+
+-- another key of the same table, and a key that is not a literal, narrow nothing of `y`
+checkPath([[
+---@class FlowKey.Box
+---@field y string|number
+---@field z string|number
+---@type FlowKey.Box
+local x
+if flowKeyIsString(x, 'z') then
+    print(x.y)
+end
+---@type string
+local key
+if flowKeyIsString(x, key) then
+    print(x.y)
+end
+]], { '-', '-' })
 
 -- (LLS_FLOW_EVAL=1) a `for` variable's type is evaluated where the loop starts
 if os.getenv('LLS_FLOW_EVAL') ~= '0' then

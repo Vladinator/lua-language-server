@@ -8,6 +8,7 @@ local markdown   = require 'provider.markdown'
 local guide      = require 'parser.guide'
 local wssymbol   = require 'core.workspace-symbol'
 local docTags    = require 'parser.docTags'
+local diag       = require 'proto.diagnostic'
 
 ---@async
 ---@param source parser.object
@@ -41,6 +42,17 @@ local function getHover(source, level)
             md:add('md', desc)
             return md, 0
         end
+    end
+
+    if source.type == 'doc.diagnostic.name' then
+        -- `---@diagnostic disable: unused-local`: what the diagnostic checks
+        local data = diag.diagnosticDatas[source[1] --[[@as string]]]
+        if data and data.description then
+            md:add('md', ('`%s`'):format(source[1]))
+            md:add('md', data.description)
+            return md, 0
+        end
+        return md, 0
     end
 
     if source.type == 'doc.see.name' then
@@ -157,6 +169,10 @@ local accept = {
     ['integer']        = true,
     ['doc.type.name']  = true,
     ['doc.param.name'] = true,
+    ['doc.field.name'] = true,
+    ['doc.alias.name'] = true,
+    ['doc.generic.name'] = true,
+    ['doc.diagnostic.name'] = true,
     ['doc.class.name'] = true,
     ['doc.enum.name']  = true,
     ['function']       = true,
@@ -217,6 +233,10 @@ local function getHoverByUri(uri, position, level)
         return nil
     end
     local source = findSource(ast, position, accept) or findPluginDoc(ast, position)
+    if source and source.type == 'doc.field.name' then
+        -- `---@field name T`: hover the field as a whole
+        source = source.parent
+    end
     if source and source.type == 'doc.param.name' then
         -- `---@param value string`: hover the parameter itself (nothing for a name the function has no parameter of)
         source = paramOfDocName(source)

@@ -47,6 +47,21 @@ local function asDocTypeName(source)
     end
 end
 
+--- A type parameter, where it is declared (`---@generic T: table`) or used (`---@param x T`).
+---@param source parser.object a `doc.generic.name`
+---@return string?
+local function asDocGenericName(source)
+    local object = source.generic or source.parent
+    if not object or object.type ~= 'doc.generic.object' then
+        return nil
+    end
+    local name = source[1]
+    if object.extends then
+        return ('(type parameter) %s: %s'):format(name, vm.getInfer(object.extends):view(guide.getUri(source)))
+    end
+    return ('(type parameter) %s'):format(name)
+end
+
 ---@async
 ---@param source parser.object
 ---@param title string
@@ -259,8 +274,12 @@ return function (source, oop, level)
     or     source.type == 'integer' then
         return asNumber(source)
     elseif source.type == 'doc.type.name'
-    or     source.type == 'doc.enum.name' then
+    or     source.type == 'doc.enum.name'
+    or     source.type == 'doc.class.name'
+    or     source.type == 'doc.alias.name' then
         return asDocTypeName(source)
+    elseif source.type == 'doc.generic.name' then
+        return asDocGenericName(source)
     elseif source.type == 'doc.field' then
         return asDocFieldName(source)
     end

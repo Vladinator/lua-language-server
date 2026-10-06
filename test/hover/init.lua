@@ -2589,6 +2589,66 @@ do
     files.remove(TESTURI)
 end
 
+-- the names in the other doc tags hover as what they name
+hoverContains([[
+---@class <?Animal?>
+local Animal = {}
+]], '(class) Animal')
+
+hoverContains([[
+---@alias <?Pet?> string|number
+]], '(alias) Pet')
+
+hoverContains([[
+---@class Animal
+---@field <?name?> string
+]], '(field) Animal.name: string')
+
+hoverContains([[
+---@diagnostic disable-next-line: <?unused-local?>
+local unused = 1
+]], 'unused-local')
+
+hoverContains([[
+---@diagnostic disable-next-line: <?unused-local?>
+local unused = 1
+]], 'local variable')
+
+-- a diagnostic with no description of its own (a plugin's, here a fake one of this test) and a name nobody registered show nothing
+do
+    local protoDiagnostic = require 'proto.diagnostic'
+    protoDiagnostic.register { 'zz-hover-nodescription' } {
+        group    = 'unused',
+        severity = 'Hint',
+        status   = 'None',
+    }
+    for _, name in ipairs { 'zz-hover-nodescription', 'zz-hover-unknown' } do
+        local text, catched = catch('---@diagnostic disable-next-line: <?' .. name .. '?>' .. string.char(10) .. 'local x = 1' .. string.char(10), '?')
+        files.setText(TESTURI, text)
+        local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
+        assert(not hover or hover:string() == '', 'no text for ' .. name .. ': ' .. tostring(hover and hover:string()))
+        files.remove(TESTURI)
+    end
+end
+
+hoverContains([[
+---@generic <?T?>: table
+---@param value T
+local function f(value) end
+]], '(type parameter) T: table')
+
+hoverContains([[
+---@generic T: table
+---@param value <?T?>
+local function f(value) end
+]], '(type parameter) T: table')
+
+hoverContains([[
+---@generic <?T?>
+---@param value T
+local function f(value) end
+]], '(type parameter) T')
+
 -- the name of a parameter in `---@param name T` hovers as the parameter does in the code
 hoverContains([[
 ---@param <?value?> string

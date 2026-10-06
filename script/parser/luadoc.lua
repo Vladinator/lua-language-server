@@ -2533,6 +2533,29 @@ local function convertTokens(doc)
                 else
                     Ci = savePoint
                 end
+            elseif docTags.isNameTypeTag(docType) then
+                -- `---@requires T: Frame` / `---@requires T extends Frame`
+                result.start = getStart()
+                local savePoint = Ci
+                local name = parseName(docType .. '.name', result)
+                local hasKeyword = name and checkToken('name', 'extends', 1)
+                if name and (hasKeyword or checkToken('symbol', ':', 1)) then
+                    nextToken()
+                    local kwStart, kwFinish = getStart(), getFinish()
+                    local extends = parseType(result)
+                    if extends then
+                        result.name    = name
+                        result.extends = extends
+                        if hasKeyword then
+                            result.kwStart, result.kwFinish = kwStart, kwFinish
+                        end
+                        result.finish  = getFinish()
+                    else
+                        Ci = savePoint
+                    end
+                else
+                    Ci = savePoint
+                end
             elseif docTags.isGuardTag(docType) then
                 -- `---@guard x is T` / `---@guard x is not T`
                 result.start = getStart()

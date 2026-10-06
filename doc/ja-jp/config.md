@@ -443,6 +443,7 @@ Array<string>
 * ``"no-visible-label"``: 見えないラベル
 * ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
 * ``"not-yieldable"``: 許可されない場所での`coroutine.yield()`呼び出しの診断を有効にします。
+* ``"param-constraint-mismatch"``: Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
 * ``"param-type-mismatch"``: 注釈の型と一致しない引数を渡した場合の診断を有効にします。
 * ``"redefined-label"``: 再定義されたラベル
 * ``"redefined-local"``: ローカル変数の再定義診断を有効にします。
@@ -713,6 +714,7 @@ object<string, string>
     * mutate-readonly
     * need-check-nil
     * nil-index
+    * param-constraint-mismatch
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -880,6 +882,7 @@ object<string, string>
     * mutate-readonly
     * need-check-nil
     * nil-index
+    * param-constraint-mismatch
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -1200,6 +1203,10 @@ object<string, string>
     許可されない場所での`coroutine.yield()`呼び出しの診断を有効にします。
     */
     "not-yieldable": "None",
+    /*
+    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+    */
+    "param-constraint-mismatch": "Opened",
     /*
     注釈の型と一致しない引数を渡した場合の診断を有効にします。
     */
@@ -1623,6 +1630,10 @@ object<string, string>
     許可されない場所での`coroutine.yield()`呼び出しの診断を有効にします。
     */
     "not-yieldable": "Warning",
+    /*
+    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+    */
+    "param-constraint-mismatch": "Warning",
     /*
     注釈の型と一致しない引数を渡した場合の診断を有効にします。
     */

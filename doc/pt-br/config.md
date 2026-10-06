@@ -443,6 +443,7 @@ Array<string>
 * ``"no-visible-label"``: Rótulo invisível
 * ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
 * ``"not-yieldable"``: Habilita diagnóstico para chamadas de `coroutine.yield()` quando não permitido.
+* ``"param-constraint-mismatch"``: Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
 * ``"param-type-mismatch"``: Habilita diagnóstico para chamadas onde o tipo do parâmetro fornecido não corresponde à definição anotada.
 * ``"redefined-label"``: Rótulo redefinido
 * ``"redefined-local"``: Variável local redefinida
@@ -713,6 +714,7 @@ object<string, string>
     * mutate-readonly
     * need-check-nil
     * nil-index
+    * param-constraint-mismatch
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -880,6 +882,7 @@ object<string, string>
     * mutate-readonly
     * need-check-nil
     * nil-index
+    * param-constraint-mismatch
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -1200,6 +1203,10 @@ object<string, string>
     Habilita diagnóstico para chamadas de `coroutine.yield()` quando não permitido.
     */
     "not-yieldable": "None",
+    /*
+    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+    */
+    "param-constraint-mismatch": "Opened",
     /*
     Habilita diagnóstico para chamadas onde o tipo do parâmetro fornecido não corresponde à definição anotada.
     */
@@ -1623,6 +1630,10 @@ object<string, string>
     Habilita diagnóstico para chamadas de `coroutine.yield()` quando não permitido.
     */
     "not-yieldable": "Warning",
+    /*
+    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+    */
+    "param-constraint-mismatch": "Warning",
     /*
     Habilita diagnóstico para chamadas onde o tipo do parâmetro fornecido não corresponde à definição anotada.
     */

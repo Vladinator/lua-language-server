@@ -1222,10 +1222,12 @@ TEST [[
 ]]
 (EXISTS)
 
+-- (fuzzy: a plugin's tag with `c` and `l` in it, `secret-clears`, may be offered as well, so the list only has to include these)
 TEST [[
 ---@cl<??>
 ]]
 {
+    include = true,
     {
         label = 'class',
         kind = define.CompletionItemKind.Event
@@ -5042,6 +5044,10 @@ local x
     },
     {
         label = 'fixture-names',
+        kind  = define.CompletionItemKind.Event,
+    },
+    {
+        label = 'fixture-nametype',
         kind  = define.CompletionItemKind.Event,
     },
     {

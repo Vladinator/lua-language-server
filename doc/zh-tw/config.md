@@ -443,6 +443,7 @@ Array<string>
 * ``"no-visible-label"``: 不可見的標籤
 * ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
 * ``"not-yieldable"``: 不允許呼叫 `coroutine.yield()`
+* ``"param-constraint-mismatch"``: Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
 * ``"param-type-mismatch"``: 給定參數的類型不符合函式定義所要求的類型（ `@param` ）
 * ``"redefined-label"``: 重複定義的標籤
 * ``"redefined-local"``: 重複定義的區域變數
@@ -713,6 +714,7 @@ object<string, string>
     * mutate-readonly
     * need-check-nil
     * nil-index
+    * param-constraint-mismatch
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -880,6 +882,7 @@ object<string, string>
     * mutate-readonly
     * need-check-nil
     * nil-index
+    * param-constraint-mismatch
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -1200,6 +1203,10 @@ object<string, string>
     不允許呼叫 `coroutine.yield()`
     */
     "not-yieldable": "None",
+    /*
+    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+    */
+    "param-constraint-mismatch": "Opened",
     /*
     給定參數的類型不符合函式定義所要求的類型（ `@param` ）
     */
@@ -1622,6 +1629,10 @@ object<string, string>
     不允許呼叫 `coroutine.yield()`
     */
     "not-yieldable": "Warning",
+    /*
+    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+    */
+    "param-constraint-mismatch": "Warning",
     /*
     給定參數的類型不符合函式定義所要求的類型（ `@param` ）
     */

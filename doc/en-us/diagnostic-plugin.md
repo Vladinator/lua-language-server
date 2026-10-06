@@ -107,6 +107,7 @@ A plugin can teach the parser new tags. These are registries the parser consults
 | `registerGuardTag(name, docType, description?)` | `---@name x is T` / `---@name x is not T`: a parameter name and a type, as `node.param` (a name node), `node.extends` (a `doc.type`) and `node.negated`; anything else leaves the tag bare |
 | `registerParamKindTag(name, docType, kinds, description?)` | `---@name x kind`: a parameter name (`...` for the vararg) and one word out of `kinds`, as `node.param` and `node.kind`; anything else leaves the tag bare |
 | `registerKindParamsTag(name, docType, kinds, description?)` | `---@name kind [a b ...]`: one word out of `kinds`, then parameter names, as `node.kind` and `node.names`; anything else leaves the tag bare |
+| `registerNameTypeTag(name, docType, description?)` | `---@name T: Type` / `---@name T extends Type`: a name and a type, as `node.name` (a type parameter token) and `node.extends`; the `extends` spelling also sets `kwStart` / `kwFinish`; anything else leaves the tag bare (the core's `@requires` uses it) |
 | `registerBindRule(docType, rule)` | which declaration the tag binds to: `rule(doc, source, isParam)` |
 | `registerFieldKeyword(keyword, resultField, description?)` | a word before a field name: `---@field name mykeyword string` sets `resultField` on the `doc.field` |
 | `registerTypeKeyword(keyword, resultField, description?)` | a word before a type item: `---@param x mykeyword string`; only when a type follows it |

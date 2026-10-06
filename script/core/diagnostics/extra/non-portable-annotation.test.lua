@@ -288,6 +288,26 @@ local function f(a) end
 ]]
 end)
 
+-- `@requires` (wowlua-ls's, read by this fork too): not the original's, known to the other two
+with({ 'legacyluals' }, function ()
+    TEST [[
+---@class Widget<T>
+local Widget = {}
+---@<!requires!> T: Frame
+function Widget:Show() end
+]]
+end)
+for _, dialect in ipairs { 'luals', 'wowluals' } do
+    with({ dialect }, function ()
+        TEST [[
+---@class Widget<T>
+local Widget = {}
+---@requires T: Frame
+function Widget:Show() end
+]]
+    end)
+end
+
 -- `---@diagnostic expect-line` / `expect-next-line` are this fork's: the original LuaLS reports them as an invalid mode and
 -- suppresses nothing, wowlua-ls documents only `disable`. `disable-line`, `disable-next-line`, `disable` and `enable` are
 -- everybody's.

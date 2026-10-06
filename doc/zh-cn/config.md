@@ -443,6 +443,7 @@ Array<string>
 * ``"no-visible-label"``: 不可见的标签
 * ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
 * ``"not-yieldable"``: 不允许调用 `coroutine.yield()` 
+* ``"param-constraint-mismatch"``: Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
 * ``"param-type-mismatch"``: 给定参数的类型与函数定义所要求的类型(`@param`)不匹配
 * ``"redefined-label"``: 重复定义的标签
 * ``"redefined-local"``: 重复定义的局部变量
@@ -713,6 +714,7 @@ object<string, string>
     * mutate-readonly
     * need-check-nil
     * nil-index
+    * param-constraint-mismatch
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -880,6 +882,7 @@ object<string, string>
     * mutate-readonly
     * need-check-nil
     * nil-index
+    * param-constraint-mismatch
     * param-type-mismatch
     * return-type-mismatch
     * unchecked-array-index
@@ -1200,6 +1203,10 @@ object<string, string>
     不允许调用 `coroutine.yield()` 
     */
     "not-yieldable": "None",
+    /*
+    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+    */
+    "param-constraint-mismatch": "Opened",
     /*
     给定参数的类型与函数定义所要求的类型(`@param`)不匹配
     */
@@ -1622,6 +1629,10 @@ object<string, string>
     不允许调用 `coroutine.yield()` 
     */
     "not-yieldable": "Warning",
+    /*
+    Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The wowlua-ls diagnostic of the same name.
+    */
+    "param-constraint-mismatch": "Warning",
     /*
     给定参数的类型与函数定义所要求的类型(`@param`)不匹配
     */

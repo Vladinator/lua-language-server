@@ -187,6 +187,29 @@ function m.isGuardTag(docType)
     return guardTags[docType] == true
 end
 
+---@type table<string, true>
+local nameTypeTags = {}
+
+--- A tag with a name and a type, `---@mytag T: Type` or `---@mytag T extends Type`, produced as `{ type = docType, name = <name node>,
+--- extends = <doc.type> }` (the colon form has no keyword node, the `extends` form has `kwStart` / `kwFinish`). Anything that does
+--- not read like that leaves the tag bare, so a plugin or a diagnostic can report it.
+---@param name        string tag name after the `@`, e.g. 'requires'
+---@param docType     string produced node's `.type`, e.g. 'doc.requires'
+---@param description? string shown by completion (markdown)
+function m.registerNameTypeTag(name, docType, description)
+    m.registerMarkerTag(name, docType, description)
+    tagNameRoles[docType .. '.name'] = 'typeParameter'
+    nameTypeTags[docType] = true
+    -- so the tree walkers (hover, completion, references, undefined-doc-name...) reach both parts
+    guide.registerChildren(docType, {'name', 'extends'})
+end
+
+---@param docType string
+---@return boolean
+function m.isNameTypeTag(docType)
+    return nameTypeTags[docType] == true
+end
+
 ---@type table<string, table<string, true>>
 local paramKindTags = {}
 
@@ -255,6 +278,7 @@ function m.isArgumentTag(docType)
     return nameListTags[docType] == true
         or paramKindTags[docType] ~= nil
         or kindParamsTags[docType] ~= nil
+        or nameTypeTags[docType] == true
         or guardTags[docType] == true
 end
 
@@ -462,6 +486,15 @@ end
 function m.getMarks(node)
     return marksOfNode[node]
 end
+
+-- `---@requires T: Frame` on a method of `---@class Widget<T>` (wowlua-ls): the method may only be called on a receiver whose type
+-- argument for `T` satisfies the constraint (read by the `param-constraint-mismatch` diagnostic)
+m.registerNameTypeTag('requires', 'doc.requires',
+    'The method is only callable when the receiver\'s class type parameter satisfies the constraint: `---@requires T: Frame`. A call on a receiver whose `T` does not is reported by `param-constraint-mismatch`.')
+m.registerBindRule('doc.requires', function (_doc, source)
+    return source.type == 'function'
+end)
+m.setTagFlavors('requires', { 'luals', 'wowluals' })
 
 -- the attributes of the language the core checkers read (an attribute only one diagnostic reads is
 -- registered by that diagnostic's own file: `incremental` in missing-fields.lua)

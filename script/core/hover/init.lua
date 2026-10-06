@@ -10,6 +10,17 @@ local wssymbol   = require 'core.workspace-symbol'
 local docTags    = require 'parser.docTags'
 local diag       = require 'proto.diagnostic'
 
+--- What each mode of a `---@diagnostic` comment does (hover over the mode word).
+---@type table<string, string>
+local diagnosticModes = {
+    ['disable']          = 'Turns the listed diagnostics off from here to the end of the file, or until a matching `enable`. Without a list: all of them.',
+    ['enable']           = 'Turns the listed diagnostics on again after a `disable`.',
+    ['disable-next-line'] = 'Turns the listed diagnostics off for the next line only. Without a list: all of them.',
+    ['disable-line']     = 'Turns the listed diagnostics off for the line this comment is on. Without a list: all of them.',
+    ['expect-next-line'] = 'This fork: the next line must produce the listed diagnostics. They are silenced there, and `unfulfilled-expect` reports one that does not occur.',
+    ['expect-line']      = 'This fork: the line this comment is on must produce the listed diagnostics. They are silenced there, and `unfulfilled-expect` reports one that does not occur.',
+}
+
 ---@type table<string, true>
 local memberTypes = {
     ['doc.type.string']  = true,
@@ -74,6 +85,16 @@ local function getHover(source, level)
             md:add('md', ('`%s`'):format(source[1]))
             md:add('md', data.description)
             return md, 0
+        end
+        return md, 0
+    end
+
+    if source.type == 'doc.diagnostic' then
+        -- `---@diagnostic disable-next-line: name`: what the mode does
+        local description = diagnosticModes[source.mode]
+        if description then
+            md:add('md', ('`%s`'):format(source.mode))
+            md:add('md', description)
         end
         return md, 0
     end
@@ -216,6 +237,7 @@ local accept = {
     ['doc.alias.name'] = true,
     ['doc.generic.name'] = true,
     ['doc.diagnostic.name'] = true,
+    ['doc.diagnostic'] = true,
     ['doc.class.name'] = true,
     ['doc.enum.name']  = true,
     ['function']       = true,
@@ -304,6 +326,13 @@ local function getHoverByUri(uri, position, level)
         return nil
     end
     local source = findSource(ast, position, accept) or findPluginDoc(ast, position)
+    if source and source.type == 'doc.diagnostic' then
+        -- (only the mode word answers: the names after the colon have their own hover, the colon and the blanks none)
+        local mode = source.mode
+        if not (mode and position >= source.start and position < source.start + #mode) then
+            source = nil
+        end
+    end
     if source and source.type == 'doc.field.name' then
         -- `---@field name T`: hover the field as a whole
         source = source.parent

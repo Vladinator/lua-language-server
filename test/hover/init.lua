@@ -2683,6 +2683,31 @@ hoverContains([[
 ---@alias Pair<<?K?>: string, V> { [K]: V }
 ]], '(type parameter) K: string')
 
+-- the mode word of `---@diagnostic`
+for mode, words in pairs {
+    ['disable']           = 'to the end of the file',
+    ['enable']            = 'on again',
+    ['disable-next-line'] = 'next line only',
+    ['disable-line']      = 'this comment is on',
+    ['expect-next-line']  = 'unfulfilled-expect',
+    ['expect-line']       = 'unfulfilled-expect',
+} do
+    hoverContains('---@diagnostic <?' .. mode .. '?>: unused-local' .. string.char(10) .. 'local x = 1' .. string.char(10), words)
+end
+
+-- a mode with no list (`---@diagnostic disable`) hovers too; the colon, and a word that is no mode, do not
+hoverContains('---@diagnostic <?disable?>' .. string.char(10) .. 'local x = 1' .. string.char(10), '`disable`')
+for _, snippet in ipairs {
+    '---@diagnostic disable<?:?> unused-local' .. string.char(10) .. 'local x = 1' .. string.char(10),
+    '---@diagnostic <?nonsense?>: unused-local' .. string.char(10) .. 'local x = 1' .. string.char(10),
+} do
+    local text, catched = catch(snippet, '?')
+    files.setText(TESTURI, text)
+    local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
+    assert(not hover or hover:string() == '', 'no hover here: ' .. tostring(hover and hover:string()))
+    files.remove(TESTURI)
+end
+
 -- the member lines of an alias hover as the value, with the description after the `#`
 hoverContains([[
 ---@alias Mode

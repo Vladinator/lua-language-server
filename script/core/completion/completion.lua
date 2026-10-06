@@ -2880,6 +2880,7 @@ end
 ---@param position integer
 ---@param results  completion.results
 ---@return boolean
+---@async
 local function tryTagArguments(state, position, results)
     -- the text of the short comment the cursor is in, up to the cursor (`text` starts with the second dash)
     ---@type string?
@@ -2902,8 +2903,10 @@ local function tryTagArguments(state, position, results)
     local kindFirst  = docType and docTags.getKindParams(docType)
     -- `---@mytag x is T`: a parameter, then a type (which completes as any type does)
     local guardFirst = docType and docTags.isGuardTag(docType)
+    -- `---@mytag T: Type`: a type parameter of the class of the method, then a type
+    local nameTypeFirst = docType and docTags.isNameTypeTag(docType)
     local kinds = paramFirst or kindFirst
-    if not docType or not (kinds or guardFirst) then
+    if not docType or not (kinds or guardFirst or nameTypeFirst) then
         return false
     end
     ---@type string[]
@@ -2926,7 +2929,7 @@ local function tryTagArguments(state, position, results)
             break
         end
     end
-    if guardFirst and index > 1 then
+    if (guardFirst or nameTypeFirst) and index > 1 then
         return false
     end
     local wantParams = (paramFirst and index == 1) or (kindFirst and index >= 2) or guardFirst
@@ -2962,6 +2965,20 @@ local function tryTagArguments(state, position, results)
     if wantKinds then
         for kind in util.sortPairs(kinds or {}) do
             offer(kind, define.CompletionItemKind.EnumMember)
+        end
+    end
+    if nameTypeFirst and func then
+        -- (`function Box:get()`: the type parameters of the class `Box` is typed with)
+        local holder = func.parent and (func.parent.type == 'setmethod' or func.parent.type == 'setfield') and func.parent.node
+        for obj in vm.compileNode(holder or func):eachObject() do
+            if obj.type == 'global' and obj.cate == 'type' then
+                ---@cast obj vm.global
+                for _, set in ipairs(obj:getSets(guide.getUri(func))) do
+                    for _, sign in ipairs(set.type == 'doc.class' and set.signs or {}) do
+                        offer(sign[1] --[[@as string]], define.CompletionItemKind.TypeParameter)
+                    end
+                end
+            end
         end
     end
     return true

@@ -5079,6 +5079,60 @@ TEST [[
 ]]
 (offers 'unused-local')
 
+-- a tag with a name and a type (`---@mytag T: Type`): the name is a type parameter of the class the method belongs to, then a type
+---@param ... string
+---@return fun(result: table[])
+local function typeParametersOffered(...)
+    ---@type string[]
+    local wanted = { ... }
+    return function (result)
+        ---@type string[]
+        local got = {}
+        for _, item in ipairs(result) do
+            ---@cast item { kind: integer, label: string }
+            assert(item.kind == define.CompletionItemKind.TypeParameter, 'only type parameters are offered: ' .. tostring(item.label))
+            got[#got+1] = item.label
+        end
+        table.sort(got)
+        assert(table.concat(got, ',') == table.concat(wanted, ','), 'offered ' .. table.concat(got, ',') .. ', wanted ' .. table.concat(wanted, ','))
+    end
+end
+
+TEST [[
+---@class Box<T, U: string>
+local Box = {}
+
+---@fixture-nametype <??>
+function Box:set() end
+]]
+(typeParametersOffered('T', 'U'))
+
+TEST [[
+---@class Box<T, U: string>
+local Box = {}
+
+---@fixture-nametype U<??>
+function Box:set() end
+]]
+(typeParametersOffered('U'))
+
+-- after the name it is a type like any other: no type parameter of the class is offered as the name again
+TEST [[
+---@class Box<T, U: string>
+local Box = {}
+
+---@fixture-nametype T: str<??>
+function Box:set() end
+]]
+(offers 'string')
+
+-- a function that is no method of a class has no type parameters to offer
+TEST [[
+---@fixture-nametype <??>
+local function f() end
+]]
+(nil)
+
 -- the visibility keywords in front of a field name
 TEST [[
 ---@class A

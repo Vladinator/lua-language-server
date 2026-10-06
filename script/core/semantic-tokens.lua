@@ -674,20 +674,6 @@ local Care = util.switch()
             }
         end
     end)
-    : case 'doc.type.table'
-    ---@param source parser.object
-    ---@param options semantic.options
-    ---@param results semantic.token[]
-    : call(function (source, options, results)
-        if not options.annotation then
-            return
-        end
-        results[#results+1] = {
-            start      = source.start,
-            finish     = source.start + #'table',
-            type       = define.TokenTypes.type,
-        }
-    end)
     : case 'doc.type.arg.name'
     ---@param source parser.object
     ---@param options semantic.options
@@ -1078,8 +1064,9 @@ return function (uri, start, finish)
             end
             return
         end
-        if source.punctuation and options.annotation then
-            for _, op in ipairs(source.punctuation) do
+        local marks = options.annotation and docTags.getMarks(source)
+        if marks then
+            for _, op in ipairs(marks) do
                 results[#results+1] = {
                     start  = op.start,
                     finish = op.finish,

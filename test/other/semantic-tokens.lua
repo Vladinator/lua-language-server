@@ -138,8 +138,34 @@ assert(has(tokens, 0, 20, 1, operator, 0) and has(tokens, 0, 21, 1, operator, 0)
 tokens = tokensOf('---@type (T extends string ? number : boolean)' .. string.char(10) .. 'local x' .. string.char(10))
 assert(has(tokens, 0, 9, 1, operator, 0), 'the opening parenthesis of a conditional type')
 assert(has(tokens, 0, 45, 1, operator, 0), 'the closing parenthesis of a conditional type')
+-- the other marks of the type syntax are operator tokens too, as TypeScript colours them (one colour for every bracket and separator)
+local function marksOf(text)
+    ---@type integer[]
+    local result = {}
+    for _, t in ipairs(tokensOf(text .. string.char(10))) do
+        if t[1] == 0 and t[4] == operator then
+            result[#result+1] = t[2]
+        end
+    end
+    return table.concat(result, ',')
+end
+assert(marksOf('---@type A & B & { c: boolean }' .. string.char(10) .. 'local x') == '11,15,17,20,30', 'intersection and an inline table')
+assert(marksOf('---@type { a: string, b?: number }' .. string.char(10) .. 'local x') == '9,12,20,23,24,33', 'table fields')
+assert(marksOf('---@type fun(a: integer, b?: string): boolean' .. string.char(10) .. 'local x') == '12,14,23,26,27,35,36', 'function type')
+assert(marksOf('---@type string[][]' .. string.char(10) .. 'local x') == '15,17', 'array brackets')
+assert(marksOf('---@type string|number' .. string.char(10) .. 'local x') == '15', 'a union bar')
+assert(marksOf('---@type table<string, number>' .. string.char(10) .. 'local x') == '21', 'the comma of a generic argument list (the angle brackets keep the type colour)')
+assert(marksOf('---@param count? integer' .. string.char(10) .. 'local function f(count) end') == '15', 'the optional mark of a parameter')
+assert(marksOf('---@generic T, U = string' .. string.char(10) .. 'local function f() end') == '13,17', 'generic list')
+assert(marksOf('---@type string!' .. string.char(10) .. 'local x') == '15', 'non-nil mark')
+assert(marksOf('---@type (T extends string ? number : boolean)' .. string.char(10) .. 'local x') == '9,27,36,45', 'conditional type')
+assert(marksOf('---@diagnostic disable: unused-local, undefined-global' .. string.char(10) .. 'local x') == '22,36', 'diagnostic list')
+-- no marks, no tokens; the words of a tail comment are no syntax
+assert(marksOf('---@param a string: not a mark, a tail comment' .. string.char(10) .. 'local function f(a) end') == '', 'a colon and a comma in the tail comment')
+assert(marksOf('---@param a string (see the manual)' .. string.char(10) .. 'local function f(a) end') == '', 'parentheses in the tail comment')
+assert(marksOf('---@type string' .. string.char(10) .. 'local x') == '', 'a plain type has no mark')
 -- no parentheses, no operator tokens in the type
-tokens = tokensOf('---@param x string|number' .. string.char(10) .. 'local function f(x) end' .. string.char(10))
+tokens = tokensOf('---@param x string' .. string.char(10) .. 'local function f(x) end' .. string.char(10))
 for _, t in ipairs(tokens) do
     assert(not (t[1] == 0 and t[4] == operator), 'a type without parentheses has no operator token')
 end

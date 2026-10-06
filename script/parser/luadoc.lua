@@ -211,11 +211,27 @@ end
 
 ---@return string? tokenType
 ---@return (string|integer)? tokenContent
+--- The marks of the type syntax the editor colours as operators (as TypeScript does): the parser records each one it takes as
+--- syntax, so a word of a tail comment (`---@param a string: the name`) that never passes through `nextToken` is not one.
+--- The angle brackets keep the colour of the type they enclose.
+---@type table<string, true>
+local SyntaxMarks = {
+    [':'] = true, [','] = true, ['?'] = true, ['!'] = true, ['&'] = true, ['|'] = true, ['='] = true,
+    ['{'] = true, ['}'] = true, ['('] = true, [')'] = true, ['[]'] = true, ['['] = true, [']'] = true,
+}
+
+--- The marks taken as syntax of the doc line being parsed, by start offset (a backtracking parser may take one twice).
+---@type table<integer, parser.position>
+local TakenMarks = {}
+
 local function nextToken()
     Ci = Ci + 1
     if not TokenTypes[Ci] then
         Ci = Ci - 1
         return nil, nil
+    end
+    if TokenTypes[Ci] == 'symbol' and SyntaxMarks[TokenContents[Ci]] then
+        TakenMarks[TokenStarts[Ci] + Offset] = TokenFinishs[Ci] + Offset + 1
     end
     return TokenTypes[Ci], TokenContents[Ci]
 end
@@ -1054,15 +1070,6 @@ local function parseBoolean(parent)
     return boolean
 end
 
---- Remember where the punctuation of a node's syntax stands (the parentheses of a type), so the editor can colour it.
----@param node   parser.object
----@param start  integer
----@param finish integer
-local function addOperator(node, start, finish)
-    node.punctuation = node.punctuation or {}
-    node.punctuation[#node.punctuation+1] = { start = start, finish = finish }
-end
-
 ---@param parent parser.object
 ---@return parser.object?
 local function parseParen(parent)
@@ -1070,7 +1077,6 @@ local function parseParen(parent)
         return
     end
     nextToken()
-    local openStart, openFinish = getStart(), getFinish()
     local tp = parseType(parent)
     -- `(T extends U ? X : Y)` (TypeScript's conditional types): checked here, inside the parens
     -- and before they close, rather than as a general postfix on any type -- a bare `extends`
@@ -1127,19 +1133,11 @@ local function parseParen(parent)
         if falseType then
             falseType.parent = condResult
         end
-        addOperator(condResult, openStart, openFinish)
-        if nextSymbolOrError(')') then
-            addOperator(condResult, getStart(), getFinish())
-        end
+        nextSymbolOrError(')')
         condResult.finish = getFinish()
         return condResult
     end
-    if tp then
-        addOperator(tp, openStart, openFinish)
-    end
-    if nextSymbolOrError(')') and tp then
-        addOperator(tp, getStart(), getFinish())
-    end
+    nextSymbolOrError(')')
     return tp
 end
 
@@ -2614,8 +2612,12 @@ local function buildLuaDoc(comment)
     local doc = comment.text:sub(headPos)
 
     parseTokens(doc, startOffset)
+    TakenMarks = {}
     local result, rests = convertTokens(doc)
     if result then
+        for markStart, markFinish in pairs(TakenMarks) do
+            docTags.addMark(result, markStart, markFinish)
+        end
         result.range = math.max(comment.finish, result.finish)
         local finish = result.firstFinish or result.finish
         if rests then

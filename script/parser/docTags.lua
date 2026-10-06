@@ -439,6 +439,30 @@ function m.eachAttribute(docType)
     end
 end
 
+---@type table<parser.object, {start: integer, finish: integer}[]>
+local marksOfNode = setmetatable({}, { __mode = 'k' })
+
+--- Remember where a mark of the syntax of a doc line stands (a colon, a comma, a bracket), so the editor can colour it. Kept beside
+--- the tree, not in it: the marks are presentation data, a node dump (the parser's own AST tests) should not carry them.
+---@param node   parser.object the node the marks belong to (the root of the doc line)
+---@param start  integer
+---@param finish integer
+function m.addMark(node, start, finish)
+    local marks = marksOfNode[node]
+    if not marks then
+        marks = {}
+        marksOfNode[node] = marks
+    end
+    marks[#marks+1] = { start = start, finish = finish }
+end
+
+--- The marks of the syntax `addMark` recorded for a node.
+---@param node parser.object
+---@return {start: integer, finish: integer}[]?
+function m.getMarks(node)
+    return marksOfNode[node]
+end
+
 -- the attributes of the language the core checkers read (an attribute only one diagnostic reads is
 -- registered by that diagnostic's own file: `incremental` in missing-fields.lua)
 m.registerAttribute('doc.class', 'exact', 'Fields that are assigned to this class but not declared are reported (`inject-field`).')

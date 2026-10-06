@@ -26,6 +26,7 @@
 * `FIX` The type parameters of a function are in scope for the doc comments inside its body: `---@type T`, `---@type T[]`, `---@type (keyof T)[]` above a local in the body of a `---@generic T` function no longer report `undefined-doc-name`; the nearest function declaring the name wins, an inner function sees the outer one's parameters, and the name stays undefined outside the function.
 * `NEW` An unresolved `keyof T` (a parameter or `...` typed `keyof T` inside the body of a generic function, a type parameter constrained by it) is shown as `keyof T` instead of `unknown`, as TypeScript keeps it.
 * `NEW` `tbl[key]` in the body of a generic function, with `tbl` typed `T` and `key` typed `keyof T`, is typed `T[keyof T]` (also inside nested functions and blocks) instead of `unknown`, as TypeScript does.
+* `NEW` `select(N, ...)` (N a positive integer literal) in a function whose `...` has a declared type is that type instead of `any`.
 * `FIX` The parentheses of a type (`---@field x ("all"|string)[]`, `(T extends U ? X : Y)`) are semantic tokens (operators) instead of comment-coloured text.
 * `NEW` Hover on more names in the doc tags: a class (`---@class Animal`), an alias, a field name (`(field) Animal.name: string`), a type parameter where it is declared or used (`(type parameter) T: table`), and the code of `---@diagnostic disable: unused-local` (what the diagnostic checks).
 * `NEW` Hover on the name of a parameter in `---@param name T` shows the parameter as it hovers in the code (`(parameter) name: T`).

@@ -1497,6 +1497,26 @@ local function fileArgumentOfSelect(call)
     return nil
 end
 
+--- `select(N, ...)` (N a positive integer literal) in a function whose `...` has a declared type: every vararg has that
+--- type, so the pick has it too (a plain `select` returns `any`).
+---@param call parser.object
+---@return vm.node?
+local function typedVarargOfSelect(call)
+    if call.node.type ~= 'getglobal' or call.node[1] ~= 'select' then
+        return nil
+    end
+    local args = call.args
+    local first, second = args and args[1], args and args[2]
+    if  first and first.type == 'integer' and (math.tointeger(first[1]) or 0) >= 1
+    and second and second.type == 'varargs' and not args[3] then
+        local node = vm.compileNode(second)
+        if node:isTyped() then
+            return node
+        end
+    end
+    return nil
+end
+
 ---@param list  parser.object[]
 ---@param index integer
 ---@return vm.node
@@ -2995,6 +3015,11 @@ local compilerSwitch = util.switch()
             return
         end
         if vararg.type == 'call' then
+            local typedVararg = source.sindex == 1 and typedVarargOfSelect(vararg)
+            if typedVararg then
+                vm.setNode(source, typedVararg)
+                return
+            end
             local node = getReturn(vararg.node, source.sindex, vararg.args)
             if not node then
                 return
@@ -3031,6 +3056,11 @@ local compilerSwitch = util.switch()
         local fileArg = fileArgumentOfSelect(source)
         if fileArg then
             vm.setNode(source, fileArgumentNode(fileArg))
+            return
+        end
+        local typedVararg = typedVarargOfSelect(source)
+        if typedVararg then
+            vm.setNode(source, typedVararg)
             return
         end
         local node = getReturn(source.node, 1, source.args)

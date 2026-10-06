@@ -213,11 +213,11 @@ end
 ---@return (string|integer)? tokenContent
 --- The marks of the type syntax the editor colours as operators (as TypeScript does): the parser records each one it takes as
 --- syntax, so a word of a tail comment (`---@param a string: the name`) that never passes through `nextToken` is not one.
---- The angle brackets keep the colour of the type they enclose.
 ---@type table<string, true>
 local SyntaxMarks = {
     [':'] = true, [','] = true, ['?'] = true, ['!'] = true, ['&'] = true, ['|'] = true, ['='] = true,
     ['{'] = true, ['}'] = true, ['('] = true, [')'] = true, ['[]'] = true, ['['] = true, [']'] = true,
+    ['<'] = true, ['>'] = true,
 }
 
 --- The marks taken as syntax of the doc line being parsed, by start offset (a backtracking parser may take one twice).

@@ -55,6 +55,15 @@ local function getHover(source, level)
         return md, 0
     end
 
+    if source.type == 'doc.return.name' then
+        -- `---@return string result`: the name of the returned value, with its type
+        local valueType = source.parent
+        if valueType then
+            md:add('lua', ('(return) %s: %s'):format(source[1], vm.getInfer(valueType):view(guide.getUri(source))))
+        end
+        return md, 0
+    end
+
     if source.type == 'doc.see.name' then
         for _, symbol in ipairs(wssymbol(source[1], guide.getUri(source))) do
             if symbol.name == source[1] then
@@ -178,7 +187,28 @@ local accept = {
     ['function']       = true,
     ['doc.module']     = true,
     ['doc.see.name']   = true,
+    ['doc.return.name'] = true,
+    ['doc.cast.name']  = true,
+    ['doc.type.function'] = true,
 }
+
+--- `---@return string result`: the name follows its type, outside the range of the type node (and so out of reach of the
+--- general search)
+---@param doc      parser.object
+---@param position integer
+---@return parser.object?
+local function returnNameAt(doc, position)
+    if doc.type ~= 'doc.return' then
+        return nil
+    end
+    for _, returned in ipairs(doc.returns or {}) do
+        local returnName = returned.name
+        if returnName and position >= returnName.start and position <= returnName.finish then
+            return returnName
+        end
+    end
+    return nil
+end
 
 --- The tags plugins register (`---@secret`) and the attributes in parentheses. A marker tag node
 --- has no width (it sits at the end of the tag), a name list tag starts at the tag name: the word
@@ -194,6 +224,10 @@ local function findPluginDoc(state, position)
             if position >= name.start and position <= name.finish then
                 return name
             end
+        end
+        local returnName = returnNameAt(doc, position)
+        if returnName then
+            return returnName
         end
         local name = docTags.getTagInfo(doc.type)
         if name then
@@ -236,6 +270,14 @@ local function getHoverByUri(uri, position, level)
     if source and source.type == 'doc.field.name' then
         -- `---@field name T`: hover the field as a whole
         source = source.parent
+    end
+    if source and source.type == 'doc.cast.name' then
+        -- `---@cast value string`: hover the variable that is cast
+        source = guide.getLocal(source, source[1], source.start)
+    end
+    if source and source.type == 'doc.type.function' and not (source.parent and source.parent.type == 'doc.overload') then
+        -- (only the signature of an `---@overload` answers: a function type inside another type has its own parts)
+        source = nil
     end
     if source and source.type == 'doc.param.name' then
         -- `---@param value string`: hover the parameter itself (nothing for a name the function has no parameter of)

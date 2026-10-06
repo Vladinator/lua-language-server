@@ -2668,6 +2668,37 @@ do
     files.remove(TESTURI)
 end
 
+-- the name of a returned value, the variable of a cast and the signature of an overload
+hoverContains([[
+---@return string <?result?>
+local function f() return 'a' end
+]], '(return) result: string')
+
+hoverContains([[
+---@return string first, integer <?count?>
+local function f() return 'a', 1 end
+]], '(return) count: integer')
+
+hoverContains([[
+---@type string?
+local value
+---@cast <?value?> string
+]], 'value: string')
+
+hoverContains([[
+---@overload <?fun?>(a: integer): string
+local function f(a) end
+]], 'integer')
+
+-- a function type inside a parameter's type is not an overload: nothing answers over its `fun`
+do
+    local text, catched = catch('---@param cb <?fun?>(a: integer)' .. string.char(10) .. 'local function f(cb) end' .. string.char(10), '?')
+    files.setText(TESTURI, text)
+    local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
+    assert(not hover or hover:string() == '', 'no hover over the fun of a parameter type: ' .. tostring(hover and hover:string()))
+    files.remove(TESTURI)
+end
+
 hoverContains([[
 ---@class (<?exact?>) A
 ]], 'not declared')

@@ -47,8 +47,7 @@ local LEGACY_AND_LUALS = { 'vararg', 'version', 'module', 'async', 'operator', '
 local WOWLUALS_ONLY = {
     'defclass', 'builds-field', 'built-name', 'built-extends', 'constructor',
     'accessor', 'creates-global', 'generates-events', 'returns-enum',
-    'event', 'callback-event-arg', 'flavor-narrows', 'secret-unless', 'secret-when',
-    'secret-clears', 'secret-restriction-guard', 'secret-precondition', 'secret-satisfies', 'secret-aspect',
+    'event', 'callback-event-arg', 'flavor-narrows', 'secret-aspect',
 }
 
 ---@type table<string, string[]>

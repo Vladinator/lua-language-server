@@ -376,6 +376,7 @@ Array<string>
 * ``"inject-field"``: 向对象注入字段
 * ``"invalid-class-parent"``: Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
 * ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+* ``"invalid-secret-context"``: Enable diagnostics for a secret-context tag (`---@secret-when`, `---@secret-unless`, `---@secret-clears`, `---@secret-restriction-guard`, `---@secret-precondition`, `---@secret-satisfies`) that is not of its form, is not above a function, or names a parameter the function does not have.
 * ``"invalid-secret-guard"``: Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
 * ``"invisible"``: 使用不可见的值
 * ``"jump-local-scope"``: 跳入局部变量作用域
@@ -649,6 +650,7 @@ object<string, string>
     * duplicate-doc-param
     * incomplete-signature-doc
     * invalid-guard
+    * invalid-secret-context
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
@@ -818,6 +820,7 @@ object<string, string>
     * duplicate-doc-param
     * incomplete-signature-doc
     * invalid-guard
+    * invalid-secret-context
     * invalid-secret-guard
     * missing-global-doc
     * missing-local-export-doc
@@ -1118,6 +1121,10 @@ object<string, string>
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Opened",
+    /*
+    Enable diagnostics for a secret-context tag (`---@secret-when`, `---@secret-unless`, `---@secret-clears`, `---@secret-restriction-guard`, `---@secret-precondition`, `---@secret-satisfies`) that is not of its form, is not above a function, or names a parameter the function does not have.
+    */
+    "invalid-secret-context": "Opened",
     /*
     Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
     */
@@ -1548,6 +1555,10 @@ object<string, string>
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Warning",
+    /*
+    Enable diagnostics for a secret-context tag (`---@secret-when`, `---@secret-unless`, `---@secret-clears`, `---@secret-restriction-guard`, `---@secret-precondition`, `---@secret-satisfies`) that is not of its form, is not above a function, or names a parameter the function does not have.
+    */
+    "invalid-secret-context": "Warning",
     /*
     Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
     */

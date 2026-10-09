@@ -7,12 +7,6 @@ local docTags = require 'parser.docTags'
 ---@diagnostic disable: await-in-sync
 
 local lines = {
-    ['secret-unless']           = '---@secret-unless unit "player"',
-    ['secret-when']             = '---@secret-when InCombat the unit is in combat',
-    ['secret-clears']           = '---@secret-clears InCombat, InEncounter unit == false',
-    ['secret-restriction-guard'] = '---@secret-restriction-guard Combat == true',
-    ['secret-precondition']     = '---@secret-precondition NoSecrets Error it needs a clean context',
-    ['secret-satisfies']        = '---@secret-satisfies NoSecrets unit',
     ['secret-aspect']           = '---@secret-aspect text',
 }
 

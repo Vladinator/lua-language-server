@@ -5,6 +5,8 @@ local vm = require 'vm.vm'
 
 ---@type table<string, vm.genesisRule[]>
 local rulesByType = {}
+---@type table<string, vm.genesisRule[]>
+local lateRulesByType = {}
 
 --- Register a rule that inspects a just-compiled `source` node (e.g. its
 --- `bindDocs`) and may add flags to its compiled `node`. Runs once per
@@ -12,21 +14,30 @@ local rulesByType = {}
 --- the same fully-built node every other consumer sees), keyed by
 --- `source.type` so unrelated node types pay nothing for rules that don't
 --- apply to them.
+--- A `late` rule runs after every ordinary rule of the type, whatever the order the rules were registered in (which is the order the
+--- plugin files were loaded in): for a rule that undoes what another one may have added (a context that makes a result ordinary again).
 ---@param sourceType string
 ---@param rule       vm.genesisRule
-function vm.registerGenesisRule(sourceType, rule)
-    rulesByType[sourceType] = rulesByType[sourceType] or {}
-    table.insert(rulesByType[sourceType], rule)
+---@param late?      boolean
+function vm.registerGenesisRule(sourceType, rule, late)
+    local registry = late and lateRulesByType or rulesByType
+    registry[sourceType] = registry[sourceType] or {}
+    table.insert(registry[sourceType], rule)
 end
 
 ---@param source parser.object
 ---@param node   vm.node
 function vm.runGenesisRules(source, node)
     local rules = rulesByType[source.type]
-    if not rules then
-        return
+    if rules then
+        for _, rule in ipairs(rules) do
+            rule(source, node)
+        end
     end
-    for _, rule in ipairs(rules) do
-        rule(source, node)
+    local late = lateRulesByType[source.type]
+    if late then
+        for _, rule in ipairs(late) do
+            rule(source, node)
+        end
     end
 end

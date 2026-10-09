@@ -28,7 +28,6 @@ local vm              = require 'vm'
 local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
 local docTags         = require 'parser.docTags'
-local scope           = require 'workspace.scope'
 
 protoDiagnostic.register {
     'invalid-guard',
@@ -84,95 +83,8 @@ local ARGUMENT_TAGS  = { ['doc.narrows-arg'] = true }
 
 -- The names --------------------------------------------------------------------------------------
 
---- The name a function is known by: `local function f`, `function M.f`, `function M:f`,
---- `M.f = function`, `{ f = function ... }`.
----@param source parser.object?
----@return string?
-local function nameOf(source)
-    if not source then
-        return nil
-    end
-    if source.type == 'function' then
-        source = source.parent
-        if not source then
-            return nil
-        end
-    end
-    local t = source.type
-    if t == 'local' or t == 'setlocal' or t == 'setglobal' then
-        return source[1]
-    elseif t == 'setfield' or t == 'tablefield' then
-        return source.field and source.field[1] --[[@as string?]]
-    elseif t == 'setmethod' then
-        return source.method and source.method[1] --[[@as string?]]
-    end
-    return nil
-end
-
----@param uri uri
----@return table<string, true>|false
-local function getFileNames(uri)
-    local cache = files.getCache(uri)
-    if not cache then
-        return false
-    end
-    ---@type table<string, true>|false|nil
-    local names = cache['type-guard.names']
-    if names ~= nil then
-        return names
-    end
-    ---@type table<string, true>
-    local found = {}
-    local state = files.getState(uri)
-    for _, doc in ipairs(state and state.ast.docs or {}) do
-        if isGuardDoc(doc) then
-            -- a name that cannot be found matches every callee (the price is only the lookup)
-            found[nameOf(doc.bindSource) or '*'] = true
-        end
-    end
-    names = next(found) ~= nil and found
-    cache['type-guard.names'] = names
-    return names
-end
-
---- The names of the functions that carry a guard, in the workspace of `uri`. Worked out from the
---- (cached, per file) names of each file; dropped with the rest of `vm.getCache` when a file changes.
----@param uri uri
----@return table<string, true>
-local function getNames(uri)
-    local cache = vm.getCache('type-guard.names') --[[@as table<string, table<string, true>>]]
-    local key   = scope.getScope(uri):getName()
-    local names = cache[key]
-    if names then
-        return names
-    end
-    ---@type table<string, true>
-    names = {}
-    for fileUri in files.eachFile(uri) do
-        local fileNames = getFileNames(fileUri)
-        if fileNames then
-            for name in pairs(fileNames) do
-                names[name] = true
-            end
-        end
-    end
-    cache[key] = names
-    return names
-end
-
----@param callee parser.object
----@return string?
-local function calleeName(callee)
-    local t = callee.type
-    if t == 'getlocal' or t == 'getglobal' then
-        return callee[1]
-    elseif t == 'getfield' then
-        return callee.field and callee.field[1]
-    elseif t == 'getmethod' then
-        return callee.method and callee.method[1]
-    end
-    return nil
-end
+-- (the functions that carry one of the tags are found by name first, see vm/tagged.lua: calls of every other function cost a table lookup)
+local index = vm.createTaggedIndex('type-guard', isGuardDoc)
 
 -- The narrowing ----------------------------------------------------------------------------------
 
@@ -187,26 +99,16 @@ end
 local function findGuards(callee, wanted)
     ---@type typeGuard.found[]
     local found = {}
-    for _, def in ipairs(vm.getDefs(callee)) do
-        ---@type parser.object?
-        local func = def.type == 'function' and def
-            or (def.value and def.value.type == 'function' and def.value)
-            or nil
-        if func then
-            -- (the docs are bound to the function and to what it is assigned to)
-            for _, holder in ipairs { func, def } do
-                for _, doc in ipairs(holder.bindDocs or {}) do
-                    if not wanted[doc.type] then
-                        -- (not what is asked for)
-                    elseif doc.type ~= 'doc.guard' and doc.type ~= 'doc.asserts' then
-                        found[#found+1] = { doc = doc, index = 0 }
-                    elseif doc.param then
-                        for index, arg in ipairs(func.args or {}) do
-                            if arg[1] == doc.param[1] then
-                                found[#found+1] = { doc = doc, index = index }
-                            end
-                        end
-                    end
+    for _, entry in ipairs(index.docsOf(callee)) do
+        local doc = entry.doc
+        if not wanted[doc.type] then
+            -- (not what is asked for)
+        elseif doc.type ~= 'doc.guard' and doc.type ~= 'doc.asserts' then
+            found[#found+1] = { doc = doc, index = 0 }
+        elseif doc.param then
+            for position, arg in ipairs(entry.func.args or {}) do
+                if arg[1] == doc.param[1] then
+                    found[#found+1] = { doc = doc, index = position }
                 end
             end
         end
@@ -335,22 +237,7 @@ local function without(node, typeNode)
     return result
 end
 
----@param callee parser.object
----@return boolean
-local function matchesGuard(callee)
-    local name = calleeName(callee)
-    if not name then
-        return false
-    end
-    local uri = guide.getUri(callee)
-    -- (the file itself first: a file that is not part of a workspace is in no scope's list of files)
-    local own = getFileNames(uri)
-    if own and (own[name] or own['*']) then
-        return true
-    end
-    local names = getNames(uri)
-    return names[name] == true or names['*'] == true
-end
+local matchesGuard = index.match
 
 vm.registerCallNarrowing {
     statement = true,

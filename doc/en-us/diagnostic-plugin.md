@@ -130,7 +130,8 @@ do for "secret") uses these:
 | Call | What for |
 | --- | --- |
 | `vm.registerPropagatingFlag(name)`, `vm.registerFlagDeriver(name, deriver)` | a boolean on a compiled node (`node:setFlag` / `hasFlag`), carried through merges and generics |
-| `vm.registerGenesisRule(sourceType, rule)` | runs once for each compiled source of a type, and may set flags on its node |
+| `vm.registerGenesisRule(sourceType, rule, late?)` | runs once for each compiled source of a type, and may set flags on its node. A `late` rule runs after every ordinary rule of the type, whatever the order the plugin files were loaded in: for a rule that undoes what another plugin's rule may have added (a context that makes a secret result ordinary again) |
+| `vm.createTaggedIndex(key, isTagged)` | an index of the functions that carry a LuaDoc tag, for a rule asked about every call (a genesis rule of `call`, a narrowing with `statement = true`): `index.match(callee)` answers by name from a per-file and per-scope table and compiles nothing, `index.docsOf(callee)` then resolves the callee and returns `{ doc, func }` for the tags it carries, `index.any(uri)` says whether the workspace has any such function. Used by `---@guard` and the secret-context tags |
 | `vm.registerBranchLocalFlag(flag, proofFlag)` | a narrowing may set `flag` for ONE branch only (a guard that proves a value secret, when its type said it was not): it also sets `proofFlag`, and at a join of two paths `flag` stays only if one path has it for real or every path has the proof, so a proof never leaks past the `if` that made it |
 | `vm.registerCallNarrowing { match, narrow }` | a call in a condition narrows its arguments (a "checker" function) |
 | `vm.registerEqualityNarrowing { match, narrow }` | `x == literal` style narrowing |

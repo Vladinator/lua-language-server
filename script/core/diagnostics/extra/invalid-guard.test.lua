@@ -766,3 +766,14 @@ local function AName(object) end
 ---@<!narrows-arg 1!>
 local notAFunction2 = 1
 ]]
+
+-- the tags are registered: a description for completion and hover, known to this fork and to wowlua-ls (the dialect lint)
+do
+    local docTags = require 'parser.docTags'
+    for _, name in ipairs { 'type-narrows', 'returns-class-name', 'narrows-arg' } do
+        assert(docTags.getMarkerTagType(name) == 'doc.' .. name, name .. ': registered')
+        local tagName, description = docTags.getTagInfo('doc.' .. name)
+        assert(tagName == name and description and description ~= '', name .. ': has a description')
+        assert(table.concat(docTags.getTagFlavors(name), ',') == 'luals,wowluals', name .. ': known to luals and wowluals')
+    end
+end

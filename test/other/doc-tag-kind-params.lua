@@ -25,7 +25,7 @@ local function namesOf(doc)
     ---@type string[]
     local out = {}
     for _, name in ipairs(doc and doc.names or {}) do
-        out[#out+1] = name[1] --[[@as string]]
+        out[#out+1] = name[1]
     end
     return out
 end

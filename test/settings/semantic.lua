@@ -19,7 +19,7 @@ end
 local function tokenCounts(script)
     files.remove(TESTURI)
     files.setText(TESTURI, script)
-    local data = semantic(TESTURI, 0, math.huge) --[[@as integer[] ]]
+    local data = semantic(TESTURI, 0, math.huge)
     files.remove(TESTURI)
     ---@type table<string, integer>
     local counts = {}

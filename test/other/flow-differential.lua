@@ -135,7 +135,7 @@ for _, path in ipairs(paths) do
                             upvalues = upvalues + 1
                         end
                         if castTouch[read.finish] then
-                            -- `x --[[@as T]]` is applied by the compiler (vm.bindAs) before the
+                            -- `x` is applied by the compiler (vm.bindAs) before the
                             -- tracer is ever asked: a layer above flow, not a flow gap.
                             categories['inline @as cast (compiler layer, skipped)'] =
                                 (categories['inline @as cast (compiler layer, skipped)'] or 0) + 1

@@ -12,7 +12,7 @@
 --     ODIFF_COLD_MAX = <n>  with `cold`: only n sources per file, evenly spread (default 200)
 --     ODIFF_TYPES  = comma separated node types to look at (default local,getlocal,setlocal,
 --                    tablefield,setfield,getfield,call)
-local target = TARGET_TEST_NAME --[[@as string?]]
+local target = TARGET_TEST_NAME
 if not target or not ('order_diff'):match(target) then
     return
 end

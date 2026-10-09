@@ -2882,12 +2882,12 @@ end
 ---@return boolean
 ---@async
 local function tryTagArguments(state, position, results)
-    -- the text of the short comment the cursor is in, up to the cursor (`text` starts with the second dash)
+    -- the text of the short comment the cursor is in, up to the cursor (`text` starts after the two dashes that open the comment)
     ---@type string?
     local before
     for _, comm in ipairs(state.comms) do
         if comm.type == 'comment.short' and position >= comm.start and position <= comm.finish then
-            before = comm.text:sub(1, position - comm.start - 1)
+            before = comm.text:sub(1, position - comm.start - 2)
             break
         end
     end
@@ -2940,13 +2940,15 @@ local function tryTagArguments(state, position, results)
             typeParameter = define.CompletionItemKind.TypeParameter,
             enumMember    = define.CompletionItemKind.EnumMember,
         }
-        for _, candidate in ipairs(tailCompleter { words = words, partial = partial, func = func }) do
-            if matchKey(partial, candidate.label) then
+        local candidates, typed = tailCompleter { words = words, partial = partial, func = func }
+        typed = typed or partial
+        for _, candidate in ipairs(candidates) do
+            if matchKey(typed, candidate.label) then
                 results[#results+1] = {
                     label    = candidate.label,
                     kind     = roleKinds[candidate.role] or define.CompletionItemKind.Text,
                     textEdit = {
-                        start   = position - #partial,
+                        start   = position - #typed,
                         finish  = position,
                         newText = candidate.label,
                     },

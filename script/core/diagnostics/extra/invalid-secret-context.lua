@@ -1178,8 +1178,33 @@ local function addParams(func, used, into)
     end
 end
 
+--- The known predicates that the list being typed does not name yet.
+---@param at parser.docTags.tailPosition
+---@return parser.docTags.tailCandidate[]
+local function unlistedPredicates(at)
+    ---@type table<string, true>
+    local listed = {}
+    for _, word in ipairs(at.words) do
+        for predicate in word:gmatch '[%w_]+' do
+            listed[predicate] = true
+        end
+    end
+    for predicate in at.partial:gmatch '[%w_]+' do
+        listed[predicate] = true
+    end
+    ---@type parser.docTags.tailCandidate[]
+    local found = {}
+    for predicate in pairs(PREDICATE_RESTRICTIONS) do
+        if not listed[predicate] then
+            found[#found+1] = { label = predicate, role = 'typeParameter' }
+        end
+    end
+    table.sort(found, function (a, b) return a.label < b.label end)
+    return found
+end
+
 ---@param kind string a doc type
----@return fun(at: parser.docTags.tailPosition): parser.docTags.tailCandidate[]
+---@return parser.docTags.tailCompleter
 local function completerOf(kind)
     return function (at)
         local index = #at.words + 1
@@ -1190,6 +1215,41 @@ local function completerOf(kind)
                 -- (after the operator comes the value of the guard)
                 return found
             end
+        end
+        -- the parts of one word: `A,B,part` (a list of predicates), `unit=name,part` (a binding)
+        ---@type string?
+        local typed
+        local inPredicateList = false
+        if kind == 'doc.secret-clears' and at.words[1] ~= '*' then
+            inPredicateList = index == 1
+            if index > 1 then
+                -- (a comma at the end of a word continues the list in the next one)
+                inPredicateList = true
+                for _, word in ipairs(at.words) do
+                    if word:sub(-1) ~= ',' then
+                        inPredicateList = false
+                    end
+                end
+            end
+        end
+        if inPredicateList then
+            typed = at.partial:match '[^,]*$'
+        elseif at.partial:find '[=,]' then
+            typed = at.partial:match '[^=,]*$'
+        end
+        if typed and typed ~= at.partial then
+            -- a part after a separator: what is offered depends on the separator, not on the position of the word
+            if inPredicateList then
+                found = unlistedPredicates(at)
+            else
+                -- (the names the cleared APIs give the value: the parameters of this function are the likeliest)
+                addParams(at.func, {}, found)
+            end
+            return found, typed
+        end
+        if inPredicateList and index > 1 then
+            -- (the next word of a list that went on after a comma)
+            return unlistedPredicates(at)
         end
         local function predicates()
             for predicate in pairs(PREDICATE_RESTRICTIONS) do

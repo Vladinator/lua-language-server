@@ -575,18 +575,22 @@ end
 ---@field partial string
 ---@field func?   parser.object
 
----@type table<string, fun(at: parser.docTags.tailPosition): parser.docTags.tailCandidate[]>
+---@alias parser.docTags.tailCompleter fun(at: parser.docTags.tailPosition): parser.docTags.tailCandidate[], string?
+
+---@type table<string, parser.docTags.tailCompleter>
 local tailCompleters = {}
 
---- Completion for the words of a marker tag's text: `completer(at)` returns the candidates for the word under the cursor.
+--- Completion for the words of a marker tag's text: `completer(at)` returns the candidates for the word under the cursor and, when
+--- only a part of that word is being typed (the name after the last comma of `a,b,c`, after the `=` of `unit=`), that part: it is what
+--- the candidates are matched against and what the completion replaces.
 ---@param docType   string
----@param completer fun(at: parser.docTags.tailPosition): parser.docTags.tailCandidate[]
+---@param completer parser.docTags.tailCompleter
 function m.registerTailCompletion(docType, completer)
     tailCompleters[docType] = completer
 end
 
 ---@param docType string
----@return (fun(at: parser.docTags.tailPosition): parser.docTags.tailCandidate[])?
+---@return parser.docTags.tailCompleter?
 function m.getTailCompletion(docType)
     return tailCompleters[docType]
 end

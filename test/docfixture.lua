@@ -69,6 +69,10 @@ docTags.registerTailHover('doc.fixture-tail', function (doc, position)
 end)
 -- the first word: two choices; the second: one (given the first); then nothing
 docTags.registerTailCompletion('doc.fixture-tail', function (at)
+    if at.partial:find('+', 1, true) then
+        -- a part of the word after a `+`: that part is what is matched and replaced
+        return { { label = 'plus-choice', role = 'parameter' } }, at.partial:match('[^+]*$')
+    end
     if #at.words == 0 then
         return { { label = 'one-choice', role = 'parameter' }, { label = 'two-choice', role = 'enumMember' } }
     elseif #at.words == 1 then

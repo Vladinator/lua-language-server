@@ -643,6 +643,39 @@ do
     assert(labels['unit'] == kinds.Variable and labels['other'], 'the parameters for the bindings')
     labels = offered('---@secret-clears Pred unit <??>' .. after())
     assert(not labels['unit'] and labels['other'], 'a parameter bound already is not offered again')
+    -- the parts of one word: a list after a comma, a binding after `=` or `,`; only the part being typed is replaced
+    ---@param script string a script with one `<??>`
+    ---@return table<string, integer> labels with the length of the text each one replaces
+    local function replaced(script)
+        local text, catched = catch(script, '?')
+        files.setText(TESTURI, text)
+        local items = completion.completion(TESTURI, catched['?'][1][2], nil) or {}
+        ---@type table<string, integer>
+        local lengths = {}
+        for _, item in ipairs(items) do
+            local edit = item.textEdit
+            lengths[item.label] = edit and (edit.finish - edit.start) or -1
+        end
+        files.remove(TESTURI)
+        return lengths
+    end
+    labels = replaced('---@secret-clears SecretWhenInCombat,<??>' .. after())
+    assert(labels['SecretWhenAurasRestricted'] == 0 and not labels['SecretWhenInCombat'] and not labels['unit'], 'after a comma: the predicates not listed yet')
+    labels = replaced('---@secret-clears SecretWhenInCombat,SecretWhenAu<??>' .. after())
+    assert(labels['SecretWhenAurasRestricted'] == 12 and not labels['SecretWhenOnRestrictedMaps'], 'the part after the comma is matched and replaced')
+    labels = replaced('---@secret-clears SecretWhenInCombat, <??>' .. after())
+    assert(labels['SecretWhenAurasRestricted'] == 0 and not labels['SecretWhenInCombat'], 'a list that goes on in the next word')
+    labels = replaced('---@secret-clears Pred unit=<??>' .. after())
+    assert(labels['unit'] == 0 and labels['other'] == 0, 'after `=`: the names')
+    labels = replaced('---@secret-clears Pred unit=unit,<??>' .. after())
+    assert(labels['unit'] == 0 and labels['other'] == 0, 'after the comma of the names')
+    labels = replaced('---@secret-clears Pred unit=unit,ot<??>' .. after())
+    assert(labels['other'] == 2 and not labels['unit'], 'a half typed name after the comma')
+    labels = replaced('---@secret-satisfies Name unit=<??>' .. after())
+    assert(labels['unit'] == 0 and labels['other'] == 0, 'the bindings of secret-satisfies')
+    labels = replaced('---@secret-restriction-guard Combat,<??>' .. after())
+    assert(labels['unit'] == 0, 'a comma elsewhere offers the names')
+
     labels = offered('---@secret-clears * <??>' .. after())
     assert(not labels['unit'], 'the star takes no bindings')
     labels = offered('---@secret-clears Pred unit == <??>' .. after())

@@ -3,6 +3,10 @@ local gc = require 'gc'
 ---@class scope.manager
 local m = {}
 
+--- Bumped whenever the links of any scope change: what `files.getAllUris` cached about which files belong to a scope is then out of date.
+---@type integer
+m.linksVersion = 0
+
 ---@alias scope.type 'override'|'folder'|'fallback'
 
 ---@class scope
@@ -27,15 +31,18 @@ end
 ---@param uri uri
 function mt:addLink(uri)
     self._links[uri] = true
+    m.linksVersion = m.linksVersion + 1
 end
 
 ---@param uri uri
 function mt:removeLink(uri)
     self._links[uri] = nil
+    m.linksVersion = m.linksVersion + 1
 end
 
 function mt:removeAllLinks()
     self._links = {}
+    m.linksVersion = m.linksVersion + 1
 end
 
 ---@return fun(): uri

@@ -58,6 +58,11 @@ function m.reset()
     m.visible        = {}
     m.globalVersion  = 0
     m.fileCount      = 0
+    --- Bumped when a file is added or removed (not when its text changes): the sorted file lists of `getAllUris` depend on the set only.
+    ---@type integer
+    m.fileSetVersion = 0
+    ---@type table<scope|'all', { fileSet: integer, links: integer, uris: uri[] }>
+    m.allUrisCache   = setmetatable({}, util.MODE_K)
     ---@type table<uri, parser.state>
     m.stateMap       = setmetatable({}, util.MODE_V)
     ---@type table<parser.state, true>
@@ -211,6 +216,7 @@ function m.setText(uri, text, isTrust, callback)
             id  = fileID(),
         }
         m.fileCount = m.fileCount + 1
+        m.fileSetVersion = m.fileSetVersion + 1
         create = true
         m._pairsCache = nil
     end
@@ -454,6 +460,7 @@ function m.remove(uri)
     m.removeState(file)
     m.fileMap[uri]        = nil
     m._pairsCache         = nil
+    m.fileSetVersion      = m.fileSetVersion + 1
 
     m.fileCount     = m.fileCount - 1
     m.globalVersion = m.globalVersion + 1
@@ -463,10 +470,18 @@ function m.remove(uri)
 end
 
 --- 获取一个包含所有文件uri的数组
+--- The sorted list is cached per scope until a file is added or removed or a link changes (working it out
+--- tests every file against every link, 0.5 s with a big library loaded): callers must not change it.
 ---@param suri? uri
 ---@return uri[]
 function m.getAllUris(suri)
     local scp = suri and scope.getScope(suri) or nil
+    ---@type scope|'all'
+    local key = scp or 'all'
+    local cached = m.allUrisCache[key]
+    if cached and cached.fileSet == m.fileSetVersion and cached.links == scope.linksVersion then
+        return cached.uris
+    end
     ---@type uri[]
     local files = {}
     local i = 0
@@ -479,6 +494,7 @@ function m.getAllUris(suri)
         end
     end
     table.sort(files)
+    m.allUrisCache[key] = { fileSet = m.fileSetVersion, links = scope.linksVersion, uris = files }
     return files
 end
 

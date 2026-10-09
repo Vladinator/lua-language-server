@@ -606,6 +606,29 @@ do
         return newline .. 'local function f(unit, other) end' .. newline
     end
 
+    local hover = require 'core.hover'
+    ---@param script string a script with one `<?word?>`
+    ---@return string
+    local function hoverOf(script)
+        local text, catched = catch(script, '?')
+        files.setText(TESTURI, text)
+        local shown = hover.byUri(TESTURI, catched['?'][1][1], 1)
+        files.remove(TESTURI)
+        return shown and shown:string() or ''
+    end
+    local tail = newline .. 'local function f(unit) end' .. newline
+    assert(hoverOf('---@secret-clears <?SecretWhenInCombat?>' .. tail):find('`Combat`', 1, true), 'a predicate lists its restrictions')
+    assert(hoverOf('---@secret-clears <?SecretWhenAurasRestricted?>' .. tail):find('`Encounter`', 1, true), 'four restrictions')
+    assert(hoverOf('---@secret-clears <?SomethingElse?>' .. tail):find('only its own guard', 1, true), 'a predicate that depends on more')
+    assert(hoverOf('---@secret-restriction-guard <?Combat?>' .. tail):find('AddOnRestrictionType.Combat', 1, true), 'a restriction')
+    assert(hoverOf('---@secret-restriction-guard <?unit?>' .. tail):find('parameter of the function', 1, true), 'a parameter')
+    assert(hoverOf('---@secret-clears Pred unit <?==?> false' .. tail):find('equal to the value', 1, true), 'the operator')
+    assert(hoverOf('---@secret-clears <?*?>' .. tail):find('every secret', 1, true), 'the star')
+    assert(hoverOf('---@secret-precondition Name <?ReturnNothing?>' .. tail):find('nilable', 1, true), 'a failure mode')
+    assert(hoverOf('---@secret-unless unit <?player?>' .. tail):find('ordinary values', 1, true), 'a literal')
+    assert(not hoverOf('---@secret-when SecretWhenInCombat the <?description?>' .. tail):find('secrecy predicate', 1, true), 'the description is a comment')
+    assert(hoverOf('---@<?secret-clears?> Pred' .. tail):find('`@secret-clears`', 1, true), 'the tag word keeps the tag help')
+
     local labels = offered('---@secret-when <??>' .. after())
     assert(labels['SecretWhenInCombat'] == kinds.TypeParameter and labels['SecretWhenAurasRestricted'], 'the known predicates')
     labels = offered('---@secret-when SecretWhenIn<??>' .. after())

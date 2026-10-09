@@ -1109,6 +1109,63 @@ local function tailTokens(doc)
     return tokens
 end
 
+--- What hover says about a part of the text of a tag.
+---@type table<string, string>
+local OPERATOR_HELP = {
+    ['*']  = 'Clears every secret in the code this guard guards, whatever predicate it depends on.',
+    ['=']  = 'The names the cleared APIs give this value: a later call is cleared only where its argument for one of them is the same local, field path or literal.',
+    ['==']  = 'The guard clears when its result is equal to the value, not when it is falsy.',
+}
+
+---@type table<string, string>
+local FAILURE_MODE_HELP = {
+    ReturnNothing   = 'The call returns nothing when the precondition fails: every return is nilable.',
+    ReturnWithError = 'The call returns nothing, with an error, when the precondition fails: every return is nilable.',
+    Error           = 'The call raises an error when the precondition fails.',
+}
+
+---@param doc      parser.object
+---@param position integer
+---@return string? markdown
+---@return integer? start
+---@return integer? finish
+local function tailHover(doc, position)
+    for _, token in ipairs(tailTokens(doc)) do
+        if position >= token.start and position <= token.finish then
+            local text = (doc.comment.text):sub(token.start - doc.comment.start + 1, token.finish - doc.comment.start)
+            ---@type string?
+            local help
+            if token.role == 'typeParameter' then
+                if doc.type == 'doc.secret-precondition' or doc.type == 'doc.secret-satisfies' then
+                    help = 'A precondition of a call, proven by a `---@secret-satisfies` guard.'
+                else
+                    local needed = PREDICATE_RESTRICTIONS[text]
+                    help = needed
+                        and ('A secrecy predicate. It depends on the restrictions %s: it is cleared by its own guard, or once all of them are proven inactive.')
+                            :format('`' .. table.concat(needed, '`, `') .. '`')
+                        or 'A secrecy predicate. It depends on more than a restriction (a unit, a spell): only its own guard clears it.'
+                end
+            elseif token.role == 'enumMember' then
+                help = FAILURE_MODE_HELP[text]
+                    or (RESTRICTIONS[text] and ('The addon restriction `Enum.AddOnRestrictionType.%s`.'):format(text))
+            elseif token.role == 'parameter' then
+                help = 'A parameter of the function the tag is above.'
+            elseif token.role == 'operator' then
+                help = OPERATOR_HELP[text]
+            elseif token.role == 'string' then
+                help = 'A literal argument that returns ordinary values.'
+            elseif token.role == 'variable' then
+                help = 'The value the result of the guard is compared with.'
+            end
+            if help then
+                return ('`%s`\n\n%s'):format(text, help), token.start, token.finish
+            end
+            return nil
+        end
+    end
+    return nil
+end
+
 ---@param func parser.object?
 ---@param used table<string, true>
 ---@param into parser.docTags.tailCandidate[]
@@ -1187,6 +1244,7 @@ end
 for name in pairs(TAGS) do
     docTags.registerTailTokens('doc.' .. name, tailTokens)
     docTags.registerTailCompletion('doc.' .. name, completerOf('doc.' .. name))
+    docTags.registerTailHover('doc.' .. name, tailHover)
 end
 
 -- The diagnostic --------------------------------------------------------------------------------------

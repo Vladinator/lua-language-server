@@ -54,6 +54,19 @@ docTags.registerTailTokens('doc.fixture-tail', function (doc)
     end
     return tokens
 end)
+-- hover: the first word says what it is
+docTags.registerTailHover('doc.fixture-tail', function (doc, position)
+    local comment = doc.comment
+    local text = comment and comment.text or ''
+    local first, last = text:find('%S+')
+    if comment and first and last then
+        local start = comment.start + first - 1
+        if position >= start and position <= start + (last - first + 1) then
+            return 'the first word: ' .. text:sub(first, last), start, start + (last - first + 1)
+        end
+    end
+    return nil
+end)
 -- the first word: two choices; the second: one (given the first); then nothing
 docTags.registerTailCompletion('doc.fixture-tail', function (at)
     if #at.words == 0 then

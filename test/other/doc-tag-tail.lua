@@ -51,6 +51,23 @@ assert(tokens['alpha'] == nil, 'no words')
 tokens = tokensOf('---@fixture-marker alpha beta')
 assert(tokens['alpha'] == nil and tokens['beta'] == nil, 'a marker tag without a tokenizer')
 
+-- hover over the parts: only what the tag's hoverer answers
+local hover = require 'core.hover'
+---@param script string a script with one `<?word?>`
+---@return string? markdown
+local function hoverOf(script)
+    local text, catched = catch(script, '?')
+    files.setText(TESTURI, text)
+    local shown = hover.byUri(TESTURI, catched['?'][1][1], 1)
+    files.remove(TESTURI)
+    return shown and shown:string() or nil
+end
+local fn = nl .. 'local function f() end' .. nl
+assert((hoverOf('---@fixture-tail <?alpha?> beta' .. fn) or ''):find('the first word: alpha', 1, true), 'the first word answers')
+assert(not (hoverOf('---@fixture-tail alpha <?beta?>' .. fn) or ''):find('the first word', 1, true), 'another word does not')
+assert((hoverOf('---@<?fixture-tail?> alpha' .. fn) or ''):find('fixture-tail', 1, true), 'the tag word keeps the tag help')
+assert(not (hoverOf('---@<?fixture-marker?> alpha' .. fn) or ''):find('the first word', 1, true), 'another tag has no hoverer')
+
 -- completion of the words
 ---@param script string a script with one `<??>`
 ---@return table<string, integer> labels with their kinds

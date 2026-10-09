@@ -325,6 +325,15 @@ local function getHoverByUri(uri, position, level)
     if not ast then
         return nil
     end
+    -- the words of the text of a marker tag a plugin reads itself
+    for _, doc in ipairs(ast.ast.docs or {}) do
+        local text, start, finish = docTags.getTailHover(doc, position)
+        if text and start and finish then
+            local md = markdown()
+            md:add('md', text)
+            return md, { type = 'doc.tail', start = start, finish = finish }, 0
+        end
+    end
     local source = findSource(ast, position, accept) or findPluginDoc(ast, position)
     if source and source.type == 'doc.diagnostic' then
         -- (only the mode word answers: the names after the colon have their own hover, the colon and the blanks none)

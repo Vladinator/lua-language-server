@@ -540,6 +540,30 @@ function m.getTailTokens(doc)
     return nil
 end
 
+---@type table<string, fun(doc: parser.object, position: integer): string?, integer?, integer?>
+local tailHovers = {}
+
+--- Hover over the parts of the text of a marker tag: `hoverer(doc, position)` returns the markdown for the word at the position and where
+--- the word starts and ends, or nothing.
+---@param docType string
+---@param hoverer fun(doc: parser.object, position: integer): string?, integer?, integer?
+function m.registerTailHover(docType, hoverer)
+    tailHovers[docType] = hoverer
+end
+
+---@param doc      parser.object
+---@param position integer
+---@return string? markdown
+---@return integer? start
+---@return integer? finish
+function m.getTailHover(doc, position)
+    local hoverer = tailHovers[doc.type]
+    if hoverer and doc.comment and position >= doc.comment.start and position <= doc.comment.finish then
+        return hoverer(doc, position)
+    end
+    return nil
+end
+
 --- What completion offers at a word of the text of a marker tag.
 ---@class parser.docTags.tailCandidate
 ---@field label string

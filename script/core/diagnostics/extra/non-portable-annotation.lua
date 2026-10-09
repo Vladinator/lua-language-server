@@ -45,8 +45,8 @@ local COMMON = {
 local LEGACY_AND_LUALS = { 'vararg', 'version', 'module', 'async', 'operator', 'source' }
 --- Tags that wowlua-ls documents and the original and this fork do not.
 local WOWLUALS_ONLY = {
-    'narrows-arg', 'defclass', 'builds-field', 'built-name', 'built-extends', 'constructor',
-    'accessor', 'creates-global', 'generates-events', 'returns-enum', 'returns-class-name',
+    'defclass', 'builds-field', 'built-name', 'built-extends', 'constructor',
+    'accessor', 'creates-global', 'generates-events', 'returns-enum',
     'event', 'callback-event-arg', 'flavor-narrows', 'secret-unless', 'secret-when',
     'secret-clears', 'secret-restriction-guard', 'secret-precondition', 'secret-satisfies', 'secret-aspect',
 }

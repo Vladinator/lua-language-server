@@ -124,3 +124,39 @@ function vm.getFlowNarrowings(call, statementOnly)
     end
     return result
 end
+
+--- A call compared with a string literal (`region:GetObjectType() == "Frame"`): the counterpart of `registerFlowNarrowing` for the
+--- flow analysis. `narrowings(call, literal)` lists what the comparison says about the arguments or the receiver: `whenTrue` where the
+--- two are equal, `whenFalse` where they differ (a rule that cannot tell leaves it out). `==` and `~=` and either operand order are
+--- handled by the flow; like the other rule, `match` decides by name and compiles nothing.
+---@class vm.flowEqualityCallRule
+---@field match      fun(calleeNode: parser.object): boolean
+---@field narrowings fun(call: parser.object, literal: parser.object): vm.flow.narrowing[]
+
+---@type vm.flowEqualityCallRule[]
+local flowEqualityCallRules = {}
+
+---@param rule vm.flowEqualityCallRule
+function vm.registerFlowEqualityCallNarrowing(rule)
+    flowEqualityCallRules[#flowEqualityCallRules+1] = rule
+end
+
+---@param call    parser.object a `call`
+---@param literal parser.object the string it is compared with
+---@return vm.flow.narrowing[]
+function vm.getFlowEqualityCallNarrowings(call, literal)
+    ---@type vm.flow.narrowing[]
+    local result = {}
+    local callee = call.node
+    if not callee then
+        return result
+    end
+    for _, rule in ipairs(flowEqualityCallRules) do
+        if rule.match(callee) then
+            for _, narrowing in ipairs(rule.narrowings(call, literal)) do
+                result[#result+1] = narrowing
+            end
+        end
+    end
+    return result
+end

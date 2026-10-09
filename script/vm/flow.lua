@@ -1922,6 +1922,22 @@ local function evalCondition(state, expr)
                     end
                 end
             end
+            -- a call compared with a string (`region:GetObjectType() == "Frame"`, in either order): a registered rule says what it narrows
+            local eqCall, eqLiteral = left, right
+            if left.type == 'string' and right.type == 'call' then
+                eqCall, eqLiteral = right, left
+            end
+            if eqCall.type == 'call' and eqLiteral.type == 'string' and eqCall.node then
+                for _, narrowing in ipairs(vm.getFlowEqualityCallNarrowings(eqCall, eqLiteral)) do
+                    local whenTrue, whenFalse = narrowing.whenTrue, narrowing.whenFalse
+                    if whenTrue and yes then
+                        yes = narrowRef(yes, narrowing.target, function (node) return whenTrue(node, uri) end)
+                    end
+                    if whenFalse and no then
+                        no = narrowRef(no, narrowing.target, function (node) return whenFalse(node, uri) end)
+                    end
+                end
+            end
             if op == '~=' then
                 yes, no = no, yes
             end
@@ -2610,6 +2626,12 @@ function vm.buildFlowBody(main)
                         noteRef(side.args and side.args[1])
                     else
                         noteRef(side)
+                    end
+                    local other = expr[3 - i]
+                    if side and side.type == 'call' and side.node and other and other.type == 'string' then
+                        for _, narrowing in ipairs(vm.getFlowEqualityCallNarrowings(side, other)) do
+                            noteRef(narrowing.target)
+                        end
                     end
                 end
             end

@@ -327,6 +327,114 @@ flowAssertString(x)
 print(x)
 ]], { 'string|number', 'string' })
 
+-- a call compared with a string literal (vm.registerFlowEqualityCallNarrowing): `flowKindOf(x) == 'text'` says `x` is a string where
+-- the two are equal and a number where they differ (the rule decides; the flow handles `==` / `~=`, either order, `assert` and early exits)
+vm.registerFlowEqualityCallNarrowing {
+    match = function (callee)
+        return callee.type == 'getglobal' and callee[1] == 'flowKindOf'
+    end,
+    ---@param call    parser.object
+    ---@param literal parser.object
+    ---@return vm.flow.narrowing[]
+    narrowings = function (call, literal)
+        local target = call.args and call.args[1]
+        if not target or literal[1] ~= 'text' then
+            return {}
+        end
+        return { {
+            target    = target,
+            whenTrue  = function (node, uri) return node:copy():narrow(uri, 'string') end,
+            whenFalse = function (node) return node:copy():remove('string') end,
+        } }
+    end,
+}
+
+checkNarrowing([[
+---@type string|number
+local x
+if flowKindOf(x) == 'text' then
+    print(x)
+else
+    print(x)
+end
+]], { 'string|number', 'string', 'number' })
+
+-- the other operand order, and `~=`
+checkNarrowing([[
+---@type string|number
+local x
+if 'text' == flowKindOf(x) then
+    print(x)
+else
+    print(x)
+end
+]], { 'string|number', 'string', 'number' })
+
+checkNarrowing([[
+---@type string|number
+local x
+if flowKindOf(x) ~= 'text' then
+    print(x)
+else
+    print(x)
+end
+]], { 'string|number', 'number', 'string' })
+
+-- a field path as the target is tracked too
+checkPath([[
+---@class FlowEq.Box
+---@field y string|number
+---@type FlowEq.Box
+local x
+if flowKindOf(x.y) == 'text' then
+    print(x.y)
+else
+    print(x.y)
+end
+]], { 'string|number', 'string', 'number' })
+
+-- an early exit and an assertion
+checkNarrowing([[
+---@type string|number
+local x
+if flowKindOf(x) ~= 'text' then return end
+print(x)
+]], { 'string|number', 'string' })
+
+checkNarrowing([[
+---@type string|number
+local x
+assert(flowKindOf(x) == 'text')
+print(x)
+]], { 'string|number', 'string' })
+
+-- nothing narrowed: the rule has nothing to say about this literal, another callee, a value that is not a literal
+checkNarrowing([[
+---@type string|number
+local x
+if flowKindOf(x) == 'other' then
+    print(x)
+end
+]], { 'string|number', 'string|number' })
+
+checkNarrowing([[
+---@type string|number
+local x
+if flowKindOther(x) == 'text' then
+    print(x)
+end
+]], { 'string|number', 'string|number' })
+
+checkNarrowing([[
+---@type string|number
+local x
+---@type string
+local kind
+if flowKindOf(x) == kind then
+    print(x)
+end
+]], { 'string|number', 'string|number' })
+
 -- a rule may narrow a FIELD of its argument without that field being written in the code: the target is a made-up `getfield`
 -- node (base = the argument, field = the key it is about), which the flow tracks like a read of that path
 ---@type table<parser.object, parser.object>

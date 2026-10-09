@@ -6,6 +6,10 @@
 --     ---@type-narrows 1 2            (wowlua-ls) the argument at call-site position 1 is of the class the argument at 2 names
 --                                    (a string, or a class table); position 0 is the receiver of a colon call
 --     ---@type-narrows ClassName      (wowlua-ls) a method that returns true when the receiver is a `ClassName`
+--     ---@returns-class-name           (wowlua-ls) a method that returns the name of the class of its receiver (`GetObjectType`):
+--                                    `recv:GetObjectType() == "Frame"` narrows the receiver where the two are equal
+--     ---@narrows-arg 1                (wowlua-ls) a call used as a statement leaves its argument at call-site position 1 with the type the
+--                                    call returns (`Mixin(object, M)`)
 --
 -- In the branch of a condition where the guard holds the argument has the type `T`, in the other one
 -- `T` is taken away from it (`if IsString(x) then ... else ... end`, `not`, `and`, `or`, `while`); after
@@ -48,8 +52,16 @@ docTags.registerIntegersOrNameTag('type-narrows', 'doc.type-narrows', 2,
     'A function that returns true when an argument is of a class: `---@type-narrows 1 2` (the argument at call-site position 1 is of the class '
     .. 'that the argument at 2 names, a string or a class table; 0 is the receiver of a colon call), or on a method `---@type-narrows ClassName`.')
 docTags.setTagFlavors('type-narrows', { 'luals', 'wowluals' })
+docTags.registerMarkerTag('returns-class-name', 'doc.returns-class-name',
+    'A method that returns the name of the class of its receiver (`GetObjectType`): `recv:GetObjectType() == "Frame"` narrows the receiver '
+    .. 'where the two are equal.')
+docTags.setTagFlavors('returns-class-name', { 'luals', 'wowluals' })
+docTags.registerIntegersOrNameTag('narrows-arg', 'doc.narrows-arg', 1,
+    'A function that changes the type of an argument in place: `---@narrows-arg 1` leaves the argument at call-site position 1 with the type '
+    .. 'the call returns, when the call is used as a statement (`Mixin(object, M)`).')
+docTags.setTagFlavors('narrows-arg', { 'luals', 'wowluals' })
 
-for _, docType in ipairs { 'doc.guard', 'doc.asserts', 'doc.type-narrows' } do
+for _, docType in ipairs { 'doc.guard', 'doc.asserts', 'doc.type-narrows', 'doc.returns-class-name', 'doc.narrows-arg' } do
     docTags.registerBindRule(docType, function (doc, source, isParam)
         return source.type == 'function'
     end)
@@ -59,7 +71,16 @@ end
 ---@return boolean
 local function isGuardDoc(doc)
     return doc.type == 'doc.guard' or doc.type == 'doc.asserts' or doc.type == 'doc.type-narrows'
+        or doc.type == 'doc.returns-class-name' or doc.type == 'doc.narrows-arg'
 end
+
+--- The tags that say something about a call used as a condition, a comparison with a class name, or a call used as a statement.
+---@type table<string, true>
+local CONDITION_TAGS = { ['doc.guard'] = true, ['doc.asserts'] = true, ['doc.type-narrows'] = true }
+---@type table<string, true>
+local EQUALITY_TAGS  = { ['doc.returns-class-name'] = true }
+---@type table<string, true>
+local ARGUMENT_TAGS  = { ['doc.narrows-arg'] = true }
 
 -- The names --------------------------------------------------------------------------------------
 
@@ -161,8 +182,9 @@ end
 ---@field index integer
 
 ---@param callee parser.object
+---@param wanted table<string, true> the tags to look for
 ---@return typeGuard.found[]
-local function findGuards(callee)
+local function findGuards(callee, wanted)
     ---@type typeGuard.found[]
     local found = {}
     for _, def in ipairs(vm.getDefs(callee)) do
@@ -174,9 +196,11 @@ local function findGuards(callee)
             -- (the docs are bound to the function and to what it is assigned to)
             for _, holder in ipairs { func, def } do
                 for _, doc in ipairs(holder.bindDocs or {}) do
-                    if doc.type == 'doc.type-narrows' then
+                    if not wanted[doc.type] then
+                        -- (not what is asked for)
+                    elseif doc.type ~= 'doc.guard' and doc.type ~= 'doc.asserts' then
                         found[#found+1] = { doc = doc, index = 0 }
-                    elseif isGuardDoc(doc) and doc.param then
+                    elseif doc.param then
                         for index, arg in ipairs(func.args or {}) do
                             if arg[1] == doc.param[1] then
                                 found[#found+1] = { doc = doc, index = index }
@@ -249,6 +273,20 @@ local function classNodeOf(arg)
     return global and vm.createNode(global) or nil
 end
 
+--- The argument at a call-site position (`0` is the receiver of a colon call). The arguments of a colon call start with the implicit
+--- `self`: position k is then the (k+1)th.
+---@param callee   parser.object
+---@param args     parser.object[]
+---@param position integer
+---@return parser.object?
+local function argAt(callee, args, position)
+    local isMethodCall = callee.type == 'getmethod'
+    if position == 0 then
+        return isMethodCall and callee.node or nil
+    end
+    return args[isMethodCall and position + 1 or position]
+end
+
 --- What a guard found on the callee narrows in this call: the argument and the type it is of.
 ---@param guard  typeGuard.found
 ---@param callee parser.object
@@ -271,15 +309,8 @@ local function resolveGuard(guard, callee, args)
                 typeNode = global and vm.createNode(global) or nil
             end
         elseif doc.integers and #doc.integers == 2 then
-            -- the arguments of a colon call start with the implicit `self`: call-site position k is the (k+1)th
-            local function argAt(position)
-                if position == 0 then
-                    return isMethodCall and callee.node or nil
-                end
-                return args[isMethodCall and position + 1 or position]
-            end
-            target = argAt(doc.integers[1][1])
-            local classArg = argAt(doc.integers[2][1])
+            target = argAt(callee, args, doc.integers[1][1])
+            local classArg = argAt(callee, args, doc.integers[2][1])
             typeNode = classArg and classNodeOf(classArg) or nil
         end
     else
@@ -334,7 +365,7 @@ vm.registerCallNarrowing {
         local callee = action.node
         -- (the arguments of a call with a colon start with the implicit `self`, which stands for the object)
         local args = action.args or {}
-        for _, guard in ipairs(findGuards(callee)) do
+        for _, guard in ipairs(findGuards(callee, CONDITION_TAGS)) do
             local target, typeNode = resolveGuard(guard, callee, args)
             if target and typeNode and tracer.getMap[target] then
                 local doc = guard.doc
@@ -371,7 +402,7 @@ vm.registerFlowNarrowing {
         local args = call.args or {}
         ---@type vm.flow.narrowing[]
         local result = {}
-        for _, guard in ipairs(findGuards(callee)) do
+        for _, guard in ipairs(findGuards(callee, CONDITION_TAGS)) do
             local target, typeNode = resolveGuard(guard, callee, args)
             if target and typeNode then
                 local doc = guard.doc
@@ -389,6 +420,56 @@ vm.registerFlowNarrowing {
                     result[#result+1] = { target = target, after = doc.negated and isNotType or isType }
                 end
             end
+        end
+        return result
+    end,
+}
+
+--- `---@narrows-arg N`: a call used as a statement leaves the argument at position N with the type the call returns (`Mixin(object, M)`).
+vm.registerFlowNarrowing {
+    statement = true,
+    match = matchesGuard,
+    ---@param call parser.object
+    ---@return vm.flow.narrowing[]
+    narrowings = function (call)
+        local callee = call.node
+        local args = call.args or {}
+        ---@type vm.flow.narrowing[]
+        local result = {}
+        for _, guard in ipairs(findGuards(callee, ARGUMENT_TAGS)) do
+            local position = guard.doc.integers and guard.doc.integers[1] and guard.doc.integers[1][1]
+            local target = position and argAt(callee, args, position)
+            if target then
+                result[#result+1] = {
+                    target = target,
+                    after  = function () return vm.compileNode(call) end,
+                }
+            end
+        end
+        return result
+    end,
+}
+
+--- `---@returns-class-name`: `recv:GetObjectType() == "Frame"` narrows the receiver where the two are equal. Where they differ nothing is
+--- said: the method returns the exact class, so the receiver may still be a subclass of the one named.
+vm.registerFlowEqualityCallNarrowing {
+    match = matchesGuard,
+    ---@param call    parser.object
+    ---@param literal parser.object
+    ---@return vm.flow.narrowing[]
+    narrowings = function (call, literal)
+        local callee = call.node
+        ---@type vm.flow.narrowing[]
+        local result = {}
+        if not callee or callee.type ~= 'getmethod' or #findGuards(callee, EQUALITY_TAGS) == 0 then
+            return result
+        end
+        local typeNode = classNodeOf(literal)
+        if typeNode then
+            result[#result+1] = {
+                target   = callee.node,
+                whenTrue = function (node, uri) return narrowTo(uri, node, typeNode) end,
+            }
         end
         return result
     end,
@@ -443,6 +524,36 @@ local function checkTypeNarrows(doc, func, callback)
     end
 end
 
+--- `---@narrows-arg N`: one position, a parameter of the function (0 is the receiver of a method).
+---@param doc  parser.object
+---@param func parser.object
+---@param callback fun(result: proto.diagnostic.result)
+local function checkNarrowsArg(doc, func, callback)
+    local params = #(func.args or {})
+    local isMethod = func.args and func.args[1] and func.args[1].type == 'self'
+    if isMethod then
+        params = params - 1
+    end
+    local position = doc.integers and doc.integers[1]
+    if not position then
+        callback {
+            start   = doc.start,
+            finish  = doc.finish,
+            message = 'Expected the position of the argument (`---@narrows-arg 1`).',
+        }
+        return
+    end
+    local value = position[1]
+    if value < 0 or value > params or (value == 0 and not isMethod) then
+        callback {
+            start   = position.start,
+            finish  = position.finish,
+            message = value == 0 and 'Position 0 is the receiver of a method.'
+                or ('The function has %d parameter(s) after the receiver: position %d does not exist.'):format(params, value),
+        }
+    end
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -454,7 +565,7 @@ return function (uri, callback)
             goto CONTINUE
         end
         await.delay()
-        if doc.type == 'doc.type-narrows' then
+        if doc.type == 'doc.type-narrows' or doc.type == 'doc.returns-class-name' or doc.type == 'doc.narrows-arg' then
             ---@type parser.object?
             local source = doc.bindSource
             ---@type parser.object?
@@ -462,10 +573,24 @@ return function (uri, callback)
                 or (source.value and source.value.type == 'function' and source.value)
                 or nil) or nil
             if func then
-                checkTypeNarrows(doc, func, callback)
+                if doc.type == 'doc.type-narrows' then
+                    checkTypeNarrows(doc, func, callback)
+                elseif doc.type == 'doc.returns-class-name' then
+                    if not (func.args and func.args[1] and func.args[1].type == 'self') then
+                        -- (a tag without arguments ends where the tag name does)
+                        callback {
+                            start   = doc.finish - #'returns-class-name',
+                            finish  = doc.finish,
+                            message = '`---@returns-class-name` is for a method: it narrows the receiver.',
+                        }
+                    end
+                else
+                    checkNarrowsArg(doc, func, callback)
+                end
             else
                 callback {
-                    start   = doc.start,
+                    -- (a tag without arguments ends where the tag name does)
+                    start   = doc.type == 'doc.returns-class-name' and doc.finish - #'returns-class-name' or doc.start,
                     finish  = doc.finish,
                     message = 'This tag has to be above a function.',
                 }

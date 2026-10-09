@@ -135,6 +135,7 @@ do for "secret") uses these:
 | `vm.registerCallNarrowing { match, narrow }` | a call in a condition narrows its arguments (a "checker" function) |
 | `vm.registerEqualityNarrowing { match, narrow }` | `x == literal` style narrowing |
 | `vm.registerFlowNarrowing { match, narrowings }` | the same for the flow analysis (`vm/flow.lua`): `narrowings(call)` lists `{ target, whenTrue?, whenFalse?, after? }`, and the flow applies them on the right edges. `target` is an argument of the call or a made-up `getfield` node (`{ type = 'getfield', node = <base>, field = { type = 'field', [1] = name } }`) for a field the call is about, as `secret-access.lua` does for the keys of a guard |
+| `vm.registerFlowEqualityCallNarrowing { match, narrowings }` | a call compared with a string literal (`region:GetObjectType() == "Frame"`, `==` / `~=`, either order, `assert`, early exits): `narrowings(call, literal)` lists `{ target, whenTrue?, whenFalse? }` for where the two are equal and where they differ. `match` decides by callee name and compiles nothing. Only the flow analysis asks it (not the old tracer, which serves the reads of generic-typed parameters) |
 
 Flow analysis is the tracer's job (`vm/tracer.lua`); these hooks give a plugin a place in it without
 editing it.

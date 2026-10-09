@@ -583,3 +583,186 @@ local function f(w)
 end
 ]])
 end
+
+-- `---@returns-class-name`: comparing what the method returns with a class name narrows the receiver
+do
+    local defs = [[
+---@class RcWidget
+---@class RcSlider: RcWidget
+---@class RcButton: RcWidget
+
+---@class RcObject
+local RcObject = {}
+
+---@returns-class-name
+---@return string
+function RcObject:GetObjectType() return 'RcObject' end
+
+---@return string
+function RcObject:GetPlainType() return 'RcObject' end
+
+---@class RcPlain
+local RcPlain = {}
+
+---@return string
+function RcPlain:GetObjectType() return 'RcPlain' end
+]]
+    INFER 'RcSlider' (defs .. [[
+---@param o RcWidget|RcObject
+local function f(o)
+    if o:GetObjectType() == "RcSlider" then
+        print(<?o?>)
+    end
+end
+]])
+    -- the other operand order, and `~=` with an early exit, and assert
+    INFER 'RcSlider' (defs .. [[
+---@param o RcWidget|RcObject
+local function f(o)
+    if "RcSlider" == o:GetObjectType() then
+        print(<?o?>)
+    end
+end
+]])
+    INFER 'RcSlider' (defs .. [[
+---@param o RcWidget|RcObject
+local function f(o)
+    if o:GetObjectType() ~= "RcSlider" then return end
+    print(<?o?>)
+end
+]])
+    INFER 'RcSlider' (defs .. [[
+---@param o RcWidget|RcObject
+local function f(o)
+    assert(o:GetObjectType() == "RcSlider")
+    print(<?o?>)
+end
+]])
+    -- the else branch says nothing (the method returns the exact class: the receiver may be a subclass)
+    INFER 'RcObject|RcWidget' (defs .. [[
+---@param o RcWidget|RcObject
+local function f(o)
+    if o:GetObjectType() == "RcSlider" then
+        return
+    else
+        print(<?o?>)
+    end
+end
+]])
+    -- nothing narrowed: a method without the tag, an unknown class, a function that is not a method
+    INFER 'RcObject|RcWidget' (defs .. [[
+---@param o RcWidget|RcObject
+local function f(o)
+    if o:GetPlainType() == "RcSlider" then
+        print(<?o?>)
+    end
+end
+]])
+    -- (a method of the same name without the tag, and a call that is not a colon call)
+    INFER 'RcPlain|RcWidget' (defs .. [[
+---@param o RcWidget|RcPlain
+local function f(o)
+    if o:GetObjectType() == "RcSlider" then
+        print(<?o?>)
+    end
+end
+]])
+    INFER 'RcObject|RcWidget' (defs .. [[
+---@param o RcWidget|RcObject
+local function f(o)
+    if RcObject.GetObjectType(o) == "RcSlider" then
+        print(<?o?>)
+    end
+end
+]])
+    INFER 'RcObject|RcWidget' (defs .. [[
+---@param o RcWidget|RcObject
+local function f(o)
+    if o:GetObjectType() == "NoSuchRcClass" then
+        print(<?o?>)
+    end
+end
+]])
+    INFER 'RcObject|RcWidget' (defs .. [[
+---@param o RcWidget|RcObject
+---@param name string
+local function f(o, name)
+    if o:GetObjectType() == name then
+        print(<?o?>)
+    end
+end
+]])
+end
+
+-- `---@narrows-arg`: a call used as a statement changes the type of an argument
+do
+    local defs = [[
+---@class NaBase
+---@class NaExtra
+---@field extra number
+
+---@narrows-arg 1
+---@generic T
+---@param object T
+---@return T & NaExtra
+local function Mix(object) return object end
+
+---@narrows-arg 0
+---@return NaExtra
+local NaObject = {}
+function NaObject:Extend() return self end
+]]
+    INFER 'number' (defs .. [[
+---@param o NaBase
+local function f(o)
+    Mix(o)
+    local extra = o.extra
+    print(<?extra?>)
+end
+]])
+    -- before the call, and when the result is used (nothing is changed in place)
+    INFER 'NaBase' (defs .. [[
+---@param o NaBase
+local function f(o)
+    print(<?o?>)
+    Mix(o)
+end
+]])
+    INFER 'NaBase' (defs .. [[
+---@param o NaBase
+local function f(o)
+    local result = Mix(o)
+    print(<?o?>)
+end
+]])
+end
+
+-- the diagnostic of the two tags
+TEST [[
+---@returns-class-name
+function RcDiag:Ok() end
+
+---@<!returns-class-name!>
+local function NotAMethod() end
+
+---@<!returns-class-name!>
+local notAFunction = 1
+
+---@narrows-arg 1
+local function Ok1(object) end
+
+---@narrows-arg <!2!>
+local function PastTheEnd(object) end
+
+---@narrows-arg <!0!>
+local function NoReceiver(object) end
+
+---@<!narrows-arg!>
+local function Nothing(object) end
+
+---@<!narrows-arg Foo!>
+local function AName(object) end
+
+---@<!narrows-arg 1!>
+local notAFunction2 = 1
+]]

@@ -3,6 +3,9 @@
 --     ---@guard v is string          a function that returns true when `v` is a string
 --     ---@guard v is not nil         ... when `v` is not nil (`is not T`: the other way round)
 --     ---@asserts v is table         a function that raises an error unless `v` is a table
+--     ---@type-narrows 1 2            (wowlua-ls) the argument at call-site position 1 is of the class the argument at 2 names
+--                                    (a string, or a class table); position 0 is the receiver of a colon call
+--     ---@type-narrows ClassName      (wowlua-ls) a method that returns true when the receiver is a `ClassName`
 --
 -- In the branch of a condition where the guard holds the argument has the type `T`, in the other one
 -- `T` is taken away from it (`if IsString(x) then ... else ... end`, `not`, `and`, `or`, `while`); after
@@ -41,7 +44,12 @@ docTags.registerGuardTag('asserts', 'doc.asserts',
     'A function that raises an error unless its parameter has a type: `---@asserts v is table`.\n\n'
     .. 'After a call used as a statement the argument has that type.')
 
-for _, docType in ipairs { 'doc.guard', 'doc.asserts' } do
+docTags.registerIntegersOrNameTag('type-narrows', 'doc.type-narrows', 2,
+    'A function that returns true when an argument is of a class: `---@type-narrows 1 2` (the argument at call-site position 1 is of the class '
+    .. 'that the argument at 2 names, a string or a class table; 0 is the receiver of a colon call), or on a method `---@type-narrows ClassName`.')
+docTags.setTagFlavors('type-narrows', { 'luals', 'wowluals' })
+
+for _, docType in ipairs { 'doc.guard', 'doc.asserts', 'doc.type-narrows' } do
     docTags.registerBindRule(docType, function (doc, source, isParam)
         return source.type == 'function'
     end)
@@ -50,7 +58,7 @@ end
 ---@param doc parser.object
 ---@return boolean
 local function isGuardDoc(doc)
-    return doc.type == 'doc.guard' or doc.type == 'doc.asserts'
+    return doc.type == 'doc.guard' or doc.type == 'doc.asserts' or doc.type == 'doc.type-narrows'
 end
 
 -- The names --------------------------------------------------------------------------------------
@@ -166,7 +174,9 @@ local function findGuards(callee)
             -- (the docs are bound to the function and to what it is assigned to)
             for _, holder in ipairs { func, def } do
                 for _, doc in ipairs(holder.bindDocs or {}) do
-                    if isGuardDoc(doc) and doc.param then
+                    if doc.type == 'doc.type-narrows' then
+                        found[#found+1] = { doc = doc, index = 0 }
+                    elseif isGuardDoc(doc) and doc.param then
                         for index, arg in ipairs(func.args or {}) do
                             if arg[1] == doc.param[1] then
                                 found[#found+1] = { doc = doc, index = index }
@@ -227,6 +237,64 @@ local function narrowTo(uri, node, typeNode)
     return result or node
 end
 
+--- The type named by the argument of a call: a string (`"Frame"`) or a class table (`Frame`).
+---@param arg parser.object
+---@return vm.node?
+local function classNodeOf(arg)
+    local name = (arg.type == 'string' or arg.type == 'getglobal' or arg.type == 'getlocal') and arg[1] or nil
+    if type(name) ~= 'string' then
+        return nil
+    end
+    local global = vm.getGlobal('type', name)
+    return global and vm.createNode(global) or nil
+end
+
+--- What a guard found on the callee narrows in this call: the argument and the type it is of.
+---@param guard  typeGuard.found
+---@param callee parser.object
+---@param args   parser.object[]
+---@return parser.object? target
+---@return vm.node?       typeNode
+local function resolveGuard(guard, callee, args)
+    local doc = guard.doc
+    local isMethodCall = callee.type == 'getmethod'
+    ---@type parser.object?
+    local target
+    ---@type vm.node?
+    local typeNode
+    if doc.type == 'doc.type-narrows' then
+        if doc.name then
+            -- (a method: the receiver is of that class)
+            if isMethodCall then
+                target   = callee.node
+                local global = vm.getGlobal('type', doc.name[1])
+                typeNode = global and vm.createNode(global) or nil
+            end
+        elseif doc.integers and #doc.integers == 2 then
+            -- the arguments of a colon call start with the implicit `self`: call-site position k is the (k+1)th
+            local function argAt(position)
+                if position == 0 then
+                    return isMethodCall and callee.node or nil
+                end
+                return args[isMethodCall and position + 1 or position]
+            end
+            target = argAt(doc.integers[1][1])
+            local classArg = argAt(doc.integers[2][1])
+            typeNode = classArg and classNodeOf(classArg) or nil
+        end
+    else
+        target = args[guard.index]
+        if target and target.type == 'self' and isMethodCall then
+            target = callee.node
+        end
+        typeNode = vm.compileNode(doc.extends)
+    end
+    if not target or not typeNode then
+        return nil, nil
+    end
+    return target, typeNode
+end
+
 ---@param node     vm.node
 ---@param typeNode vm.node
 ---@return vm.node
@@ -267,17 +335,12 @@ vm.registerCallNarrowing {
         -- (the arguments of a call with a colon start with the implicit `self`, which stands for the object)
         local args = action.args or {}
         for _, guard in ipairs(findGuards(callee)) do
-            ---@type parser.object?
-            local target = args[guard.index]
-            if target and target.type == 'self' and callee.type == 'getmethod' then
-                target = callee.node
-            end
-            if target and tracer.getMap[target] then
+            local target, typeNode = resolveGuard(guard, callee, args)
+            if target and typeNode and tracer.getMap[target] then
                 local doc = guard.doc
                 -- the read itself gets the state before the call
                 tracer:lookIntoChild(target, topNode, outNode)
-                local typeNode = vm.compileNode(doc.extends)
-                if doc.type == 'doc.guard' and outNode then
+                if (doc.type == 'doc.guard' or doc.type == 'doc.type-narrows') and outNode then
                     if doc.negated then
                         topNode, outNode = without(topNode, typeNode), narrowTo(tracer.uri, outNode, typeNode)
                     else
@@ -309,19 +372,14 @@ vm.registerFlowNarrowing {
         ---@type vm.flow.narrowing[]
         local result = {}
         for _, guard in ipairs(findGuards(callee)) do
-            ---@type parser.object?
-            local target = args[guard.index]
-            if target and target.type == 'self' and callee.type == 'getmethod' then
-                target = callee.node
-            end
-            if target then
+            local target, typeNode = resolveGuard(guard, callee, args)
+            if target and typeNode then
                 local doc = guard.doc
-                local typeNode = vm.compileNode(doc.extends)
                 ---@type fun(node: vm.node, uri: uri): vm.node
                 local isType = function (node, uri) return narrowTo(uri, node, typeNode) end
                 ---@type fun(node: vm.node, uri: uri): vm.node
                 local isNotType = function (node) return without(node, typeNode) end
-                if doc.type == 'doc.guard' then
+                if doc.type == 'doc.guard' or doc.type == 'doc.type-narrows' then
                     if doc.negated then
                         result[#result+1] = { target = target, whenTrue = isNotType, whenFalse = isType }
                     else
@@ -338,6 +396,53 @@ vm.registerFlowNarrowing {
 
 -- The diagnostic ---------------------------------------------------------------------------------
 
+--- `---@type-narrows`: the positions have to be parameters of the function (0 is the receiver of a method), the name a class.
+---@param doc  parser.object
+---@param func parser.object
+---@param callback fun(result: proto.diagnostic.result)
+local function checkTypeNarrows(doc, func, callback)
+    local params = #(func.args or {})
+    local isMethod = func.args and func.args[1] and func.args[1].type == 'self'
+    if isMethod then
+        params = params - 1
+    end
+    if doc.name then
+        if not isMethod then
+            callback {
+                start   = doc.start,
+                finish  = doc.finish,
+                message = '`---@type-narrows ClassName` is for a method: it narrows the receiver.',
+            }
+        elseif not vm.getGlobal('type', doc.name[1]) then
+            callback {
+                start   = doc.name.start,
+                finish  = doc.name.finish,
+                message = ('`%s` is not a known class.'):format(doc.name[1]),
+            }
+        end
+        return
+    end
+    if not doc.integers or #doc.integers ~= 2 then
+        callback {
+            start   = doc.start,
+            finish  = doc.finish,
+            message = 'Expected two positions (`---@type-narrows 1 2`: the argument, the argument that names the class) or a class name.',
+        }
+        return
+    end
+    for i, position in ipairs(doc.integers) do
+        local value = position[1]
+        if value < 0 or value > params or (value == 0 and (i == 2 or not isMethod)) then
+            callback {
+                start   = position.start,
+                finish  = position.finish,
+                message = value == 0 and 'Position 0 is the receiver of a method, and only the first position can be it.'
+                    or ('The function has %d parameter(s) after the receiver: position %d does not exist.'):format(params, value),
+            }
+        end
+    end
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -349,6 +454,24 @@ return function (uri, callback)
             goto CONTINUE
         end
         await.delay()
+        if doc.type == 'doc.type-narrows' then
+            ---@type parser.object?
+            local source = doc.bindSource
+            ---@type parser.object?
+            local func = source and (source.type == 'function' and source
+                or (source.value and source.value.type == 'function' and source.value)
+                or nil) or nil
+            if func then
+                checkTypeNarrows(doc, func, callback)
+            else
+                callback {
+                    start   = doc.start,
+                    finish  = doc.finish,
+                    message = 'This tag has to be above a function.',
+                }
+            end
+            goto CONTINUE
+        end
         if not doc.param or not doc.extends then
             callback {
                 start   = doc.start,

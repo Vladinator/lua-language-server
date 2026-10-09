@@ -2553,6 +2553,33 @@ local function convertTokens(doc)
                 else
                     Ci = savePoint
                 end
+            elseif docTags.getIntegersOrName(docType) then
+                -- `---@type-narrows 1 2` (up to the tag's number of integers) or `---@type-narrows ClassName`; the rest is a description
+                result.start = getStart()
+                local firstTp = peekToken()
+                if firstTp == 'integer' then
+                    ---@type parser.object[]
+                    local integers = {}
+                    local maxIntegers = docTags.getIntegersOrName(docType) or 1
+                    while #integers < maxIntegers and peekToken() == 'integer' do
+                        local _, value = nextToken()
+                        integers[#integers+1] = {
+                            type   = docType .. '.integer',
+                            start  = getStart(),
+                            finish = getFinish(),
+                            parent = result,
+                            [1]    = value,
+                        }
+                    end
+                    result.integers = integers
+                    result.finish   = getFinish()
+                elseif firstTp == 'name' then
+                    local name = parseName(docType .. '.name', result)
+                    if name then
+                        result.name   = name
+                        result.finish = getFinish()
+                    end
+                end
             elseif docTags.isNameTypeTag(docType) then
                 -- `---@requires T: Frame` / `---@requires T extends Frame`
                 result.start = getStart()

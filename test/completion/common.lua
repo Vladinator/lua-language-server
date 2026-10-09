@@ -1607,6 +1607,7 @@ local function f()
 end
 ]]
 {
+    include = true,
     {
         label = 'type',
         kind = define.CompletionItemKind.Event,
@@ -4693,6 +4694,10 @@ local x
     },
     {
         label = 'fixture-param-kind',
+        kind  = define.CompletionItemKind.Event,
+    },
+    {
+        label = 'fixture-slots',
         kind  = define.CompletionItemKind.Event,
     },
 }

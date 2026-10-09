@@ -187,6 +187,30 @@ function m.isGuardTag(docType)
     return guardTags[docType] == true
 end
 
+---@type table<string, integer>
+local integersOrNameTags = {}
+
+--- A tag with up to `maxIntegers` integers (`---@mytag 1 2`) or ONE name (`---@mytag ClassName`), produced as `{ type = docType, integers =
+--- { <integer nodes> } }` or `{ type = docType, name = <name node> }`; what follows is a description. Anything else leaves the tag bare, so a
+--- plugin or a diagnostic can report it.
+---@param name        string tag name after the `@`, e.g. 'type-narrows'
+---@param docType     string produced node's `.type`, e.g. 'doc.type-narrows'
+---@param maxIntegers integer how many integers the tag takes
+---@param description? string shown by completion (markdown)
+function m.registerIntegersOrNameTag(name, docType, maxIntegers, description)
+    m.registerMarkerTag(name, docType, description)
+    tagNameRoles[docType .. '.name'] = 'class'
+    tagNameRoles[docType .. '.integer'] = 'number'
+    integersOrNameTags[docType] = maxIntegers
+    guide.registerChildren(docType, {'#integers', 'name'})
+end
+
+---@param docType string
+---@return integer? maxIntegers
+function m.getIntegersOrName(docType)
+    return integersOrNameTags[docType]
+end
+
 ---@type table<string, true>
 local nameTypeTags = {}
 
@@ -279,6 +303,7 @@ function m.isArgumentTag(docType)
         or paramKindTags[docType] ~= nil
         or kindParamsTags[docType] ~= nil
         or nameTypeTags[docType] == true
+        or integersOrNameTags[docType] ~= nil
         or guardTags[docType] == true
 end
 

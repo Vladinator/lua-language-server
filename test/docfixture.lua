@@ -18,6 +18,8 @@ docTags.registerKindParamsTag('fixture-kind-params', 'doc.fixture-kind-params', 
     'A tag with a kind and parameter names, registered by the tests.')
 docTags.registerNameTypeTag('fixture-nametype', 'doc.fixture-nametype',
     'A tag with a name and a type, registered by the tests.')
+docTags.registerIntegersOrNameTag('fixture-slots', 'doc.fixture-slots', 2,
+    'A tag with up to two integers or one name, registered by the tests.')
 docTags.registerBindRule('doc.fixture-nametype', function (_doc, source, _isParam)
     return source.type == 'function'
 end)

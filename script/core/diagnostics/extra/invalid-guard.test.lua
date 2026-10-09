@@ -358,3 +358,228 @@ do
         assert(labels['string'] ~= nil, '`@' .. tag .. '`: the type completes as any type does')
     end
 end
+
+-- `---@type-narrows` (wowlua-ls): the index form, the receiver form, the method form
+do
+    local defs = [[
+---@class TnWidget
+---@class TnSlider: TnWidget
+---@field value number
+---@class TnButton: TnWidget
+
+---@param element TnWidget
+---@param typeName string
+---@type-narrows 1 2
+---@return boolean
+local function IsType(element, typeName) return true end
+
+---@class TnBase
+local TnBase = {}
+
+---@param typeName string
+---@type-narrows 0 1
+---@return boolean
+function TnBase:IsType(typeName) return true end
+
+---@type-narrows TnSlider
+---@return boolean
+function TnBase:IsSlider() return true end
+]]
+
+    -- the narrowed argument, where the call holds
+    INFER 'TnSlider' (defs .. [[
+---@param w TnWidget
+local function f(w)
+    if IsType(w, "TnSlider") then
+        print(<?w?>)
+    end
+end
+]])
+    -- the class given as a table
+    INFER 'TnSlider' (defs .. [[
+local TnSlider = {}
+---@param w TnWidget
+local function f(w)
+    if IsType(w, TnSlider) then
+        print(<?w?>)
+    end
+end
+]])
+    -- the other branch: the class is taken away
+    INFER 'TnButton' (defs .. [[
+---@param w TnSlider|TnButton
+local function f(w)
+    if IsType(w, "TnSlider") then
+        return
+    else
+        print(<?w?>)
+    end
+end
+]])
+    -- an early exit, and `assert`
+    INFER 'TnSlider' (defs .. [[
+---@param w TnWidget
+local function f(w)
+    if not IsType(w, "TnSlider") then return end
+    print(<?w?>)
+end
+]])
+    INFER 'TnSlider' (defs .. [[
+---@param w TnWidget
+local function f(w)
+    assert(IsType(w, "TnSlider"))
+    print(<?w?>)
+end
+]])
+    -- nothing narrowed: the class is unknown, or not a literal, or the code is outside of the branch
+    INFER 'TnWidget' (defs .. [[
+---@param w TnWidget
+local function f(w)
+    if IsType(w, "NoSuchTnClass") then
+        print(<?w?>)
+    end
+end
+]])
+    INFER 'TnWidget' (defs .. [[
+---@param w TnWidget
+---@param name string
+local function f(w, name)
+    if IsType(w, name) then
+        print(<?w?>)
+    end
+end
+]])
+    INFER 'TnWidget' (defs .. [[
+---@param w TnWidget
+local function f(w)
+    print(<?w?>)
+    if IsType(w, "TnSlider") then
+    end
+end
+]])
+    -- the receiver of a colon call (`0`), and the method form
+    INFER 'TnSlider' (defs .. [[
+---@param b TnBase
+local function f(b)
+    if b:IsType("TnSlider") then
+        print(<?b?>)
+    end
+end
+]])
+    INFER 'TnSlider' (defs .. [[
+---@param b TnBase
+local function f(b)
+    if b:IsSlider() then
+        print(<?b?>)
+    end
+end
+]])
+    INFER 'TnBase' (defs .. [[
+---@param b TnBase
+local function f(b)
+    if b:IsSlider() then
+    else
+        print(<?b?>)
+    end
+end
+]])
+    INFER 'TnSlider' (defs .. [[
+---@param b TnBase
+local function f(b)
+    assert(b:IsSlider())
+    print(<?b?>)
+end
+]])
+    -- a call with a missing argument narrows nothing, and does not fail
+    INFER 'TnWidget' (defs .. [[
+---@param w TnWidget
+local function f(w)
+    if IsType(w) then
+        print(<?w?>)
+    end
+end
+]])
+end
+
+-- the diagnostic of `---@type-narrows`
+TEST [[
+---@class TnDiagClass
+
+---@param element any
+---@param typeName string
+---@type-narrows 1 2
+local function Ok1(element, typeName) end
+
+local TnDiag = {}
+
+---@param typeName string
+---@type-narrows 0 1
+function TnDiag:Ok2(typeName) end
+
+---@type-narrows TnDiagClass
+function TnDiag:Ok3() end
+
+---@param element any
+---@type-narrows <!3!> 1
+local function PositionPastTheEnd(element) end
+
+---@param element any
+---@type-narrows 1 <!0!>
+local function ReceiverAsClass(element) end
+
+---@param element any
+---@param typeName string
+---@type-narrows <!0!> 1
+local function NoReceiver(element, typeName) end
+
+---@<!type-narrows 1!>
+---@param element any
+local function OnePosition(element) end
+
+---@<!type-narrows!>
+---@param element any
+local function Nothing(element) end
+
+---@<!type-narrows TnDiagClass!>
+local function NotAMethod(element) end
+
+---@type-narrows <!NoSuchTnDiagClass!>
+function TnDiag:Unknown() end
+
+---@<!type-narrows 1 2!>
+local notAFunction = 1
+]]
+
+-- the same for a parameter of a generic type: that read goes through the other narrowing engine (vm/tracer.lua)
+do
+    local defs = [[
+---@class TnGWidget
+---@class TnGSlider: TnGWidget
+---@class TnGButton: TnGWidget
+
+---@param element any
+---@param typeName string
+---@type-narrows 1 2
+---@return boolean
+local function IsGType(element, typeName) return true end
+]]
+    INFER 'TnGSlider' (defs .. [[
+---@generic T: TnGWidget
+---@param w T
+local function f(w)
+    if IsGType(w, "TnGSlider") then
+        print(<?w?>)
+    end
+end
+]])
+    -- (an unknown class narrows nothing)
+    INFER '<T:TnGWidget>' (defs .. [[
+---@generic T: TnGWidget
+---@param w T
+local function f(w)
+    if IsGType(w, "NoSuchTnGClass") then
+        print(<?w?>)
+    end
+end
+]])
+end

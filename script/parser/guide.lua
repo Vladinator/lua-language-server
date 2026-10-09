@@ -59,6 +59,7 @@ local type         = type
 ---@field vararg                parser.object
 ---@field param                 parser.object
 ---@field negated?               true -- `doc.guard` / `doc.asserts`: the tag says `x is not T`
+---@field integers?              parser.object[] -- an integers-or-name tag (`doc.type-narrows`): the integers it has (`---@type-narrows 1 2`)
 ---@field kind?                  string -- a param-kind tag (`doc.secret-guard`): the word after the parameter name; a kind-params tag (`doc.secret-args`): the first word
 ---@field kwStart?               integer -- a keyword the syntax of this node contains (`keyof`, `extends`, a type keyword such as `secret`): where it starts
 ---@field kwFinish?              integer -- ... and ends

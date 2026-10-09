@@ -710,3 +710,89 @@ local mixed
 mixed:take('x')
 mixed:take(<!1!>)
 ]]
+
+-- `---@param ... params<F>` (wowlua-ls, TypeScript's `Parameters<F>`): the extra arguments are the parameters of the function F was bound to
+TEST [[
+---@generic F: fun(...)
+---@param fn F
+---@param ... params<F>
+---@return returns<F>
+local function call(fn, ...) return fn(...) end
+
+---@param name string
+---@param count integer
+---@return boolean
+local function spawn(name, count) return true end
+
+call(spawn, 'orc', 3)
+call(spawn, 'orc', <!'three'!>)
+call(spawn, <!5!>, 3)
+]]
+
+-- a function literal, a method, a callee with an optional parameter and one with a `...` of its own, and F not known
+TEST [[
+---@generic F: fun(...)
+---@param fn F
+---@param ... params<F>
+local function call(fn, ...) end
+
+call(function (a, b) end, 1, 'x')
+
+---@param a number
+---@param b string
+local function typed(a, b) end
+call(typed, 1, 'x')
+call(typed, <!'x'!>, 'x')
+
+local obj = {}
+---@generic F: fun(...)
+---@param fn F
+---@param ... params<F>
+function obj:run(fn, ...) end
+
+---@param name string
+---@param count integer
+local function spawn(name, count) end
+obj:run(spawn, 'orc', <!'three'!>)
+
+---@param a string
+---@param ... number
+local function rest(a, ...) end
+call(rest, 'a', 1, 2, 3)
+
+---@param fn fun(...)
+---@param ... any
+local function unknownF(fn, ...)
+    call(fn, 1, 'anything')
+end
+]]
+
+-- F stands for several functions, or has a type parameter of its own: nothing is claimed about the arguments
+TEST [[
+---@generic F: fun(...)
+---@param fn F
+---@param ... params<F>
+local function call(fn, ...) end
+
+---@param name string
+local function one(name) end
+---@param count integer
+local function two(count) end
+local either = math.random() > 0.5 and one or two
+call(either, {})
+
+---@generic T
+---@param value T
+local function identity(value) return value end
+call(identity, {})
+
+---@generic T: string
+---@param value T
+local function constrained(value) return value end
+call(constrained, {})
+
+---@param label string
+---@param ... number
+local function rest(label, ...) end
+call(rest, 'a', 1, 'not a number')
+]]

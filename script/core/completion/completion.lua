@@ -2333,7 +2333,7 @@ local function tryluaDocBySource(state, position, source, results)
         -- the built-in type operators (`Partial<T>`, `keyof T`, `returns<F>`, ...) are not declared
         -- anywhere, so the resolvers' own name list is offered as type names
         ---@type string[]
-        local operators = { 'keyof', 'returns' }
+        local operators = { 'keyof', 'returns', 'params' }
         for name in pairs(vm.utilityTypeNames) do
             operators[#operators+1] = name
         end

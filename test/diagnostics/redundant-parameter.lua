@@ -238,3 +238,25 @@ TEST [[
 ---@type fun(a: number)
 local f = function(a, <!b!>) end
 ]]
+
+-- `---@param ... params<F>`: no more arguments than F has parameters, unless F has a `...` itself
+TEST [[
+---@generic F: fun(...)
+---@param fn F
+---@param ... params<F>
+---@return returns<F>
+local function call(fn, ...) return fn(...) end
+
+---@param name string
+---@param count integer
+---@return boolean
+local function spawn(name, count) return true end
+
+---@param a string
+---@param ... number
+local function rest(a, ...) end
+
+call(spawn, 'orc', 3)
+call(spawn, 'orc', 3, <!4!>)
+call(rest, 'a', 1, 2, 3, 4)
+]]

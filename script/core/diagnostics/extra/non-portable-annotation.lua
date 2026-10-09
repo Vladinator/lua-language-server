@@ -143,7 +143,7 @@ local TYPE_NODES = {
 ---@type table<string, string[]>
 local SIGN_NAMES = {
     returns    = { 'luals', 'wowluals' },
-    params     = { 'wowluals' },
+    params     = { 'luals', 'wowluals' },
     expression = { 'wowluals' },
 }
 

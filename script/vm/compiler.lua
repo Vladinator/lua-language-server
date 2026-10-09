@@ -1271,6 +1271,19 @@ local function resolveReturnsProjection(uri, source)
     return true
 end
 
+--- `params<F>` (wowlua-ls interop), valid in the `...` slot only: the parameters of the function `F` is bound to. What it means is a
+--- property of the CALL (each extra argument is checked against the matching parameter of `F`, see `param-type-mismatch`), so as a
+--- type it is just "anything": the body of the wrapper forwards `...` untouched.
+---@param source parser.object a `doc.type.sign` whose name is `params`
+---@return boolean handled
+local function resolveParamsProjection(source)
+    if source.node[1] ~= 'params' then
+        return false
+    end
+    vm.setNode(source, vm.declareGlobal('type', 'any'))
+    return true
+end
+
 ---@param func  parser.object
 ---@param index integer
 ---@return (parser.object|vm.generic)?
@@ -3511,6 +3524,9 @@ local compilerSwitch = util.switch()
             return
         end
         if source.node[1] and resolveReturnsProjection(uri, source) then
+            return
+        end
+        if source.node[1] and resolveParamsProjection(source) then
             return
         end
         vm.setNode(source, source)

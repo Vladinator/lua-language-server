@@ -88,3 +88,27 @@ function t:init() end
 
 <!t.init()!>
 ]]
+
+-- `---@param ... params<F>`: the parameters of F that are not optional are required
+TEST [[
+---@generic F: fun(...)
+---@param fn F
+---@param ... params<F>
+---@return returns<F>
+local function call(fn, ...) return fn(...) end
+
+---@param name string
+---@param count integer
+---@return boolean
+local function spawn(name, count) return true end
+
+---@param name string
+---@param count? integer
+local function optional(name, count) end
+
+call(spawn, 'orc', 3)
+<!call(spawn, 'orc')!>
+<!call(spawn)!>
+call(optional, 'orc')
+<!call(optional)!>
+]]

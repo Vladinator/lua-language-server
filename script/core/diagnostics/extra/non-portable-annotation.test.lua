@@ -223,7 +223,7 @@ local function f(a) end
 local function f(a, b, c) end
 ]]
 end)
--- luals knows all of it but the wowlua-ls only generics
+-- luals knows all of it (`returns<F>` and `params<F>` included)
 with({ 'luals' }, function ()
     TEST [[
 ---@generic T
@@ -236,7 +236,7 @@ with({ 'luals' }, function ()
 ---@param g never
 ---@param h Partial<table>
 ---@param i returns<f>
----@param j <!params<f>!>
+---@param j params<f>
 local function f(a, b, c, d, e, f, g, h, i, j) end
 ]]
 end)

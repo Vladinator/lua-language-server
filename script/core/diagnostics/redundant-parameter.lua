@@ -35,6 +35,12 @@ return function (uri, callback)
             local funcNode = vm.compileNode(source.node)
             _, funcArgs = vm.countParamsOfNode(funcNode)
         end
+        -- `---@param ... params<F>`: the `...` takes the parameters of the function F stands for, no more
+        local target, varIndex = vm.getParamsProjection(uri, source)
+        if target and varIndex then
+            local _, targetMax = vm.countParamsOfFunction(target)
+            funcArgs = varIndex - 1 + targetMax
+        end
 
         if callArgs <= funcArgs then
             return

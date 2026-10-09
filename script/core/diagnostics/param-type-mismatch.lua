@@ -132,6 +132,39 @@ local function getDefNode(funcNode, i, classGenericMap)
     return defNode
 end
 
+--- A call of a function whose `...` is `params<F>` (wowlua-ls): each argument from the `...` on has to fit the matching parameter of the
+--- function `F` was bound to (`call(spawn, "orc", 3)`: `spawn`'s).
+---@async
+---@param uri      uri
+---@param call     parser.object
+---@param callback fun(result: table)
+local function checkParamsProjection(uri, call, callback)
+    local target, varIndex = vm.getParamsProjection(uri, call)
+    if not target or not varIndex then
+        return
+    end
+    local args = call.args or {}
+    for k = varIndex, #args do
+        local param = target.args and target.args[k - varIndex + 1]
+        local arg   = args[k]
+        if not param or arg.type == 'varargs' then
+            return
+        end
+        -- (a `...` of F, or a type parameter of F's own signature, has no type to check against here: nothing is claimed)
+        local expected = vm.compileNode(param)
+        local given    = vm.compileNode(arg)
+        local errs = {}
+        if not expected:isEmpty() and not vm.canCastType(uri, expected, given, errs) then
+            callback {
+                start   = arg.start,
+                finish  = arg.finish,
+                message = MESSAGE:format(vm.getInfer(given):view(uri), vm.getInfer(expected):view(uri))
+                    .. '\n' .. vm.viewTypeErrorMessage(uri, errs),
+            }
+        end
+    end
+end
+
 ---@param funcNode vm.node
 ---@param i integer
 ---@return vm.node
@@ -162,6 +195,7 @@ return function (uri, callback)
             return
         end
         await.delay()
+        checkParamsProjection(uri, source, callback)
         local funcNode = vm.compileNode(source.node)
         -- Get the class generic map for method calls on generic class instances
         local classGenericMap = getReceiverGenericMap(uri, source, funcNode)

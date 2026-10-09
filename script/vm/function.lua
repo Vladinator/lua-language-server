@@ -2,6 +2,8 @@
 local vm    = require 'vm.vm'
 local guide = require 'parser.guide'
 local util  = require 'utility'
+local files = require 'files'
+local scope = require 'workspace.scope'
 
 ---@class parser.object
 ---@field package _varargFunction?      boolean
@@ -598,4 +600,122 @@ function vm.isEmptyFunction(func)
     local startRow  = guide.rowColOf(func.start)
     local finishRow = guide.rowColOf(func.finish)
     return finishRow - startRow <= 1
+end
+
+--- `---@param ... params<F>` (wowlua-ls): the name of the type parameter `F`, for a function that has it.
+---@param func parser.object
+---@return string?
+local function paramsProjectionOf(func)
+    for _, doc in ipairs(func.bindDocs or {}) do
+        if doc.type == 'doc.param' and doc.param and doc.param[1] == '...' and doc.extends then
+            for _, unit in ipairs(doc.extends.types or {}) do
+                if unit.type == 'doc.type.sign' and unit.node and unit.node[1] == 'params' and unit.signs and unit.signs[1] then
+                    ---@type string?
+                    local name
+                    guide.eachSourceType(unit.signs[1], 'doc.generic.name', function (src)
+                        name = name or src[1] --[[@as string]]
+                    end)
+                    if name then
+                        return name
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+--- Does any file of the workspace write `params<`? Almost none does: the three diagnostics that ask `vm.getParamsProjection` about every call
+--- then skip all of it. Computed once per scope (dropped with the rest of `vm.getCache` when a file changes).
+---@param suri uri
+---@return boolean
+local function workspaceUsesParamsProjection(suri)
+    local cache = vm.getCache('paramsProjection.any') --[[@as table<string, boolean>]]
+    local scopeName = scope.getScope(suri):getName()
+    local found = cache[scopeName]
+    if found == nil then
+        found = false
+        for other in files.eachFile(suri) do
+            local text = files.getText(other)
+            if text and text:find('params<', 1, true) then
+                found = true
+                break
+            end
+        end
+        cache[scopeName] = found
+    end
+    return found
+end
+
+--- A call of a function whose `...` is `params<F>`: the arguments from the `...` on are the parameters of the function `F` was bound to by an
+--- earlier argument (`call(spawn, "orc", 3)`). Returns that function and the position of the `...` in the parameters of the called one;
+--- nil when the called function has no such `...`, `F` is not bound, or it can stand for several functions.
+---@async
+---@param uri  uri
+---@param call parser.object
+---@return parser.object? target the function `F` stands for (a `function` or a `doc.type.function`)
+---@return integer?       varIndex the position of the `...` in the called function's own parameters
+function vm.getParamsProjection(uri, call)
+    local args = call.args
+    if not args or not workspaceUsesParamsProjection(uri) then
+        return nil
+    end
+    -- asked by three diagnostics for every call of the file: once is enough (dropped with the rest of `vm.getCache` when a file changes)
+    local cache = vm.getCache('paramsProjection') --[[@as table<parser.object, {[1]: parser.object?, [2]: integer?}>]]
+    local cached = cache[call]
+    if cached then
+        return cached[1], cached[2]
+    end
+    local target, varIndex = vm.findParamsProjection(uri, call)
+    cache[call] = { target, varIndex }
+    return target, varIndex
+end
+
+---@async
+---@param uri  uri
+---@param call parser.object
+---@return parser.object?
+---@return integer?
+function vm.findParamsProjection(uri, call)
+    local args = call.args or {}
+    local funcs = vm.getExactMatchedFunctions(call.node, args)
+    if not funcs or #funcs ~= 1 or funcs[1].type ~= 'function' then
+        return nil
+    end
+    local func = funcs[1]
+    local name = paramsProjectionOf(func)
+    local sign = name and vm.getSign(func)
+    if not name or not sign then
+        return nil
+    end
+    local resolved = sign:resolve(uri, args)
+    local bound = resolved and resolved[name]
+    if not bound then
+        return nil
+    end
+    ---@type parser.object?
+    local target
+    for obj in bound:eachObject() do
+        if obj.type == 'function' or obj.type == 'doc.type.function' then
+            if target then
+                return nil
+            end
+            ---@cast obj parser.object
+            target = obj
+        end
+    end
+    if not target then
+        return nil
+    end
+    ---@type integer?
+    local varIndex
+    for i, param in ipairs(func.args or {}) do
+        if param.type == '...' then
+            varIndex = i
+        end
+    end
+    if not varIndex then
+        return nil
+    end
+    return target, varIndex
 end

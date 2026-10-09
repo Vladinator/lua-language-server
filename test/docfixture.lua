@@ -18,6 +18,51 @@ docTags.registerKindParamsTag('fixture-kind-params', 'doc.fixture-kind-params', 
     'A tag with a kind and parameter names, registered by the tests.')
 docTags.registerNameTypeTag('fixture-nametype', 'doc.fixture-nametype',
     'A tag with a name and a type, registered by the tests.')
+docTags.registerMarkerTag('fixture-tail', 'doc.fixture-tail',
+    'A marker tag whose text is read by whoever registered it, registered by the tests.')
+docTags.registerBindRule('doc.fixture-tail', function (_doc, source, _isParam)
+    return source.type == 'function'
+end)
+-- the first word is coloured as a parameter, the second as an enum member, a `=` anywhere as an operator
+docTags.registerTailTokens('doc.fixture-tail', function (doc)
+    local comment = doc.comment
+    local text = comment and comment.text or ''
+    local base = comment and comment.start or 0
+    ---@type parser.docTags.tailToken[]
+    local tokens = {}
+    local index = 0
+    local from = 1
+    while true do
+        local first, last = text:find('%S+', from)
+        if not first or not last then
+            break
+        end
+        index = index + 1
+        ---@type string?
+        local role
+        if text:sub(first, last) == '=' then
+            role = 'operator'
+        elseif index == 1 then
+            role = 'parameter'
+        elseif index == 2 then
+            role = 'enumMember'
+        end
+        if role then
+            tokens[#tokens+1] = { start = base + first - 1, finish = base + last, role = role }
+        end
+        from = last + 1
+    end
+    return tokens
+end)
+-- the first word: two choices; the second: one (given the first); then nothing
+docTags.registerTailCompletion('doc.fixture-tail', function (at)
+    if #at.words == 0 then
+        return { { label = 'one-choice', role = 'parameter' }, { label = 'two-choice', role = 'enumMember' } }
+    elseif #at.words == 1 then
+        return { { label = at.words[1] .. '-then', role = 'typeParameter' } }
+    end
+    return {}
+end)
 docTags.registerIntegersOrNameTag('fixture-slots', 'doc.fixture-slots', 2,
     'A tag with up to two integers or one name, registered by the tests.')
 docTags.registerBindRule('doc.fixture-nametype', function (_doc, source, _isParam)

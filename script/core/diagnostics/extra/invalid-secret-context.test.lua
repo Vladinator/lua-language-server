@@ -533,3 +533,107 @@ do
         assert(table.concat(docTags.getTagFlavors(name), ',') == 'luals,wowluals', name .. ': known to luals and wowluals')
     end
 end
+
+-- the editor: the parts of the tags are coloured and the words complete
+do
+    ---@diagnostic disable: await-in-sync
+    local files      = require 'files'
+    local define     = require 'proto.define'
+    local semantic   = require 'core.semantic-tokens'
+    local completion = require 'core.completion'
+    local catch      = require 'catch'
+    local newline    = string.char(10)
+
+    ---@param line string
+    ---@return table<string, string> tokens text -> token type name
+    local function tokensOf(line)
+        files.setText(TESTURI, line .. newline .. 'local function f(unit, other) end' .. newline)
+        local data = semantic(TESTURI, 0, math.huge) --[[@as integer[] ]]
+        ---@type table<integer, string>
+        local names = {}
+        for name, id in pairs(define.TokenTypes) do
+            names[id] = name
+        end
+        ---@type table<string, string>
+        local found = {}
+        local char = 0
+        for i = 1, #data, 5 do
+            if data[i] ~= 0 then
+                break
+            end
+            char = char + data[i + 1]
+            found[line:sub(char + 1, char + data[i + 2])] = names[data[i + 3]]
+        end
+        files.remove(TESTURI)
+        return found
+    end
+
+    local tokens = tokensOf('---@secret-clears SecretWhenAurasRestricted,SecretWhenCooldownsRestricted unit=unit,unitToken == false')
+    assert(tokens['SecretWhenAurasRestricted'] == 'typeParameter', 'a predicate')
+    assert(tokens[','] == 'operator', 'the comma')
+    assert(tokens['unit'] == 'parameter' and tokens['unitToken'] == 'parameter', 'a binding')
+    assert(tokens['='] == 'operator' and tokens['=='] == 'operator', 'the operators')
+    assert(tokens['false'] == 'variable', 'the value')
+    assert(tokensOf('---@secret-clears *')['*'] == 'operator', 'the star')
+    tokens = tokensOf('---@secret-clears First, Second unit')
+    assert(tokens['Second'] == 'typeParameter' and tokens['unit'] == 'parameter', 'a list continued after a comma and a space')
+    assert(tokensOf('---@secret-restriction-guard Combat')['Combat'] == 'enumMember', 'a restriction')
+    assert(tokensOf('---@secret-restriction-guard unit')['unit'] == 'parameter', 'a parameter naming it')
+    assert(tokensOf('---@secret-when SecretWhenInCombat free text')['SecretWhenInCombat'] == 'typeParameter', 'secret-when')
+    assert(tokensOf('---@secret-when SecretWhenInCombat free text')['free'] == nil, 'its description is a comment')
+    assert(tokensOf('---@secret-unless unit player pet')['player'] == 'string', 'a literal')
+    tokens = tokensOf('---@secret-precondition CanCompare ReturnNothing the units')
+    assert(tokens['CanCompare'] == 'typeParameter' and tokens['ReturnNothing'] == 'enumMember', 'a precondition')
+    assert(tokensOf('---@secret-precondition CanCompare NotAMode')['NotAMode'] == nil, 'an unknown failure mode is a comment')
+    assert(tokensOf('---@secret-satisfies CanCompare unit other')['other'] == 'parameter', 'a binding of secret-satisfies')
+
+    ---@param script string a script with one `<??>`
+    ---@return table<string, integer> labels with their kinds
+    local function offered(script)
+        local text, catched = catch(script, '?')
+        files.setText(TESTURI, text)
+        local items = completion.completion(TESTURI, catched['?'][1][2], nil) or {}
+        ---@type table<string, integer>
+        local labels = {}
+        for _, item in ipairs(items) do
+            labels[item.label] = item.kind
+        end
+        files.remove(TESTURI)
+        return labels
+    end
+    local kinds = define.CompletionItemKind
+    local function after(tag)
+        return newline .. 'local function f(unit, other) end' .. newline
+    end
+
+    local labels = offered('---@secret-when <??>' .. after())
+    assert(labels['SecretWhenInCombat'] == kinds.TypeParameter and labels['SecretWhenAurasRestricted'], 'the known predicates')
+    labels = offered('---@secret-when SecretWhenIn<??>' .. after())
+    assert(labels['SecretWhenInCombat'] and not labels['SecretWhenAurasRestricted'], 'a half typed predicate')
+    labels = offered('---@secret-unless <??>' .. after())
+    assert(labels['unit'] == kinds.Variable and labels['other'] == kinds.Variable, 'the parameters of the function')
+    labels = offered('---@secret-unless unit <??>' .. after())
+    assert(not labels['unit'] and not labels['other'], 'the literals are free')
+    labels = offered('---@secret-clears <??>' .. after())
+    assert(labels['*'] and labels['SecretWhenInCombat'], 'the star and the predicates')
+    labels = offered('---@secret-clears Pred <??>' .. after())
+    assert(labels['unit'] == kinds.Variable and labels['other'], 'the parameters for the bindings')
+    labels = offered('---@secret-clears Pred unit <??>' .. after())
+    assert(not labels['unit'] and labels['other'], 'a parameter bound already is not offered again')
+    labels = offered('---@secret-clears * <??>' .. after())
+    assert(not labels['unit'], 'the star takes no bindings')
+    labels = offered('---@secret-clears Pred unit == <??>' .. after())
+    assert(not labels['other'], 'after the operator comes the value')
+    labels = offered('---@secret-restriction-guard <??>' .. after())
+    assert(labels['Combat'] == kinds.EnumMember and labels['Map'] and labels['unit'] == kinds.Variable, 'the restrictions and the parameters')
+    labels = offered('---@secret-restriction-guard Combat <??>' .. after())
+    assert(not labels['Combat'] and not labels['unit'], 'nothing after it')
+    labels = offered('---@secret-precondition Name <??>' .. after())
+    assert(labels['ReturnNothing'] == kinds.EnumMember and labels['Error'] and labels['ReturnWithError'], 'the failure modes')
+    labels = offered('---@secret-precondition <??>' .. after())
+    assert(not labels['ReturnNothing'], 'the name is free')
+    labels = offered('---@secret-satisfies Name <??>' .. after())
+    assert(labels['unit'] == kinds.Variable and labels['other'], 'the parameters for the bindings of secret-satisfies')
+    labels = offered('---@secret-satisfies <??>' .. after())
+    assert(not labels['unit'], 'the name is free')
+end

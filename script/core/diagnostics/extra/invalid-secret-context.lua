@@ -965,6 +965,230 @@ vm.registerGenesisRule('select', function (source, node)
     end
 end, true)
 
+-- Editor support -------------------------------------------------------------------------------------
+
+---@class secretContext.word
+---@field text   string
+---@field start  integer absolute position
+---@field finish integer
+
+---@param doc parser.object
+---@return secretContext.word[]
+local function wordsOf(doc)
+    local text = doc.comment and doc.comment.text or ''
+    local base = doc.comment and doc.comment.start or 0
+    ---@type secretContext.word[]
+    local words = {}
+    local from = 1
+    while true do
+        local first, last = text:find('%S+', from)
+        if not first or not last then
+            break
+        end
+        words[#words+1] = { text = text:sub(first, last), start = base + first - 1, finish = base + last }
+        from = last + 1
+    end
+    return words
+end
+
+---@type table<string, true>
+local FAILURE_MODES = { ReturnNothing = true, ReturnWithError = true, Error = true }
+
+---@param tokens parser.docTags.tailToken[]
+---@param word   secretContext.word
+---@param first  integer offset in the word, 1-based
+---@param last   integer
+---@param role   string
+local function push(tokens, word, first, last, role)
+    tokens[#tokens+1] = { start = word.start + first - 1, finish = word.start + last, role = role }
+end
+
+--- `a,b,c`: every name a token of `role`, the commas operators.
+---@param tokens parser.docTags.tailToken[]
+---@param word   secretContext.word
+---@param offset integer where in the word the list starts, 1-based
+---@param role   string
+local function pushList(tokens, word, offset, role)
+    local from = offset
+    while from <= #word.text do
+        local first, last = word.text:find('[%w_]+', from)
+        local comma = word.text:find(',', from, true)
+        if comma and (not first or comma < first) then
+            push(tokens, word, comma, comma, 'operator')
+            from = comma + 1
+        elseif first and last then
+            push(tokens, word, first, last, role)
+            from = last + 1
+        else
+            break
+        end
+    end
+end
+
+--- `param` or `param=name,name`
+---@param tokens parser.docTags.tailToken[]
+---@param word   secretContext.word
+local function pushBinding(tokens, word)
+    local param = word.text:match '^[%w_]+'
+    if not param then
+        return
+    end
+    push(tokens, word, 1, #param, 'parameter')
+    if word.text:sub(#param + 1, #param + 1) == '=' then
+        push(tokens, word, #param + 1, #param + 1, 'operator')
+        pushList(tokens, word, #param + 2, 'parameter')
+    end
+end
+
+--- `== Value` at the end of a guard: the operator, and the value as one token.
+---@param tokens parser.docTags.tailToken[]
+---@param words  secretContext.word[]
+---@param i      integer the index of the `==`
+local function pushValue(tokens, words, i)
+    local operator = words[i]
+    if not operator or operator.text ~= '==' then
+        return
+    end
+    push(tokens, operator, 1, 2, 'operator')
+    local first, last = words[i + 1], words[#words]
+    if first and last then
+        tokens[#tokens+1] = { start = first.start, finish = last.finish, role = 'variable' }
+    end
+end
+
+---@param doc parser.object
+---@return parser.docTags.tailToken[]
+local function tailTokens(doc)
+    ---@type parser.docTags.tailToken[]
+    local tokens = {}
+    local words = wordsOf(doc)
+    local kind = doc.type
+    local first = words[1]
+    if not first then
+        return tokens
+    end
+    if kind == 'doc.secret-when' then
+        push(tokens, first, 1, #first.text, 'typeParameter')
+    elseif kind == 'doc.secret-unless' then
+        push(tokens, first, 1, #first.text, 'parameter')
+        for i = 2, #words do
+            push(tokens, words[i], 1, #words[i].text, 'string')
+        end
+    elseif kind == 'doc.secret-clears' then
+        local i = 2
+        if first.text == '*' then
+            push(tokens, first, 1, 1, 'operator')
+        else
+            pushList(tokens, first, 1, 'typeParameter')
+            -- (a comma at the end of a word continues the list in the next one)
+            while words[i - 1].text:sub(-1) == ',' and words[i] do
+                pushList(tokens, words[i], 1, 'typeParameter')
+                i = i + 1
+            end
+            while words[i] and words[i].text ~= '==' do
+                pushBinding(tokens, words[i])
+                i = i + 1
+            end
+        end
+        pushValue(tokens, words, i)
+    elseif kind == 'doc.secret-restriction-guard' then
+        push(tokens, first, 1, #first.text, RESTRICTIONS[first.text] and 'enumMember' or 'parameter')
+        pushValue(tokens, words, 2)
+    elseif kind == 'doc.secret-precondition' then
+        push(tokens, first, 1, #first.text, 'typeParameter')
+        local mode = words[2]
+        if mode and FAILURE_MODES[mode.text] then
+            push(tokens, mode, 1, #mode.text, 'enumMember')
+        end
+    elseif kind == 'doc.secret-satisfies' then
+        push(tokens, first, 1, #first.text, 'typeParameter')
+        for i = 2, #words do
+            pushBinding(tokens, words[i])
+        end
+    end
+    return tokens
+end
+
+---@param func parser.object?
+---@param used table<string, true>
+---@param into parser.docTags.tailCandidate[]
+local function addParams(func, used, into)
+    for _, param in ipairs(func and func.args or {}) do
+        local name = param[1]
+        if type(name) == 'string' and name ~= '...' and not used[name] then
+            into[#into+1] = { label = name, role = 'parameter' }
+        end
+    end
+end
+
+---@param kind string a doc type
+---@return fun(at: parser.docTags.tailPosition): parser.docTags.tailCandidate[]
+local function completerOf(kind)
+    return function (at)
+        local index = #at.words + 1
+        ---@type parser.docTags.tailCandidate[]
+        local found = {}
+        for _, word in ipairs(at.words) do
+            if word == '==' then
+                -- (after the operator comes the value of the guard)
+                return found
+            end
+        end
+        local function predicates()
+            for predicate in pairs(PREDICATE_RESTRICTIONS) do
+                found[#found+1] = { label = predicate, role = 'typeParameter' }
+            end
+            table.sort(found, function (a, b) return a.label < b.label end)
+        end
+        ---@type table<string, true>
+        local used = {}
+        for _, word in ipairs(at.words) do
+            used[word:match '^[%w_]+' or word] = true
+        end
+        if kind == 'doc.secret-when' then
+            if index == 1 then
+                predicates()
+            end
+        elseif kind == 'doc.secret-unless' then
+            if index == 1 then
+                addParams(at.func, {}, found)
+            end
+        elseif kind == 'doc.secret-clears' then
+            if index == 1 then
+                predicates()
+                found[#found+1] = { label = '*', role = 'enumMember' }
+            elseif at.words[1] ~= '*' then
+                addParams(at.func, used, found)
+            end
+        elseif kind == 'doc.secret-restriction-guard' then
+            if index == 1 then
+                for restriction in pairs(RESTRICTIONS) do
+                    found[#found+1] = { label = restriction, role = 'enumMember' }
+                end
+                table.sort(found, function (a, b) return a.label < b.label end)
+                addParams(at.func, {}, found)
+            end
+        elseif kind == 'doc.secret-precondition' then
+            if index == 2 then
+                for mode in pairs(FAILURE_MODES) do
+                    found[#found+1] = { label = mode, role = 'enumMember' }
+                end
+                table.sort(found, function (a, b) return a.label < b.label end)
+            end
+        elseif kind == 'doc.secret-satisfies' then
+            if index >= 2 then
+                addParams(at.func, used, found)
+            end
+        end
+        return found
+    end
+end
+
+for name in pairs(TAGS) do
+    docTags.registerTailTokens('doc.' .. name, tailTokens)
+    docTags.registerTailCompletion('doc.' .. name, completerOf('doc.' .. name))
+end
+
 -- The diagnostic --------------------------------------------------------------------------------------
 
 ---@param func parser.object

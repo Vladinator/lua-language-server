@@ -2905,8 +2905,10 @@ local function tryTagArguments(state, position, results)
     local guardFirst = docType and docTags.isGuardTag(docType)
     -- `---@mytag T: Type`: a type parameter of the class of the method, then a type
     local nameTypeFirst = docType and docTags.isNameTypeTag(docType)
+    -- a marker tag whose text a plugin reads itself offers what the plugin says
+    local tailCompleter = docType and docTags.getTailCompletion(docType)
     local kinds = paramFirst or kindFirst
-    if not docType or not (kinds or guardFirst or nameTypeFirst) then
+    if not docType or not (kinds or guardFirst or nameTypeFirst or tailCompleter) then
         return false
     end
     ---@type string[]
@@ -2931,6 +2933,27 @@ local function tryTagArguments(state, position, results)
     end
     if (guardFirst or nameTypeFirst) and index > 1 then
         return false
+    end
+    if tailCompleter then
+        local roleKinds = {
+            parameter     = define.CompletionItemKind.Variable,
+            typeParameter = define.CompletionItemKind.TypeParameter,
+            enumMember    = define.CompletionItemKind.EnumMember,
+        }
+        for _, candidate in ipairs(tailCompleter { words = words, partial = partial, func = func }) do
+            if matchKey(partial, candidate.label) then
+                results[#results+1] = {
+                    label    = candidate.label,
+                    kind     = roleKinds[candidate.role] or define.CompletionItemKind.Text,
+                    textEdit = {
+                        start   = position - #partial,
+                        finish  = position,
+                        newText = candidate.label,
+                    },
+                }
+            end
+        end
+        return true
     end
     local wantParams = (paramFirst and index == 1) or (kindFirst and index >= 2) or guardFirst
     local wantKinds  = (paramFirst and index == 2) or (kindFirst and index == 1)

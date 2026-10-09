@@ -512,6 +512,61 @@ function m.getMarks(node)
     return marksOfNode[node]
 end
 
+--- A token of the text after a tag name that a plugin read itself (a marker tag takes its text as a comment): where it stands (absolute
+--- positions, like a node) and what it is for the editor's colouring.
+---@class parser.docTags.tailToken
+---@field start  integer
+---@field finish integer
+---@field role   string a semantic token type name: `parameter`, `typeParameter`, `enumMember`, `operator`, `variable`, `string`, `number`
+
+---@type table<string, fun(doc: parser.object): parser.docTags.tailToken[]>
+local tailTokenizers = {}
+
+--- Colour the parts of the text of a marker tag (`---@mytag a, b == c`): `tokenizer(doc)` returns the tokens of `doc.comment`, the text
+--- after the tag name, which is where a marker tag keeps what follows it. Read by the semantic tokens.
+---@param docType   string the tag's node type
+---@param tokenizer fun(doc: parser.object): parser.docTags.tailToken[]
+function m.registerTailTokens(docType, tokenizer)
+    tailTokenizers[docType] = tokenizer
+end
+
+---@param doc parser.object
+---@return parser.docTags.tailToken[]?
+function m.getTailTokens(doc)
+    local tokenizer = tailTokenizers[doc.type]
+    if tokenizer and doc.comment then
+        return tokenizer(doc)
+    end
+    return nil
+end
+
+--- What completion offers at a word of the text of a marker tag.
+---@class parser.docTags.tailCandidate
+---@field label string
+---@field role  string `parameter`, `typeParameter` or `enumMember`
+
+--- Where the cursor is in the text of the tag: the words before it, the word being typed, the function the tag is bound to.
+---@class parser.docTags.tailPosition
+---@field words   string[]
+---@field partial string
+---@field func?   parser.object
+
+---@type table<string, fun(at: parser.docTags.tailPosition): parser.docTags.tailCandidate[]>
+local tailCompleters = {}
+
+--- Completion for the words of a marker tag's text: `completer(at)` returns the candidates for the word under the cursor.
+---@param docType   string
+---@param completer fun(at: parser.docTags.tailPosition): parser.docTags.tailCandidate[]
+function m.registerTailCompletion(docType, completer)
+    tailCompleters[docType] = completer
+end
+
+---@param docType string
+---@return (fun(at: parser.docTags.tailPosition): parser.docTags.tailCandidate[])?
+function m.getTailCompletion(docType)
+    return tailCompleters[docType]
+end
+
 -- `---@requires T: Frame` on a method of `---@class Widget<T>` (wowlua-ls): the method may only be called on a receiver whose type
 -- argument for `T` satisfies the constraint (read by the `param-constraint-mismatch` diagnostic)
 m.registerNameTypeTag('requires', 'doc.requires',

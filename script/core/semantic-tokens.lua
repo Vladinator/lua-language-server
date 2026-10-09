@@ -1064,6 +1064,16 @@ return function (uri, start, finish)
             end
             return
         end
+        local tail = options.annotation and docTags.getTailTokens(source)
+        if tail then
+            for _, token in ipairs(tail) do
+                results[#results+1] = {
+                    start  = token.start,
+                    finish = token.finish,
+                    type   = define.TokenTypes[token.role],
+                }
+            end
+        end
         local marks = options.annotation and docTags.getMarks(source)
         if marks then
             for _, op in ipairs(marks) do

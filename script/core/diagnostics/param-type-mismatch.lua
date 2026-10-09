@@ -90,6 +90,28 @@ local function getReceiverGenericMap(uri, source, funcNode)
     return nil
 end
 
+--- The parameter an argument at position `i` goes to: its own, or the `...` of the function when the position is past the declared
+--- ones (`---@param ... number` is a type for every extra argument, as a rest parameter is in TypeScript).
+---@param func parser.object
+---@param i    integer
+---@return parser.object?
+local function paramAt(func, i)
+    local args = func.args
+    if not args then
+        return nil
+    end
+    local param = args[i]
+    if param then
+        return param
+    end
+    local last = args[#args]
+    -- (a `fun(...: number)` type names it in `.name`)
+    if last and (last[1] == '...' or (last.name and last.name[1] == '...')) then
+        return last
+    end
+    return nil
+end
+
 ---@param funcNode vm.node
 ---@param i integer
 ---@param classGenericMap table<string, vm.node>?
@@ -99,7 +121,8 @@ local function getDefNode(funcNode, i, classGenericMap)
     for src in funcNode:eachObject() do
         if src.type == 'function'
         or src.type == 'doc.type.function' then
-            local param = src.args and src.args[i]
+            ---@cast src parser.object
+            local param = paramAt(src, i)
             if param then
                 local paramNode = vm.compileNode(param)
                 -- Check for global type references that match class generic params
@@ -173,7 +196,8 @@ local function getRawDefNode(funcNode, i)
     for f in funcNode:eachObject() do
         if f.type == 'function'
         or f.type == 'doc.type.function' then
-            local param = f.args and f.args[i]
+            ---@cast f parser.object
+            local param = paramAt(f, i)
             if param then
                 defNode:merge(vm.compileNode(param))
             end

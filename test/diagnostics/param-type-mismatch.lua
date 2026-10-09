@@ -810,3 +810,54 @@ local function takes(xs) end
 takes(strs)
 takes(<!nums!>)
 ]]
+
+-- a typed `...` is the type of EVERY extra argument (a rest parameter, as in TypeScript), not of the first one only
+TEST [[
+---@param ... number
+local function sum(...) end
+
+sum()
+sum(1, 2, 3)
+sum(1, <!'x'!>, 3, <!{}!>)
+sum(nil, 1)
+
+---@param label string
+---@param ... number
+local function labeled(label, ...) end
+
+labeled('a', 1, 2)
+labeled('a', 1, <!'bad'!>)
+labeled('a', <!'bad'!>)
+
+---@param ... any
+local function anything(...) end
+anything(1, 'x', {})
+
+---@param ... string|number
+local function either(...) end
+either(1, 'x', <!{}!>)
+
+---@param ... number
+local function forwards(...)
+    sum(...)
+    sum(1, ...)
+end
+
+local numbers = { 1, 2 }
+sum(1, table.unpack(numbers))
+]]
+
+-- the same for a method and for a function type
+TEST [[
+local obj = {}
+---@param ... number
+function obj:add(...) end
+
+obj:add(1, 2)
+obj:add(1, <!'x'!>)
+
+---@type fun(...: number)
+local callback
+callback(1, 2)
+callback(1, <!'x'!>)
+]]

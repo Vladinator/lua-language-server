@@ -36,9 +36,9 @@ local function nameOf(source)
     if t == 'local' or t == 'setlocal' or t == 'setglobal' then
         return source[1]
     elseif t == 'setfield' or t == 'tablefield' then
-        return source.field and source.field[1] --[[@as string?]]
+        return source.field and source.field[1]
     elseif t == 'setmethod' then
-        return source.method and source.method[1] --[[@as string?]]
+        return source.method and source.method[1]
     end
     return nil
 end
@@ -106,7 +106,7 @@ function vm.createTaggedIndex(key, isTagged)
     ---@param uri uri
     ---@return table<string, true>
     local function getNames(uri)
-        local cache = vm.getCache(scopeKey) --[[@as table<string, table<string, true>>]]
+        local cache = vm.getCache(scopeKey)
         local name  = scope.getScope(uri):getName()
         local names = cache[name]
         if names then

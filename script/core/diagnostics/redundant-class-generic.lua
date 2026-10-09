@@ -66,7 +66,7 @@ return function (uri, callback)
         end
         for _, doc in ipairs(generics) do
             for _, object in ipairs(doc.generics) do
-                local name = object.generic and object.generic[1] --[[@as string?]]
+                local name = object.generic and object.generic[1]
                 if name and declared[name] then
                     callback {
                         start   = object.generic.start,

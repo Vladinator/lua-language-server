@@ -656,7 +656,6 @@ local function applyCasts(state, casts)
     for _, doc in ipairs(casts or {}) do
         local decl = vm.getCastTargetHead(doc)
         if decl and not doc.name[1]:find('.', 1, true) then
-            ---@cast decl parser.object|vm.global
             local node = state[decl]
             if node and node ~= IMPOSSIBLE then
                 state[decl] = castNode(node, doc)
@@ -1186,7 +1185,7 @@ end
 ---@return table<string, parser.object> fields field name -> its own `doc.field` declaration
 local function getClassCorrelatedInfo(class, suri)
     ---@type table<string, table<string, vm.flow.correlatedClassInfo>>
-    local cache = vm.getCache('flow.correlatedFields') --[[@as any]]
+    local cache = vm.getCache('flow.correlatedFields')
     local scopeName = scope.getScope(suri):getName()
     local scopeCache = cache[scopeName]
     if not scopeCache then
@@ -1910,7 +1909,7 @@ local function evalCondition(state, expr)
                 no  = narrowRef(state, arg, function (node) return node:copy():remove(name) end)
             elseif refKey(left) and right.type == 'boolean' and right[1] ~= nil then
                 -- if ok == true then / if ok == false then
-                local value = right[1] --[[@as boolean]]
+                local value = right[1]
                 yes = narrowRef(state, left, function (node) return narrowBooleanLiteral(node, value, true) end)
                 no  = narrowRef(state, left, function (node) return narrowBooleanLiteral(node, value, false) end)
             elseif refKey(left) then
@@ -2216,7 +2215,6 @@ function vm.prebuildFlow(source)
     or source.type:sub(1, 4) == 'doc.' then
         return
     end
-    ---@cast source parser.object
     local root = guide.getRoot(source)
     local func = guide.getParentFunction(source) or root
     if not func then

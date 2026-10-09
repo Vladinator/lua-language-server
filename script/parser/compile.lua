@@ -782,7 +782,7 @@ local function parseLocalAttrs(kind)
         if word then
             attr[1] = word
             -- peekWord() returns wstart/wfinish non-nil exactly when word is non-nil
-            attr.finish = wfinish --[[@as parser.position]]
+            attr.finish = wfinish
             Index = Index + 2
             if  word ~= 'const'
             and word ~= 'close' then

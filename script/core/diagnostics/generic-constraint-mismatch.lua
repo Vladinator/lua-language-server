@@ -118,7 +118,7 @@ end
 local function namesUndefinedType(typeDoc)
     local found = false
     guide.eachSourceType(typeDoc, 'doc.type.name', function (src)
-        local typeGlobal = vm.getGlobal('type', src[1] --[[@as string]])
+        local typeGlobal = vm.getGlobal('type', src[1])
         if not typeGlobal or #typeGlobal:getSets(guide.getUri(src)) == 0 then
             found = true
         end
@@ -138,7 +138,7 @@ local function checkTypeArguments(uri, state, callback)
         if not usage.node or not usage.signs then
             return
         end
-        local typeGlobal = vm.getGlobal('type', usage.node[1] --[[@as string]])
+        local typeGlobal = vm.getGlobal('type', usage.node[1])
         if not typeGlobal then
             return
         end

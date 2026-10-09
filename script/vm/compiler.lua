@@ -1064,7 +1064,6 @@ local function symbolicIndexOf(source, key)
     for tableObj in tableNode:eachObject() do
         if tableObj.type == 'doc.generic.name' and vm.isGenericUnsolved(tableObj) then
             for keyObj in key:eachObject() do
-                ---@cast keyObj parser.object
                 local operand = keyObj.type == 'doc.type.keyof' and keyObj.node
                 if operand and operand.type == 'doc.generic.name' and operand.generic == tableObj.generic then
                     ---@type parser.object
@@ -1200,7 +1199,6 @@ local function resolveUtilityType(uri, source)
             if field.type == 'generic' then
                 return
             end
-            ---@cast field parser.object
             local key = guide.getKeyName(field)
             if not key or seen[key] then
                 return
@@ -2408,7 +2406,6 @@ local function bindReturnOfFunction(source, mfunc, index, args)
                     if nd.type == 'global' or nd.type == 'variable' then
                         result:merge(nd)
                     else
-                        ---@cast nd -vm.global, -vm.variable
                         local clonedObject = vm.cloneObject(nd, resolved)
                         if clonedObject then
                             if clonedObject.type == 'doc.generic.name'
@@ -2443,7 +2440,6 @@ local function bindReturnOfFunction(source, mfunc, index, args)
             -- Also check inside doc.type.sign for unresolved generics
             -- (e.g. list<T> where T is not yet resolved)
             if rnode.type == 'doc.type.sign' and rnode.signs then
-                ---@cast rnode parser.object
                 guide.eachSourceType(rnode, 'doc.generic.name', function (src)
                     if not src._resolved then
                         hasUnresolvedGeneric = true
@@ -3382,7 +3378,6 @@ local compilerSwitch = util.switch()
                             if field.type == 'generic' then
                                 return
                             end
-                            ---@cast field parser.object
                             any = true
                             vm.setNode(source, vm.compileNode(field))
                         end)
@@ -3433,7 +3428,6 @@ local compilerSwitch = util.switch()
                         if field.type == 'generic' then
                             return
                         end
-                        ---@cast field parser.object
                         local key = guide.getKeyName(field)
                         if not key then
                             return

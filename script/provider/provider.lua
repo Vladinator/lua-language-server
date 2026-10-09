@@ -1594,7 +1594,7 @@ m.register 'textDocument/inlayHint' {
         if not state then
             return nil
         end
-        local start, finish = converter.unpackRange(state, params.range --[[@as range]])
+        local start, finish = converter.unpackRange(state, params.range)
         local results = core(uri, start, finish)
         ---@type table[]
         local hintResults = {}
@@ -1608,7 +1608,7 @@ m.register 'textDocument/inlayHint' {
                         value    = res.text,
                         tooltip  = res.tooltip,
                         location = lstate and res.source and converter.location(
-                            luri --[[@as uri]],
+                            luri,
                             converter.packRange(
                                 lstate,
                                 res.source.start,

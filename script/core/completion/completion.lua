@@ -2916,7 +2916,7 @@ local function tryTagArguments(state, position, results)
     end
     local partial = ''
     if not rest:find('%s$') then
-        partial = table.remove(words) --[[@as string]]
+        partial = table.remove(words)
     end
     local index = #words + 1
     -- the function the tag is bound to
@@ -2972,10 +2972,9 @@ local function tryTagArguments(state, position, results)
         local holder = func.parent and (func.parent.type == 'setmethod' or func.parent.type == 'setfield') and func.parent.node
         for obj in vm.compileNode(holder or func):eachObject() do
             if obj.type == 'global' and obj.cate == 'type' then
-                ---@cast obj vm.global
                 for _, set in ipairs(obj:getSets(guide.getUri(func))) do
                     for _, sign in ipairs(set.type == 'doc.class' and set.signs or {}) do
-                        offer(sign[1] --[[@as string]], define.CompletionItemKind.TypeParameter)
+                        offer(sign[1], define.CompletionItemKind.TypeParameter)
                     end
                 end
             end

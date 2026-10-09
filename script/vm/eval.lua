@@ -88,7 +88,7 @@ end
 ---@param source parser.object | vm.generic | vm.global | vm.variable
 ---@return vm.node?
 function vm.compileOutsideScratch(source)
-    if not sharedCache or (source.start and isInside(source --[[@as parser.object]])) then
+    if not sharedCache or (source.start and isInside(source)) then
         return nil
     end
     local scratch = vm.nodeCache

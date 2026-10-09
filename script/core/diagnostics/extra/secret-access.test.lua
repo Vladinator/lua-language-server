@@ -1427,7 +1427,7 @@ do
     -- hover
     local text, catched = catch('---@<?secret?>\nlocal x = 1\n', '?')
     files.setText(TESTURI, text)
-    local shown = assert(hover.byUri(TESTURI, catched['?'][1][1] --[[@as integer]], 1))
+    local shown = assert(hover.byUri(TESTURI, catched['?'][1][1], 1))
     assert(shown:string():find('`@secret`', 1, true), shown:string())
     assert(shown:string():find('secret', 1, true))
     files.remove(TESTURI)
@@ -1443,7 +1443,7 @@ do
     } do
         local probeText, probeCatched = catch(probe[1], '?')
         files.setText(TESTURI, probeText)
-        local probeShown = hover.byUri(TESTURI, probeCatched['?'][1][1] --[[@as integer]], 1)
+        local probeShown = hover.byUri(TESTURI, probeCatched['?'][1][1], 1)
         assert(probeShown and probeShown:string():find('`@' .. probe[2] .. '`', 1, true), 'hover in ' .. probe[1])
         files.remove(TESTURI)
     end

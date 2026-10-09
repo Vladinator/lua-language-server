@@ -197,7 +197,7 @@ local GUARD_KIND = {
 ---@return 'doc.secret-check'|'doc.secret-access-check'?
 local function checkKindOf(doc)
     if doc.type == 'doc.secret-check' or doc.type == 'doc.secret-access-check' then
-        return doc.type --[[@as 'doc.secret-check'|'doc.secret-access-check']]
+        return doc.type
     end
     if doc.type == 'doc.secret-guard' and doc.kind then
         return GUARD_KIND[doc.kind]
@@ -273,14 +273,12 @@ local function returnsNoSecret(callee, slot)
     for obj in node:eachObject() do
         if obj.type == 'doc.type.function' then
             -- (an `---@overload fun(...): nosecret T` signature, or a `fun(): nosecret T` type)
-            ---@cast obj parser.object
             local ret = obj.returns and obj.returns[slot]
             if not (ret and ret.nosecret) then
                 return false
             end
             found = true
         elseif obj.type == 'function' then
-            ---@cast obj parser.object
             local declared = false
             for _, doc in ipairs(obj.bindDocs or {}) do
                 if doc.type == 'doc.return' then

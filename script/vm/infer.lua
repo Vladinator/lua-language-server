@@ -546,7 +546,6 @@ function mt:viewIfUnknownOrNil(uri)
         return nil
     end
     if only == 'unknown' or only == 'nil' then
-        ---@cast only 'unknown'|'nil'
         return only
     end
     return nil

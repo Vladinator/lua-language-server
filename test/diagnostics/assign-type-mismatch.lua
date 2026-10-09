@@ -597,3 +597,41 @@ local function f(tbl, key)
     local t = { [key] = true }
 end
 ]]
+
+-- an array assigned from another array: the element types have to fit (TypeScript: `string[]` does not take a `number[]`)
+TEST [[
+---@class ArrAnimal
+---@class ArrDog: ArrAnimal
+
+---@type number[]
+local nums = {}
+---@type string[]
+local strs = {}
+---@type ArrDog[]
+local dogs = {}
+---@type ArrAnimal[]
+local animals = {}
+---@type integer[]
+local ints = {}
+---@type any[]
+local anys = {}
+
+---@type string[]
+local <!a1!> = nums
+---@type string[]
+local a2 = strs
+---@type (string|number)[]
+local a3 = nums
+---@type ArrAnimal[]
+local a4 = dogs
+---@type ArrDog[]
+local <!a5!> = animals
+---@type number[]
+local a6 = ints
+---@type string[]
+local a7 = anys
+---@type any[]
+local a8 = strs
+---@type string[]?
+local <!a9!> = nums
+]]

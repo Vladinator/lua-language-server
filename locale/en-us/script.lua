@@ -586,6 +586,8 @@ TYPE_ERROR_TABLE_NO_FIELD =
 'Field `{key}` does not exist in the table'
 TYPE_ERROR_TABLE_FIELD_DISMATCH =
 'The type of field `{key}` is `{child}`, which cannot match `{parent}`'
+TYPE_ERROR_ARRAY_ELEMENT_DISMATCH =
+'The element type `{child}` of the array cannot match `{parent}`'
 TYPE_ERROR_CHILD_ALL_DISMATCH =
 'All subtypes in `{child}` cannot match `{parent}`'
 TYPE_ERROR_PARENT_ALL_DISMATCH =

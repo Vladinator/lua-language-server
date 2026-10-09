@@ -796,3 +796,17 @@ call(constrained, {})
 local function rest(label, ...) end
 call(rest, 'a', 1, 'not a number')
 ]]
+
+-- an array argument: the element type has to fit the parameter's
+TEST [[
+---@type number[]
+local nums = {}
+---@type string[]
+local strs = {}
+
+---@param xs string[]
+local function takes(xs) end
+
+takes(strs)
+takes(<!nums!>)
+]]

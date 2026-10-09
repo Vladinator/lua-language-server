@@ -189,3 +189,19 @@ local function f()
     return <!true!>, 1
 end
 ]]
+
+-- a returned array: the element type has to fit
+TEST [[
+---@type number[]
+local nums = {}
+
+---@return string[]
+local function wrong()
+    return <!nums!>
+end
+
+---@return number[]
+local function right()
+    return nums
+end
+]]

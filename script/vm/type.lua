@@ -272,6 +272,24 @@ local function checkValue(parent, child, mark, errs)
         return true
     end
 
+    -- `string[]` from a `number[]` (not from a literal, which is checked by its fields): the element types have to fit, as in TypeScript
+    if parent.type == 'doc.type.array' and child.type == 'doc.type.array' then
+        if child == parent then
+            return true
+        end
+        local uri = guide.getUri(parent)
+        local childElement  = vm.compileNode(child.node)
+        local parentElement = vm.compileNode(parent.node)
+        if vm.isSubType(uri, childElement, parentElement, mark, errs) == false then
+            if errs then
+                errs[#errs+1] = 'TYPE_ERROR_ARRAY_ELEMENT_DISMATCH'
+                errs[#errs+1] = childElement
+                errs[#errs+1] = parentElement
+            end
+            return false
+        end
+    end
+
     return true
 end
 
@@ -922,6 +940,7 @@ local ErrorMessageMap = {
     TYPE_ERROR_BOOLEAN_DISMATCH           = {'child', 'parent'},
     TYPE_ERROR_TABLE_NO_FIELD             = {'key'},
     TYPE_ERROR_TABLE_FIELD_DISMATCH       = {'key', 'child', 'parent'},
+    TYPE_ERROR_ARRAY_ELEMENT_DISMATCH     = {'child', 'parent'},
     TYPE_ERROR_CHILD_ALL_DISMATCH         = {'child', 'parent'},
     TYPE_ERROR_PARENT_ALL_DISMATCH        = {'child', 'parent'},
     TYPE_ERROR_UNION_DISMATCH             = {'child', 'parent'},

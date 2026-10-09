@@ -1780,6 +1780,30 @@ local function isAliasableCond(expr)
     return false
 end
 
+--- The presence narrowers (vm.getFieldPresenceNarrowers) of the base of a field read, from what the flow knows of it.
+---@param state vm.flow.state
+---@param expr  parser.object a `getfield`
+---@return (fun(node: vm.node): vm.node)? whenPresent
+---@return (fun(node: vm.node): vm.node)? whenAbsent
+local function fieldPresence(state, expr)
+    local baseKey = refKey(expr.node)
+    if not baseKey or not expr.field then
+        return nil, nil
+    end
+    local tracked = state and state[baseKey]
+    ---@type vm.node?
+    local base
+    if tracked and tracked ~= IMPOSSIBLE then
+        base = tracked
+    else
+        base = staticNodeOf(expr.node)
+    end
+    if not base then
+        return nil, nil
+    end
+    return vm.getFieldPresenceNarrowers(guide.getUri(expr), base, expr.field[1])
+end
+
 ---@param state vm.flow.state
 ---@param expr  parser.object?
 ---@return vm.flow.state trueState
@@ -1805,6 +1829,14 @@ local function evalCondition(state, expr)
     if refKey(expr) then
         local selfYes = narrowRef(state, expr, function (node) return node:copy():setTruthy() end)
         local selfNo  = narrowRef(state, expr, function (node) return node:copy():setFalsy() end)
+        if t == 'getfield' and expr.field then
+            -- `if x.field then` on a union whose members declare that field differently: the members are told apart
+            local whenPresent, whenAbsent = fieldPresence(state, expr)
+            if whenPresent and whenAbsent then
+                selfYes = selfYes and narrowRef(selfYes, expr.node, whenPresent)
+                selfNo  = selfNo and narrowRef(selfNo, expr.node, whenAbsent)
+            end
+        end
         -- A boolean local holding a narrowing condition's own result (`local isStr =
         -- type(x)=='string'; if isStr then`): `isStr` is true exactly when that expression was, so
         -- whatever it would have narrowed applies here too, on top of `isStr`'s own truthy/falsy
@@ -1892,6 +1924,18 @@ local function evalCondition(state, expr)
                         out:removeNode(checkerNode)
                         return out
                     end)
+                end
+            end
+            if left.type == 'getfield' and left.field and right.type == 'nil' then
+                -- `x.field == nil` / `~= nil` on a union whose members declare that field differently
+                local whenPresent, whenAbsent = fieldPresence(state, left)
+                if whenPresent and whenAbsent then
+                    if yes then
+                        yes = narrowRef(yes, left.node, whenAbsent)
+                    end
+                    if no then
+                        no = narrowRef(no, left.node, whenPresent)
+                    end
                 end
             end
             if left.type == 'getfield' and left.field and refKey(left.node)

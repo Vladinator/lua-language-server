@@ -602,6 +602,151 @@ function vm.getLiteralFieldNarrowers(uri, topNode, fieldName, checker)
     return keepMatching, dropMatching
 end
 
+--- The `---@field` a class declares, or inherits from a parent class.
+---@param uri       uri
+---@param className string
+---@param fieldName string
+---@param seen      table<string, true>
+---@return parser.object? field
+---@return boolean known whether the class has a declaration at all (a class with none says nothing about its fields)
+local function findClassField(uri, className, fieldName, seen)
+    seen[className] = true
+    local global = vm.getGlobal('type', className)
+    if not global then
+        return nil, false
+    end
+    local known = false
+    ---@type string[]
+    local parents = {}
+    for _, set in ipairs(global:getSets(uri)) do
+        if set.type == 'doc.class' then
+            known = true
+            for _, f in ipairs(set.fields) do
+                if f.field and f.field[1] == fieldName then
+                    return f, true
+                end
+            end
+            for _, extend in ipairs(set.extends or {}) do
+                if extend.type == 'doc.extends.name' and type(extend[1]) == 'string' then
+                    parents[#parents+1] = extend[1]
+                end
+            end
+        end
+    end
+    for _, parent in ipairs(parents) do
+        if not seen[parent] then
+            local f, parentKnown = findClassField(uri, parent, fieldName, seen)
+            if f then
+                return f, true
+            end
+            known = known or parentKnown
+        end
+    end
+    return nil, known
+end
+
+--- Could a value of the declared type of this field be false or nil?
+---@param field parser.object
+---@return boolean
+local function fieldMayBeFalsy(field)
+    for _, t in ipairs(field.extends and field.extends.types or {}) do
+        local name = t[1]
+        if t.type == 'doc.type.boolean' and t[1] == false then
+            return true
+        end
+        if t.type == 'doc.type.name' and (name == 'boolean' or name == 'any' or name == 'unknown' or name == 'nil') then
+            return true
+        end
+    end
+    return false
+end
+
+--- How a member of a union treats a field: 'required' (declared, not optional), 'falsy' (declared, not optional, but its type
+--- can be false), 'optional' (declared with `?`), 'absent' (the class declares nothing of that name), nil (not a class: no
+--- statement).
+---@param uri       uri
+---@param obj       vm.node.object
+---@param fieldName string
+---@return 'required'|'falsy'|'optional'|'absent'|nil
+local function fieldPresenceOf(uri, obj, fieldName)
+    ---@param f parser.object
+    ---@return 'required'|'falsy'|'optional'
+    local function verdict(f)
+        if f.optional then
+            return 'optional'
+        end
+        return fieldMayBeFalsy(f) and 'falsy' or 'required'
+    end
+    if obj.type == 'doc.type.table' then
+        ---@cast obj parser.object
+        for _, f in ipairs(obj.fields or {}) do
+            local key = f.name
+            if key and key.type ~= 'doc.type' and key[1] == fieldName and f.extends then
+                return verdict(f)
+            end
+        end
+        return 'absent'
+    elseif obj.type == 'global' and obj.cate == 'type' then
+        ---@cast obj vm.global
+        local f, known = findClassField(uri, obj.name, fieldName, {})
+        if f then
+            return verdict(f)
+        end
+        return known and 'absent' or nil
+    end
+    return nil
+end
+
+--- The two narrowings of `if x.field then` for the node `topNode` of `x` (wowlua-ls's field presence narrowing, for unions of classes
+--- that declare mutually exclusive fields): where the field is truthy only the members that declare it (not optional) are left, where it
+--- is not the members that do not declare it or declare it optional. nil when the field does not tell the members apart.
+---@param uri       uri
+---@param topNode   vm.node
+---@param fieldName string
+---@return (fun(node: vm.node): vm.node)? whenPresent
+---@return (fun(node: vm.node): vm.node)? whenAbsent
+function vm.getFieldPresenceNarrowers(uri, topNode, fieldName)
+    ---@type table<vm.node.object, 'required'|'falsy'|'optional'|'absent'|false>
+    local verdicts = {}
+    local anyRequired, anyOther = false, false
+    for obj in topNode:eachObject() do
+        local verdict = fieldPresenceOf(uri, obj, fieldName) or false
+        verdicts[obj] = verdict
+        if verdict == 'required' or verdict == 'falsy' then
+            anyRequired = true
+        elseif verdict == 'optional' or verdict == 'absent' then
+            anyOther = true
+        end
+    end
+    if not anyRequired or not anyOther then
+        return nil, nil
+    end
+    ---@param node vm.node
+    ---@return vm.node
+    local function whenPresent(node)
+        local result = node:copy()
+        for i = 1, #node do
+            local verdict = verdicts[node[i]]
+            if verdict == 'optional' or verdict == 'absent' then
+                removeType(result, node[i])
+            end
+        end
+        return result
+    end
+    ---@param node vm.node
+    ---@return vm.node
+    local function whenAbsent(node)
+        local result = node:copy()
+        for i = 1, #node do
+            if verdicts[node[i]] == 'required' then
+                removeType(result, node[i])
+            end
+        end
+        return result
+    end
+    return whenPresent, whenAbsent
+end
+
 vm.registerEqualityNarrowing {
     -- if x.kind == 'literal' then (narrow a union by a field that every member declares with a literal
     -- type: classes, and table types written inline)

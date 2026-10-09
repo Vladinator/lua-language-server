@@ -327,6 +327,150 @@ flowAssertString(x)
 print(x)
 ]], { 'string|number', 'string' })
 
+-- field presence (wowlua-ls): `if x.field then` on a union of classes tells the members apart: the members that declare the field (not
+-- optional) are left where it is truthy, the others where it is not
+checkNarrowing([[
+---@class Presence.WithTitle
+---@field title string
+---@class Presence.WithIcon
+---@field titleIcon string
+---@type Presence.WithTitle|Presence.WithIcon
+local x
+if x.title then
+    print(x)
+else
+    print(x)
+end
+]], { 'Presence.WithIcon|Presence.WithTitle', 'Presence.WithTitle', 'Presence.WithIcon' })
+
+-- the same through an early exit, an assertion and a comparison with nil
+checkNarrowing([[
+---@class Presence.WithTitle
+---@field title string
+---@class Presence.WithIcon
+---@field titleIcon string
+---@type Presence.WithTitle|Presence.WithIcon
+local x
+if not x.title then return end
+print(x)
+]], { 'Presence.WithIcon|Presence.WithTitle', 'Presence.WithTitle' })
+
+checkNarrowing([[
+---@class Presence.WithTitle
+---@field title string
+---@class Presence.WithIcon
+---@field titleIcon string
+---@type Presence.WithTitle|Presence.WithIcon
+local x
+assert(x.title)
+print(x)
+]], { 'Presence.WithIcon|Presence.WithTitle', 'Presence.WithTitle' })
+
+checkNarrowing([[
+---@class Presence.WithTitle
+---@field title string
+---@class Presence.WithIcon
+---@field titleIcon string
+---@type Presence.WithTitle|Presence.WithIcon
+local x
+if x.title ~= nil then
+    print(x)
+else
+    print(x)
+end
+if x.title == nil then
+    print(x)
+end
+]], { 'Presence.WithIcon|Presence.WithTitle', 'Presence.WithTitle', 'Presence.WithIcon', 'Presence.WithIcon|Presence.WithTitle', 'Presence.WithIcon' })
+
+-- a field declared with `?` does not make the member one that has it; a field inherited from a parent does
+checkNarrowing([[
+---@class Presence.Optional
+---@field title? string
+---@class Presence.Required
+---@field title string
+---@type Presence.Optional|Presence.Required
+local x
+if x.title then
+    print(x)
+else
+    print(x)
+end
+]], { 'Presence.Optional|Presence.Required', 'Presence.Required', 'Presence.Optional' })
+
+checkNarrowing([[
+---@class Presence.Parent
+---@field title string
+---@class Presence.Child: Presence.Parent
+---@class Presence.Other
+---@field other string
+---@type Presence.Child|Presence.Other
+local x
+if x.title then
+    print(x)
+else
+    print(x)
+end
+]], { 'Presence.Child|Presence.Other', 'Presence.Child', 'Presence.Other' })
+
+-- the union the flow knows at that point, not the declared one
+checkNarrowing([[
+---@class Presence.First
+---@field first string
+---@class Presence.Second
+---@field second string
+---@class Presence.Third
+---@field third string
+---@type Presence.First|Presence.Second|Presence.Third
+local x
+if x.first then return end
+if x.second then
+    print(x)
+else
+    print(x)
+end
+]], { 'Presence.First|Presence.Second|Presence.Third', 'Presence.Second|Presence.Third', 'Presence.Second', 'Presence.Third' })
+
+-- nothing to tell apart: every member declares it, or none does, or a member is not a class
+checkNarrowing([[
+---@class Presence.A
+---@field title string
+---@class Presence.B
+---@field title string
+---@type Presence.A|Presence.B
+local x
+if x.title then
+    print(x)
+else
+    print(x)
+end
+]], { 'Presence.A|Presence.B', 'Presence.A|Presence.B', 'Presence.A|Presence.B' })
+
+checkNarrowing([[
+---@class Presence.C
+---@class Presence.D
+---@type Presence.C|Presence.D
+local x
+if x.title then
+    print(x)
+end
+]], { 'Presence.C|Presence.D', 'Presence.C|Presence.D' })
+
+-- a required field whose type can be false is not proof of absence in the else branch
+checkNarrowing([[
+---@class Presence.Flag
+---@field on boolean
+---@class Presence.NoFlag
+---@field other string
+---@type Presence.Flag|Presence.NoFlag
+local x
+if x.on then
+    print(x)
+else
+    print(x)
+end
+]], { 'Presence.Flag|Presence.NoFlag', 'Presence.Flag', 'Presence.Flag|Presence.NoFlag' })
+
 -- a call compared with a string literal (vm.registerFlowEqualityCallNarrowing): `flowKindOf(x) == 'text'` says `x` is a string where
 -- the two are equal and a number where they differ (the rule decides; the flow handles `==` / `~=`, either order, `assert` and early exits)
 vm.registerFlowEqualityCallNarrowing {

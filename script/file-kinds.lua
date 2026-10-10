@@ -175,6 +175,7 @@ function m.open(uri, text, version)
         return
     end
     documents[uri] = { text = text, version = version, kind = kind }
+    log.info(('file kind `%s`: opened %s'):format(kind.id, uri))
     m.publish(uri)
 end
 

@@ -609,6 +609,7 @@ m.setTagFlavors('requires', { 'luals', 'wowluals' })
 m.registerAttribute('doc.class', 'exact', 'Fields that are assigned to this class but not declared are reported (`inject-field`).')
 m.registerAttribute('doc.class', 'partial', 'The class may be declared again elsewhere; the declarations are merged and complete each other (`missing-fields`).')
 m.registerAttribute('doc.alias', 'partial', 'The alias may be declared more than once; the declarations are merged (`duplicate-doc-alias`).')
+m.registerAttribute('doc.alias', 'opaque', 'A nominal alias (wowlua-ls): a value of another opaque alias is not accepted where this one is expected, even with the same inner type; plain values and literals are, and the alias flows out to its inner type.')
 m.registerAttribute('doc.enum', 'key', 'The enum stands for the keys of the table, not its values.')
 
 return m

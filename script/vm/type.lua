@@ -438,6 +438,29 @@ local function getTypeCheckConfig(uri, mark)
     return cfg
 end
 
+--- The opaque aliases (`---@alias (opaque) PlayerID number`) a node stands for, nil when it has none. The alias global travels in the node next
+--- to the aliased types, which is what makes the alias nominal: two opaque aliases of the same inner type are different types.
+---@param uri  uri
+---@param node vm.node
+---@return table<vm.global, true>?
+local function opaqueAliasesOf(uri, node)
+    ---@type table<vm.global, true>?
+    local found
+    for obj in node:eachObject() do
+        if obj.type == 'global' and obj.cate == 'type' then
+            ---@cast obj vm.global
+            for _, set in ipairs(obj:getSets(uri)) do
+                if set.type == 'doc.alias' and vm.docHasAttr(set, 'opaque') then
+                    found = found or {}
+                    found[obj] = true
+                    break
+                end
+            end
+        end
+    end
+    return found
+end
+
 ---@param uri uri
 ---@param child  vm.node|string|vm.node.object
 ---@param parent vm.node|string|vm.node.object
@@ -454,6 +477,25 @@ function vm.isSubType(uri, child, parent, mark, errs)
         end
         child = globalVar
     elseif child.type == 'vm.node' then
+        -- opaque aliases are nominal: a value of one is not accepted where another is expected (plain values and literals are, and the
+        -- alias flows out to its inner type)
+        if parent.type == 'vm.node' then
+            ---@cast parent vm.node
+            local parentOpaque = opaqueAliasesOf(uri, parent)
+            local childOpaque = parentOpaque and opaqueAliasesOf(uri, child --[[@as vm.node]])
+            if parentOpaque and childOpaque then
+                local shared = false
+                for alias in pairs(childOpaque) do
+                    if parentOpaque[alias] then
+                        shared = true
+                        break
+                    end
+                end
+                if not shared then
+                    return false
+                end
+            end
+        end
         local typeCfg = getTypeCheckConfig(uri, mark)
         if typeCfg.weakUnionCheck then
             local hasKnownType = 0

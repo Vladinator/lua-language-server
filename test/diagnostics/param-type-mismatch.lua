@@ -861,3 +861,60 @@ local callback
 callback(1, 2)
 callback(1, <!'x'!>)
 ]]
+
+-- opaque aliases are nominal (wowlua-ls): another opaque alias of the same inner type is not accepted; plain values and literals are, and
+-- the alias flows out to its inner type
+TEST [[
+---@alias (opaque) PlayerID number
+---@alias (opaque) ItemID number
+
+---@param id PlayerID
+local function lookup(id) return id end
+
+---@param n number
+local function takesNumber(n) end
+
+---@return ItemID
+local function getItemID() return 1 end
+
+---@type ItemID
+local item
+---@type PlayerID
+local player
+---@type number
+local plain
+
+lookup(42)
+lookup(plain)
+lookup(player)
+lookup(<!item!>)
+lookup(<!getItemID()!>)
+takesNumber(player)
+takesNumber(item)
+local sum = player + 1
+lookup(sum)
+local copy = item
+lookup(<!copy!>)
+]]
+
+-- string literal unions as well; a plain alias (not opaque) stays interchangeable
+TEST [[
+---@alias (opaque) Answer "YES"|"NO"
+---@alias (opaque) Toggle "YES"|"NO"
+---@alias Plain1 "YES"|"NO"
+---@alias Plain2 "YES"|"NO"
+
+---@param a Answer
+local function process(a) end
+---@param a Plain1
+local function plainProcess(a) end
+
+---@return Toggle
+local function getToggle() return "YES" end
+---@return Plain2
+local function getPlain() return "YES" end
+
+process("YES")
+process(<!getToggle()!>)
+plainProcess(getPlain())
+]]

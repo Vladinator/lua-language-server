@@ -452,7 +452,8 @@ function mt:_eraseAlias(uri)
                 for _, set in ipairs(sets) do
                     if set.type == 'doc.alias' then
                         local extends = set.extends --[[@as parser.object]]
-                        if expandAlias then
+                        -- an opaque alias is a type of its own: its name is what it is called, whatever `expandAlias` says
+                        if expandAlias and not vm.docHasAttr(set, 'opaque') then
                             self._drop[n.name] = true
                             local newInfer = createInfer()
                             for _, ext in ipairs(extends.types) do

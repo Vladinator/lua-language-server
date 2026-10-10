@@ -6915,3 +6915,17 @@ TEST 'unknown' [[
 local d
 local <?x?> = d.other
 ]]
+
+-- an opaque alias is shown by its name, whatever the hover.expandAlias setting says
+TEST 'PlayerID' [[
+---@alias (opaque) PlayerID number
+---@type PlayerID
+local <?x?>
+]]
+
+-- ... and a plain alias still expands
+TEST 'number' [[
+---@alias Plain number
+---@type Plain
+local <?x?>
+]]

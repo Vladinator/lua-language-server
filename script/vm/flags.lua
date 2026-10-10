@@ -49,6 +49,41 @@ function vm.joinBranchLocalFlags(joined, a, b)
     return joined
 end
 
+--- How a flag shows in a hover: the type is written inside the keyword of the flag (`secret<number>`), the way the type syntax spells it.
+---@type table<string, string>
+local flagViews = {}
+
+---@param flag    string  a registered propagating flag
+---@param keyword string  the type keyword that shows it (`secret`)
+function vm.registerFlagView(flag, keyword)
+    flagViews[flag] = keyword
+end
+
+--- `view` (the text of a type) with the flags of `node` written around it (`secret<number>`, `secret<number>?`).
+---@param node vm.node
+---@param view string
+---@return string
+function vm.viewWithFlags(node, view)
+    ---@type string[]
+    local names = {}
+    for flag in pairs(flagViews) do
+        names[#names+1] = flag
+    end
+    table.sort(names)
+    for _, flag in ipairs(names) do
+        local keyword = flagViews[flag]
+        if node:hasFlag(flag) and view ~= 'unknown' and view ~= 'any' and not view:find('^' .. keyword .. '<') then
+            local optional = view:sub(-1) == '?'
+            local base = optional and view:sub(1, -2) or view
+            if base:sub(1, 1) == '(' and base:sub(-1) == ')' then
+                base = base:sub(2, -2)
+            end
+            view = ('%s<%s>'):format(keyword, base) .. (optional and '?' or '')
+        end
+    end
+    return view
+end
+
 --- A flag a parameter type can absorb when a generic is bound to the argument: `fn(v: secret<T>)` accepts a secret and binds `T` to the
 --- argument's type WITHOUT the secrecy (wowlua-ls: "secret unwrap"). Registering a propagating flag here makes `vm.propagateFlagsBound` leave it
 --- behind whenever the parameter's own type carries the flag.

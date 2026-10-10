@@ -629,6 +629,31 @@ do
     assert(not hoverOf('---@secret-when SecretWhenInCombat the <?description?>' .. tail):find('secrecy predicate', 1, true), 'the description is a comment')
     assert(hoverOf('---@<?secret-clears?> Pred' .. tail):find('`@secret-clears`', 1, true), 'the tag word keeps the tag help')
 
+    -- the hover of the function lists what its tags say
+    local fn = newline .. 'local function <?f?>(unit) end' .. newline
+    ---@param tags string[]
+    ---@return string
+    local function hoverOfFunction(tags)
+        return hoverOf(table.concat(tags, newline) .. fn)
+    end
+    local shown = hoverOfFunction { '---@secret-when AurasRestricted', '---@secret-unless unit player pet' }
+    assert(shown:find('- **Secret when** `AurasRestricted` holds', 1, true), 'secret-when: ' .. shown)
+    assert(shown:find('- **Ordinary results** when `unit` is `player`, `pet`', 1, true), 'secret-unless: ' .. shown)
+    shown = hoverOfFunction { '---@secret-clears AurasRestricted,Other unit' }
+    assert(shown:find('where its result is falsy, `AurasRestricted`, `Other` is cleared', 1, true), 'secret-clears: ' .. shown)
+    shown = hoverOfFunction { '---@secret-clears *' }
+    assert(shown:find('every secret is cleared', 1, true), 'secret-clears *: ' .. shown)
+    shown = hoverOfFunction { '---@secret-clears Pred unit == false' }
+    assert(shown:find('where its result is `false`', 1, true), 'secret-clears ==: ' .. shown)
+    shown = hoverOfFunction { '---@secret-restriction-guard Combat' }
+    assert(shown:find('the restriction `Combat` is not active', 1, true), 'secret-restriction-guard: ' .. shown)
+    shown = hoverOfFunction { '---@secret-precondition Loaded ReturnNothing', '---@secret-satisfies Loaded' }
+    assert(shown:find('**Needs** `Loaded` to hold', 1, true), 'secret-precondition: ' .. shown)
+    assert(shown:find('where its result is truthy, `Loaded` holds', 1, true), 'secret-satisfies: ' .. shown)
+    -- a tag that does not read shows no note
+    shown = hoverOfFunction { '---@secret-when' }
+    assert(not shown:find('Secret when', 1, true), 'a tag that does not read: ' .. shown)
+
     local labels = offered('---@secret-when <??>' .. after())
     assert(labels['SecretWhenInCombat'] == kinds.TypeParameter and labels['SecretWhenAurasRestricted'], 'the known predicates')
     labels = offered('---@secret-when SecretWhenIn<??>' .. after())

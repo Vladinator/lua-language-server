@@ -78,7 +78,7 @@ end
 local function asValue(source, title, level)
     local name    = buildName(source, false) or ''
     local ifr     = vm.getInfer(source)
-    local type    = ifr:view(guide.getUri(source))
+    local type    = ifr:viewFlagged(guide.getUri(source))
     local literal = ifr:viewLiterals()
     local cont, maxLevel = buildTable(source, level)
     ---@type string[]

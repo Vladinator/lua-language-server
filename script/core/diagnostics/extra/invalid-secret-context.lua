@@ -46,6 +46,25 @@ local TAGS = {
     ['secret-precondition'] = 'wowlua-ls: a precondition the call needs: `---@secret-precondition Name [ReturnNothing|ReturnWithError|Error] [description]`.',
     ['secret-satisfies'] = 'wowlua-ls: a guard that proves the precondition holds where its result is truthy: `---@secret-satisfies Name [binding...]`.',
 }
+--- The line a hover of the function shows for each tag (the restriction under which the results are secret, what a guard clears, ...).
+---@type table<string, fun(tag: secretContext.tag): string?>
+local NOTES = {
+    ['secret-when'] = function (tag) return ('**Secret when** `%s` holds. A guard that clears it makes the results ordinary.'):format(tag.predicate) end,
+    ['secret-unless'] = function (tag)
+        return ('**Ordinary results** when `%s` is `%s`.'):format(tag.param, table.concat(tag.literals or {}, '`, `'))
+    end,
+    ['secret-clears'] = function (tag)
+        local what = tag.all and 'every secret' or ('`' .. table.concat(tag.predicates or {}, '`, `') .. '`')
+        return ('**Guard:** where its result is %s, %s is cleared.'):format(tag.value and ('`' .. tag.value .. '`') or 'falsy', what)
+    end,
+    ['secret-restriction-guard'] = function (tag)
+        return ('**Guard:** where its result is %s, the restriction `%s` is not active.'):format(
+            tag.value and ('`' .. tag.value .. '`') or 'falsy', tag.restriction or tag.param or '?')
+    end,
+    ['secret-precondition'] = function (tag) return ('**Needs** `%s` to hold.'):format(tag.name) end,
+    ['secret-satisfies'] = function (tag) return ('**Guard:** where its result is truthy, `%s` holds.'):format(tag.name) end,
+}
+
 for name, description in pairs(TAGS) do
     local docType = 'doc.' .. name
     docTags.registerMarkerTag(name, docType, description)
@@ -879,6 +898,14 @@ vm.registerGenesisRule('call', function (source, node)
         node:removeOptional()
     end
 end, true)
+
+-- the hover of a function shows what its tags say (read with `readTag`, so it shows only a tag that reads)
+for name in pairs(TAGS) do
+    docTags.registerHoverNote('doc.' .. name, function (doc)
+        local tag = readTag(doc)
+        return tag and NOTES[name](tag) or nil
+    end)
+end
 
 --- The predicates a class declares (`---@secret-when` right above its `---@class`), by class name, for the workspace of `uri`.
 ---@param uri uri

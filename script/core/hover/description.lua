@@ -1,5 +1,6 @@
 local vm       = require 'vm'
 local ws       = require 'workspace'
+local docTags = require 'parser.docTags'
 local markdown = require 'provider.markdown'
 local config   = require 'config'
 local lang     = require 'language'
@@ -455,6 +456,12 @@ local function getFunctionCommentMarkdown(source, raw)
             end
         elseif doc.type == 'doc.overload' then
             md:splitLine()
+        else
+            -- a tag a plugin registered, with a line for the hover (`docTags.registerHoverNote`)
+            local note = docTags.getHoverNote(doc)
+            if note then
+                md:add('md', '- ' .. note)
+            end
         end
     end
 

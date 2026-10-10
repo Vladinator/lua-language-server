@@ -24,6 +24,10 @@ docTags.registerBindRule('doc.fixture-tail', function (_doc, source, _isParam)
     return source.type == 'function'
 end)
 -- the first word is coloured as a parameter, the second as an enum member, a `=` anywhere as an operator
+-- a line in the hover of the function the tag is bound to
+docTags.registerHoverNote('doc.fixture-tail', function (doc)
+    return 'fixture hover note: ' .. (doc.comment and doc.comment.text or '')
+end)
 docTags.registerTailTokens('doc.fixture-tail', function (doc)
     local comment = doc.comment
     local text = comment and comment.text or ''

@@ -1464,6 +1464,28 @@ do
     assert(shown:string():find('secret', 1, true))
     files.remove(TESTURI)
 
+    -- a hover writes the secrecy around the type: `secret<number>`, also optional and as an array element; a plain type stays plain
+    for _, probe in ipairs {
+        { '---@type secret<number>\nlocal <?x?>\n', 'local x: secret<number>' },
+        { '---@type secret<number>?\nlocal <?x?>\n', 'local x: secret<number>?' },
+        { '---@type secret<number>[]\nlocal <?x?>\n', 'local x: secret<number>[]' },
+        { '---@type number\nlocal <?x?>\n', 'local x: number' },
+        { '---@return secret<string>\nlocal function <?f?>() end\n', 'secret<string>' },
+    } do
+        local probeText, probeCatched = catch(probe[1], '?')
+        files.setText(TESTURI, probeText)
+        local probeShown = assert(hover.byUri(TESTURI, probeCatched['?'][1][1], 1))
+        assert(probeShown:string():find(probe[2], 1, true), probe[1] .. ' -> ' .. probeShown:string())
+        files.remove(TESTURI)
+    end
+    do
+        local plainText, plainCatched = catch('---@type number\nlocal <?x?>\n', '?')
+        files.setText(TESTURI, plainText)
+        local plainShown = assert(hover.byUri(TESTURI, plainCatched['?'][1][1], 1))
+        assert(not plainShown:string():find('secret', 1, true), 'a plain type does not say secret')
+        files.remove(TESTURI)
+    end
+
     -- hover on `@secret-guard` / `@secret-args`: the tag word and the arguments after it show the tag's help
     for _, probe in ipairs {
         { '---@<?secret-guard?> value is-secret\nlocal function g(value) end\n', 'secret-guard' },

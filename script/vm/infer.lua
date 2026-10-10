@@ -680,6 +680,14 @@ function mt:view(uri, default)
     return view
 end
 
+--- `view`, with the registered flags of the node written around it (`secret<number>`): what a hover shows. Diagnostics keep the plain `view`.
+---@param uri uri
+---@param default? string
+---@return string
+function mt:viewFlagged(uri, default)
+    return vm.viewWithFlags(self.node, self:view(uri, default))
+end
+
 ---@param uri uri
 ---@return fun(views: table<string, boolean>, view?: string): string?, boolean
 ---@return table<string, boolean>

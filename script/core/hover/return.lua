@@ -44,7 +44,7 @@ local function asFunction(source)
         end
         local text = rtn and ('%s%s'):format(
             name or '',
-            vm.getInfer(rtn):view(guide.getUri(source))
+            vm.getInfer(rtn):viewFlagged(guide.getUri(source))
         ) or 'unknown'
         if i == 1 then
             returns[i] = ('  -> %s'):format(text)
@@ -65,7 +65,7 @@ local function asDocFunction(source)
     ---@type string[]
     local returns = {}
     for i, rtn in ipairs(source.returns) do
-        local rtnText = vm.getInfer(rtn):view(guide.getUri(source))
+        local rtnText = vm.getInfer(rtn):viewFlagged(guide.getUri(source))
         if rtn.name then
             if rtn.name[1] == '...' then
                 rtnText = (rtn.name[1]) .. rtnText

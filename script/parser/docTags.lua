@@ -330,6 +330,32 @@ end
 ---@type table<string, parser.docTags.bindRule>
 local bindRules = {}
 
+---@type table<string, fun(doc: parser.object): string?>
+local hoverNotes = {}
+
+--- A plugin tag shows a line in the hover of the function it is bound to (`---@secret-when Combat` -> "Secret when `Combat`").
+--- `note` gets the doc node of the tag and returns markdown, or nil for nothing.
+---@param docType string
+---@param note    fun(doc: parser.object): string?
+function m.registerHoverNote(docType, note)
+    hoverNotes[docType] = note
+end
+
+--- The hover line of a tag node, if its tag registered one.
+---@param doc parser.object
+---@return string?
+function m.getHoverNote(doc)
+    local note = hoverNotes[doc.type]
+    if not note then
+        return nil
+    end
+    local ok, text = pcall(note, doc)
+    if ok and type(text) == 'string' and text ~= '' then
+        return text
+    end
+    return nil
+end
+
 --- Register how a custom doc type decides whether it binds to a given
 --- declaration `source`. Checked as a fallback after the built-in
 --- bindDoc cases; one rule per doc type.

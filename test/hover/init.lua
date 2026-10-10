@@ -2538,6 +2538,23 @@ hoverContains([[
 local a = 1
 ]], 'list of names')
 
+-- a plugin tag shows a line in the hover of its function (docTags.registerHoverNote)
+hoverContains([[
+---@fixture-tail alpha beta
+local function <?f?>() end
+]], '- fixture hover note: alpha beta')
+
+do
+    -- ... and a function without the tag shows nothing of it
+    local newScript, catched = catch([[
+local function <?f?>() end
+]], '?')
+    files.setText(TESTURI, newScript)
+    local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
+    assert(hover and not hover:string():find('fixture hover note', 1, true), 'no note without the tag')
+    files.remove(TESTURI)
+end
+
 -- the tag word of the shapes with arguments (a parameter and a kind, a kind and names, a list of names), whether the line parsed
 -- cleanly or not yet, and the parts after it: all show the tag's help
 hoverContains([[

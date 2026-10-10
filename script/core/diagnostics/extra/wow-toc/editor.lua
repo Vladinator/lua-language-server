@@ -86,6 +86,48 @@ local function directoryOf(uri)
     return furi.decode(uri):match('^(.*)[/\\][^/\\]*$')
 end
 
+-- Completion and hover of the `# @diagnostic` comment ----------------------------------------------------------------
+
+--- The parts of a `# @diagnostic <mode>: toc-x, toc-y` comment line, with their 1-based byte positions.
+---@param text string
+---@return { first: integer, last: integer }? keyword  the `@diagnostic` word
+---@return { name: string, first: integer, last: integer }? mode
+---@return { name: string, first: integer, last: integer }[] codes
+local function diagnosticCommentParts(text)
+    ---@type integer?
+    local hash = text:match('^#%s*()@diagnostic')
+    if not hash then
+        return nil, nil, {}
+    end
+    local keyword = { first = hash, last = hash + #'@diagnostic' - 1 }
+    local modeFirst, modeName = text:match('^#%s*@diagnostic%s+()([%a%-]+)')
+    ---@type { name: string, first: integer, last: integer }?
+    local mode
+    ---@type { name: string, first: integer, last: integer }[]
+    local codes = {}
+    if modeFirst and modeName then
+        mode = { name = modeName, first = modeFirst, last = modeFirst + #modeName - 1 }
+        local colon = text:find(':', mode.last + 1, true)
+        if colon then
+            for first, name in text:gmatch('()([^%s,]+)', colon + 1) --[==[@as fun(): (integer, string)]==] do
+                codes[#codes+1] = { name = name, first = first, last = first + #name - 1 }
+            end
+        end
+    end
+    return keyword, mode, codes
+end
+
+---@param code string
+---@return string?  markdown
+local function describeTocCode(code)
+    for _, info in ipairs(syntax.diagnosticInfos) do
+        if info[1] == code then
+            return ('**%s** (%s by default)\n\n%s'):format(code, info[2]:lower(), (info[3]:gsub('^Enable diagnostics for ', 'Reports ')))
+        end
+    end
+    return nil
+end
+
 -- The addons next to this one ------------------------------------------------------------------------------------
 
 ---@class wowToc.addon
@@ -291,6 +333,35 @@ local function hover(uri, text, position)
     ---@return fileKind.range
     local function range(first, last)
         return rangeOf(line.row, cursor.text, first, last)
+    end
+
+    -- the `# @diagnostic <mode>: toc-x` comment: the keyword, the mode and the codes
+    if line.kind == 'comment' then
+        local keyword, mode, codes = diagnosticCommentParts(cursor.text)
+        if keyword then
+            if at >= keyword.first and at <= keyword.last + 1 then
+                return {
+                    value = '**@diagnostic**: `# @diagnostic <mode>: toc-x, toc-y` switches `toc-*` diagnostics off or on, like the LuaDoc comment does for Lua. '
+                        .. 'A `#` line is a comment for the game, so the file does not change.',
+                    range = range(keyword.first, keyword.last),
+                }
+            end
+            if mode and at >= mode.first and at <= mode.last + 1 then
+                for _, info in ipairs(directives.diagnosticModes) do
+                    if info.name == mode.name:lower() then
+                        return { value = ('**%s**\n\n%s'):format(info.name, info.description), range = range(mode.first, mode.last) }
+                    end
+                end
+                return nil
+            end
+            for _, code in ipairs(codes) do
+                if at >= code.first and at <= code.last + 1 then
+                    local described = describeTocCode(code.name:lower())
+                    return described and { value = described, range = range(code.first, code.last) } or nil
+                end
+            end
+        end
+        return nil
     end
 
     -- inside a bracket (on a header or on a file line)
@@ -643,6 +714,39 @@ end
 local function complete(uri, text, position)
     local cursor = cursorAt(text, position)
     local prefix = cursor.prefix
+
+    -- the `# @diagnostic <mode>: toc-x` comment (the TOC counterpart of the LuaDoc comment)
+    local keywordWord = prefix:match('^#%s*@(%a*)$')
+    if keywordWord then
+        return { item('diagnostic', CompletionItemKind.Keyword, cursor, cursor.col - #keywordWord + 1, {
+            detail = '# @diagnostic <mode>: toc-x, toc-y',
+        }) }
+    end
+    local modeWord = prefix:match('^#%s*@diagnostic%s+([%a%-]*)$')
+    if modeWord then
+        ---@type wowToc.completionItem[]
+        local modes = {}
+        for _, info in ipairs(directives.diagnosticModes) do
+            modes[#modes+1] = item(info.name, CompletionItemKind.Keyword, cursor, cursor.col - #modeWord + 1, { detail = info.description })
+        end
+        return modes
+    end
+    local codeList = prefix:match('^#%s*@diagnostic%s+[%a%-]+%s*:%s*(.*)$')
+    if codeList then
+        local word = codeList:match('[^%s,]*$') or ''
+        local done = wordsOf(codeList:sub(1, #codeList - #word))
+        ---@type wowToc.completionItem[]
+        local codes = {}
+        for _, info in ipairs(syntax.diagnosticInfos) do
+            if not done[info[1]] then
+                codes[#codes+1] = item(info[1], CompletionItemKind.Value, cursor, cursor.col - #word + 1, {
+                    detail = info[2], documentation = (info[3]:gsub('^Enable diagnostics for ', 'Reports ')),
+                })
+            end
+        end
+        table.sort(codes, function (a, b) return a.label < b.label end)
+        return codes
+    end
 
     -- inside a `[` bracket not closed before the cursor
     local open = prefix:match('.*()%[') --[[@as integer?]]

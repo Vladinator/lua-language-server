@@ -50,7 +50,12 @@
 ---@field name string  the old name (case-insensitive)
 ---@field use? string  the name that replaced it (nil: dropped without replacement)
 
+---@class wowToc.diagnosticMode
+---@field name        string
+---@field description string
+
 ---@class wowToc.directives
+---@field diagnosticModes wowToc.diagnosticMode[]
 ---@field retired   wowToc.retiredHeader[]
 ---@field headers   wowToc.directive[]
 ---@field inlines   wowToc.inline[]
@@ -58,6 +63,14 @@
 
 ---@type wowToc.directives
 return {
+    -- the modes of the `# @diagnostic <mode>: toc-x, toc-y` comment (the TOC counterpart of the LuaDoc comment)
+    diagnosticModes = {
+        { name = 'disable-next-line', description = 'Switches the listed diagnostics off for the next line. No codes: every diagnostic.' },
+        { name = 'disable', description = 'Switches the listed diagnostics off from this line to the end of the file, or until `enable`. No codes: every diagnostic.' },
+        { name = 'enable', description = 'Switches the listed diagnostics on again after a `disable`. No codes: every diagnostic.' },
+        { name = 'expect-next-line', description = 'Like `disable-next-line`, but the diagnostic must occur on the next line: when it does not, `toc-unfulfilled-expect` is reported on this comment.' },
+    },
+
     -- directives the game dropped or renamed (wiki patch history): the "upgrade recommended" hint for `## Key:` lines
     retired = {
         { name = 'AllowLoadByGameMode', use = 'AllowLoadGameType' },

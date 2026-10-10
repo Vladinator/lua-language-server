@@ -488,6 +488,7 @@ Array<string>
 * ``"toc-restricted-header"``: Enable diagnostics for a directive that only Blizzard code may use.
 * ``"toc-retired-header"``: Enable diagnostics for a `## Key:` the game dropped or renamed (`AllowLoadByGameMode`, `GuardedAddOn`, `SuppressLocalTableRef`): the line does nothing.
 * ``"toc-retired-suffix"``: Enable diagnostics for a `.toc` file name suffix the game does not read any more (`_BCC`, `_WOTLK`): the file is ignored, rename it.
+* ``"toc-unfulfilled-expect"``: Enable diagnostics for a `# @diagnostic expect-next-line: toc-x` comment whose diagnostic does not occur on the next line.
 * ``"toc-unknown-category"``: Enable diagnostics for a `## Category:` that is not one of the recommended names of the Addon Categories wiki page (a custom category is allowed, the page recommends its names).
 * ``"toc-unknown-header"``: Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
 * ``"toc-unreachable-line"``: Enable diagnostics for a line of a `.toc` whose load conditions and file name suffix leave no game type it can load on.
@@ -741,6 +742,7 @@ object<string, string>
     * toc-restricted-header
     * toc-retired-header
     * toc-retired-suffix
+    * toc-unfulfilled-expect
     * toc-unknown-category
     * toc-unknown-header
     * toc-unreachable-line
@@ -934,6 +936,7 @@ object<string, string>
     * toc-restricted-header
     * toc-retired-header
     * toc-retired-suffix
+    * toc-unfulfilled-expect
     * toc-unknown-category
     * toc-unknown-header
     * toc-unreachable-line
@@ -1439,6 +1442,10 @@ object<string, string>
     Enable diagnostics for a `.toc` file name suffix the game does not read any more (`_BCC`, `_WOTLK`): the file is ignored, rename it.
     */
     "toc-retired-suffix": "Any",
+    /*
+    Enable diagnostics for a `# @diagnostic expect-next-line: toc-x` comment whose diagnostic does not occur on the next line.
+    */
+    "toc-unfulfilled-expect": "Any",
     /*
     Enable diagnostics for a `## Category:` that is not one of the recommended names of the Addon Categories wiki page (a custom category is allowed, the page recommends its names).
     */
@@ -1954,6 +1961,10 @@ object<string, string>
     Enable diagnostics for a `.toc` file name suffix the game does not read any more (`_BCC`, `_WOTLK`): the file is ignored, rename it.
     */
     "toc-retired-suffix": "Warning",
+    /*
+    Enable diagnostics for a `# @diagnostic expect-next-line: toc-x` comment whose diagnostic does not occur on the next line.
+    */
+    "toc-unfulfilled-expect": "Warning",
     /*
     Enable diagnostics for a `## Category:` that is not one of the recommended names of the Addon Categories wiki page (a custom category is allowed, the page recommends its names).
     */

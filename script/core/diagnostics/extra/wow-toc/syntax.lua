@@ -22,6 +22,7 @@ local DIAGNOSTICS = {
     { 'toc-missing-interface',   'Warning', 'Enable diagnostics for a `.toc` file without an `## Interface` line.' },
     { 'toc-invalid-interface',   'Error',   'Enable diagnostics for an `## Interface` item that is not a whole number above 0.' },
     { 'toc-duplicate-header',    'Warning', 'Enable diagnostics for a `## Key:` line that repeats a key whose lines do not add up (the last one wins, or only the first counts).' },
+    { 'toc-unfulfilled-expect',  'Warning', 'Enable diagnostics for a `# @diagnostic expect-next-line: toc-x` comment whose diagnostic does not occur on the next line.' },
     { 'toc-unknown-category',    'Hint',    'Enable diagnostics for a `## Category:` that is not one of the recommended names of the Addon Categories wiki page (a custom category is allowed, the page recommends its names).' },
     { 'toc-category-translation', 'Hint',   'Enable diagnostics for a `## Category-xxXX:` whose text differs from the Addon Categories wiki page translation of the plain `## Category:` for that locale.' },
     { 'toc-retired-header',      'Warning', 'Enable diagnostics for a `## Key:` the game dropped or renamed (`AllowLoadByGameMode`, `GuardedAddOn`, `SuppressLocalTableRef`): the line does nothing.' },
@@ -697,9 +698,12 @@ end
 --- change for it. No codes after the colon means every code.
 ---@param lines wowToc.line[]
 ---@return fun(row: integer, code: string): boolean  isSuppressed  (row: 0-based)
+---@return { line: wowToc.line, target: integer, codes: string[] }[] expects  the `expect-next-line` comments
 function m.suppressionsOf(lines)
     ---@type table<integer, table<string, true>>   row -> codes switched off for that line only
     local nextLine = {}
+    ---@type { line: wowToc.line, target: integer, codes: string[] }[]
+    local expects = {}
     ---@type { row: integer, disable: boolean, codes: string[] }[]
     local ranges = {}
     for _, line in ipairs(lines) do
@@ -716,11 +720,14 @@ function m.suppressionsOf(lines)
                 if #codes == 0 then
                     codes[1] = '*'
                 end
-                if mode == 'disable-next-line' then
+                if mode == 'disable-next-line' or mode == 'expect-next-line' then
                     local set = nextLine[line.row + 1] or {}
                     nextLine[line.row + 1] = set
                     for _, code in ipairs(codes) do
                         set[code] = true
+                    end
+                    if mode == 'expect-next-line' then
+                        expects[#expects+1] = { line = line, target = line.row + 1, codes = codes }
                     end
                 elseif mode == 'disable' or mode == 'enable' then
                     ranges[#ranges+1] = { row = line.row, disable = mode == 'disable', codes = codes }
@@ -745,7 +752,7 @@ function m.suppressionsOf(lines)
             end
         end
         return disabled
-    end
+    end, expects
 end
 
 ---@param uri uri
@@ -1174,7 +1181,28 @@ function m.diagnose(uri, text)
         end
     end
 
-    local isSuppressed = m.suppressionsOf(lines)
+    local isSuppressed, expects = m.suppressionsOf(lines)
+    -- `# @diagnostic expect-next-line: toc-x` wants the diagnostic: reported here when it does not occur on the next line
+    if #expects > 0 then
+        ---@type table<integer, table<string, true>>
+        local present = {}
+        for _, diag in ipairs(found) do
+            local row = diag.range.start.line
+            present[row] = present[row] or {}
+            present[row][diag.code] = true
+        end
+        for _, expect in ipairs(expects) do
+            for _, code in ipairs(expect.codes) do
+                local here = present[expect.target]
+                local met = here and (code == '*' and next(here) ~= nil or here[code])
+                if not met then
+                    report(expect.line.row, 1, math.max(#expect.line.text, 1), 'toc-unfulfilled-expect',
+                        code == '*' and 'Expected a diagnostic on the next line, there is none.'
+                            or ('Expected `%s` on the next line, it does not occur.'):format(code))
+                end
+            end
+        end
+    end
     ---@type fileKind.diagnostic[]
     local kept = {}
     for _, diag in ipairs(found) do
@@ -1192,6 +1220,7 @@ m.familyGames       = familyGames
 m.resolveGameWord   = resolveGameWord
 m.headerByName      = headerByName
 m.variableByName    = variableByName
+m.diagnosticInfos   = DIAGNOSTICS
 m.categories        = categories
 m.categoryByName    = categoryByName
 m.normalizeName     = normalizeName

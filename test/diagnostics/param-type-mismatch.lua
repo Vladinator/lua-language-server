@@ -980,3 +980,58 @@ local r
 plain(r.f)
 ]]
 config.set(nil, 'Lua.type.checkFieldNilArguments', false)
+
+-- under Lua.type.weakUnionCheck a union fits as soon as one member does (nil included): the field setting still asks for the nil of a field
+config.set(nil, 'Lua.type.weakUnionCheck', true)
+TEST [[
+---@class Opt
+---@field f? table
+---@type Opt
+local o
+
+---@param t table
+local function plain(t) end
+
+plain(o.f)
+local v = o.f
+plain(v)
+]]
+
+config.set(nil, 'Lua.type.checkFieldNilArguments', true)
+TEST [[
+---@class Opt
+---@field f? table
+---@type Opt
+local o
+
+---@param t table
+local function plain(t) end
+
+---@param t table?
+local function maybe(t) end
+
+plain(<!o.f!>)
+maybe(o.f) -- (a parameter that takes nil)
+local v = o.f
+plain(v) -- (a variable: the weak union check still takes it)
+if o.f then
+    plain(o.f)
+end
+plain(o.f or {})
+]]
+
+config.set(nil, 'Lua.type.weakNilCheck', true)
+TEST [[
+---@class Opt
+---@field f? table
+---@type Opt
+local o
+
+---@param t table
+local function plain(t) end
+
+plain(o.f)
+]]
+config.set(nil, 'Lua.type.weakNilCheck', false)
+config.set(nil, 'Lua.type.checkFieldNilArguments', false)
+config.set(nil, 'Lua.type.weakUnionCheck', false)

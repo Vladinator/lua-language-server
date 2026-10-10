@@ -3010,6 +3010,8 @@ Check the `nil` of a field that is passed as an argument.
 
 `true`: the field is checked like a variable, and narrowed like one: `if obj.field then f(obj.field) end` and `f(obj.field or {})` are fine.
 
+The `nil` of a field is checked even under `Lua.type.weakUnionCheck` (which takes a union as fitting when one member does), unless `Lua.type.weakNilCheck` ignores `nil`.
+
 
 ## type
 

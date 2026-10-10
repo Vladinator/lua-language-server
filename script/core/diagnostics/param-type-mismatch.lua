@@ -240,8 +240,21 @@ return function (uri, callback)
                 -- `Lua.type.checkFieldNilArguments` keeps them: a field is narrowed here like a variable)
                 refNode = refNode:copy():setTruthy()
             end
+            ---@type typecheck.err[]
             local errs = {}
-            if not vm.canCastType(uri, defNode, refNode, errs) then
+            local fits = vm.canCastType(uri, defNode, refNode, errs)
+            -- `Lua.type.checkFieldNilArguments` asks for the nil of a field read even under `Lua.type.weakUnionCheck` (which takes a union for
+            -- fitting as soon as one member does, nil included): the nil is checked on its own unless `Lua.type.weakNilCheck` ignores it
+            if fits and (arg.type == 'getfield' or arg.type == 'getindex')
+            and config.get(uri, 'Lua.type.checkFieldNilArguments')
+            and not config.get(uri, 'Lua.type.weakNilCheck')
+            and refNode:isOptional()
+            and vm.isSubType(uri, 'nil', defNode) == false then
+                fits = false
+                errs[#errs+1] = 'TYPE_ERROR_OPTIONAL_DISMATCH'
+                errs[#errs+1] = defNode
+            end
+            if not fits then
                 local rawDefNode = getRawDefNode(funcNode, i)
                 assert(errs)
                 callback {

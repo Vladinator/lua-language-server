@@ -62,8 +62,8 @@ local cases = {
     { 'two params, first',   L('---@generic A, B', '---@param a A', '---@param b B', '---@return A, B', 'local function pair(a, b) return a, b end', 'local x, y = pair(1, "s")'), 'x', 'integer', '' },
     { 'wrapper in a generic', L('---@generic T', '---@param v T', '---@return T', 'local function id(v) return v end', '---@generic U', '---@param v U', '---@return U', 'local function wrap(v) return id(v) end', 'local r = wrap("x")'), 'r', 'string', '' },
     -- several parameters of the SAME T: the first one binds the type (the generic-param-mismatch diagnostic checks the rest)
-    { 'same T, widening',    L('---@generic T', '---@param a T', '---@param b T', '---@return T', 'local function pick(a, b) return a end', 'local r = pick(1, 2.5)'), 'r', 'integer', 'first candidate binds T; TS unifies to number', 'integer' },
-    { 'same T, union later', L('---@generic T', '---@param a T', '---@param b T', '---@return T', 'local function pick(a, b) return a end', '---@type string|number', 'local m', 'local r = pick(1, m)'), 'r', 'integer', 'first candidate binds T; TS: string | number', 'integer' },
+    { 'same T, widening',    L('---@generic T', '---@param a T', '---@param b T', '---@return T', 'local function pick(a, b) return a end', 'local r = pick(1, 2.5)'), 'r', 'number', 'a wider later candidate widens T, as TS does', 'number' },
+    { 'same T, union later', L('---@generic T', '---@param a T', '---@param b T', '---@return T', 'local function pick(a, b) return a end', '---@type string|number', 'local m', 'local r = pick(1, m)'), 'r', 'string|number', 'a wider later candidate widens T, as TS does', 'string|number' },
     -- varargs, constraints, function types
     { 'vararg',              L('---@generic T', '---@param ... T', '---@return T', 'local function first(...) return ... end', 'local r = first(1, 2)'), 'r', 'integer', '' },
     { 'constraint',          L('---@generic T: number', '---@param v T', '---@return T', 'local function f(v) return v end', 'local r = f(1)'), 'r', 'integer', 'the result keeps the argument type, not the bound' },

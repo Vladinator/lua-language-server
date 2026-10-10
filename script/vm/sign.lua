@@ -393,6 +393,48 @@ function mt:resolve(uri, args)
         return true
     end
 
+    --- The binding of `T` made as wide as `argNode` when the parameter is a plain `T` and the argument holds everything `T` stands for so far
+    --- and more. nil: nothing to change.
+    ---@param bound    vm.node
+    ---@param signNode vm.node
+    ---@param name     string
+    ---@param argNode  vm.node
+    ---@return vm.node?
+    local function widenBinding(uri, bound, signNode, name, argNode)
+        local plain = false
+        for obj in signNode:eachObject() do
+            -- (the parameter itself is part of its node: `variable`, `local`, `self`)
+            if obj.type == 'doc.generic.name' and obj[1] == name then
+                plain = true
+            elseif obj.type ~= 'variable' and obj.type ~= 'local' and obj.type ~= 'self' then
+                return nil
+            end
+        end
+        if not plain or bound:isEmpty() or argNode:isEmpty() or argNode:isOptional() or bound:isOptional() then
+            return nil
+        end
+        for obj in argNode:eachObject() do
+            if obj.type == 'doc.generic.name' or obj.type == 'generic' then
+                return nil
+            end
+        end
+        if vm.isSubType(uri, bound, argNode) ~= true then
+            return nil
+        end
+        if vm.isSubType(uri, argNode, bound) ~= false then
+            -- (`Lua.type.castNumberToInteger` lets a number fit an integer, but `integer` is still the narrower of the two)
+            if not (vm.getInfer(bound):view(uri) == 'integer' and vm.getInfer(argNode):view(uri) == 'number') then
+                return nil
+            end
+        end
+        local wider = vm.createNode()
+        for obj in argNode:eachObject() do
+            wider:merge(obj)
+        end
+        vm.propagateFlags(bound, wider)
+        return wider
+    end
+
     for i, arg in ipairs(args or {}) do
         local sign = self.signList[i]
         if not sign then
@@ -412,6 +454,12 @@ function mt:resolve(uri, args)
             for name in pairs(genericNames) do
                 if resolved[name] then
                     vm.propagateFlagsBound(argNode, resolved[name], sign)
+                    -- a later argument of a plain `T` parameter that is wider than what `T` stands for makes `T` that wider type
+                    -- (TypeScript: `pick(1, 2.5)` is `number`); one that does not fit stays for generic-param-mismatch
+                    local widened = widenBinding(uri, resolved[name], sign, name, argNode)
+                    if widened then
+                        resolved[name] = widened
+                    end
                 end
             end
         end

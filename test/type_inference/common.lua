@@ -6929,3 +6929,104 @@ TEST 'number' [[
 ---@type Plain
 local <?x?>
 ]]
+
+-- several parameters of one `T`: a later argument that holds everything `T` stands for so far, and more, makes `T` that wider type
+-- (TypeScript: `pick(1, 2.5)` is `number`); one that does not fit leaves `T` as it was (generic-param-mismatch reports it)
+TEST 'number' [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function pick(a, b) return a end
+local <?r?> = pick(1, 2.5)
+]]
+
+TEST 'number' [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function pick(a, b) return a end
+local <?r?> = pick(2.5, 1)
+]]
+
+TEST 'integer' [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function pick(a, b) return a end
+local <?r?> = pick(1, 2)
+]]
+
+TEST 'integer' [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function pick(a, b) return a end
+local <?r?> = pick(1, "s")
+]]
+
+TEST 'Animal' [[
+---@class Animal
+---@class Dog: Animal
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function pick(a, b) return a end
+---@type Dog
+local d
+---@type Animal
+local an
+local <?r?> = pick(d, an)
+]]
+
+TEST 'Animal' [[
+---@class Animal
+---@class Dog: Animal
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function pick(a, b) return a end
+---@type Dog
+local d
+---@type Animal
+local an
+local <?r?> = pick(an, d)
+]]
+
+TEST 'string|number' [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function pick(a, b) return a end
+---@type string|number
+local m
+local <?r?> = pick(1, m)
+]]
+
+-- an optional argument does not widen `T`
+TEST 'integer' [[
+---@generic T
+---@param a T
+---@param b T
+---@return T
+local function pick(a, b) return a end
+---@type number?
+local m
+local <?r?> = pick(1, m)
+]]
+
+-- only a plain `T` parameter widens it
+TEST 'integer' [[
+---@generic T
+---@param a T
+---@param b T|string
+---@return T
+local function pick(a, b) return a end
+local <?r?> = pick(1, 2.5)
+]]

@@ -539,7 +539,7 @@ Array<string>
 * ``"undefined-doc-name"``: Enable diagnostics for type annotations referencing an undefined type or alias.
 * ``"undefined-doc-param"``: Enable diagnostics for cases in which a parameter annotation is given without declaring the parameter in the function definition.
 * ``"undefined-env-child"``: Enable undefined environment variable diagnostics. It's raised when `_ENV` table is set to a new literal table, but the used global variable is no longer present in the global environment.
-* ``"undefined-field"``: Enable diagnostics for cases in which an undefined field of a variable is read.
+* ``"undefined-field"``: Enable diagnostics for cases in which an undefined field of a variable is read, also through an index that chooses between literal names (`t[flag and "a" or "b"]`).
 * ``"undefined-global"``: Enable undefined global variable diagnostics.
 * ``"undefined-secret-name"``: Enable diagnostics for a name in `---@secret a, b` / `---@secret-unwrap a, b` / `---@nosecret a, b` that is not a local of the statement the tag applies to.
 * ``"unexpect-dots"``
@@ -1542,7 +1542,7 @@ object<string, string>
     */
     "undefined-env-child": "Any",
     /*
-    Enable diagnostics for cases in which an undefined field of a variable is read.
+    Enable diagnostics for cases in which an undefined field of a variable is read, also through an index that chooses between literal names (`t[flag and "a" or "b"]`).
     */
     "undefined-field": "Opened",
     /*
@@ -2070,7 +2070,7 @@ object<string, string>
     */
     "undefined-env-child": "Information",
     /*
-    Enable diagnostics for cases in which an undefined field of a variable is read.
+    Enable diagnostics for cases in which an undefined field of a variable is read, also through an index that chooses between literal names (`t[flag and "a" or "b"]`).
     */
     "undefined-field": "Warning",
     /*

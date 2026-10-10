@@ -5205,3 +5205,22 @@ TEST [[
 ---@diagnostic expect-line: unfulfilled-ex<??>
 ]]
 (offers 'unfulfilled-expect')
+
+-- the key of a string index is offered before plain words: with showWord = Fallback the words only fill an empty list
+config.set(nil, 'Lua.completion.showWord', 'Fallback')
+config.set(nil, 'Lua.completion.workspaceWord', true)
+TEST [[
+---@class Cb
+---@field RegisterCallback fun()
+---@field UnregisterCallback fun()
+---@type Cb
+local cb
+local RegisterOther = 1
+local x = cb["Reg<??>"]
+]]
+(function (result)
+    assert(#result == 1, 'only the key, no plain word: ' .. #result)
+    assert(result[1].label == 'RegisterCallback' and result[1].kind == define.CompletionItemKind.Field, 'the key of the class')
+end)
+config.set(nil, 'Lua.completion.showWord', 'Enable')
+config.set(nil, 'Lua.completion.workspaceWord', false)

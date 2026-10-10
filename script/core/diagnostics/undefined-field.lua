@@ -12,7 +12,25 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
-    description = 'Enable diagnostics for cases in which an undefined field of a variable is read.',
+    description = 'Enable diagnostics for cases in which an undefined field of a variable is read, also through an index that chooses between literal names (`t[flag and "a" or "b"]`).',
+}
+
+-- (the types a value can have that are not a declared shape of fields)
+local notAShape = {
+    ['string']   = true,
+    ['number']   = true,
+    ['integer']  = true,
+    ['boolean']  = true,
+    ['table']    = true,
+    ['function'] = true,
+    ['thread']   = true,
+    ['userdata'] = true,
+    ['lightuserdata'] = true,
+    ['any']      = true,
+    ['unknown']  = true,
+    ['nil']      = true,
+    ['_G']       = true,
+    ['_ENV']     = true,
 }
 
 local skipCheckClass = {
@@ -107,7 +125,61 @@ return function (uri, callback)
             message = message,
         }
     end
+    --- `t[flag and "a" or "b"]`, `t[key]` with `key: "a"|"b"`: every literal the index can be must be a field (`t["b"]` alone is
+    --- left to the metatable, like it always was, but a choice between names is a promise that each of them exists).
+    ---@async
+    ---@param src parser.object
+    local function checkUndefinedLiteralIndex(src)
+        await.delay()
+        local index = src.index
+        local node = src.node
+        if not index or not node or index.type == 'string' or guide.getKeyName(src) ~= nil then
+            return
+        end
+        -- only a value that is declared as a class: the keys of a plain table (`local t = {}`, `_G`) are filled in as the program runs
+        ---@type boolean?
+        local declared
+        for object in vm.compileNode(node):eachObject() do
+            if object.type == 'global' and object.cate == 'type' then
+                if notAShape[object.name] then
+                    return
+                end
+                declared = true
+            end
+        end
+        if not declared then
+            return
+        end
+        ---@type table[]
+        local literals = {}
+        for k in vm.compileNode(index):eachObject() do
+            if (k.type == 'string' or k.type == 'doc.type.string') and type(k[1]) == 'string' and k[1] ~= '' then
+                literals[#literals+1] = k
+            elseif k.type == 'global' and k.cate == 'type' and k.name == 'string' then
+                return
+            end
+        end
+        for _, literal in ipairs(literals) do
+            local key = literal[1] --[[@as string]]
+            local found = false
+            vm.compileByParentNode(node, key, function ()
+                found = true
+            end)
+            -- (a `table<string, V>`, or a class that inherits from one, answers any string key)
+            if not found
+            and not vm.getTableValue(uri, vm.compileNode(node), 'string')
+            and not vm.getClassIndexValue(uri, vm.compileNode(node), 'string') then
+                local inside = literal.start and literal.start >= index.start and literal.finish <= index.finish
+                callback {
+                    start   = inside and literal.start or index.start,
+                    finish  = inside and literal.finish or index.finish,
+                    message = MESSAGE:format(key),
+                }
+            end
+        end
+    end
     guide.eachSourceType(ast.ast, 'getfield',  checkUndefinedField)
     guide.eachSourceType(ast.ast, 'getmethod', checkUndefinedField)
     guide.eachSourceType(ast.ast, 'getindex', checkUndefinedFieldByIndexEnum)
+    guide.eachSourceType(ast.ast, 'getindex', checkUndefinedLiteralIndex)
 end

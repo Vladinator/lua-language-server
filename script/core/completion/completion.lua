@@ -3118,8 +3118,9 @@ local function tryCompletions(state, position, triggerCharacter, results)
     trySpecial(state, position, results)
     tryCallArg(state, position, results)
     tryArray(state, position, results)
-    tryWord(state, position, triggerCharacter, results)
+    -- (the keys of a string index come first: `showWord = Fallback` offers plain words only while nothing better was found)
     tryIndex(state, position, results)
+    tryWord(state, position, triggerCharacter, results)
     trySymbol(state, position, results)
 end
 

@@ -201,3 +201,55 @@ TEST [[
 local n = {}
 print(n.<!foo!>)
 ]]
+
+-- an index that is a choice between names: each literal has to be a field
+TEST [[
+---@class Cb
+---@field Reg fun()
+---@field Unreg fun()
+---@type Cb
+local cb
+---@param flag boolean
+---@param key "Reg"|"asd"
+local function f(flag, key)
+    local _ = cb[flag and "Reg" or <!"asd"!>]
+    local _ = cb[flag and <!"xxx"!> or "Reg"]
+    local _ = cb[<!key!>]
+    local _ = cb[flag and "Reg" or "Unreg"]
+end
+]]
+
+-- ... but a single literal (the metatable may answer), a plain string, an unknown owner and a key of a `table<K, V>` class are left alone
+TEST [[
+---@class Cb
+---@field Reg fun()
+---@type Cb
+local cb
+---@class Dyn : table<string, integer>
+---@type Dyn
+local dyn
+---@generic K, V
+---@param t table<K, V>
+---@return table<V, K>
+local function revert(t) end
+local map = revert({ a = 'x' })
+local plain = { c = 1 }
+---@type any
+local anything
+---@param flag boolean
+---@param s string
+---@param mixed string|"nope"
+---@param blank ""|"Reg"
+local function f(flag, s, mixed, blank)
+    local _ = cb["yyy"]
+    local _ = cb[s]
+    local _ = cb[mixed]
+    local _ = cb[blank]
+    local _ = anything[flag and "a" or "b"]
+    local _ = dyn[flag and "a" or "b"]
+    local _ = map[flag and "a" or "b"]
+    local _ = unknownGlobal[flag and "a" or "b"]
+    local _ = plain[flag and "a" or "b"]
+    local _ = _G[flag and "a" or "b"]
+end
+]]

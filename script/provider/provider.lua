@@ -20,6 +20,7 @@ local inspect    = require 'inspect'
 local guide      = require 'parser.guide'
 local fs         = require 'bee.filesystem'
 local version    = require 'version'
+require 'core.config-hygiene'
 
 require 'library'
 

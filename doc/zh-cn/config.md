@@ -522,6 +522,7 @@ Array<string>
 * ``"unreachable-code"``: 不可达的代码
 * ``"unsupport-named-vararg"``: 不支持的命名变参
 * ``"unsupport-symbol"``
+* ``"unused-config-global"``: Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
 * ``"unused-function"``: 未使用的函数
 * ``"unused-label"``: 未使用的标签
 * ``"unused-local"``: 未使用的局部变量
@@ -787,6 +788,7 @@ object<string, string>
     * redundant-return
     * trailing-space
     * unreachable-code
+    * unused-config-global
     * unused-function
     * unused-label
     * unused-local
@@ -981,6 +983,7 @@ object<string, string>
     * redundant-return
     * trailing-space
     * unreachable-code
+    * unused-config-global
     * unused-function
     * unused-label
     * unused-local
@@ -1519,6 +1522,10 @@ object<string, string>
     */
     "unreachable-code": "Opened",
     /*
+    Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
+    */
+    "unused-config-global": "Any",
+    /*
     未使用的函数
     */
     "unused-function": "Opened",
@@ -2036,6 +2043,10 @@ object<string, string>
     不可达的代码
     */
     "unreachable-code": "Hint",
+    /*
+    Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
+    */
+    "unused-config-global": "Warning",
     /*
     未使用的函数
     */

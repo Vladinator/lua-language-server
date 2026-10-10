@@ -269,6 +269,26 @@ function export.runCLI()
                 end
             end
         end
+        -- the settings files of the project (one worker is enough: every worker has loaded the whole workspace)
+        if threadId == 1 then
+            local fileKinds = require 'file-kinds'
+            for _, name in ipairs { '.luarc.json', '.luarc.jsonc', '.vscode/settings.json' } do
+                local path = rootPath .. '/' .. name
+                local text = util.loadFile(path)
+                local uri  = text and furi.encode(path)
+                local kind = uri and fileKinds.of(uri)
+                if text and uri and kind then
+                    local found = fileKinds.collectDiagnostics(uri, kind, text)
+                    if #found > 0 then
+                        results[uri] = found
+                        if not QUIET and (CHECK_FORMAT == nil or CHECK_FORMAT == 'pretty') then
+                            clear_line()
+                            report_pretty(uri, found)
+                        end
+                    end
+                end
+            end
+        end
         if not quiet then
             clear_line()
         end

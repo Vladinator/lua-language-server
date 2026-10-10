@@ -16,6 +16,7 @@ require 'tclient.tests.modify-luarc'
 require 'tclient.tests.diag-scope'
 require 'tclient.tests.diag-scope-narrow'
 require 'tclient.tests.file-kind'
+require 'tclient.tests.config-hygiene'
 require 'tclient.tests.library-inside-workspace'
 
 require 'tclient.tests.performance-jass-common'

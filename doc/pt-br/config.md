@@ -522,6 +522,7 @@ Array<string>
 * ``"unreachable-code"``: Habilita diagnóstico para código inalcançável.
 * ``"unsupport-named-vararg"``: Vararg nomeado não suportado
 * ``"unsupport-symbol"``
+* ``"unused-config-global"``: Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
 * ``"unused-function"``: Função não utilizada
 * ``"unused-label"``: Rótulo não utilizado
 * ``"unused-local"``: Variável local não utilizada
@@ -787,6 +788,7 @@ object<string, string>
     * redundant-return
     * trailing-space
     * unreachable-code
+    * unused-config-global
     * unused-function
     * unused-label
     * unused-local
@@ -981,6 +983,7 @@ object<string, string>
     * redundant-return
     * trailing-space
     * unreachable-code
+    * unused-config-global
     * unused-function
     * unused-label
     * unused-local
@@ -1519,6 +1522,10 @@ object<string, string>
     */
     "unreachable-code": "Opened",
     /*
+    Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
+    */
+    "unused-config-global": "Any",
+    /*
     Função não utilizada
     */
     "unused-function": "Opened",
@@ -2037,6 +2044,10 @@ object<string, string>
     Habilita diagnóstico para código inalcançável.
     */
     "unreachable-code": "Hint",
+    /*
+    Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
+    */
+    "unused-config-global": "Warning",
     /*
     Função não utilizada
     */

@@ -561,6 +561,7 @@ Array<string>
 * ``"unreachable-code"``: Enable diagnostics for unreachable code.
 * ``"unsupport-named-vararg"``: Unsupported named vararg
 * ``"unsupport-symbol"``
+* ``"unused-config-global"``: Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
 * ``"unused-function"``: Enable unused function diagnostics.
 * ``"unused-label"``: Enable unused label diagnostics.
 * ``"unused-local"``: Enable unused local variable diagnostics.
@@ -834,6 +835,7 @@ object<string, string>
     * redundant-return
     * trailing-space
     * unreachable-code
+    * unused-config-global
     * unused-function
     * unused-label
     * unused-local
@@ -1028,6 +1030,7 @@ object<string, string>
     * redundant-return
     * trailing-space
     * unreachable-code
+    * unused-config-global
     * unused-function
     * unused-label
     * unused-local
@@ -1574,6 +1577,10 @@ object<string, string>
     */
     "unreachable-code": "Opened",
     /*
+    Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
+    */
+    "unused-config-global": "Any",
+    /*
     Enable unused function diagnostics.
     */
     "unused-function": "Opened",
@@ -2101,6 +2108,10 @@ object<string, string>
     Enable diagnostics for unreachable code.
     */
     "unreachable-code": "Hint",
+    /*
+    Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
+    */
+    "unused-config-global": "Warning",
     /*
     Enable unused function diagnostics.
     */

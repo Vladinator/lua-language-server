@@ -28,6 +28,7 @@ local customPlugins = require 'core.diagnostics.custom-plugins'
 -- with no eager-require line to maintain: adding or deleting a file
 -- there is the whole story, no edits needed anywhere else.
 require 'core.diagnostics.deprecated'
+require 'core.config-hygiene'          -- registers `unused-config-global` (a file kind: the settings files)
 require 'core.diagnostics.code-after-break'
 require 'core.diagnostics.param-type-mismatch'
 require 'core.diagnostics.inject-field'

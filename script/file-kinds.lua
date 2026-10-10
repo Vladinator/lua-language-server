@@ -7,6 +7,9 @@ local lang    = require 'language'
 local util    = require 'utility'
 local diagd   = require 'proto.diagnostic'
 local tm      = require 'text-merger'
+local await   = require 'await'
+local ws      = require 'workspace'
+local files   = require 'files'
 
 -- File KINDS: documents that are not Lua (a WoW addon's `.toc`) but that the server can still help with: diagnostics, completion, hover,
 -- definition. A kind is registered by a plugin, like a diagnostic or a LuaDoc tag; the server then keeps the text of an open document of that
@@ -50,6 +53,7 @@ local tm      = require 'text-merger'
 ---@field definition?         fun(uri: uri, text: string, position: fileKind.position): table[]?  LSP Location[]
 ---@field codeAction?         fun(uri: uri, text: string, range: fileKind.range, diagnostics: fileKind.clientDiagnostic[]): table[]?  LSP CodeAction[] (`edit.changes` / `edit.documentChanges` in LSP positions)
 ---@field triggerCharacters?  string[] characters that open completion in a document of this kind
+---@field needsWorkspace?     boolean the diagnostics depend on the whole workspace: they wait until it is loaded and are made again when it reloads
 
 ---@class file-kinds
 local m = {}
@@ -136,16 +140,15 @@ function m.isOpen(uri)
     return documents[uri] ~= nil
 end
 
---- Sends the diagnostics of a document to the client.
----@param uri uri
-function m.publish(uri)
-    local document = documents[uri]
-    if not document then
-        return
-    end
+--- The diagnostics of a text of a kind, as the client gets them (the disabled ones left out, the severity of the settings applied).
+---@param uri  uri
+---@param kind fileKind
+---@param text string
+---@return table[]
+function m.collectDiagnostics(uri, kind, text)
     ---@type table[]
     local result = {}
-    local ok, found = xpcall(document.kind.diagnose, log.error, uri, document.text)
+    local ok, found = xpcall(kind.diagnose, log.error, uri, text)
     for _, diag in ipairs(ok and found or {}) do
         if diagd.isEnabled(uri, diag.code, true) then
             local severity = diagd.getSeverity(uri, diag.code)
@@ -159,6 +162,27 @@ function m.publish(uri)
             }
         end
     end
+    return result
+end
+
+--- Sends the diagnostics of a document to the client.
+---@param uri uri
+function m.publish(uri)
+    local document = documents[uri]
+    if not document then
+        return
+    end
+    if document.kind.needsWorkspace and not ws.isReady(uri) then
+        -- (a verdict about the workspace made while it loads would be wrong)
+        await.call(function () ---@async
+            ws.awaitReady(uri)
+            if documents[uri] == document then
+                m.publish(uri)
+            end
+        end)
+        return
+    end
+    local result = m.collectDiagnostics(uri, document.kind, document.text)
     proto.notify('textDocument/publishDiagnostics', {
         uri         = uri,
         version     = document.version,
@@ -263,6 +287,42 @@ function m.codeAction(uri, range, diagnostics)
     end
     return actions
 end
+
+-- The documents that judge the workspace are judged again when it reloads.
+ws.watch(function (ev)
+    if ev ~= 'reload' then
+        return
+    end
+    for uri, document in pairs(documents) do
+        if document.kind.needsWorkspace then
+            m.publish(uri)
+        end
+    end
+end)
+
+-- ... and when the code they judge changes: a Lua file that was compiled (its globals are known only then) or removed. Debounced, a
+-- burst of edits is one new verdict.
+files.watch(function (ev) ---@async
+    if ev ~= 'compile' and ev ~= 'remove' then
+        return
+    end
+    local any = false
+    for _, document in pairs(documents) do
+        if document.kind.needsWorkspace then
+            any = true
+        end
+    end
+    if not any then
+        return
+    end
+    await.unique('file-kinds: judge the workspace again')
+    await.sleep(1.0)
+    for uri, document in pairs(documents) do
+        if document.kind.needsWorkspace then
+            m.publish(uri)
+        end
+    end
+end)
 
 -- A change of the diagnostic settings changes what is published for the open documents. `config.update` reports a changed key
 -- only when the old configuration held it: a setting that the client sends for the first time (the configuration arrives after

@@ -522,6 +522,7 @@ Array<string>
 * ``"unreachable-code"``: 到達不能コードの診断を有効にします。
 * ``"unsupport-named-vararg"``: サポートされない名前付き可変引数
 * ``"unsupport-symbol"``
+* ``"unused-config-global"``: Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
 * ``"unused-function"``: 未使用の関数の診断を有効にします。
 * ``"unused-label"``: 未使用ラベルの診断を有効にします。
 * ``"unused-local"``: 未使用のローカル変数の診断を有効にします。
@@ -787,6 +788,7 @@ object<string, string>
     * redundant-return
     * trailing-space
     * unreachable-code
+    * unused-config-global
     * unused-function
     * unused-label
     * unused-local
@@ -981,6 +983,7 @@ object<string, string>
     * redundant-return
     * trailing-space
     * unreachable-code
+    * unused-config-global
     * unused-function
     * unused-label
     * unused-local
@@ -1519,6 +1522,10 @@ object<string, string>
     */
     "unreachable-code": "Opened",
     /*
+    Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
+    */
+    "unused-config-global": "Any",
+    /*
     未使用の関数の診断を有効にします。
     */
     "unused-function": "Opened",
@@ -2037,6 +2044,10 @@ object<string, string>
     到達不能コードの診断を有効にします。
     */
     "unreachable-code": "Hint",
+    /*
+    Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project's settings file that does nothing: the global is defined, or nothing in the workspace uses it.
+    */
+    "unused-config-global": "Warning",
     /*
     未使用の関数の診断を有効にします。
     */

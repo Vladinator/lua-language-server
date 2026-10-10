@@ -264,9 +264,11 @@ function m.codeAction(uri, range, diagnostics)
     return actions
 end
 
--- A change of the diagnostic settings changes what is published for the open documents.
+-- A change of the diagnostic settings changes what is published for the open documents. `config.update` reports a changed key
+-- only when the old configuration held it: a setting that the client sends for the first time (the configuration arrives after
+-- a restored tab opened the document) is reported by the end-of-update event (key `''`) alone.
 config.watch(function (_, key, value, oldValue)
-    if util.stringStartWith(key, 'Lua.diagnostics') and value ~= oldValue then
+    if key == '' or (util.stringStartWith(key, 'Lua.diagnostics') and value ~= oldValue) then
         for uri in pairs(documents) do
             m.publish(uri)
         end

@@ -148,6 +148,12 @@ lclient():start(function (client)
     assert(kinds.getText(uri) == 'BAD\nthis is BAD\n', 'the merged text: ' .. tostring(kinds.getText(uri)))
     assert(not files.exists(uri), 'a change does not turn the document into a Lua file either')
 
+    -- a setting that the client sends for the first time (its configuration arrives after the document was opened) applies too
+    config.update(ws.getFirstScope(), { Lua = { diagnostics = { disable = { CODE } } } })
+    waitFor(function () return #assert(last()).diagnostics == 0 end, 'disabled by the first configuration of the client')
+    config.update(ws.getFirstScope(), {})
+    waitFor(function () return #assert(last()).diagnostics == 2 end, 'enabled again by the next configuration')
+
     -- the diagnostic settings apply: disabled, another severity
     config.set(uri, 'Lua.diagnostics.disable', { CODE })
     waitFor(function () return #assert(last()).diagnostics == 0 end, 'disabled by Lua.diagnostics.disable')

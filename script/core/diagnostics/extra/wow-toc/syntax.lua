@@ -692,6 +692,62 @@ end
 
 -- Diagnostics -------------------------------------------------------------------------------------------
 
+--- The comment directives that switch `toc-*` diagnostics off, the TOC counterpart of the LuaDoc comment: `# @diagnostic disable-next-line: toc-x, toc-y`,
+--- `# @diagnostic disable: toc-x` (from that line on) and `# @diagnostic enable: toc-x`. A `#` line is a comment for the game, so the file does not
+--- change for it. No codes after the colon means every code.
+---@param lines wowToc.line[]
+---@return fun(row: integer, code: string): boolean  isSuppressed  (row: 0-based)
+function m.suppressionsOf(lines)
+    ---@type table<integer, table<string, true>>   row -> codes switched off for that line only
+    local nextLine = {}
+    ---@type { row: integer, disable: boolean, codes: string[] }[]
+    local ranges = {}
+    for _, line in ipairs(lines) do
+        if line.kind == 'comment' then
+            ---@type string?, string?
+            local mode, list = line.text:lower():match('^#%s*@diagnostic%s+([%a%-]+)%s*:%s*(.-)%s*$')
+            if mode and list then
+                mode = mode:lower()
+                ---@type string[]
+                local codes = {}
+                for code in list:gmatch('[^%s,]+') do
+                    codes[#codes+1] = code:lower()
+                end
+                if #codes == 0 then
+                    codes[1] = '*'
+                end
+                if mode == 'disable-next-line' then
+                    local set = nextLine[line.row + 1] or {}
+                    nextLine[line.row + 1] = set
+                    for _, code in ipairs(codes) do
+                        set[code] = true
+                    end
+                elseif mode == 'disable' or mode == 'enable' then
+                    ranges[#ranges+1] = { row = line.row, disable = mode == 'disable', codes = codes }
+                end
+            end
+        end
+    end
+    return function (row, code)
+        local set = nextLine[row]
+        if set and (set[code] or set['*']) then
+            return true
+        end
+        local disabled = false
+        for _, range in ipairs(ranges) do
+            if range.row > row then
+                break
+            end
+            for _, name in ipairs(range.codes) do
+                if name == code or name == '*' then
+                    disabled = range.disable
+                end
+            end
+        end
+        return disabled
+    end
+end
+
 ---@param uri uri
 ---@param text string
 ---@return fileKind.diagnostic[]
@@ -1108,7 +1164,15 @@ function m.diagnose(uri, text)
         end
     end
 
-    return found
+    local isSuppressed = m.suppressionsOf(lines)
+    ---@type fileKind.diagnostic[]
+    local kept = {}
+    for _, diag in ipairs(found) do
+        if not isSuppressed(diag.range.start.line, diag.code) then
+            kept[#kept+1] = diag
+        end
+    end
+    return kept
 end
 
 -- what editor.lua (completion, hover, definition) reads from the tables above

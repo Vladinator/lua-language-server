@@ -529,7 +529,15 @@ local function quickFix(text, code, tocName)
     end
     local diag = found[1]
     local actions = assert(syntax.kind.codeAction)(uri, text, diag.range, { { code = diag.code, message = diag.message, range = diag.range } })
-    local action = actions and actions[1]
+    -- (the first action that is a fix: the ones that switch the diagnostic off come after it)
+    ---@type table?
+    local action
+    for _, candidate in ipairs(actions or {}) do
+        if candidate.data ~= 'disable' then
+            action = candidate
+            break
+        end
+    end
     if not action then
         return nil, nil
     end
@@ -593,6 +601,129 @@ do
     local none = assert(syntax.kind.codeAction)(uri, HEADER, { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 1 } }, {})
     if #(none or {}) ~= 0 then
         failures[#failures+1] = 'quick fix `no diagnostics, no actions`'
+    end
+end
+
+-- 9b. Switching diagnostics off: `# @diagnostic` comments (the TOC counterpart of the LuaDoc comment) and the code actions that write them
+
+local function codesOf(text, tocName)
+    return codes(diagnose(text, tocName))
+end
+case('disable-next-line switches the next line off', HEADER .. '# @diagnostic disable-next-line: toc-unknown-header' .. nl .. '## Bogus: 1' .. nl, {})
+case('disable-next-line is only for the next line', HEADER .. '# @diagnostic disable-next-line: toc-unknown-header' .. nl .. '## Bogus: 1' .. nl .. '## Bogus2: 1' .. nl, { 'toc-unknown-header' })
+case('disable-next-line is only for its codes', HEADER .. '# @diagnostic disable-next-line: toc-duplicate-header' .. nl .. '## Bogus: 1' .. nl, { 'toc-unknown-header' })
+case('disable-next-line takes a list', HEADER .. '# @diagnostic disable-next-line: toc-duplicate-header, toc-unknown-header' .. nl .. '## Bogus: 1' .. nl, {})
+case('disable-next-line without codes switches everything off', HEADER .. '# @diagnostic disable-next-line:' .. nl .. '## Bogus: 1' .. nl, {})
+case('disable runs to the end of the file', HEADER .. '# @diagnostic disable: toc-unknown-header' .. nl .. '## Bogus: 1' .. nl .. '## Bogus2: 1' .. nl, {})
+case('disable does not reach the lines above it', HEADER .. '## Bogus: 1' .. nl .. '# @diagnostic disable: toc-unknown-header' .. nl, { 'toc-unknown-header' })
+case('enable ends a disable', HEADER .. '# @diagnostic disable: toc-unknown-header' .. nl .. '## Bogus: 1' .. nl .. '# @diagnostic enable: toc-unknown-header' .. nl .. '## Bogus2: 1' .. nl, { 'toc-unknown-header' })
+case('the keyword is case-insensitive', HEADER .. '# @Diagnostic Disable-Next-Line: TOC-UNKNOWN-HEADER' .. nl .. '## Bogus: 1' .. nl, {})
+case('disable without codes switches everything off for the rest', HEADER .. '# @diagnostic disable:' .. nl .. '## Bogus: 1' .. nl .. '## Title: a' .. nl .. '## Title: b' .. nl, {})
+case('enable without codes switches everything on again', HEADER .. '# @diagnostic disable:' .. nl .. '## Bogus: 1' .. nl .. '# @diagnostic enable:' .. nl .. '## Bogus2: 1' .. nl, { 'toc-unknown-header' })
+case('a diagnostic of the whole file is switched off by a disable on the first line', '# @diagnostic disable: toc-missing-interface' .. nl .. '## Title: x' .. nl, {})
+case('a comment that merely mentions it is a comment', HEADER .. '# diagnostic disable-next-line: toc-unknown-header' .. nl .. '## Bogus: 1' .. nl, { 'toc-unknown-header' })
+case('a double hash is no directive', HEADER .. '## @diagnostic disable-next-line: toc-unknown-header' .. nl .. '## Bogus: 1' .. nl, { 'toc-unknown-header' })
+
+---@param text  string
+---@param code  string
+---@return table[] actions
+local function disableActionsOf(text, code)
+    local uri = furi.encode(ADDON .. '/MyAddon.toc')
+    ---@type fileKind.diagnostic?
+    local found
+    for _, diag in ipairs(syntax.diagnose(uri, text)) do
+        if diag.code == code then
+            found = found or diag
+        end
+    end
+    assert(found, 'no ' .. code)
+    ---@cast found fileKind.diagnostic
+    local list = assert(syntax.kind.codeAction)(uri, text, found.range, { { code = found.code, message = found.message, range = found.range } }) or {}
+    ---@type table[]
+    local only = {}
+    for _, action in ipairs(list) do
+        if action.data == 'disable' then
+            only[#only+1] = action
+        end
+    end
+    return only
+end
+
+---@param text    string
+---@param action  table
+---@return string
+local function applyAction(text, action)
+    local uri = furi.encode(ADDON .. '/MyAddon.toc')
+    ---@type { range: fileKind.range, newText: string }
+    local edit = assert(action.edit.changes[uri][1])
+    ---@type string[]
+    local lines = {}
+    for line in (text .. nl):gmatch('(.-)' .. nl) do
+        lines[#lines+1] = line
+    end
+    local row = edit.range.start.line + 1
+    local before = lines[row]:sub(1, edit.range.start.character)
+    local after = lines[row]:sub(edit.range['end'].character + 1)
+    lines[row] = before .. edit.newText .. after
+    local result = table.concat(lines, nl)
+    return (result:gsub(nl .. nl .. '$', nl))
+end
+
+do
+    local text = HEADER .. '## Bogus: 1' .. nl
+    local list = disableActionsOf(text, 'toc-unknown-header')
+    if #list ~= 3 then
+        failures[#failures+1] = 'disable actions: expected 3, got ' .. #list
+    else
+        local workspaceAction, lineAction, fileAction = list[1], list[2], list[3]
+        ---@type table?
+        local arg = workspaceAction.command and workspaceAction.command.arguments and workspaceAction.command.arguments[1]
+        if not (workspaceAction.command.command == 'lua.setConfig' and arg and arg.key == 'Lua.diagnostics.disable' and arg.action == 'add'
+            and arg.value == 'toc-unknown-header') then
+            failures[#failures+1] = 'disable action in the workspace'
+        end
+        local fixedLine = applyAction(text, lineAction)
+        if fixedLine ~= HEADER .. '# @diagnostic disable-next-line: toc-unknown-header' .. nl .. '## Bogus: 1' .. nl
+            or #codesOf(fixedLine) ~= 0 then
+            failures[#failures+1] = 'disable action for the line: ' .. fixedLine
+        end
+        local fixedFile = applyAction(text, fileAction)
+        if fixedFile ~= '# @diagnostic disable: toc-unknown-header' .. nl .. HEADER .. '## Bogus: 1' .. nl
+            or #codesOf(fixedFile) ~= 0 then
+            failures[#failures+1] = 'disable action for the file: ' .. fixedFile
+        end
+    end
+    -- an existing comment of the same kind takes the code too
+    text = HEADER .. '# @diagnostic disable-next-line: toc-duplicate-header' .. nl .. '## Bogus: 1' .. nl
+    list = disableActionsOf(text, 'toc-unknown-header')
+    local extended = list[2] and applyAction(text, list[2])
+    if extended ~= HEADER .. '# @diagnostic disable-next-line: toc-duplicate-header, toc-unknown-header' .. nl .. '## Bogus: 1' .. nl then
+        failures[#failures+1] = 'disable action extends a comment: ' .. tostring(extended)
+    end
+    text = '# @diagnostic disable: toc-duplicate-header' .. nl .. HEADER .. '## Bogus: 1' .. nl
+    list = disableActionsOf(text, 'toc-unknown-header')
+    extended = list[3] and applyAction(text, list[3])
+    if extended ~= '# @diagnostic disable: toc-duplicate-header, toc-unknown-header' .. nl .. HEADER .. '## Bogus: 1' .. nl then
+        failures[#failures+1] = 'disable action extends the file comment: ' .. tostring(extended)
+    end
+    -- a `disable` comment right above is not the next-line comment: the line action writes its own
+    text = HEADER .. '# @diagnostic disable: toc-duplicate-header' .. nl .. '## Bogus: 1' .. nl
+    list = disableActionsOf(text, 'toc-unknown-header')
+    local own = list[2] and applyAction(text, list[2])
+    if own ~= HEADER .. '# @diagnostic disable: toc-duplicate-header' .. nl .. '# @diagnostic disable-next-line: toc-unknown-header' .. nl .. '## Bogus: 1' .. nl then
+        failures[#failures+1] = 'disable action does not extend a comment of another kind: ' .. tostring(own)
+    end
+    -- a diagnostic of the file as a whole (first line): no "next line" action, a comment above would take its place
+    list = disableActionsOf('## Title: x' .. nl, 'toc-missing-interface')
+    if #list ~= 2 then
+        failures[#failures+1] = 'disable actions for a diagnostic of the first line: expected 2, got ' .. #list
+    end
+    -- the diagnostics that are not ours get none
+    local uri = furi.encode(ADDON .. '/MyAddon.toc')
+    local range = { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 1 } }
+    local foreign = assert(syntax.kind.codeAction)(uri, HEADER, range, { { code = 'undefined-global', message = 'x', range = range } })
+    if #(foreign or {}) ~= 0 then
+        failures[#failures+1] = 'disable actions for a code that is not toc-*'
     end
 end
 

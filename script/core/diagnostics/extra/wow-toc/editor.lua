@@ -4,6 +4,7 @@
 local fs         = require 'bee.filesystem'
 local furi       = require 'file-uri'
 local fileKinds  = require 'file-kinds'
+local lang       = require 'language'
 local games      = require 'core.diagnostics.extra.wow-toc.games'
 local directives = require 'core.diagnostics.extra.wow-toc.directives'
 local syntax     = require 'core.diagnostics.extra.wow-toc.syntax'
@@ -768,15 +769,78 @@ end
 
 --- Quick fixes for the diagnostics the client sends: a "did you mean" replaces the word, a retired directive gets its new name, a category
 --- translation the page's text, a retired file name suffix a rename of the file.
+--- The three ways to switch a `toc-*` diagnostic off, like the ones the Lua files get: in the workspace (the setting), for the next line and for the
+--- file (a `# @diagnostic` comment, see `syntax.suppressionsOf`; an existing comment of the same kind just takes the code too).
+---@param uri     uri
+---@param lines   wowToc.line[]
+---@param diag    fileKind.clientDiagnostic
+---@param actions table[]
+local function disableActions(uri, lines, diag, actions)
+    local code = diag.code
+    if type(code) ~= 'string' or code:sub(1, 4) ~= 'toc-' then
+        return
+    end
+    local row = diag.range.start.line
+    ---@param title string
+    ---@param edit  { range: fileKind.range, newText: string }
+    local function push(title, edit)
+        actions[#actions+1] = {
+            title = title,
+            kind  = 'quickfix',
+            data  = 'disable',
+            edit  = { changes = { [uri] = { edit } } },
+        }
+    end
+    ---@param at   integer  0-based row of a line that may already hold the directive
+    ---@param mode string
+    ---@return { range: fileKind.range, newText: string }?
+    local function extend(at, mode)
+        local line = lines[at + 1]
+        if not line or line.kind ~= 'comment' then
+            return nil
+        end
+        local found = line.text:match('^#%s*@diagnostic%s+([%a%-]+)%s*:')
+        if not found or found:lower() ~= mode then
+            return nil
+        end
+        local finish = fileKinds.toCharacter(line.text, #line.text)
+        return { range = { start = { line = at, character = finish }, ['end'] = { line = at, character = finish } }, newText = ', ' .. code }
+    end
+    ---@param at   integer
+    ---@param mode string
+    ---@return { range: fileKind.range, newText: string }
+    local function insert(at, mode)
+        local zero = { line = at, character = 0 }
+        return { range = { start = zero, ['end'] = zero }, newText = ('# @diagnostic %s: %s\n'):format(mode, code) }
+    end
+    actions[#actions+1] = {
+        title   = lang.script('ACTION_DISABLE_DIAG', code),
+        kind    = 'quickfix',
+        data    = 'disable',
+        command = {
+            title     = lang.script.COMMAND_DISABLE_DIAG,
+            command   = 'lua.setConfig',
+            arguments = { { key = 'Lua.diagnostics.disable', action = 'add', value = code, uri = uri } },
+        },
+    }
+    -- (a diagnostic of the file as a whole sits on the first line: a comment above it would take its place)
+    if row > 0 then
+        push(lang.script('ACTION_DISABLE_DIAG_LINE', code), extend(row - 1, 'disable-next-line') or insert(row, 'disable-next-line'))
+    end
+    push(lang.script('ACTION_DISABLE_DIAG_FILE', code), extend(0, 'disable') or insert(0, 'disable'))
+end
+
 ---@param uri         uri
----@param _text       string
+---@param text        string
 ---@param _range      fileKind.range
 ---@param diagnostics fileKind.clientDiagnostic[]
 ---@return table[]?
-local function codeAction(uri, _text, _range, diagnostics)
+local function codeAction(uri, text, _range, diagnostics)
     ---@type table[]
     local actions = {}
+    local lines = syntax.parse(text)
     for _, diag in ipairs(diagnostics or {}) do
+        disableActions(uri, lines, diag, actions)
         local code = diag.code
         local message = tostring(diag.message or '')
         ---@param title   string

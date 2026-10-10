@@ -746,6 +746,73 @@ function vm.isUnknown(node)
     return false
 end
 
+--- The `table<K, V>` types a class inherits from (`---@class Dict : table<string, number>`), through any chain of parents: the class indexes
+--- like that table. A class with type parameters is left alone (its table parent is a generic).
+---@param uri   uri
+---@param tnode vm.node
+---@return parser.object[]
+local function collectClassTables(uri, tnode)
+    ---@type parser.object[]
+    local found = {}
+    ---@type table<vm.global, true>
+    local seen = {}
+    ---@param class vm.global
+    local function walk(class)
+        if seen[class] then
+            return
+        end
+        seen[class] = true
+        for _, set in ipairs(class:getSets(uri)) do
+            if set.type == 'doc.class' and set.extends and not set.signs then
+                for _, ext in ipairs(set.extends) do
+                    if ext.type == 'doc.type.table' then
+                        if not vm.getGeneric(ext) then
+                            found[#found+1] = ext
+                        end
+                    elseif ext.type == 'doc.type.sign' and ext.node and ext.node[1] == 'table' then
+                        -- `table<K, V>`: the meta class of `table` resolves it to the table type `{ [K]: V }`
+                        for obj in vm.compileNode(ext):eachObject() do
+                            if obj.type == 'doc.type.table' then
+                                found[#found+1] = obj --[[@as parser.object]]
+                            end
+                        end
+                    elseif ext.type == 'doc.extends.name' then
+                        local parent = vm.getGlobal('type', ext[1])
+                        if parent then
+                            walk(parent)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    for tn in tnode:eachObject() do
+        if tn.type == 'global' and tn.cate == 'type' then
+            ---@cast tn vm.global
+            walk(tn)
+        end
+    end
+    return found
+end
+
+--- The value type of indexing a class that inherits from `table<K, V>` with a key of the type `knode` (nil: the class has no such parent, or
+--- the key does not fit K).
+---@param uri   uri
+---@param tnode vm.node
+---@param knode vm.node|string
+---@return vm.node?
+function vm.getClassIndexValue(uri, tnode, knode)
+    local tables = collectClassTables(uri, tnode)
+    if #tables == 0 then
+        return nil
+    end
+    local tableNode = vm.createNode()
+    for _, tbl in ipairs(tables) do
+        tableNode:merge(tbl)
+    end
+    return vm.getTableValue(uri, tableNode, knode)
+end
+
 ---@param uri uri
 ---@param tnode vm.node
 ---@param knode vm.node|string
@@ -813,6 +880,10 @@ function vm.getTableValue(uri, tnode, knode, inversion)
             end
         end
         ::CONTINUE::
+    end
+    local viaClass = vm.getClassIndexValue(uri, tnode, knode)
+    if viaClass then
+        result:merge(viaClass)
     end
     if result:isEmpty() then
         return nil

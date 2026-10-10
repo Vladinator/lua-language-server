@@ -51,6 +51,10 @@ return function (uri, callback)
         if not ok then
             return
         end
+        -- a class that inherits from `table<string, V>` takes any string key
+        if src.type == 'setfield' and vm.getClassIndexValue(uri, vm.compileNode(node), 'string') then
+            return
+        end
 
         ---@type boolean?
         local isExact

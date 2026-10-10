@@ -6856,3 +6856,62 @@ local y = 's'
 x, y = y, x
 local <?r?> = x
 ]]
+
+-- a class that inherits from table<K, V> indexes like that table (wowlua-ls: "dictionary key/value types")
+TEST 'number' [[
+---@class DictA : table<string, number>
+---@type DictA
+local d
+local k = 'x' ---@type string
+local <?x?> = d[k]
+]]
+
+TEST 'number' [[
+---@class DictB : table<string, number>
+---@type DictB
+local d
+local <?x?> = d.foo
+]]
+
+TEST 'number' [[
+---@class DictC : table<string, number>
+---@type DictC
+local d
+local <?x?> = d['bar']
+]]
+
+-- through any chain of parents
+TEST 'number' [[
+---@class DictD : table<string, number>
+---@class DictDChild : DictD
+---@class DictDGrandChild : DictDChild
+---@type DictDGrandChild
+local d
+local <?x?> = d.foo
+]]
+
+-- an explicit field wins over the table parent
+TEST 'string' [[
+---@class DictE : table<string, number>
+---@field name string
+---@type DictE
+local d
+local <?x?> = d.name
+]]
+
+-- a key of another type is not the table's key
+TEST 'unknown' [[
+---@class DictF : table<string, number>
+---@type DictF
+local d
+local <?x?> = d[1]
+]]
+
+-- a class without the parent stays as it was
+TEST 'unknown' [[
+---@class DictG
+---@field name string
+---@type DictG
+local d
+local <?x?> = d.other
+]]

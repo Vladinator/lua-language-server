@@ -168,3 +168,36 @@ local IdxEnum = {
 print(IdxEnum['A'])
 print(IdxEnum[<!'C'!>])
 ]]
+
+-- a class that inherits from table<string, V> has any string key
+TEST [[
+---@class Dict : table<string, number>
+---@class DictChild : Dict
+
+---@type Dict
+local d = {}
+print(d.anything)
+print(d['other'])
+
+---@type DictChild
+local c = {}
+print(c.anything)
+]]
+
+TEST [[
+---@class Plain
+---@field a number
+
+---@type Plain
+local p = {}
+print(p.<!nothere!>)
+]]
+
+-- a table parent with another key type does not make string keys valid
+TEST [[
+---@class Numbered : table<integer, number>
+
+---@type Numbered
+local n = {}
+print(n.<!foo!>)
+]]

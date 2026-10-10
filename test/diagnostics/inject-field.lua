@@ -95,3 +95,30 @@ local m
 m.xx = 1 -- OK
 m.<!yy!> = 1 -- Warning
 ]]
+
+-- a class that inherits from table<string, V> takes any string key
+TEST [[
+---@class Dict : table<string, number>
+
+---@type Dict
+local d = {}
+d.newKey = 5
+d['other'] = 6
+]]
+
+TEST [[
+---@class Plain
+---@field a number
+
+---@type Plain
+local p = {}
+p.<!injected!> = 1
+]]
+
+TEST [[
+---@class Numbered : table<integer, number>
+
+---@type Numbered
+local n = {}
+n.<!foo!> = 1
+]]

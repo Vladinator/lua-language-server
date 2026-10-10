@@ -2785,12 +2785,26 @@ local compilerSwitch = util.switch()
             symbolicIndexOf(source, key)
         else
             ---@cast key string
+            ---@type boolean
+            local found = false
             vm.compileByParentNode(source.node, key, function (src)
+                found = true
                 setNodeCheckSafe(source, vm.compileNode(src))
                 if src == source and source.value and source.value.type ~= 'nil' then
                     setNodeCheckSafe(source, vm.compileNode(source.value))
                 end
             end)
+            -- a key nobody declares, read from a class that inherits from `table<K, V>`: V (when the key fits K)
+            if not found and guide.isGet(source) and source.node then
+                local keyType = type(key) == 'string' and 'string'
+                    or math.type(key) == 'integer' and 'integer'
+                    or type(key) == 'number' and 'number'
+                    or nil
+                local value = keyType and vm.getClassIndexValue(guide.getUri(source), vm.compileNode(source.node), keyType)
+                if value then
+                    setNodeCheckSafe(source, value)
+                end
+            end
         end
         if guide.isGet(source) then
             -- Only worth tracing (and only safe to: see the note on

@@ -508,6 +508,93 @@ do
     assert(suffix == nil and set.vanilla and set.standard, 'no suffix: every game')
 end
 
+-- 9a. Code actions (quick fixes)
+
+---@param text    string
+---@param code    string  the diagnostic to fix
+---@param tocName? string
+---@return string? fixedText, table? action
+local function quickFix(text, code, tocName)
+    local uri = furi.encode(ADDON .. '/' .. (tocName or 'MyAddon.toc'))
+    ---@type fileKind.diagnostic[]
+    local found = {}
+    for _, diag in ipairs(syntax.diagnose(uri, text)) do
+        if diag.code == code then
+            found[#found+1] = diag
+        end
+    end
+    if #found == 0 then
+        return nil, nil
+    end
+    local diag = found[1]
+    local actions = assert(syntax.kind.codeAction)(uri, text, diag.range, { { code = diag.code, message = diag.message, range = diag.range } })
+    local action = actions and actions[1]
+    if not action then
+        return nil, nil
+    end
+    ---@type { range: fileKind.range, newText: string }[]?
+    local edits = action.edit.changes and action.edit.changes[uri]
+    if not edits then
+        return text, action
+    end
+    -- apply the edit (single line edits)
+    ---@type string[]
+    local lines = {}
+    for line in (text .. nl):gmatch('(.-)' .. nl) do
+        lines[#lines+1] = line
+    end
+    for _, edit in ipairs(edits) do
+        local row = edit.range.start.line + 1
+        lines[row] = lines[row]:sub(1, edit.range.start.character) .. edit.newText .. lines[row]:sub(edit.range['end'].character + 1)
+    end
+    if lines[#lines] == '' then
+        lines[#lines] = nil
+    end
+    return table.concat(lines, nl) .. nl, action
+end
+
+---@param name     string
+---@param text     string
+---@param code     string
+---@param expected string?  the text after the fix (nil: no fix offered)
+---@param tocName? string
+local function fixes(name, text, code, expected, tocName)
+    local got = quickFix(text, code, tocName)
+    if got ~= expected then
+        failures[#failures+1] = ('quick fix `%s`: expected %s, got %s'):format(name, tostring(expected), tostring(got))
+    end
+end
+
+fixes('a misspelt header', HEADER .. '## Titel: x' .. nl, 'toc-unknown-header', HEADER .. '## Title: x' .. nl)
+fixes('no near name: no fix', HEADER .. '## Zzzzzzzz: x' .. nl, 'toc-unknown-header', nil)
+fixes('a misspelt locale', HEADER .. '## Title: a' .. nl .. '## Title-deDF: b' .. nl, 'toc-invalid-value', HEADER .. '## Title: a' .. nl .. '## Title-deDE: b' .. nl)
+fixes('a misspelt game type in a header', HEADER .. '## AllowLoadGameType: clasic' .. nl, 'toc-invalid-value', HEADER .. '## AllowLoadGameType: classic' .. nl)
+fixes('a misspelt game type in a bracket', HEADER .. 'File.lua [AllowLoadGameType standrd]' .. nl, 'toc-invalid-value', HEADER .. 'File.lua [AllowLoadGameType standard]' .. nl)
+fixes('a misspelt inline directive', HEADER .. 'File.lua [AllowLoadGameTyp standard]' .. nl, 'toc-invalid-value', HEADER .. 'File.lua [AllowLoadGameType standard]' .. nl)
+fixes('a misspelt category', HEADER .. '## Category: Combatt' .. nl, 'toc-unknown-category', HEADER .. '## Category: Combat' .. nl)
+fixes('a different translation', HEADER .. '## Category: Combat' .. nl .. '## Category-deDE: Gefecht' .. nl, 'toc-category-translation', HEADER .. '## Category: Combat' .. nl .. '## Category-deDE: Kampf' .. nl)
+fixes('a renamed directive', HEADER .. '## GuardedAddOn: 1' .. nl, 'toc-retired-header', HEADER .. '## LoadFirst: 1' .. nl)
+fixes('a dropped directive has no new name', HEADER .. '## SuppressLocalTableRef: 1' .. nl, 'toc-retired-header', nil)
+do
+    local text, action = quickFix(HEADER, 'toc-retired-suffix', 'MyAddon_BCC.toc')
+    local change = action and action.edit.documentChanges and action.edit.documentChanges[1]
+    if not (text and change and change.kind == 'rename' and change.newUri == furi.encode(ADDON .. '/MyAddon_TBC.toc')
+        and change.oldUri == furi.encode(ADDON .. '/MyAddon_BCC.toc')) then
+        failures[#failures+1] = 'quick fix `a retired suffix renames the file`'
+    end
+    text, action = quickFix(HEADER, 'toc-retired-suffix', 'MyAddon_WOTLK.toc')
+    if not (action and action.edit.documentChanges[1].newUri == furi.encode(ADDON .. '/MyAddon_Wrath.toc')) then
+        failures[#failures+1] = 'quick fix `_WOTLK becomes _Wrath`'
+    end
+end
+do
+    local uri = furi.encode(ADDON .. '/MyAddon.toc')
+    local none = assert(syntax.kind.codeAction)(uri, HEADER, { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 1 } }, {})
+    if #(none or {}) ~= 0 then
+        failures[#failures+1] = 'quick fix `no diagnostics, no actions`'
+    end
+end
+
 -- 9. Completion, hover and definition ------------------------------------------------------------------------------------------------------------------
 -- The text carries `|` where the cursor is.
 

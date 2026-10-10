@@ -671,6 +671,63 @@ local function complete(uri, text, position)
     return nil
 end
 
+-- Code actions -------------------------------------------------------------------------------------------
+
+--- Quick fixes for the diagnostics the client sends: a "did you mean" replaces the word, a retired directive gets its new name, a category
+--- translation the page's text, a retired file name suffix a rename of the file.
+---@param uri         uri
+---@param _text       string
+---@param _range      fileKind.range
+---@param diagnostics fileKind.clientDiagnostic[]
+---@return table[]?
+local function codeAction(uri, _text, _range, diagnostics)
+    ---@type table[]
+    local actions = {}
+    for _, diag in ipairs(diagnostics or {}) do
+        local code = diag.code
+        local message = tostring(diag.message or '')
+        ---@param title   string
+        ---@param newText string
+        local function replace(title, newText)
+            actions[#actions+1] = {
+                title       = title,
+                kind        = 'quickfix',
+                diagnostics = { diag },
+                isPreferred = true,
+                edit        = { changes = { [uri] = { { range = diag.range, newText = newText } } } },
+            }
+        end
+        local suggestion = message:match('%(did you mean `([^`]+)`%?%)')
+        if suggestion then
+            replace(('Change to `%s`'):format(suggestion), suggestion)
+        elseif code == 'toc-category-translation' then
+            local expected = message:match(' as `([^`]+)` for ')
+            if expected then
+                replace(('Use the translation `%s`'):format(expected), expected)
+            end
+        elseif code == 'toc-retired-header' then
+            local use = message:match('renamed `([^`]+)`')
+            if use then
+                replace(('Rename to `%s`'):format(use), use)
+            end
+        elseif code == 'toc-retired-suffix' then
+            local use = message:match('rename it to `_([^`]+)`')
+            local newUri, count = uri:gsub('_[^_/]*%.[tT][oO][cC]$', '_' .. (use or '') .. '.toc')
+            if use and count == 1 then
+                actions[#actions+1] = {
+                    title       = ('Rename the file to use `_%s`'):format(use),
+                    kind        = 'quickfix',
+                    diagnostics = { diag },
+                    isPreferred = true,
+                    edit        = { documentChanges = { { kind = 'rename', oldUri = uri, newUri = newUri } } },
+                }
+            end
+        end
+    end
+    return actions
+end
+
+syntax.kind.codeAction = codeAction
 syntax.kind.complete   = complete
 syntax.kind.hover      = hover
 syntax.kind.definition = definition

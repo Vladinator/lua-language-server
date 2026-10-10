@@ -32,6 +32,11 @@ local tm      = require 'text-merger'
 ---@field message string
 ---@field tags?   integer[]
 
+---@class fileKind.clientDiagnostic  a diagnostic as the client sends it back with a code action request
+---@field code?    string|integer
+---@field message? string
+---@field range    fileKind.range
+
 ---@class fileKind.hover
 ---@field value  string markdown
 ---@field range? fileKind.range
@@ -43,6 +48,7 @@ local tm      = require 'text-merger'
 ---@field complete?           fun(uri: uri, text: string, position: fileKind.position): table[]?  LSP CompletionItem[]
 ---@field hover?              fun(uri: uri, text: string, position: fileKind.position): fileKind.hover?
 ---@field definition?         fun(uri: uri, text: string, position: fileKind.position): table[]?  LSP Location[]
+---@field codeAction?         fun(uri: uri, text: string, range: fileKind.range, diagnostics: fileKind.clientDiagnostic[]): table[]?  LSP CodeAction[] (`edit.changes` / `edit.documentChanges` in LSP positions)
 ---@field triggerCharacters?  string[] characters that open completion in a document of this kind
 
 ---@class file-kinds
@@ -238,6 +244,23 @@ function m.definition(uri, position)
     end
     local ok, locations = xpcall(document.kind.definition, log.error, uri, document.text, position)
     return ok and locations or nil
+end
+
+--- Code actions for a range of an open document of a kind (`diagnostics` are the ones the client sent for it).
+---@param uri         uri
+---@param range       fileKind.range
+---@param diagnostics fileKind.clientDiagnostic[]
+---@return table[]?
+function m.codeAction(uri, range, diagnostics)
+    local document = documents[uri]
+    if not document or not document.kind.codeAction then
+        return nil
+    end
+    local ok, actions = xpcall(document.kind.codeAction, log.error, uri, document.text, range, diagnostics)
+    if not ok or not actions or #actions == 0 then
+        return nil
+    end
+    return actions
 end
 
 -- A change of the diagnostic settings changes what is published for the open documents.

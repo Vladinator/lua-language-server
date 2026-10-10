@@ -245,6 +245,23 @@ local function nearest(word, names)
     return best
 end
 
+--- " (did you mean `x`?)" for a misspelt game type word, or "".
+---@param word string
+---@return string
+local function gameTypeHint(word)
+    ---@type string[]
+    local names = {}
+    for name in pairs(gameName) do
+        names[#names+1] = name
+    end
+    for name in pairs(familyGames) do
+        names[#names+1] = name
+    end
+    table.sort(names)
+    local suggestion = nearest(word, names)
+    return suggestion and (' (did you mean `%s`?)'):format(suggestion) or ''
+end
+
 -- Parsing -----------------------------------------------------------------------------------------------
 
 local MAX_LINE = 1024
@@ -817,7 +834,7 @@ function m.diagnose(uri, text)
                     local _, unknown = m.gameWords(value)
                     for _, item in ipairs(unknown) do
                         report(line.row, (line.valueStart or 1) + item.start - 1, (line.valueStart or 1) + item.finish - 1, 'toc-invalid-value',
-                            ('Unknown game type `%s`. (The client treats an unknown type as satisfying `AllowLoadGameType`.)'):format(item.word))
+                            ('Unknown game type `%s`%s. (The client treats an unknown type as satisfying `AllowLoadGameType`.)'):format(item.word, gameTypeHint(item.word)))
                     end
                 end
             end
@@ -1038,7 +1055,7 @@ function m.diagnose(uri, text)
                     local _, unknown = m.gameWords(bracket.value)
                     for _, item in ipairs(unknown) do
                         report(line.row, bracket.valueStart + item.start - 1, bracket.valueStart + item.finish - 1, 'toc-invalid-value',
-                            ('Unknown game type `%s`.'):format(item.word))
+                            ('Unknown game type `%s`%s.'):format(item.word, gameTypeHint(item.word)))
                     end
                 elseif inline.value == 'locales' then
                     for first, word, last in bracket.value:gmatch('()([^,%s]+)()') --[==[@as fun(): (integer, string, integer)]==] do

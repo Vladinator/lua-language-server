@@ -1024,6 +1024,11 @@ m.register 'textDocument/codeAction' {
         ---@type provider.textDocumentItem
         local doc         = params.textDocument
         local uri         = files.getRealUri(doc.uri)
+        local fileKinds   = require 'file-kinds'
+        if fileKinds.isOpen(uri) then
+            -- a document that is not Lua (script/file-kinds.lua): the kind answers
+            return fileKinds.codeAction(uri, params.range, params.context.diagnostics or {})
+        end
         local range       = params.range --[[@as range]]
         local diagnostics = params.context.diagnostics --[[@as core.code-action.diag[]?]]
         workspace.awaitReady(uri)

@@ -55,6 +55,13 @@ local kind = {
     definition = function (uri, _text, position)
         return { { uri = uri, range = { start = position, ['end'] = position } } }
     end,
+    codeAction = function (uri, _text, range, diagnostics)
+        return { {
+            title = 'zz fix ' .. #diagnostics,
+            kind  = 'quickfix',
+            edit  = { changes = { [uri] = { { range = range, newText = 'GOOD' } } } },
+        } }
+    end,
 }
 kinds.register(kind)
 
@@ -121,6 +128,14 @@ lclient():start(function (client)
     assert(hover and hover.contents.value == 'fake hover at 0:2', 'hover')
     local defs = client:awaitRequest('textDocument/definition', { textDocument = { uri = uri }, position = { line = 1, character = 5 } })
     assert(defs and defs[1].uri == uri and defs[1].range.start.character == 5, 'definition')
+
+    -- code actions ask the kind, with the range and the diagnostics the client sent
+    local range = { start = { line = 1, character = 8 }, ['end'] = { line = 1, character = 11 } }
+    local actions = client:awaitRequest('textDocument/codeAction', {
+        textDocument = { uri = uri }, range = range,
+        context = { diagnostics = { { range = range, message = 'x', code = CODE } } },
+    })
+    assert(actions and actions[1].title == 'zz fix 1' and actions[1].edit.changes[uri][1].newText == 'GOOD', 'code action')
 
     -- an incremental change is merged and the diagnostics are sent again
     client:notify('textDocument/didChange', {

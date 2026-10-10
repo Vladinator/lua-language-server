@@ -301,6 +301,12 @@ m.register 'textDocument/didOpen' {
         local doc      = params.textDocument
         local uri      = files.getRealUri(doc.uri)
         log.debug('didOpen', uri)
+        local fileKinds = require 'file-kinds'
+        if fileKinds.of(uri) then
+            -- a document that is not Lua (script/file-kinds.lua): kept apart, never parsed as Lua
+            fileKinds.open(uri, doc.text, doc.version)
+            return
+        end
         local text  = doc.text
         files.setText(uri, text, true, function (file)
             file.version = doc.version
@@ -318,6 +324,11 @@ m.register 'textDocument/didClose' {
         local doc   = params.textDocument
         local uri   = files.getRealUri(doc.uri)
         log.debug('didClose', uri)
+        local fileKinds = require 'file-kinds'
+        if fileKinds.isOpen(uri) then
+            fileKinds.close(uri)
+            return
+        end
         files.close(uri)
         if not files.isLua(uri) then
             files.remove(uri)
@@ -335,6 +346,11 @@ m.register 'textDocument/didChange' {
         ---@type core.fix-indent.change[]
         local changes = params.contentChanges
         local uri     = files.getRealUri(doc.uri)
+        local fileKinds = require 'file-kinds'
+        if fileKinds.isOpen(uri) then
+            fileKinds.change(uri, changes, doc.version)
+            return
+        end
         local text    = files.getOriginText(uri)
         if not text then
             text = util.loadFile(furi.decode(uri))
@@ -385,6 +401,10 @@ m.register 'textDocument/hover' {
         local uri    = files.getRealUri(doc.uri)
         if not config.get(uri, 'Lua.hover.enable') then
             return
+        end
+        local fileKinds = require 'file-kinds'
+        if fileKinds.isOpen(uri) then
+            return fileKinds.hover(uri, params.position)
         end
         if not workspace.isReady(uri) then
             local count, max = workspace.getLoadingProcess(uri)
@@ -470,6 +490,10 @@ m.register 'textDocument/definition' {
         ---@type provider.textDocumentItem
         local doc    = params.textDocument
         local uri    = files.getRealUri(doc.uri)
+        local fileKinds = require 'file-kinds'
+        if fileKinds.isOpen(uri) then
+            return fileKinds.definition(uri, params.position)
+        end
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_DEFINITION, 0.5)
         local state = files.getState(uri)
@@ -700,6 +724,10 @@ m.register 'textDocument/completion' {
         local uri  = files.getRealUri(doc.uri)
         if not config.get(uri, 'Lua.completion.enable') then
             return
+        end
+        local fileKinds = require 'file-kinds'
+        if fileKinds.isOpen(uri) then
+            return fileKinds.complete(uri, params.position)
         end
         if not workspace.isReady(uri) then
             return nil

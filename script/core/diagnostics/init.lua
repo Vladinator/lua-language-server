@@ -294,6 +294,7 @@ local function isEnabled(uri, name, ignoreFileOpenState)
     return true
 end
 diagd.isEnabled = isEnabled
+diagd.getSeverity = getSeverity
 
 ---@async
 ---@param uri uri
@@ -396,7 +397,8 @@ local function buildDiagList()
         for name in pairs(diagd.diagnosticDatas) do
             -- a diagnostic that reads the outcome of all the others (`afterAll`) always runs
             -- last (see the tail of the exported function)
-            if not diagd.diagnosticDatas[name].afterAll then
+            local data = diagd.diagnosticDatas[name]
+            if not data.afterAll and not data.fileKind then
                 names[#names+1] = name
             end
         end

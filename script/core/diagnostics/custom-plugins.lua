@@ -143,7 +143,8 @@ local function loadDirectoryFiles(dirPath)
                 -- self-register under its filename.
                 local registeredAny = false
                 for registered in pairs(diag.diagnosticDatas) do
-                    if not known[registered] then
+                    -- (the diagnostics of a file kind are run by the kind, not by this loader: they do not make the file a diagnostic plugin)
+                    if not known[registered] and not diag.diagnosticDatas[registered].fileKind then
                         registeredAny = true
                         break
                     end

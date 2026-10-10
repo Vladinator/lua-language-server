@@ -3,6 +3,7 @@ local nonil  = require 'without-check-nil'
 local client = require 'client'
 local config = require 'config'
 local ws     = require 'workspace'
+local fileKinds = require 'file-kinds'
 
 local isEnable = false
 
@@ -16,6 +17,13 @@ local function allWords()
     for c in str:gmatch '.' do
         list[#list+1] = c
         mark[c] = true
+    end
+    -- what the file kinds (script/file-kinds.lua) open completion with
+    for _, c in ipairs(fileKinds.getTriggerCharacters()) do
+        if not mark[c] then
+            list[#list+1] = c
+            mark[c] = true
+        end
     end
     for _, scp in ipairs(ws.folders) do
         local postfix = config.get(scp.uri, 'Lua.completion.postfix')

@@ -2774,10 +2774,26 @@ local compilerSwitch = util.switch()
             if value then
                 setNodeCheckSafe(source, value)
             end
+            ---@type string[]
+            local literalKeys = {}
+            local onlyLiterals = true
             for k in key:eachObject() do
                 if k.type == 'global' and k.cate == 'type' then
                     ---@cast k vm.global
+                    if k.name == 'string' then
+                        onlyLiterals = false
+                    end
                     vm.compileByParentNode(source.node, k, function (src)
+                        setNodeCheckSafe(source, vm.compileNode(src))
+                    end)
+                elseif (k.type == 'string' or k.type == 'doc.type.string') and type(k[1]) == 'string' then
+                    literalKeys[#literalKeys+1] = k[1]
+                end
+            end
+            -- `t[cond and "a" or "b"]`, `t[key]` with `key: "a"|"b"`: the union of those fields (like TypeScript's `T["a"|"b"]`)
+            if onlyLiterals and guide.isGet(source) then
+                for _, literal in ipairs(literalKeys) do
+                    vm.compileByParentNode(source.node, literal, function (src)
                         setNodeCheckSafe(source, vm.compileNode(src))
                     end)
                 end

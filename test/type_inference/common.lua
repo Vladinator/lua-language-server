@@ -7030,3 +7030,52 @@ TEST 'integer' [[
 local function pick(a, b) return a end
 local <?r?> = pick(1, 2.5)
 ]]
+
+-- an index that is a union of string literals reads the union of those fields (TypeScript: `T["a" | "b"]`)
+TEST 'integer|fun(event: string)' [[
+---@class Cb
+---@field Reg fun(event: string)
+---@field count integer
+---@type Cb
+local cb
+---@param flag boolean
+local function f(flag)
+    local <?v?> = cb[flag and "Reg" or "count"]
+end
+]]
+
+TEST 'fun(event: string)' [[
+---@class Cb
+---@field Reg fun(event: string)
+---@field Unreg fun(event: string)
+---@type Cb
+local cb
+---@param flag boolean
+local function f(flag)
+    local key = flag and "Reg" or "Unreg"
+    local <?v?> = cb[key]
+end
+]]
+
+-- a plain `string` key stays unknown, and so does a union that holds one
+TEST 'unknown' [[
+---@class Cb
+---@field Reg fun(event: string)
+---@type Cb
+local cb
+---@param key string
+local function f(key)
+    local <?v?> = cb[key]
+end
+]]
+
+TEST 'unknown' [[
+---@class Cb
+---@field Reg fun(event: string)
+---@type Cb
+local cb
+---@param key string|"Reg"
+local function f(key)
+    local <?v?> = cb[key]
+end
+]]

@@ -486,6 +486,7 @@ local template = {
     ['Lua.type.maxUnionVariants']           = Type.Integer >> 0,
     ['Lua.type.weakNilCheck']               = Type.Boolean >> false,
     ['Lua.type.inferParamType']             = Type.Boolean >> false,
+    ['Lua.type.checkFieldNilArguments']     = Type.Boolean >> false,
     ['Lua.type.checkTableShape']            = Type.Boolean >> false,
     ['Lua.type.inferTableSize']             = Type.Integer >> 10,
     ['Lua.annotations.dialects']            = Type.Array(Type.String << {

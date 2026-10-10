@@ -56,6 +56,22 @@ return function (uri, callback)
             return
         end
 
+        -- a variable that a narrowing cut down to one member of a union (`if not x.specs then x.specs = {} end`: only the member without
+        -- `specs` can be here) may still be declared with the field by another member of what the variable can hold: the code builds that member
+        local keyName = guide.getKeyName(src)
+        if keyName and src.type == 'setfield' and node.type == 'getlocal' and node.node then
+            ---@type boolean?
+            local declared
+            vm.compileByParentNode(node.node, keyName, function (def)
+                if def.type == 'doc.field' or def.type == 'doc.type.field' then
+                    declared = true
+                end
+            end)
+            if declared then
+                return
+            end
+        end
+
         ---@type boolean?
         local isExact
         local class = vm.getDefinedClass(uri, node)

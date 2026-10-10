@@ -918,3 +918,65 @@ process("YES")
 process(<!getToggle()!>)
 plainProcess(getPlain())
 ]]
+
+-- Lua.type.checkFieldNilArguments: false (the original LuaLS) takes the nil out of a field read before the check, true checks it like a variable
+TEST [[
+---@class Opt
+---@field f? table
+---@field name string?
+
+---@type Opt
+local o
+
+---@param t table
+local function plain(t) end
+---@param s string
+local function str(s) end
+
+plain(o.f)
+str(o.name)
+plain(o['f'])
+local v = o.f
+plain(<!v!>)
+]]
+
+config.set(nil, 'Lua.type.checkFieldNilArguments', true)
+TEST [[
+---@class Opt
+---@field f? table
+---@field name string?
+
+---@type Opt
+local o
+
+---@param t table
+local function plain(t) end
+---@param s string
+local function str(s) end
+
+plain(<!o.f!>)
+str(<!o.name!>)
+plain(<!o['f']!>)
+local v = o.f
+plain(<!v!>)
+
+-- narrowed like a variable
+if o.f then
+    plain(o.f)
+end
+if not o.name then
+    return
+end
+str(o.name)
+plain(o.f or {})
+o.f = {}
+plain(o.f)
+
+-- a field that is never nil is no business of the setting
+---@class Req
+---@field f table
+---@type Req
+local r
+plain(r.f)
+]]
+config.set(nil, 'Lua.type.checkFieldNilArguments', false)

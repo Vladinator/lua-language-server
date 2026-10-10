@@ -408,6 +408,12 @@ When checking the type of union type, ignore the `nil` in it.
 
 When this setting is `false`, the `number|nil` type cannot be assigned to the `number` type. It can be with `true`.
 ]]
+config.type.checkFieldNilArguments       =
+[[
+Check an argument that reads a field (`f(obj.field)`) with the `nil` of its type.
+
+When this setting is `false` (the original LuaLS behavior, from when a field could not be narrowed), `nil` is taken out of a field read before it is checked against the parameter, so `obj.field` of type `table?` can be passed for a `table` parameter. With `true` a field is checked like a variable (and narrowed like one: `if obj.field then f(obj.field) end` is fine).
+]]
 config.type.inferParamType               =
 [[
 When a parameter type is not annotated, it is inferred from the function's call sites.

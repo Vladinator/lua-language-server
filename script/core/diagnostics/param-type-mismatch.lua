@@ -1,4 +1,5 @@
 local files           = require 'files'
+local config          = require 'config'
 local guide           = require 'parser.guide'
 local vm              = require 'vm'
 local await           = require 'await'
@@ -233,11 +234,10 @@ return function (uri, callback)
             if not defNode then
                 goto CONTINUE
             end
-            if arg.type == 'getfield'
-            or arg.type == 'getindex'
-            or arg.type == 'self' then
-                -- 由于无法对字段进行类型收窄，
-                -- 因此将假值移除再进行检查
+            if arg.type == 'self'
+            or ((arg.type == 'getfield' or arg.type == 'getindex') and not config.get(uri, 'Lua.type.checkFieldNilArguments')) then
+                -- (the original LuaLS could not narrow a field, so it took the falsy values out of a field read before the check;
+                -- `Lua.type.checkFieldNilArguments` keeps them: a field is narrowed here like a variable)
                 refNode = refNode:copy():setTruthy()
             end
             local errs = {}

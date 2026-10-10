@@ -2981,6 +2981,25 @@ boolean
 true
 ```
 
+# type.checkFieldNilArguments
+
+Check an argument that reads a field (`f(obj.field)`) with the `nil` of its type.
+
+When this setting is `false` (the original LuaLS behavior, from when a field could not be narrowed), `nil` is taken out of a field read before it is checked against the parameter, so `obj.field` of type `table?` can be passed for a `table` parameter. With `true` a field is checked like a variable (and narrowed like one: `if obj.field then f(obj.field) end` is fine).
+
+
+## type
+
+```ts
+boolean
+```
+
+## default
+
+```jsonc
+false
+```
+
 # type.checkTableShape
 
 Strictly check the shape of the table.

@@ -122,3 +122,66 @@ TEST [[
 local n = {}
 n.<!foo!> = 1
 ]]
+
+-- a narrowing cuts a union down to one member (`if not x.specs`: only the member without `specs` can be here), but another member of what
+-- the variable can hold declares the field: the code is building that member, not injecting a stray field
+TEST [[
+---@class Info
+---@field itemID number
+---@field name string?
+
+---@class Cache
+---@field public items table<number, Info | { everyone: boolean, specs: table<number, number> }>
+local cache = { items = {} } ---@class Cache
+
+---@return Info?
+local function getInfo(i) return nil end
+
+local function fill(specID, classID)
+    for i = 1, 3 do
+        local itemInfo = getInfo(i)
+        if itemInfo and itemInfo.itemID then
+            local itemCache = cache.items[itemInfo.itemID]
+            if not itemCache then
+                itemCache = itemInfo
+                cache.items[itemInfo.itemID] = itemCache
+            end
+            if not itemCache.specs then
+                itemCache.specs = {}
+            end
+            itemCache.specs[specID] = classID
+        end
+    end
+end
+fill(1, 2)
+]]
+
+-- ... a field that no member declares is still an injection
+TEST [[
+---@class Info
+---@field itemID number
+---@field name string?
+
+---@class Cache
+---@field public items table<number, Info | { everyone: boolean, specs: table<number, number> }>
+local cache = { items = {} } ---@class Cache
+
+---@return Info?
+local function getInfo(i) return nil end
+
+local function fill()
+    for i = 1, 3 do
+        local itemInfo = getInfo(i)
+        if itemInfo and itemInfo.itemID then
+            local itemCache = cache.items[itemInfo.itemID]
+            if not itemCache then
+                itemCache = itemInfo
+            end
+            if not itemCache.specs then
+                itemCache.<!other!> = {}
+            end
+        end
+    end
+end
+fill()
+]]

@@ -2977,6 +2977,22 @@ boolean
 true
 ```
 
+# type.checkFieldNilArguments
+
+**Missing description!!**
+
+## type
+
+```ts
+boolean
+```
+
+## default
+
+```jsonc
+false
+```
+
 # type.checkTableShape
 
 对表的形状进行严格检查。

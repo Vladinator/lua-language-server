@@ -2978,6 +2978,22 @@ boolean
 true
 ```
 
+# type.checkFieldNilArguments
+
+**Missing description!!**
+
+## type
+
+```ts
+boolean
+```
+
+## default
+
+```jsonc
+false
+```
+
 # type.checkTableShape
 
 Verificação rigorosa do formato das tabelas.

@@ -10,7 +10,7 @@ local syntax     = require 'core.diagnostics.extra.wow-toc.syntax'
 
 ---@alias wowToc.completionItem table<string, any>
 
-local CompletionItemKind = { Text = 1, Value = 12, Enum = 13, Keyword = 14, File = 17, Variable = 6, Property = 10, Folder = 19, Constant = 21, Function = 3 }
+local CompletionItemKind = { Module = 9, Text = 1, Value = 12, Enum = 13, Keyword = 14, File = 17, Variable = 6, Property = 10, Folder = 19, Constant = 21, Function = 3 }
 
 ---@class wowToc.cursor
 ---@field lines  wowToc.line[]
@@ -83,6 +83,59 @@ end
 ---@return string?
 local function directoryOf(uri)
     return furi.decode(uri):match('^(.*)[/\\][^/\\]*$')
+end
+
+-- The addons next to this one ------------------------------------------------------------------------------------
+
+---@class wowToc.addon
+---@field name string  the folder name
+---@field toc  string  path of its `.toc`
+
+--- The addons installed next to the addon of a `.toc` (the folders of the parent folder that hold a `<Name>/<Name>.toc`), by lowercase name.
+---@param uri uri
+---@return table<string, wowToc.addon>
+local function siblingAddons(uri)
+    ---@type table<string, wowToc.addon>
+    local found = {}
+    local dir = directoryOf(uri)
+    local parent = dir and dir:match('^(.*)[/\\][^/\\]*$')
+    if not dir or not parent then
+        return found
+    end
+    ---@type string
+    local own = (dir:match('([^/\\]+)$') or ''):lower()
+    pcall(function ()
+        for entry in fs.pairs(fs.path(parent)) do
+            ---@type string
+            local name = entry:filename():string()
+            ---@type string
+            local toc = parent .. '/' .. name .. '/' .. name .. '.toc'
+            if name:lower() ~= own and name:sub(1, 1) ~= '.' and fs.is_directory(entry) and fs.exists(fs.path(toc)) then
+                found[name:lower()] = { name = name, toc = toc }
+            end
+        end
+    end)
+    return found
+end
+
+--- The `## Title:` of a `.toc` file on disk (plain, first one), if it has one.
+---@param path string
+---@return string?
+local function titleOf(path)
+    local file = io.open(path, 'rb')
+    if not file then
+        return nil
+    end
+    ---@type string
+    local text = file:read('a')
+    file:close()
+    for line in (text .. string.char(10)):gmatch('(.-)\r?\n') do
+        local title = line:match('^##%s*Title%s*:%s*(.-)%s*$')
+        if title and title ~= '' then
+            return title
+        end
+    end
+    return nil
 end
 
 -- Hover text --------------------------------------------------------------------------------------------
@@ -337,6 +390,16 @@ local function hover(uri, text, position)
                     if described then
                         return { value = described, range = range(first, last) }
                     end
+                elseif line.directive.addons then
+                    local addon = siblingAddons(uri)[word:lower()]
+                    if addon then
+                        local title = titleOf(addon.toc)
+                        return {
+                            value = ('**%s**%s\n\n`%s`'):format(addon.name, title and (' (' .. title .. ')') or '', addon.toc),
+                            range = range(first, last),
+                        }
+                    end
+                    return { value = ('No addon `%s` is installed next to this one.'):format(word), range = range(first, last) }
                 end
             end
         end
@@ -369,6 +432,17 @@ local function definition(uri, text, position)
     local cursor = cursorAt(text, position)
     local line = cursor.line
     local at = cursor.col + 1
+    -- an addon named in a list of addons: its `.toc`
+    if line.kind == 'header' and line.directive and line.directive.addons and line.value and line.valueStart and line.valueFinish
+        and at >= line.valueStart and at <= line.valueFinish + 1 then
+        local word = wordAt(cursor.text, math.min(at, line.valueFinish))
+        local addon = word and siblingAddons(uri)[word:lower()]
+        if addon then
+            local zero = { line = 0, character = 0 }
+            return { { uri = furi.encode(addon.toc), range = { start = zero, ['end'] = zero } } }
+        end
+        return nil
+    end
     if line.kind ~= 'file' or not line.path or line.path == '' or not line.pathStart or not line.pathFinish then
         return nil
     end
@@ -653,6 +727,25 @@ local function complete(uri, text, position)
         end
         if directive.name == 'Category' then
             return categoryItems(cursor, keyLocale)
+        end
+        if directive.addons then
+            local word = value:match('[^%s,]*$') or ''
+            local first = cursor.col - #word + 1
+            local done = wordsOf(value:sub(1, #value - #word))
+            ---@type wowToc.completionItem[]
+            local items = {}
+            ---@type wowToc.addon[]
+            local names = {}
+            for _, addon in pairs(siblingAddons(uri)) do
+                names[#names+1] = addon
+            end
+            table.sort(names, function (a, b) return a.name:lower() < b.name:lower() end)
+            for _, addon in ipairs(names) do
+                if not done[addon.name:lower()] then
+                    items[#items+1] = item(addon.name, CompletionItemKind.Module, cursor, first, { detail = titleOf(addon.toc) })
+                end
+            end
+            return items
         end
         local word = value:match('[^%s,]*$') or ''
         local first = cursor.col - #word + 1

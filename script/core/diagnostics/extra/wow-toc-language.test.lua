@@ -673,6 +673,28 @@ do
         failures[#failures+1] = 'completion `the translation of the plain line category sorts first`'
     end
 end
+-- addons installed next to this one (folders of the parent folder with a <Name>/<Name>.toc)
+---@param name   string
+---@param title? string
+local function makeAddon(name, title)
+    ---@type string
+    local dir = TESTROOT .. name
+    fs.create_directories(fs.path(dir))
+    local file = assert(io.open(dir .. '/' .. name .. '.toc', 'w'))
+    file:write('## Interface: 120100' .. nl .. (title and ('## Title: ' .. title .. nl) or ''))
+    file:close()
+end
+makeAddon('ZzDepOne', 'First Dependency')
+makeAddon('ZzDepTwo', nil)
+makeAddon('MyAddon', nil) -- (the addon itself is no candidate)
+fs.create_directories(fs.path(TESTROOT .. 'ZzNoToc'))
+offers('addon names', '## Dependencies: |', { 'ZzDepOne', 'ZzDepTwo' }, { 'ZzNoToc', 'MyAddon' })
+offers('addon names are not repeated', '## OptionalDeps: ZzDepOne, |', { 'ZzDepTwo' }, { 'ZzDepOne' })
+offers('addon names for LoadWith', '## LoadWith: |', { 'ZzDepOne' })
+offers('addon names for LoadManagers', '## LoadManagers: |', { 'ZzDepOne' })
+offers('addon names for RequiredDeps', '## RequiredDeps: |', { 'ZzDepOne' })
+offers('addon names for a Dep* key', '## Dep1: |', { 'ZzDepOne' })
+offers('SavedVariables are globals, not addons', '## SavedVariables: |', {}, { 'ZzDepOne' })
 offers('a boolean', '## LoadOnDemand: |', { '1', '0' })
 offers('an enum', '## DefaultState: |', { 'enabled', 'disabled' }, { '1' })
 offers('game types', '## AllowLoadGameType: |', { 'standard', 'mainline', 'classic', 'cata', 'camelot', 'forever' })
@@ -763,6 +785,10 @@ hovers('a category', '## Category: Com|bat', { '**Combat**', 'Damage meters', '`
 hovers('a category in lower case', '## Category: com|bat', { '**Combat**' })
 hovers('a translated category', '## Category-deDE: Ka|mpf', { '**Combat**' })
 hovers('a custom category', '## Category: My Ow|n Things', {})
+hovers('an addon', '## Dependencies: Zz|DepOne', { '**ZzDepOne**', '(First Dependency)', 'ZzDepOne.toc' })
+hovers('an addon without a title', '## OptionalDeps: ZzDep|Two', { '**ZzDepTwo**' })
+hovers('an addon that is not there', '## Dependencies: Nowhe|re', { 'No addon `Nowhere`' })
+hovers('a name of SavedVariables is no addon', '## SavedVariables: ZzDep|One', {})
 hovers('an Interface number', '## Interface: 12|0100', { '12.1.0', 'Retail (Midnight)' })
 hovers('an old Interface number', '## Interface: 11|509', { '1.15.9', 'Classic Era' })
 hovers('a number nobody owns', '## Interface: 9|9', { '0.0.99' })
@@ -799,11 +825,37 @@ leadsTo('a file', 'Co|re.lua', 'Core.lua')
 leadsTo('a file in a folder', 'Sub\\De|ep.lua', 'Sub/Deep.lua')
 leadsTo('a file with a condition', 'Co|re.lua [AllowLoadGameType cata]', 'Core.lua')
 leadsTo('an xml file', 'Vi|ew.xml', 'View.xml')
+do
+    local uri, text, position = place('## Dependencies: Zz|DepOne, ZzDepTwo')
+    local result = assert(syntax.kind.definition)(uri, text, position)
+    if not (result and result[1] and result[1].uri == furi.encode(TESTROOT .. 'ZzDepOne/ZzDepOne.toc')) then
+        failures[#failures+1] = 'definition `an addon in Dependencies`'
+    end
+    uri, text, position = place('## Dependencies: ZzDepOne, ZzDep|Two')
+    result = assert(syntax.kind.definition)(uri, text, position)
+    if not (result and result[1] and result[1].uri == furi.encode(TESTROOT .. 'ZzDepTwo/ZzDepTwo.toc')) then
+        failures[#failures+1] = 'definition `the second addon of the list`'
+    end
+    uri, text, position = place('## Dependencies: Nowhe|re')
+    if assert(syntax.kind.definition)(uri, text, position) then
+        failures[#failures+1] = 'definition `an addon that is not there`'
+    end
+    uri, text, position = place('## SavedVariables: ZzDep|One')
+    if assert(syntax.kind.definition)(uri, text, position) then
+        failures[#failures+1] = 'definition `a SavedVariables name`'
+    end
+end
 leadsTo('a file that is not there', 'Mi|ssing.lua', nil)
 leadsTo('a variable in the path', 'Dir\\[TextLo|cale].lua', nil)
 leadsTo('a header line', '## Ti|tle: Core.lua', nil)
 leadsTo('a comment', '# Co|re.lua', nil)
 untouch({ 'Core.lua', 'View.xml', 'Sub/Deep.lua', 'Sub/notes.txt', 'Dir/[TextLocale].lua', '#Hidden.lua' })
+for _, name in ipairs { 'ZzDepOne', 'ZzDepTwo' } do
+    pcall(fs.remove, fs.path(TESTROOT .. name .. '/' .. name .. '.toc'))
+    pcall(fs.remove, fs.path(TESTROOT .. name))
+end
+pcall(fs.remove, fs.path(TESTROOT .. 'ZzNoToc'))
+pcall(fs.remove, fs.path(TESTROOT .. 'MyAddon/MyAddon.toc'))
 pcall(fs.remove, fs.path(ADDON .. '/Dir'))
 pcall(fs.remove, fs.path(ADDON .. '/Sub'))
 

@@ -23,6 +23,7 @@
 ---@field value        'text'|'boolean01'|'interface'|'names'|'gametypes'|'function'|'path'|'enum'
 ---@field values?      string[]
 ---@field appends?     boolean
+---@field addons?      boolean  the names are addon folders (`Interface/AddOns/<Name>/<Name>.toc`)
 ---@field firstWins?   boolean
 ---@field localizable? boolean
 ---@field aliases?     string[]
@@ -92,13 +93,13 @@ return {
           description = 'A global function run when the highlight ends.' },
         { name = 'LoadOnDemand', value = 'boolean01',
           description = '`1` delays loading until `C_AddOns.LoadAddOn` is called for the addon.' },
-        { name = 'Dependencies', value = 'names', appends = true, aliases = { 'RequiredDeps' }, prefixes = { 'Dep' },
+        { name = 'Dependencies', value = 'names', addons = true, appends = true, aliases = { 'RequiredDeps' }, prefixes = { 'Dep' },
           description = 'Addons that must load before this one (a comma separated list). `RequiredDeps` and any key that starts with `Dep` mean the same. A repeated line adds to the list.' },
-        { name = 'OptionalDeps', value = 'names', appends = true,
+        { name = 'OptionalDeps', value = 'names', addons = true, appends = true,
           description = 'Addons that load before this one if they are present. A repeated line adds to the list.' },
-        { name = 'LoadWith', value = 'names', appends = true,
+        { name = 'LoadWith', value = 'names', addons = true, appends = true,
           description = 'Addons whose loading triggers this one. Implies LoadOnDemand. A repeated line adds to the list.' },
-        { name = 'LoadManagers', value = 'names', appends = true,
+        { name = 'LoadManagers', value = 'names', addons = true, appends = true,
           description = 'If any of these addons is present, this one behaves as LoadOnDemand. A repeated line adds to the list.',
           since = 'Added in 2.1.0.' },
         { name = 'AllowLoadGameType', value = 'gametypes', appends = true,

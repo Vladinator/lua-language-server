@@ -595,7 +595,10 @@ function m.diagnose(uri, text)
     local folder = furi.decode(uri):match('([^/\\]+)[/\\][^/\\]+$')
 
     -- the file name belongs to its folder
-    if folder and base:lower() ~= folder:lower() then
+    -- (not in a repository checkout: its folder carries the repository's name, the install folder is named later)
+    local dirOfFile = furi.decode(uri):match('^(.*)[/\\][^/\\]*$')
+    local okGit, isCheckout = pcall(fs.exists, fs.path((dirOfFile or '') .. '/.git'))
+    if folder and base:lower() ~= folder:lower() and not (okGit and isCheckout) then
         report(0, 1, math.max(#(lines[1] and lines[1].text or ''), 1), 'toc-file-name',
             ('The file name should match the folder: `%s.toc` (it is `%s`).'):format(folder, base))
     end
@@ -751,6 +754,8 @@ function m.diagnose(uri, text)
         end
         ---@type { entry: table, owners: string[] }[]
         local foreign = {}
+        ---@type table<string, wowToc.number>   game id -> its highest number in the list
+        local highest = {}
         for _, entry in ipairs(numbers) do
             ---@type string[]
             local owners = {}
@@ -776,10 +781,8 @@ function m.diagnose(uri, text)
                     foreign[#foreign+1] = { entry = entry, owners = owners }
                 end
                 for _, id in ipairs(owners) do
-                    local data = gameById[id].interface
-                    if scope[id] and data and entry.number < data.minimum then
-                        report(entry.line.row, entry.first, entry.last, 'toc-interface-too-low',
-                            ('%s needs at least `%d` today; `%d` is out of date for it.'):format(gameById[id].display, data.minimum, entry.number))
+                    if scope[id] and (not highest[id] or highest[id].number < entry.number) then
+                        highest[id] = entry
                     end
                 end
             end
@@ -799,12 +802,13 @@ function m.diagnose(uri, text)
             report(line.row, line.keyStart or 1, line.keyFinish or 1, 'toc-interface-never-matches',
                 ('None of the Interface numbers belongs to a game this file loads on (%s): the client would mark it out of date.'):format(m.describeGames(scope)))
         end
-        -- the same game with two numbers
-        for id, list in pairs(byGame) do
-            if scope[id] and #list > 1 then
-                local line = numbers[1].line
-                report(line.row, line.keyStart or 1, line.keyFinish or 1, 'toc-interface-mismatch',
-                    ('%s has more than one Interface number (%s).'):format(gameById[id].display, table.concat(list, ', ')))
+        -- a game whose newest number is below the minimum (older numbers next to a current one are on purpose: they keep older clients working)
+        for _, id in ipairs(gameOrder) do
+            local entry = highest[id]
+            local data = gameById[id].interface
+            if entry and data and entry.number < data.minimum then
+                report(entry.line.row, entry.first, entry.last, 'toc-interface-too-low',
+                    ('%s needs at least `%d` today; `%d` is out of date for it.'):format(gameById[id].display, data.minimum, entry.number))
             end
         end
         -- a game of a narrowed scope without a number

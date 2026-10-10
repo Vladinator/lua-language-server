@@ -823,10 +823,7 @@ local function disableActions(uri, lines, diag, actions)
             arguments = { { key = 'Lua.diagnostics.disable', action = 'add', value = code, uri = uri } },
         },
     }
-    -- (a diagnostic of the file as a whole sits on the first line: a comment above it would take its place)
-    if row > 0 then
-        push(lang.script('ACTION_DISABLE_DIAG_LINE', code), extend(row - 1, 'disable-next-line') or insert(row, 'disable-next-line'))
-    end
+    push(lang.script('ACTION_DISABLE_DIAG_LINE', code), extend(row - 1, 'disable-next-line') or insert(row, 'disable-next-line'))
     push(lang.script('ACTION_DISABLE_DIAG_FILE', code), extend(0, 'disable') or insert(0, 'disable'))
 end
 

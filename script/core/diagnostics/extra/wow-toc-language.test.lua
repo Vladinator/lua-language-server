@@ -715,8 +715,28 @@ do
     end
     -- a diagnostic of the file as a whole (first line): no "next line" action, a comment above would take its place
     list = disableActionsOf('## Title: x' .. nl, 'toc-missing-interface')
-    if #list ~= 2 then
-        failures[#failures+1] = 'disable actions for a diagnostic of the first line: expected 2, got ' .. #list
+    if #list ~= 3 then
+        failures[#failures+1] = 'disable actions for a diagnostic of the first line: expected 3, got ' .. #list
+    else
+        -- the comment above the first line reaches the diagnostic of the file as a whole: it sits on the first line past the comments
+        local first = applyAction('## Title: x' .. nl, list[2])
+        if first ~= '# @diagnostic disable-next-line: toc-missing-interface' .. nl .. '## Title: x' .. nl or #codesOf(first) ~= 0 then
+            failures[#failures+1] = 'disable-next-line above the first line: ' .. first
+        end
+        local file = applyAction('## Title: x' .. nl, list[3])
+        if #codesOf(file) ~= 0 then
+            failures[#failures+1] = 'disable above the first line: ' .. file
+        end
+    end
+    -- the same for the name of the file and the suffix
+    for _, name in ipairs { 'Other.toc', 'MyAddon_BCC.toc' } do
+        local uri2 = furi.encode(ADDON .. '/' .. name)
+        local before = syntax.diagnose(uri2, HEADER)
+        local code = before[1] and before[1].code
+        local after = syntax.diagnose(uri2, '# @diagnostic disable-next-line: ' .. tostring(code) .. nl .. HEADER)
+        if not code or #after ~= #before - 1 then
+            failures[#failures+1] = 'disable-next-line reaches ' .. name .. ' (' .. tostring(code) .. ')'
+        end
     end
     -- the diagnostics that are not ours get none
     local uri = furi.encode(ADDON .. '/MyAddon.toc')

@@ -775,6 +775,16 @@ function m.diagnose(uri, text)
         }
     end
 
+    -- the diagnostics of the file as a whole sit on its first line, past the `# @diagnostic` comments that open it: a `disable-next-line` written
+    -- above that line then reaches them too
+    local anchorRow = 0
+    while lines[anchorRow + 1] and lines[anchorRow + 1].kind == 'comment'
+        and lines[anchorRow + 1].text:lower():find('^#%s*@diagnostic%s') do
+        anchorRow = anchorRow + 1
+    end
+    if not lines[anchorRow + 1] then
+        anchorRow = math.max(#lines - 1, 0)
+    end
     local fileScope, suffix, base = m.fileScope(uri)
     local folder = furi.decode(uri):match('([^/\\]+)[/\\][^/\\]+$')
 
@@ -782,14 +792,14 @@ function m.diagnose(uri, text)
     local retiredSuffix = furi.decode(uri):match('_([%w]+)%.[tT][oO][cC]$')
     local retired = retiredSuffix and retiredBySuffix[retiredSuffix:lower()]
     if retired and retiredSuffix then
-        report(0, 1, math.max(#(lines[1] and lines[1].text or ''), 1), 'toc-retired-suffix',
+        report(anchorRow, 1, math.max(#(lines[anchorRow + 1] and lines[anchorRow + 1].text or ''), 1), 'toc-retired-suffix',
             ('The suffix `_%s` is no longer supported: the game ignores this file; rename it to `_%s`.'):format(retiredSuffix, retired.use))
     end
 
     -- the file name belongs to its folder
     -- (a repository checkout can be the install folder: the game only compares the folder name with the file name)
     if folder and base:lower() ~= folder:lower() and not retired then
-        report(0, 1, math.max(#(lines[1] and lines[1].text or ''), 1), 'toc-file-name',
+        report(anchorRow, 1, math.max(#(lines[anchorRow + 1] and lines[anchorRow + 1].text or ''), 1), 'toc-file-name',
             ('The file name should match the folder: `%s.toc` (it is `%s`).'):format(folder, base))
     end
 
@@ -930,7 +940,7 @@ function m.diagnose(uri, text)
     -- Interface present, valid
     local scopeLines = lines
     if #interfaceLines == 0 then
-        report(0, 1, math.max(#(lines[1] and lines[1].text or ''), 1), 'toc-missing-interface', 'The `.toc` has no `## Interface:` line.')
+        report(anchorRow, 1, math.max(#(lines[anchorRow + 1] and lines[anchorRow + 1].text or ''), 1), 'toc-missing-interface', 'The `.toc` has no `## Interface:` line.')
     end
     ---@type wowToc.number[]
     local numbers = {}

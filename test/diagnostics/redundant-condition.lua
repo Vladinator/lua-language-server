@@ -141,3 +141,49 @@ if <!one == 'a'!> then end
 if <!one ~= 'a'!> then end
 if <!one == 'b'!> then end
 ]]
+
+-- a comparison among the operands of `and` / `or` / `not` is judged too (a callback where an event name was meant); one per
+-- function, because a comparison that cannot hold widens the value for the code after it
+TEST [[
+---@param event fun(name: string)
+local function f(event)
+    if <!event == "OnTooltipSetUnit"!> or <!event == "OnTooltipUpdate"!> then end
+end
+---@param n number
+local function g(n)
+    if not (<!n == "x"!>) then end
+end
+---@param n number
+local function h(n)
+    if n > 0 and <!n ~= "x"!> then end
+end
+---@param n number
+local function i(n)
+    if n < 3 and (<!n == "x"!> or n == 2) then end
+end
+]]
+
+-- ... but only "can never be equal": the operands before narrow the type, so a correct chain must stay quiet
+TEST [[
+---@param kind "a"|"b"
+---@param s string
+---@param n number
+local function f(kind, s, n)
+    if kind == "a" or kind == "b" then end
+    if kind ~= "a" and kind ~= "b" then end
+    if s == "a" or s == "b" then end
+    if n == 1 or n == 2 then end
+    if s == "a" and n == 2 then end
+end
+]]
+
+-- an operand that is always equal is left alone (only a whole condition is reported as always true)
+TEST [[
+---@type 'a'
+local one
+---@type number
+local n
+
+if n > 0 and one == 'a' then end
+if n > 0 or one ~= 'a' then end
+]]

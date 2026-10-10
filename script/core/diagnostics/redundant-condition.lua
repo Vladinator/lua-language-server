@@ -125,6 +125,74 @@ end
 local SELF_TRUE  = { ['=='] = true, ['<='] = true, ['>='] = true }
 local SELF_FALSE = { ['<']  = true, ['>']  = true, ['~='] = true }
 
+--- Judges `value == literal` / `value ~= literal`: reports when the value can never equal the literal (and, with `reportAlways`,
+--- when it always does).
+---@param filter       parser.object
+---@param callback     fun(result: table)
+---@param reportAlways boolean
+---@return boolean reported
+local function checkComparison(filter, callback, reportAlways)
+    if filter.type ~= 'binary' or not filter.op or (filter.op.type ~= '==' and filter.op.type ~= '~=')
+    or not filter[1] or not filter[2] then
+        return false
+    end
+    local left, right = filter[1], filter[2]
+    local litSide = LITERAL_KIND[right.type] and right or (LITERAL_KIND[left.type] and left) or nil
+    local other = litSide == right and left or right
+    if not litSide or LITERAL_KIND[other.type] then
+        return false
+    end
+    local can, must = judgeLiteral(vm.compileNode(other), litSide)
+    if can == nil then
+        return false
+    end
+    local equal = filter.op.type == '=='
+    if not can then
+        callback {
+            start   = filter.start,
+            finish  = filter.finish,
+            message = equal and 'This comparison is always false: the value can never equal this.'
+                            or  'This comparison is always true: the value can never equal this.',
+        }
+        return true
+    elseif must and reportAlways then
+        callback {
+            start   = filter.start,
+            finish  = filter.finish,
+            message = equal and 'This comparison is always true: the value is always this.'
+                            or  'This comparison is always false: the value is always this.',
+        }
+        return true
+    end
+    return false
+end
+
+--- Reports the comparisons that can never match among the operands of `and` / `or` / `not` (parentheses included).
+---@param expr     parser.object
+---@param callback fun(result: table)
+---@return boolean reported
+local function hasNeverEqual(expr, callback)
+    local reported = false
+    ---@param e parser.object?
+    local function walk(e)
+        if not e then
+            return
+        end
+        if e.type == 'paren' then
+            walk(e.exp)
+        elseif e.type == 'binary' and e.op and (e.op.type == 'and' or e.op.type == 'or') then
+            walk(e[1])
+            walk(e[2])
+        elseif e.type == 'unary' and e.op and e.op.type == 'not' then
+            walk(e[1])
+        elseif e ~= expr and checkComparison(e, callback, false) then
+            reported = true
+        end
+    end
+    walk(expr)
+    return reported
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -164,34 +232,14 @@ return function (uri, callback)
             end
             return
         end
-        if filter.type == 'binary' and filter.op and (filter.op.type == '==' or filter.op.type == '~=')
-        and filter[1] and filter[2] then
-            local left, right = filter[1], filter[2]
-            local litSide = LITERAL_KIND[right.type] and right or (LITERAL_KIND[left.type] and left) or nil
-            local other = litSide == right and left or right
-            if litSide and not LITERAL_KIND[other.type] then
-                local can, must = judgeLiteral(vm.compileNode(other), litSide)
-                if can ~= nil then
-                    local equal = filter.op.type == '=='
-                    if not can then
-                        callback {
-                            start   = filter.start,
-                            finish  = filter.finish,
-                            message = equal and 'This comparison is always false: the value can never equal this.'
-                                            or  'This comparison is always true: the value can never equal this.',
-                        }
-                        return
-                    elseif must then
-                        callback {
-                            start   = filter.start,
-                            finish  = filter.finish,
-                            message = equal and 'This comparison is always true: the value is always this.'
-                                            or  'This comparison is always false: the value is always this.',
-                        }
-                        return
-                    end
-                end
-            end
+        if checkComparison(filter, callback, true) then
+            return
+        end
+        -- `a == "x" or a == "y"`, `not (a == "x")`: the comparisons inside a condition are judged too. Only "can never be equal" is
+        -- reported there: the type of an operand is narrowed by the operands before it (`a == "x" or a == "y"` leaves `"y"` for the
+        -- second), so "always equal" would flag a correct chain.
+        if hasNeverEqual(filter, callback) then
+            return
         end
         local node = vm.compileNode(filter)
         if node:alwaysTruthy() then

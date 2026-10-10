@@ -156,6 +156,7 @@ case('a single AllowAddOnTableAccess', HEADER .. '## AllowAddOnTableAccess: 1' .
 case('a localized variant is its own key', HEADER .. '## Title: A' .. nl .. '## Title-frFR: B' .. nl .. '## Title-deDE: C' .. nl, {})
 case('the same locale twice', HEADER .. '## Title: A' .. nl .. '## Title-frFR: B' .. nl .. '## Title-frFR: C' .. nl, { 'toc-duplicate-header' })
 case('Notes is localizable', HEADER .. '## Notes: A' .. nl .. '## Notes-deDE: B' .. nl, {})
+case('Group is a key, not text: it is not localizable', HEADER .. '## Group: Main' .. nl .. '## Group-deDE: Haupt' .. nl, { 'toc-unknown-header' })
 case('Category is localizable', HEADER .. '## Category: Combat' .. nl .. '## Category-deDE: Kampf' .. nl, {})
 
 -- 2b. Categories (a recommendation: hints only)

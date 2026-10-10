@@ -32,10 +32,15 @@
 ---@field suffix    string  the `Name_<Suffix>.toc` suffix of the family
 ---@field variable  string  what `[Family]` expands to
 
+---@class wowToc.retiredSuffix
+---@field suffix  string  the old suffix of `Name_<Suffix>.toc` (case-insensitive)
+---@field use     string  the suffix that replaces it
+
 ---@class wowToc.games
 ---@field games     wowToc.game[]
 ---@field families  wowToc.family[]
 ---@field locales   string[]
+---@field retiredSuffixes wowToc.retiredSuffix[]
 
 ---@type wowToc.games
 return {
@@ -43,11 +48,12 @@ return {
         {
             id = 'standard', display = 'Retail (Midnight)', aliases = { 'retail', 'midnight' }, families = { 'mainline' },
             suffixes = { 'Standard' }, variable = 'Standard', interface = { first = 60000, last = 199999, minimum = 120100 },
+            note = 'Channels (wiki, 2026-10-10): Standard 120100, Standard Test 120105, Standard Beta 120001.',
         },
         {
             id = 'forever', display = 'Forever', aliases = { 'camelot' }, families = { 'mainline' },
             suffixes = { 'Forever', 'Camelot' }, variable = 'Camelot',
-            note = 'The wiki says the Camelot name may change to Forever.',
+            note = 'The wiki says the Camelot name may change to Forever. Forever Beta uses 16001 (inside the Classic Era range), so no range is kept for Forever.',
         },
         {
             id = 'mists', display = 'Mists of Pandaria Classic', families = { 'classic' },
@@ -65,10 +71,12 @@ return {
         {
             id = 'tbc', display = 'The Burning Crusade Classic', families = { 'classic' },
             suffixes = { 'TBC' }, variable = 'TBC', interface = { first = 20000, last = 29999, minimum = 20506 },
+            note = 'Includes Classic Anniversary Edition.',
         },
         {
             id = 'vanilla', display = 'Classic Era', aliases = { 'classic_era' }, families = { 'classic' },
             suffixes = { 'Vanilla' }, variable = 'Vanilla', interface = { first = 10000, last = 19999, minimum = 11509 },
+            note = 'Vanilla Test uses 11508.',
         },
         {
             id = 'plunderstorm', display = 'Plunderstorm', aliases = { 'wowlabs' }, families = { 'mainline' },
@@ -83,6 +91,13 @@ return {
     families = {
         { id = 'mainline', display = 'Mainline',  suffix = 'Mainline', variable = 'Mainline' },
         { id = 'classic',  display = 'Classic',   suffix = 'Classic',  variable = 'Classic' },
+    },
+
+    -- suffixes that older clients read and the current one ignores (wiki: "the legacy WOTLK and BCC suffixes are no longer supported"):
+    -- the "upgrade recommended" hint. One row per retired suffix.
+    retiredSuffixes = {
+        { suffix = 'BCC',   use = 'TBC' },
+        { suffix = 'WOTLK', use = 'Wrath' },
     },
 
     -- the values `GetLocale` returns

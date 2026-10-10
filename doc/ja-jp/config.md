@@ -485,6 +485,8 @@ Array<string>
 * ``"toc-nonexistent-file"``: Enable diagnostics for a file line of a `.toc` that is not on disk.
 * ``"toc-redundant-condition"``: Enable diagnostics for a load condition that does not change where the line loads.
 * ``"toc-restricted-header"``: Enable diagnostics for a directive that only Blizzard code may use.
+* ``"toc-retired-header"``: Enable diagnostics for a `## Key:` the game dropped or renamed (`AllowLoadByGameMode`, `GuardedAddOn`, `SuppressLocalTableRef`): the line does nothing.
+* ``"toc-retired-suffix"``: Enable diagnostics for a `.toc` file name suffix the game does not read any more (`_BCC`, `_WOTLK`): the file is ignored, rename it.
 * ``"toc-unknown-header"``: Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
 * ``"toc-unreachable-line"``: Enable diagnostics for a line of a `.toc` whose load conditions and file name suffix leave no game type it can load on.
 * ``"trailing-space"``: 行末の余分な空白の診断を有効にします。
@@ -734,6 +736,8 @@ object<string, string>
     * toc-nonexistent-file
     * toc-redundant-condition
     * toc-restricted-header
+    * toc-retired-header
+    * toc-retired-suffix
     * toc-unknown-header
     * toc-unreachable-line
     */
@@ -923,6 +927,8 @@ object<string, string>
     * toc-nonexistent-file
     * toc-redundant-condition
     * toc-restricted-header
+    * toc-retired-header
+    * toc-retired-suffix
     * toc-unknown-header
     * toc-unreachable-line
     */
@@ -1415,6 +1421,14 @@ object<string, string>
     Enable diagnostics for a directive that only Blizzard code may use.
     */
     "toc-restricted-header": "Any",
+    /*
+    Enable diagnostics for a `## Key:` the game dropped or renamed (`AllowLoadByGameMode`, `GuardedAddOn`, `SuppressLocalTableRef`): the line does nothing.
+    */
+    "toc-retired-header": "Any",
+    /*
+    Enable diagnostics for a `.toc` file name suffix the game does not read any more (`_BCC`, `_WOTLK`): the file is ignored, rename it.
+    */
+    "toc-retired-suffix": "Any",
     /*
     Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
     */
@@ -1914,6 +1928,14 @@ object<string, string>
     Enable diagnostics for a directive that only Blizzard code may use.
     */
     "toc-restricted-header": "Hint",
+    /*
+    Enable diagnostics for a `## Key:` the game dropped or renamed (`AllowLoadByGameMode`, `GuardedAddOn`, `SuppressLocalTableRef`): the line does nothing.
+    */
+    "toc-retired-header": "Warning",
+    /*
+    Enable diagnostics for a `.toc` file name suffix the game does not read any more (`_BCC`, `_WOTLK`): the file is ignored, rename it.
+    */
+    "toc-retired-suffix": "Warning",
     /*
     Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
     */

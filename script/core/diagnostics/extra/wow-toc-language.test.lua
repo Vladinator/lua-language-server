@@ -387,6 +387,75 @@ do
     end
 end
 
+-- 7a. Retired directives and repeated keys with inline conditions (wiki patch history and example)
+
+case('a renamed directive: GuardedAddOn', HEADER .. '## GuardedAddOn: 1' .. nl, { 'toc-retired-header' })
+case('a renamed directive: AllowLoadByGameMode', HEADER .. '## AllowLoadByGameMode: classic' .. nl, { 'toc-retired-header' })
+case('a dropped directive: SuppressLocalTableRef', HEADER .. '## SuppressLocalTableRef: 1' .. nl, { 'toc-retired-header' })
+case('a retired directive is case-insensitive', HEADER .. '## guardedaddon: 1' .. nl, { 'toc-retired-header' })
+case('a typo is not a retired directive', HEADER .. '## GuardedAdOn2: 1' .. nl, { 'toc-unknown-header' })
+case('the wiki example: a repeated Title with an inline condition', HEADER .. '## Title: My Cool AddOn' .. nl .. '## Title: My Cool AddOn in Classic [AllowLoadGameType classic]' .. nl, {})
+case('a repeated Title where the first has the condition', HEADER .. '## Title: A [AllowLoadGameType classic]' .. nl .. '## Title: B' .. nl, {})
+case('a repeated Title without a condition is still reported', HEADER .. '## Title: A' .. nl .. '## Title: B' .. nl, { 'toc-duplicate-header' })
+case('a repeated Interface with a condition', '## Interface: 120100' .. nl .. '## Interface: 50504 [AllowLoadGameType classic]' .. nl, {})
+case('every Interface line counts when one has a condition', '## Interface: 120100' .. nl .. '## Interface: 11509 [AllowLoadGameType classic]' .. nl .. '## AllowLoadGameType: standard' .. nl, { 'toc-interface-mismatch', 'toc-unreachable-line' })
+case('without a condition only the last Interface line counts', '## Interface: 120100' .. nl .. '## Interface: 11509' .. nl .. '## AllowLoadGameType: standard' .. nl, { 'toc-duplicate-header', 'toc-interface-never-matches', 'toc-interface-missing-game' })
+do
+    ---@type table<string, true>
+    local current = {}
+    for _, directive in ipairs(direct.headers) do
+        current[directive.name:lower()] = true
+        for _, alias in ipairs(directive.aliases or {}) do
+            current[alias:lower()] = true
+        end
+    end
+    for _, retired in ipairs(direct.retired) do
+        assert(not current[retired.name:lower()], 'a retired directive is also a current one: ' .. retired.name)
+        assert(not retired.use or current[retired.use:lower()], 'the replacement of ' .. retired.name .. ' is not a directive: ' .. tostring(retired.use))
+    end
+end
+
+-- 7b. Retired suffixes and the files next to a file ------------------------------------------------------------------------------------------------------
+
+case('a retired suffix _BCC', HEADER, { 'toc-retired-suffix' }, { toc = 'MyAddon_BCC.toc' })
+case('a retired suffix _WOTLK', HEADER, { 'toc-retired-suffix' }, { toc = 'MyAddon_WOTLK.toc' })
+case('a retired suffix is case-insensitive', HEADER, { 'toc-retired-suffix' }, { toc = 'MyAddon_bcc.toc' })
+case('the current suffix of the same game is not retired', '## Interface: 20506' .. nl, {}, { toc = 'MyAddon_TBC.toc' })
+case('an unknown suffix is not a retired one', HEADER, { 'toc-file-name' }, { toc = 'MyAddon_Bogus.toc' })
+for _, retired in ipairs(games.retiredSuffixes) do
+    local used = false
+    for _, game in ipairs(games.games) do
+        for _, suffix in ipairs(game.suffixes) do
+            used = used or suffix:lower() == retired.suffix:lower()
+        end
+    end
+    assert(not used, 'a retired suffix is also a current one: ' .. retired.suffix)
+    assert(retired.use ~= '', retired.suffix .. ' has no replacement')
+end
+
+-- the plain file is what is left when files of other suffixes exist (mainline unless it says otherwise)
+touch({ 'MyAddon_Cata.toc', 'MyAddon_Mists.toc' })
+case('a plain file next to _Cata: Cata is not its', HEADER .. 'File.lua [AllowLoadGameType cata]' .. nl, { 'toc-unreachable-line' }, { files = { 'File.lua' } })
+case('a plain file next to _Cata: Vanilla still is', HEADER .. 'File.lua [AllowLoadGameType vanilla]' .. nl, {}, { files = { 'File.lua' } })
+case('a plain file next to _Cata: a retail number fits', HEADER, {})
+case('a plain file next to _Mists and _Cata declares no restriction: no Interface hints', '## Interface: 120100, 11509' .. nl, {})
+untouch({ 'MyAddon_Cata.toc', 'MyAddon_Mists.toc' })
+case('a plain file with no other files loads everywhere', HEADER .. 'File.lua [AllowLoadGameType cata]' .. nl, {}, { files = { 'File.lua' } })
+touch({ 'MyAddon_Classic.toc' })
+case('a plain file next to _Classic: no classic game', HEADER .. 'File.lua [AllowLoadGameType vanilla]' .. nl, { 'toc-unreachable-line' }, { files = { 'File.lua' } })
+case('a plain file next to _Classic: the mainline games', HEADER .. 'File.lua [AllowLoadGameType plunderstorm]' .. nl, {}, { files = { 'File.lua' } })
+untouch({ 'MyAddon_Classic.toc' })
+touch({ 'MyAddon_Vanilla.toc' })
+case('_Classic leaves Vanilla to its own file', '## Interface: 20506' .. nl .. 'File.lua [AllowLoadGameType vanilla]' .. nl, { 'toc-unreachable-line', 'toc-interface-missing-game' }, { toc = 'MyAddon_Classic.toc', files = { 'File.lua' } })
+untouch({ 'MyAddon_Vanilla.toc' })
+do
+    local siblings = { 'MyAddon_Standard.toc', 'MyAddon_Forever.toc', 'MyAddon_Plunderstorm.toc', 'MyAddon_WoWHack.toc' }
+    touch(siblings)
+    local set = syntax.fileScope(furi.encode(ADDON .. '/MyAddon_Mainline.toc'))
+    assert(set.standard and set.forever and set.plunderstorm and set.wowhack, 'a family file whose games all have files keeps the family')
+    untouch(siblings)
+end
+
 -- 8. The scope of a line, directly ----------------------------------------------------------------------------------------------------------------------
 
 do

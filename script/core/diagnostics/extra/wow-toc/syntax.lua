@@ -21,6 +21,7 @@ local DIAGNOSTICS = {
     { 'toc-missing-interface',   'Warning', 'Enable diagnostics for a `.toc` file without an `## Interface` line.' },
     { 'toc-invalid-interface',   'Error',   'Enable diagnostics for an `## Interface` item that is not a whole number above 0.' },
     { 'toc-duplicate-header',    'Warning', 'Enable diagnostics for a `## Key:` line that repeats a key whose lines do not add up (the last one wins, or only the first counts).' },
+    { 'toc-retired-header',      'Warning', 'Enable diagnostics for a `## Key:` the game dropped or renamed (`AllowLoadByGameMode`, `GuardedAddOn`, `SuppressLocalTableRef`): the line does nothing.' },
     { 'toc-unknown-header',      'Hint',    'Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.' },
     { 'toc-invalid-value',       'Warning', 'Enable diagnostics for a value that does not fit its directive: a flag that is not 0 or 1, an unknown game type or locale, an unknown or unclosed `[inline directive]`.' },
     { 'toc-nonexistent-file',    'Warning', 'Enable diagnostics for a file line of a `.toc` that is not on disk.' },
@@ -33,7 +34,8 @@ local DIAGNOSTICS = {
     { 'toc-interface-mismatch',  'Hint',    'Enable diagnostics for an `## Interface` number that belongs to a game the file does not load on.' },
     { 'toc-interface-never-matches', 'Warning', 'Enable diagnostics for a `.toc` whose `## Interface` numbers all belong to games it does not load on: the client would mark it out of date.' },
     { 'toc-interface-missing-game', 'Hint', 'Enable diagnostics for a `.toc` that loads on a game type none of whose `## Interface` numbers fits.' },
-    { 'toc-file-name',           'Warning', 'Enable diagnostics for a `.toc` file whose name does not match its folder.' },
+    { 'toc-retired-suffix',      'Warning', 'Enable diagnostics for a `.toc` file name suffix the game does not read any more (`_BCC`, `_WOTLK`): the file is ignored, rename it.' },
+    { 'toc-file-name',          'Warning', 'Enable diagnostics for a `.toc` file whose name does not match its folder.' },
 }
 for _, entry in ipairs(DIAGNOSTICS) do
     diagd.register { entry[1] } {
@@ -57,6 +59,13 @@ local familyGames = {}
 local familyById = {}
 ---@type table<string, string[]>      lowercase suffix -> game ids (a game suffix: one game; a family suffix: its games)
 local suffixGames = {}
+---@type table<string, wowToc.retiredSuffix>   lowercase suffix the game does not read any more
+local retiredBySuffix = {}
+for _, retired in ipairs(games.retiredSuffixes) do
+    retiredBySuffix[retired.suffix:lower()] = retired
+end
+---@type table<string, true>          lowercase suffix of a family (not of one game)
+local familySuffix = {}
 ---@type table<string, string>        lowercase suffix -> description for hover
 local suffixText = {}
 ---@type string[]
@@ -81,6 +90,7 @@ end
 for _, family in ipairs(games.families) do
     familyById[family.id] = family
     suffixGames[family.suffix:lower()] = familyGames[family.id] or {}
+    familySuffix[family.suffix:lower()] = true
     suffixText[family.suffix:lower()] = ('the family %s'):format(family.display)
 end
 
@@ -91,6 +101,11 @@ for _, directive in ipairs(directives.headers) do
     for _, alias in ipairs(directive.aliases or {}) do
         headerByName[alias:lower()] = directive
     end
+end
+---@type table<string, wowToc.retiredHeader>   lowercase name of a directive the game dropped
+local retiredHeaderByName = {}
+for _, retired in ipairs(directives.retired) do
+    retiredHeaderByName[retired.name:lower()] = retired
 end
 ---@type table<string, wowToc.inline>
 local inlineByName = {}
@@ -320,12 +335,23 @@ local function parseLine(rowText, row)
         if key then
             local first = text:find(key, 3, true) --[[@as integer]]
             local colon = text:find(':', first + #key, true) --[[@as integer]]
-            local value, valueStart, valueFinish = trimmedValue(text:sub(colon + 1), colon + 1)
+            local brackets = scanBrackets(text, colon + 1)
+            -- the value ends where the first inline directive starts (`## Interface: 50504 [AllowLoadGameType classic]`); a bracket the
+            -- directive tables do not know (`## Title: [PvP] Tools`) stays part of the text
+            local valueEnd = #text
+            for _, bracket in ipairs(brackets) do
+                local lower = bracket.name:lower()
+                if inlineByName[lower] or variableByName[lower] then
+                    valueEnd = bracket.start - 1
+                    break
+                end
+            end
+            local value, valueStart, valueFinish = trimmedValue(text:sub(colon + 1, valueEnd), colon + 1)
             line.kind = 'header'
             line.key, line.keyStart, line.keyFinish = key, first, first + #key - 1
             line.value, line.valueStart, line.valueFinish = value, valueStart, valueFinish
             line.directive, line.locale, line.custom = m.directiveOf(key)
-            line.brackets = scanBrackets(text, colon + 1)
+            line.brackets = brackets
             return line
         end
         line.kind = 'comment'
@@ -386,7 +412,59 @@ end
 
 -- Scope: the games a file or a line can load on ------------------------------------------------------------
 
---- The games a file name selects: the game suffix first, then the family suffix, else every game.
+--- A copy of `set` without the games of `remove`.
+---@param set    table<string, true>
+---@param remove table<string, true>
+---@return table<string, true>
+local function without(set, remove)
+    ---@type table<string, true>
+    local result = {}
+    for id in pairs(set) do
+        if not remove[id] then
+            result[id] = true
+        end
+    end
+    return result
+end
+
+--- The `.toc` files next to a file that carry the same name and a suffix: the games with a file of their own (a game suffix) and the
+--- games a family suffix file takes.
+---@param dir  string
+---@param base string
+---@param self string  the lowercase file name of the file itself
+---@return table<string, true> ownFile    games that have a `Name_<Game>.toc`
+---@return table<string, true> familyFile games that have a `Name_<Family>.toc` (and no file of their own)
+local function siblingsOf(dir, base, self)
+    ---@type table<string, true>, table<string, true>
+    local own, family = {}, {}
+    local lowerBase = base:lower()
+    local ok = pcall(function ()
+        for entry in fs.pairs(fs.path(dir)) do
+            local file = entry:filename():string():lower()
+            local suffix = file ~= self and file:match('^' .. lowerBase:gsub('%p', '%%%0') .. '_([%w]+)%.toc$')
+            if suffix and suffixGames[suffix] then
+                for _, id in ipairs(suffixGames[suffix]) do
+                    if familySuffix[suffix] then
+                        family[id] = true
+                    else
+                        own[id] = true
+                    end
+                end
+            end
+        end
+    end)
+    if not ok then
+        return {}, {}
+    end
+    for id in pairs(own) do
+        family[id] = nil
+    end
+    return own, family
+end
+
+--- The games a file name selects: the game suffix first, then the family suffix, else every game. Next to files of other suffixes a
+--- file keeps the games none of them takes: `Name.toc` is what is left when `Name_Classic.toc` exists (the mainline games), and
+--- `Name_Classic.toc` leaves out the classic games that have a `Name_<Game>.toc` of their own.
 ---@param uri uri
 ---@return table<string, true> set
 ---@return string? suffix   the suffix that selected them
@@ -404,9 +482,23 @@ function m.fileScope(uri)
         for _, id in ipairs(suffixGames[suffix:lower()]) do
             set[id] = true
         end
+        if familySuffix[suffix:lower()] then
+            local own = siblingsOf(path:match('^(.*)[/\\][^/\\]*$') or '.', base, name:lower())
+            local rest = without(set, own)
+            -- every game has a file of its own: this one is never picked, keep the family so its own checks still make sense
+            if next(rest) ~= nil then
+                set = rest
+            end
+        end
         return set, suffix, base
     end
-    return allGames(), nil, stem
+    local own, family = siblingsOf(path:match('^(.*)[/\\][^/\\]*$') or '.', stem, name:lower())
+    local set = without(without(allGames(), own), family)
+    if next(set) == nil then
+        -- a file for every game: this one is never picked, keep the whole set so its own checks still make sense
+        set = allGames()
+    end
+    return set, nil, stem
 end
 
 --- The game words of a value (`mainline, cata`, `vanilla tbc`): the games they name and the words nobody knows.
@@ -594,9 +686,17 @@ function m.diagnose(uri, text)
     local fileScope, suffix, base = m.fileScope(uri)
     local folder = furi.decode(uri):match('([^/\\]+)[/\\][^/\\]+$')
 
+    -- a suffix the game does not read any more (data: games.lua)
+    local retiredSuffix = furi.decode(uri):match('_([%w]+)%.[tT][oO][cC]$')
+    local retired = retiredSuffix and retiredBySuffix[retiredSuffix:lower()]
+    if retired and retiredSuffix then
+        report(0, 1, math.max(#(lines[1] and lines[1].text or ''), 1), 'toc-retired-suffix',
+            ('The suffix `_%s` is no longer supported: the game ignores this file; rename it to `_%s`.'):format(retiredSuffix, retired.use))
+    end
+
     -- the file name belongs to its folder
     -- (a repository checkout can be the install folder: the game only compares the folder name with the file name)
-    if folder and base:lower() ~= folder:lower() then
+    if folder and base:lower() ~= folder:lower() and not retired then
         report(0, 1, math.max(#(lines[1] and lines[1].text or ''), 1), 'toc-file-name',
             ('The file name should match the folder: `%s.toc` (it is `%s`).'):format(folder, base))
     end
@@ -625,8 +725,15 @@ function m.diagnose(uri, text)
                     names[#names+1] = entry.name
                 end
                 local suggestion = nearest(key, names)
-                report(line.row, line.keyStart or 1, line.keyFinish or 1, 'toc-unknown-header',
-                    ('Unknown directive `%s`%s.'):format(key, suggestion and (' (did you mean `%s`?)'):format(suggestion) or ''))
+                local retired = retiredHeaderByName[key:lower()]
+                if retired then
+                    report(line.row, line.keyStart or 1, line.keyFinish or 1, 'toc-retired-header',
+                        retired.use and ('`%s` is no longer supported: it was renamed `%s`.'):format(retired.name, retired.use)
+                            or ('`%s` is no longer supported and does nothing.'):format(retired.name))
+                else
+                    report(line.row, line.keyStart or 1, line.keyFinish or 1, 'toc-unknown-header',
+                        ('Unknown directive `%s`%s.'):format(key, suggestion and (' (did you mean `%s`?)'):format(suggestion) or ''))
+                end
             elseif directive then
                 if directive.restricted then
                     report(line.row, line.keyStart or 1, line.keyFinish or 1, 'toc-restricted-header',
@@ -641,7 +748,9 @@ function m.diagnose(uri, text)
                     id = directive.name:lower()
                 end
                 local previous = seen[id]
-                if previous and not directive.appends then
+                -- (the wiki's own example repeats `## Title:` with an inline condition on the second line: that is how a title is made per game)
+                local conditional = previous and (#previous.brackets > 0 or #line.brackets > 0)
+                if previous and not directive.appends and not conditional then
                     if directive.firstWins then
                         report(line.row, line.keyStart or 1, line.keyFinish or 1, 'toc-duplicate-header',
                             ('`%s` is repeated: only the first (line %d) counts, this one is ignored.'):format(key, previous.row + 1))
@@ -720,7 +829,11 @@ function m.diagnose(uri, text)
     end
 
     -- a repeated `## Interface` replaces the earlier line: only the last one counts for the games
-    if #interfaceLines > 1 then
+    local conditionalInterface = false
+    for _, line in ipairs(interfaceLines) do
+        conditionalInterface = conditionalInterface or #line.brackets > 0
+    end
+    if #interfaceLines > 1 and not conditionalInterface then
         local lastLine = interfaceLines[#interfaceLines]
         ---@type wowToc.number[]
         local kept = {}
@@ -735,8 +848,10 @@ function m.diagnose(uri, text)
     -- the scope of the file and of its lines
     local headerAllow, headerExclude = headerConditions(scopeLines)
     local scope = applyConditions(fileScope, headerAllow, headerExclude)
-    -- narrowed: something really takes games away (an allow list nobody knows, or an exclude of unknown types, takes none)
-    local narrowed = suffix ~= nil or not isSubset(allGames(), scope)
+    -- narrowed: something really takes games away (an allow list nobody knows, or an exclude of unknown types, takes none). A plain
+    -- file next to files of other suffixes is the mainline file by position, but it declares no restriction: the Interface checks
+    -- leave it alone unless its own directives narrow it.
+    local narrowed = suffix ~= nil or not isSubset(allGames(), applyConditions(allGames(), headerAllow, headerExclude))
 
     -- Interface against the games of the scope
     if #numbers > 0 then

@@ -45,13 +45,25 @@
 ---@field name        string
 ---@field description string
 
+---@class wowToc.retiredHeader
+---@field name string  the old name (case-insensitive)
+---@field use? string  the name that replaced it (nil: dropped without replacement)
+
 ---@class wowToc.directives
+---@field retired   wowToc.retiredHeader[]
 ---@field headers   wowToc.directive[]
 ---@field inlines   wowToc.inline[]
 ---@field variables wowToc.variable[]
 
 ---@type wowToc.directives
 return {
+    -- directives the game dropped or renamed (wiki patch history): the "upgrade recommended" hint for `## Key:` lines
+    retired = {
+        { name = 'AllowLoadByGameMode', use = 'AllowLoadGameType' },
+        { name = 'GuardedAddOn', use = 'LoadFirst' },
+        { name = 'SuppressLocalTableRef' },
+    },
+
     headers = {
         { name = 'Interface', value = 'interface',
           description = 'The client interface version(s) this addon was written for, a comma separated list of whole numbers (`120100` is 12.1.0). A number that does not match the client marks the addon out of date.',

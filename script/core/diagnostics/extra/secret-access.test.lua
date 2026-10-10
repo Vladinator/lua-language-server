@@ -173,6 +173,38 @@ print(<!keep(x)!> + 1)
 print(<!keep(x, 2)!> + 1)
 ]]
 
+-- `secret<T>` on a parameter binds `T` without the secrecy of the argument (secret unwrap through a generic); a plain `T` keeps it
+TEST [[
+---@secret
+---@return number
+local function f() return 0 end
+
+---@generic T
+---@param v secret<T>
+---@return T
+local function unwrap(v) return v end
+
+---@generic T
+---@param v T
+---@return T
+local function keep(v) return v end
+
+---@generic T
+---@param plain T
+---@param v secret<T>
+---@return T
+local function second(plain, v) return plain end
+
+local x = f()
+print(unwrap(x) + 1)
+local u = unwrap(x)
+print(u + 1)
+print(<!keep(x)!> + 1)
+print(unwrap(keep(x)) + 1)
+print(<!second(x, 2)!> + 1)
+print(second(1, x) + 1)
+]]
+
 -- a secret that enters a generic through a LATER argument of the same `T` (the type of `T` is the first one's, the
 -- secrecy of every argument comes out of it), and through the return of a callback typed `fun(): T`
 TEST [[

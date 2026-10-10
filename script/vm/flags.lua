@@ -49,6 +49,30 @@ function vm.joinBranchLocalFlags(joined, a, b)
     return joined
 end
 
+--- A flag a parameter type can absorb when a generic is bound to the argument: `fn(v: secret<T>)` accepts a secret and binds `T` to the
+--- argument's type WITHOUT the secrecy (wowlua-ls: "secret unwrap"). Registering a propagating flag here makes `vm.propagateFlagsBound` leave it
+--- behind whenever the parameter's own type carries the flag.
+---@type table<string, true>
+local bindAbsorbedFlags = {}
+
+---@param name string
+function vm.registerBindAbsorbedFlag(name)
+    bindAbsorbedFlags[name] = true
+end
+
+--- `vm.propagateFlags` for the binding of a generic to an argument (`from`) of the parameter whose type node is `param`: a flag registered
+--- with `registerBindAbsorbedFlag` that `param` carries does not come out through the generic.
+---@param from  vm.node
+---@param to    vm.node
+---@param param vm.node?
+function vm.propagateFlagsBound(from, to, param)
+    for name in pairs(propagatingFlags) do
+        if from:hasFlag(name) and not (param and bindAbsorbedFlags[name] and param:hasFlag(name)) then
+            to:setFlag(name)
+        end
+    end
+end
+
 --- Copy every registered flag that `from` has onto `to`.
 ---@param from vm.node
 ---@param to   vm.node

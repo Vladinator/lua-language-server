@@ -1107,6 +1107,8 @@ end)
 -- automatically) ask these two generic registries instead of ever naming
 -- "secret" themselves -- see vm/flags.lua.
 vm.registerPropagatingFlag('secret')
+-- `fn(v: secret<T>)` binds `T` without the secrecy of the argument (wowlua-ls: secret unwrap through a generic)
+vm.registerBindAbsorbedFlag('secret')
 vm.registerBranchLocalFlag('secret', 'secretProven')
 vm.registerFlagDeriver('secret', isSecret)
 

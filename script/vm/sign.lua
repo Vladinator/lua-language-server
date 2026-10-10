@@ -82,6 +82,10 @@ function mt:resolve(uri, args)
     ---@type table<string, boolean>
     local visited = {}
 
+    -- the type node of the parameter whose argument is being bound (`vm.propagateFlagsBound`)
+    ---@type vm.node?
+    local boundParam
+
     ---@param object vm.node|vm.node.object
     ---@param node   vm.node
     local function resolve(object, node)
@@ -144,7 +148,7 @@ function mt:resolve(uri, args)
                 end
                 if resolved[key] then
                     -- the bound argument's flags (e.g. a taint bit) belong to whatever T stands for
-                    vm.propagateFlags(node, resolved[key])
+                    vm.propagateFlagsBound(node, resolved[key], boundParam)
                 end
                 if resolved[key] and node:isOptional() then
                     resolved[key]:addOptional()
@@ -395,18 +399,19 @@ function mt:resolve(uri, args)
             break
         end
         local argNode = vm.compileNode(arg)
+        boundParam = sign
         local knownTypes, genericNames = getSignInfo(sign)
         if not isAllResolved(genericNames) then
             local newArgNode = buildArgNode(argNode, sign, knownTypes)
             -- the rebuilt node is a fresh one: carry the argument's flags (e.g. a taint bit)
-            vm.propagateFlags(argNode, newArgNode)
+            vm.propagateFlagsBound(argNode, newArgNode, sign)
             resolve(sign, newArgNode)
         else
             -- `T` is already bound (by an earlier argument: the first one wins, as the type of `T` goes), but what this
             -- argument carries (a registered flag, see vm/flags.lua) can still come back out through `T`: keep it
             for name in pairs(genericNames) do
                 if resolved[name] then
-                    vm.propagateFlags(argNode, resolved[name])
+                    vm.propagateFlagsBound(argNode, resolved[name], sign)
                 end
             end
         end

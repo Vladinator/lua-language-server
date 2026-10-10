@@ -32,6 +32,9 @@ end
 for name in pairs(diagd.diagnosticDatas) do
     if name == 'unfulfilled-expect' then
         assert(not count[name], 'unfulfilled-expect must not be in the list')
+    elseif diagd.diagnosticDatas[name].fileKind then
+        -- a diagnostic of a file kind (script/file-kinds.lua) runs on documents that are not Lua, never in the Lua pipeline
+        assert(not count[name], name .. ' is a file kind diagnostic and must not run on Lua files')
     else
         assert(count[name] == 1, name .. ' must run exactly once')
     end

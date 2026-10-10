@@ -471,6 +471,22 @@ Array<string>
 * ``"set-const"``: 對 const 常數賦值
 * ``"shadowed-local"``
 * ``"spell-check"``: 字串拼寫檢查
+* ``"toc-duplicate-header"``: Enable diagnostics for a `## Key:` line that repeats a key whose lines do not add up (the last one wins, or only the first counts).
+* ``"toc-file-name"``: Enable diagnostics for a `.toc` file whose name does not match its folder.
+* ``"toc-interface-mismatch"``: Enable diagnostics for an `## Interface` number that belongs to a game the file does not load on.
+* ``"toc-interface-missing-game"``: Enable diagnostics for a `.toc` that loads on a game type none of whose `## Interface` numbers fits.
+* ``"toc-interface-never-matches"``: Enable diagnostics for a `.toc` whose `## Interface` numbers all belong to games it does not load on: the client would mark it out of date.
+* ``"toc-interface-too-low"``: Enable diagnostics for an `## Interface` number below the lowest number worth declaring for its game today.
+* ``"toc-invalid-interface"``: Enable diagnostics for an `## Interface` item that is not a whole number above 0.
+* ``"toc-invalid-value"``: Enable diagnostics for a value that does not fit its directive: a flag that is not 0 or 1, an unknown game type or locale, an unknown or unclosed `[inline directive]`.
+* ``"toc-line-too-long"``: Enable diagnostics for a `.toc` line over 1024 characters: the game reads only the first 1024.
+* ``"toc-localized-before-base"``: Enable diagnostics for a localized `Title-deDE` that comes before the plain `Title`, or has none: the localized ones go unused.
+* ``"toc-missing-interface"``: Enable diagnostics for a `.toc` file without an `## Interface` line.
+* ``"toc-nonexistent-file"``: Enable diagnostics for a file line of a `.toc` that is not on disk.
+* ``"toc-redundant-condition"``: Enable diagnostics for a load condition that does not change where the line loads.
+* ``"toc-restricted-header"``: Enable diagnostics for a directive that only Blizzard code may use.
+* ``"toc-unknown-header"``: Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
+* ``"toc-unreachable-line"``: Enable diagnostics for a line of a `.toc` whose load conditions and file name suffix leave no game type it can load on.
 * ``"trailing-space"``: 後置空格
 * ``"type-mismatch"``
 * ``"unbalanced-assignments"``: 多重賦值時沒有賦值所有變數（如 `local x,y = 1` ）
@@ -704,6 +720,25 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * toc-duplicate-header
+    * toc-file-name
+    * toc-interface-mismatch
+    * toc-interface-missing-game
+    * toc-interface-never-matches
+    * toc-interface-too-low
+    * toc-invalid-interface
+    * toc-invalid-value
+    * toc-line-too-long
+    * toc-localized-before-base
+    * toc-missing-interface
+    * toc-nonexistent-file
+    * toc-redundant-condition
+    * toc-restricted-header
+    * toc-unknown-header
+    * toc-unreachable-line
+    */
+    "toc": "Fallback",
+    /*
     * assign-readonly
     * assign-type-mismatch
     * cannot-call
@@ -873,6 +908,25 @@ object<string, string>
     * no-unknown
     */
     "strong": "Fallback",
+    /*
+    * toc-duplicate-header
+    * toc-file-name
+    * toc-interface-mismatch
+    * toc-interface-missing-game
+    * toc-interface-never-matches
+    * toc-interface-too-low
+    * toc-invalid-interface
+    * toc-invalid-value
+    * toc-line-too-long
+    * toc-localized-before-base
+    * toc-missing-interface
+    * toc-nonexistent-file
+    * toc-redundant-condition
+    * toc-restricted-header
+    * toc-unknown-header
+    * toc-unreachable-line
+    */
+    "toc": "Fallback",
     /*
     * assign-readonly
     * assign-type-mismatch
@@ -1305,6 +1359,70 @@ object<string, string>
     字串拼寫檢查
     */
     "spell-check": "None",
+    /*
+    Enable diagnostics for a `## Key:` line that repeats a key whose lines do not add up (the last one wins, or only the first counts).
+    */
+    "toc-duplicate-header": "Any",
+    /*
+    Enable diagnostics for a `.toc` file whose name does not match its folder.
+    */
+    "toc-file-name": "Any",
+    /*
+    Enable diagnostics for an `## Interface` number that belongs to a game the file does not load on.
+    */
+    "toc-interface-mismatch": "Any",
+    /*
+    Enable diagnostics for a `.toc` that loads on a game type none of whose `## Interface` numbers fits.
+    */
+    "toc-interface-missing-game": "Any",
+    /*
+    Enable diagnostics for a `.toc` whose `## Interface` numbers all belong to games it does not load on: the client would mark it out of date.
+    */
+    "toc-interface-never-matches": "Any",
+    /*
+    Enable diagnostics for an `## Interface` number below the lowest number worth declaring for its game today.
+    */
+    "toc-interface-too-low": "Any",
+    /*
+    Enable diagnostics for an `## Interface` item that is not a whole number above 0.
+    */
+    "toc-invalid-interface": "Any",
+    /*
+    Enable diagnostics for a value that does not fit its directive: a flag that is not 0 or 1, an unknown game type or locale, an unknown or unclosed `[inline directive]`.
+    */
+    "toc-invalid-value": "Any",
+    /*
+    Enable diagnostics for a `.toc` line over 1024 characters: the game reads only the first 1024.
+    */
+    "toc-line-too-long": "Any",
+    /*
+    Enable diagnostics for a localized `Title-deDE` that comes before the plain `Title`, or has none: the localized ones go unused.
+    */
+    "toc-localized-before-base": "Any",
+    /*
+    Enable diagnostics for a `.toc` file without an `## Interface` line.
+    */
+    "toc-missing-interface": "Any",
+    /*
+    Enable diagnostics for a file line of a `.toc` that is not on disk.
+    */
+    "toc-nonexistent-file": "Any",
+    /*
+    Enable diagnostics for a load condition that does not change where the line loads.
+    */
+    "toc-redundant-condition": "Any",
+    /*
+    Enable diagnostics for a directive that only Blizzard code may use.
+    */
+    "toc-restricted-header": "Any",
+    /*
+    Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
+    */
+    "toc-unknown-header": "Any",
+    /*
+    Enable diagnostics for a line of a `.toc` whose load conditions and file name suffix leave no game type it can load on.
+    */
+    "toc-unreachable-line": "Any",
     /*
     後置空格
     */
@@ -1739,6 +1857,70 @@ object<string, string>
     字串拼寫檢查
     */
     "spell-check": "Information",
+    /*
+    Enable diagnostics for a `## Key:` line that repeats a key whose lines do not add up (the last one wins, or only the first counts).
+    */
+    "toc-duplicate-header": "Warning",
+    /*
+    Enable diagnostics for a `.toc` file whose name does not match its folder.
+    */
+    "toc-file-name": "Warning",
+    /*
+    Enable diagnostics for an `## Interface` number that belongs to a game the file does not load on.
+    */
+    "toc-interface-mismatch": "Hint",
+    /*
+    Enable diagnostics for a `.toc` that loads on a game type none of whose `## Interface` numbers fits.
+    */
+    "toc-interface-missing-game": "Hint",
+    /*
+    Enable diagnostics for a `.toc` whose `## Interface` numbers all belong to games it does not load on: the client would mark it out of date.
+    */
+    "toc-interface-never-matches": "Warning",
+    /*
+    Enable diagnostics for an `## Interface` number below the lowest number worth declaring for its game today.
+    */
+    "toc-interface-too-low": "Hint",
+    /*
+    Enable diagnostics for an `## Interface` item that is not a whole number above 0.
+    */
+    "toc-invalid-interface": "Error",
+    /*
+    Enable diagnostics for a value that does not fit its directive: a flag that is not 0 or 1, an unknown game type or locale, an unknown or unclosed `[inline directive]`.
+    */
+    "toc-invalid-value": "Warning",
+    /*
+    Enable diagnostics for a `.toc` line over 1024 characters: the game reads only the first 1024.
+    */
+    "toc-line-too-long": "Warning",
+    /*
+    Enable diagnostics for a localized `Title-deDE` that comes before the plain `Title`, or has none: the localized ones go unused.
+    */
+    "toc-localized-before-base": "Hint",
+    /*
+    Enable diagnostics for a `.toc` file without an `## Interface` line.
+    */
+    "toc-missing-interface": "Warning",
+    /*
+    Enable diagnostics for a file line of a `.toc` that is not on disk.
+    */
+    "toc-nonexistent-file": "Warning",
+    /*
+    Enable diagnostics for a load condition that does not change where the line loads.
+    */
+    "toc-redundant-condition": "Hint",
+    /*
+    Enable diagnostics for a directive that only Blizzard code may use.
+    */
+    "toc-restricted-header": "Hint",
+    /*
+    Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
+    */
+    "toc-unknown-header": "Hint",
+    /*
+    Enable diagnostics for a line of a `.toc` whose load conditions and file name suffix leave no game type it can load on.
+    */
+    "toc-unreachable-line": "Warning",
     /*
     後置空格
     */

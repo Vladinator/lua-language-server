@@ -11,6 +11,7 @@ local diagd     = require 'proto.diagnostic'
 local fileKinds = require 'file-kinds'
 local games     = require 'core.diagnostics.extra.wow-toc.games'
 local directives = require 'core.diagnostics.extra.wow-toc.directives'
+local categories = require 'core.diagnostics.extra.wow-toc.categories'
 
 local m = {}
 
@@ -21,6 +22,8 @@ local DIAGNOSTICS = {
     { 'toc-missing-interface',   'Warning', 'Enable diagnostics for a `.toc` file without an `## Interface` line.' },
     { 'toc-invalid-interface',   'Error',   'Enable diagnostics for an `## Interface` item that is not a whole number above 0.' },
     { 'toc-duplicate-header',    'Warning', 'Enable diagnostics for a `## Key:` line that repeats a key whose lines do not add up (the last one wins, or only the first counts).' },
+    { 'toc-unknown-category',    'Hint',    'Enable diagnostics for a `## Category:` that is not one of the recommended names of the Addon Categories wiki page (a custom category is allowed, the page recommends its names).' },
+    { 'toc-category-translation', 'Hint',   'Enable diagnostics for a `## Category-xxXX:` whose text differs from the Addon Categories wiki page translation of the plain `## Category:` for that locale.' },
     { 'toc-retired-header',      'Warning', 'Enable diagnostics for a `## Key:` the game dropped or renamed (`AllowLoadByGameMode`, `GuardedAddOn`, `SuppressLocalTableRef`): the line does nothing.' },
     { 'toc-unknown-header',      'Hint',    'Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.' },
     { 'toc-invalid-value',       'Warning', 'Enable diagnostics for a value that does not fit its directive: a flag that is not 0 or 1, an unknown game type or locale, an unknown or unclosed `[inline directive]`.' },
@@ -59,6 +62,22 @@ local familyGames = {}
 local familyById = {}
 ---@type table<string, string[]>      lowercase suffix -> game ids (a game suffix: one game; a family suffix: its games)
 local suffixGames = {}
+---@type table<string, wowToc.category>   normalized English category name -> category
+local categoryByName = {}
+---@type string[]
+local categoryNames = {}
+
+--- A category name for comparing: lowercase, the typographic apostrophe written as the plain one.
+---@param text string
+---@return string
+local function normalizeName(text)
+    return (text:lower():gsub(utf8.char(0x2019), "'"))
+end
+for _, category in ipairs(categories) do
+    categoryByName[normalizeName(category.name)] = category
+    categoryNames[#categoryNames+1] = category.name
+end
+
 ---@type table<string, wowToc.retiredSuffix>   lowercase suffix the game does not read any more
 local retiredBySuffix = {}
 for _, retired in ipairs(games.retiredSuffixes) do
@@ -805,6 +824,36 @@ function m.diagnose(uri, text)
         end
     end
 
+    -- Category: the recommended names of the Addon Categories page and their translations (a recommendation: a hint, never an error)
+    do
+        ---@type wowToc.category?
+        local base
+        for _, line in ipairs(lines) do
+            if line.kind == 'header' and line.directive and line.directive.name == 'Category' and not line.locale and line.value and line.value ~= '' then
+                base = categoryByName[normalizeName(line.value)]
+            end
+        end
+        for _, line in ipairs(lines) do
+            if line.kind == 'header' and line.directive and line.directive.name == 'Category' and line.value and line.value ~= ''
+                and line.valueStart and line.valueFinish then
+                if not line.locale then
+                    if not categoryByName[normalizeName(line.value)] then
+                        local suggestion = nearest(line.value, categoryNames)
+                        report(line.row, line.valueStart, line.valueFinish, 'toc-unknown-category',
+                            ('`%s` is not one of the recommended categories%s.'):format(line.value, suggestion and (' (did you mean `%s`?)'):format(suggestion) or ''))
+                    end
+                elseif base and localeByName[line.locale:lower()] then
+                    local locale = localeByName[line.locale:lower()]
+                    local expected = base.names[locale]
+                    if expected and normalizeName(expected) ~= normalizeName(line.value) then
+                        report(line.row, line.valueStart, line.valueFinish, 'toc-category-translation',
+                            ('The Addon Categories page translates `%s` as `%s` for %s.'):format(base.name, expected, locale))
+                    end
+                end
+            end
+        end
+    end
+
     -- Interface present, valid
     local scopeLines = lines
     if #interfaceLines == 0 then
@@ -1052,6 +1101,9 @@ m.familyGames       = familyGames
 m.resolveGameWord   = resolveGameWord
 m.headerByName      = headerByName
 m.variableByName    = variableByName
+m.categories        = categories
+m.categoryByName    = categoryByName
+m.normalizeName     = normalizeName
 
 --- The kind of document; editor.lua adds `complete`, `hover` and `definition` to it.
 ---@type fileKind

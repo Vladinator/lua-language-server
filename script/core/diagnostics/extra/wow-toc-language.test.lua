@@ -12,6 +12,8 @@ local fs     = require 'bee.filesystem'
 
 local nl = string.char(10)
 local ADDON = TESTROOT .. 'MyAddon'
+-- (a run that failed half way leaves its files behind: start from an empty folder)
+pcall((fs --[[@as any]]).remove_all, fs.path(ADDON)) -- (not in the bee typings)
 fs.create_directories(fs.path(ADDON))
 
 --- Files that exist next to the toc while a case runs.
@@ -128,7 +130,7 @@ end
 for _, directive in ipairs(direct.headers) do
     if not directive.restricted and directive.value ~= 'boolean01' and directive.value ~= 'enum' and directive.value ~= 'interface'
     and directive.value ~= 'gametypes' and not directive.only then
-        case('a known directive: ' .. directive.name, HEADER .. '## ' .. directive.name .. ': Something' .. nl,
+        case('a known directive: ' .. directive.name, HEADER .. '## ' .. directive.name .. (directive.name == 'Category' and ': Combat' or ': Something') .. nl,
             directive.value == 'function' and {} or {})
     end
 end
@@ -154,7 +156,38 @@ case('a single AllowAddOnTableAccess', HEADER .. '## AllowAddOnTableAccess: 1' .
 case('a localized variant is its own key', HEADER .. '## Title: A' .. nl .. '## Title-frFR: B' .. nl .. '## Title-deDE: C' .. nl, {})
 case('the same locale twice', HEADER .. '## Title: A' .. nl .. '## Title-frFR: B' .. nl .. '## Title-frFR: C' .. nl, { 'toc-duplicate-header' })
 case('Notes is localizable', HEADER .. '## Notes: A' .. nl .. '## Notes-deDE: B' .. nl, {})
-case('Category is localizable', HEADER .. '## Category: A' .. nl .. '## Category-deDE: B' .. nl, {})
+case('Category is localizable', HEADER .. '## Category: Combat' .. nl .. '## Category-deDE: Kampf' .. nl, {})
+
+-- 2b. Categories (a recommendation: hints only)
+local categories = require 'core.diagnostics.extra.wow-toc.categories'
+case('a recommended category', HEADER .. '## Category: Combat' .. nl, {})
+case('a category is case-insensitive', HEADER .. '## Category: combat' .. nl, {})
+case('a category with spaces and an ampersand', HEADER .. '## Category: Dungeons & Raids' .. nl, {})
+case('a custom category is only a hint', HEADER .. '## Category: My Own Things' .. nl, { 'toc-unknown-category' })
+case('a typo of a category suggests the name', HEADER .. '## Category: Combatt' .. nl, { 'toc-unknown-category' })
+case('the translation of the page', HEADER .. '## Category: Combat' .. nl .. '## Category-frFR: Combat' .. nl .. '## Category-deDE: Kampf' .. nl, {})
+case('a different translation', HEADER .. '## Category: Combat' .. nl .. '## Category-deDE: Gefecht' .. nl, { 'toc-category-translation' })
+case('a translation of another category', HEADER .. '## Category: Combat' .. nl .. '## Category-deDE: Karte' .. nl, { 'toc-category-translation' })
+case('a translation next to a custom category is left alone', HEADER .. '## Category: Mine' .. nl .. '## Category-deDE: Meins' .. nl, { 'toc-unknown-category' })
+case('the typographic apostrophe is the plain one', HEADER .. '## Category: Action Bars' .. nl .. '## Category-frFR: Barres d' .. utf8.char(0x27) .. 'action' .. nl, {})
+case('a locale the page does not list is left alone', HEADER .. '## Category: Combat' .. nl .. '## Category-enUS: Combat' .. nl, {})
+for _, category in ipairs(categories) do
+    assert(category.name ~= '', 'a category without a name')
+    for locale, text in pairs(category.names) do
+        local known = false
+        for _, item in ipairs(games.locales) do
+            known = known or item == locale
+        end
+        assert(known, category.name .. ' has a translation for an unknown locale: ' .. locale)
+        assert(text ~= '', category.name .. ' has an empty translation for ' .. locale)
+    end
+end
+for _, category in ipairs(categories) do
+    case('every recommended category: ' .. category.name, HEADER .. '## Category: ' .. category.name .. nl, {})
+    for locale, text in pairs(category.names) do
+        case('its translation: ' .. category.name .. ' ' .. locale, HEADER .. '## Category: ' .. category.name .. nl .. '## Category-' .. locale .. ': ' .. text .. nl, {})
+    end
+end
 case('Author is not localizable', HEADER .. '## Author-deDE: B' .. nl, { 'toc-unknown-header' })
 case('the unlocalized one has to come first', HEADER .. '## Title-frFR: B' .. nl .. '## Title: A' .. nl, { 'toc-localized-before-base' })
 case('a localized one with no plain one', HEADER .. '## Title-frFR: B' .. nl, { 'toc-localized-before-base' })
@@ -541,6 +574,18 @@ offers('locale tags while typing', '## Notes-de|', { 'deDE' })
 offers('no locale tags for a key without them', '## Interface-|', {}, { 'deDE' })
 offers('Interface numbers', '## Interface: |', { '120100', '50504', '11509' }, { 'standard' })
 offers('Interface numbers are not repeated', '## Interface: 120100, |', { '50504' }, { '120100' })
+offers('categories', '## Category: |', { 'Combat', 'Dungeons & Raids', 'Action Bars', 'Libraries' }, { 'Kampf' })
+offers('categories while typing', '## Category: Dun|', { 'Dungeons & Raids' })
+offers('translations of the locale', '## Category: Combat' .. nl .. '## Category-deDE: |', { 'Kampf', 'Aktionsleisten' }, { 'Combat', 'Barres d' })
+offers('translations of another locale', '## Category-frFR: |', { 'Combat', 'Quêtes' }, { 'Kampf' })
+offers('a locale nobody knows has no translations', '## Category-xxXX: |', {}, { 'Combat', 'Kampf' })
+offers('the base category comes first', '## Category: Libraries' .. nl .. '## Category-deDE: |', { 'Bibliotheken' })
+do
+    local items = labels(completionOf('## Category: Libraries' .. nl .. '## Category-deDE: |'))
+    if not (items.Bibliotheken and items.Aktionsleisten and items.Bibliotheken.sortText < items.Aktionsleisten.sortText) then
+        failures[#failures+1] = 'completion `the translation of the plain line category sorts first`'
+    end
+end
 offers('a boolean', '## LoadOnDemand: |', { '1', '0' })
 offers('an enum', '## DefaultState: |', { 'enabled', 'disabled' }, { '1' })
 offers('game types', '## AllowLoadGameType: |', { 'standard', 'mainline', 'classic', 'cata', 'camelot', 'forever' })
@@ -627,6 +672,10 @@ hovers('a custom key', '## X-Wo|w: 1', { 'custom key' })
 hovers('an unknown key', '## Bog|us: 1', {})
 hovers('first wins', '## AllowAddOnTable|Access: 1', { 'first line counts' })
 hovers('the value of a free text key', '## Title: He|llo', {})
+hovers('a category', '## Category: Com|bat', { '**Combat**', 'Damage meters', '`deDE` Kampf' })
+hovers('a category in lower case', '## Category: com|bat', { '**Combat**' })
+hovers('a translated category', '## Category-deDE: Ka|mpf', { '**Combat**' })
+hovers('a custom category', '## Category: My Ow|n Things', {})
 hovers('an Interface number', '## Interface: 12|0100', { '12.1.0', 'Retail (Midnight)' })
 hovers('an old Interface number', '## Interface: 11|509', { '1.15.9', 'Classic Era' })
 hovers('a number nobody owns', '## Interface: 9|9', { '0.0.99' })

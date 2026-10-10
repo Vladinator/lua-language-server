@@ -132,6 +132,49 @@ local function describeGameWord(word)
     return describeGame(syntax.gameById[ids[1]])
 end
 
+--- The category a `## Category` line is about: by its English name, or (a localized line) by its translation.
+---@param line wowToc.line
+---@return wowToc.category?
+local function categoryOf(line)
+    if not line.value or line.value == '' then
+        return nil
+    end
+    local wanted = syntax.normalizeName(line.value)
+    local found = syntax.categoryByName[wanted]
+    if found or not line.locale then
+        return found
+    end
+    for _, category in ipairs(syntax.categories) do
+        for _, text in pairs(category.names) do
+            if syntax.normalizeName(text) == wanted then
+                return category
+            end
+        end
+    end
+    return nil
+end
+
+--- Markdown for a category: what fits it and its translations.
+---@param category wowToc.category
+---@return string
+local function describeCategory(category)
+    local parts = { ('**%s** (an Addon Categories name)'):format(category.name) }
+    if category.description then
+        parts[#parts+1] = category.description
+    end
+    ---@type string[]
+    local rows = {}
+    for _, locale in ipairs(games.locales) do
+        if category.names[locale] then
+            rows[#rows+1] = ('`%s` %s'):format(locale, category.names[locale])
+        end
+    end
+    if #rows > 0 then
+        parts[#parts+1] = table.concat(rows, ' · ')
+    end
+    return table.concat(parts, '\n\n')
+end
+
 --- "Loads on ..." for a line.
 ---@param uri    uri
 ---@param cursor wowToc.cursor
@@ -258,6 +301,14 @@ local function hover(uri, text, position)
                     value = ('**%s**\n\nA custom key: the client keeps every `X-` key, `C_AddOns.GetAddOnMetadata` reads it.'):format(line.key),
                     range = range(line.keyStart, line.keyFinish),
                 }
+            end
+            return nil
+        end
+        if line.directive and line.directive.name == 'Category' and line.valueStart and line.valueFinish
+            and at >= line.valueStart and at <= line.valueFinish then
+            local category = categoryOf(line)
+            if category then
+                return { value = describeCategory(category), range = range(line.valueStart, line.valueFinish) }
             end
             return nil
         end
@@ -468,6 +519,48 @@ local function completePath(uri, cursor)
     return items
 end
 
+--- The values of `## Category:` (the English names) or `## Category-xxXX:` (the translations, those of the plain line's category first).
+---@param cursor wowToc.cursor
+---@param locale string?
+---@return wowToc.completionItem[]
+local function categoryItems(cursor, locale)
+    ---@type string?
+    local canonical
+    if locale then
+        for _, item in ipairs(games.locales) do
+            if item:lower() == locale:lower() then
+                canonical = item
+            end
+        end
+        if not canonical then
+            return {}
+        end
+    end
+    ---@type wowToc.category?
+    local base
+    for _, line in ipairs(cursor.lines) do
+        if line.kind == 'header' and line.directive and line.directive.name == 'Category' and not line.locale then
+            base = categoryOf(line) or base
+        end
+    end
+    local first = (cursor.prefix:match('^##%s*[%w_%-]+%s*:%s?()')) or (cursor.col + 1)
+    ---@type wowToc.completionItem[]
+    local items = {}
+    for _, category in ipairs(syntax.categories) do
+        local text = canonical and category.names[canonical] or (not canonical and category.name) or nil
+        if text then
+            items[#items+1] = {
+                label    = text,
+                kind     = CompletionItemKind.Enum,
+                detail   = canonical and category.name or category.description,
+                textEdit = { range = rangeOf(cursor.line.row, cursor.text, first, #cursor.text), newText = text },
+                sortText = ((base == category) and '0' or '1') .. text:lower(),
+            }
+        end
+    end
+    return items
+end
+
 ---@param uri      uri
 ---@param text     string
 ---@param position fileKind.position
@@ -554,9 +647,12 @@ local function complete(uri, text, position)
 
     local key, value = prefix:match('^##%s*([%w_%-]+)%s*:%s?(.*)$')
     if key then
-        local directive = syntax.directiveOf(key)
+        local directive, keyLocale = syntax.directiveOf(key)
         if not directive then
             return {}
+        end
+        if directive.name == 'Category' then
+            return categoryItems(cursor, keyLocale)
         end
         local word = value:match('[^%s,]*$') or ''
         local first = cursor.col - #word + 1

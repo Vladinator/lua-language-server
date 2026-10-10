@@ -474,6 +474,7 @@ Array<string>
 * ``"set-const"``: Assigning to a const constant
 * ``"shadowed-local"``
 * ``"spell-check"``: Enable diagnostics for typos in strings.
+* ``"toc-category-translation"``: Enable diagnostics for a `## Category-xxXX:` whose text differs from the Addon Categories wiki page translation of the plain `## Category:` for that locale.
 * ``"toc-duplicate-header"``: Enable diagnostics for a `## Key:` line that repeats a key whose lines do not add up (the last one wins, or only the first counts).
 * ``"toc-file-name"``: Enable diagnostics for a `.toc` file whose name does not match its folder.
 * ``"toc-interface-mismatch"``: Enable diagnostics for an `## Interface` number that belongs to a game the file does not load on.
@@ -490,6 +491,7 @@ Array<string>
 * ``"toc-restricted-header"``: Enable diagnostics for a directive that only Blizzard code may use.
 * ``"toc-retired-header"``: Enable diagnostics for a `## Key:` the game dropped or renamed (`AllowLoadByGameMode`, `GuardedAddOn`, `SuppressLocalTableRef`): the line does nothing.
 * ``"toc-retired-suffix"``: Enable diagnostics for a `.toc` file name suffix the game does not read any more (`_BCC`, `_WOTLK`): the file is ignored, rename it.
+* ``"toc-unknown-category"``: Enable diagnostics for a `## Category:` that is not one of the recommended names of the Addon Categories wiki page (a custom category is allowed, the page recommends its names).
 * ``"toc-unknown-header"``: Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
 * ``"toc-unreachable-line"``: Enable diagnostics for a line of a `.toc` whose load conditions and file name suffix leave no game type it can load on.
 * ``"trailing-space"``: Enable trailing space diagnostics.
@@ -725,6 +727,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * toc-category-translation
     * toc-duplicate-header
     * toc-file-name
     * toc-interface-mismatch
@@ -741,6 +744,7 @@ object<string, string>
     * toc-restricted-header
     * toc-retired-header
     * toc-retired-suffix
+    * toc-unknown-category
     * toc-unknown-header
     * toc-unreachable-line
     */
@@ -916,6 +920,7 @@ object<string, string>
     */
     "strong": "Fallback",
     /*
+    * toc-category-translation
     * toc-duplicate-header
     * toc-file-name
     * toc-interface-mismatch
@@ -932,6 +937,7 @@ object<string, string>
     * toc-restricted-header
     * toc-retired-header
     * toc-retired-suffix
+    * toc-unknown-category
     * toc-unknown-header
     * toc-unreachable-line
     */
@@ -1369,6 +1375,10 @@ object<string, string>
     */
     "spell-check": "None",
     /*
+    Enable diagnostics for a `## Category-xxXX:` whose text differs from the Addon Categories wiki page translation of the plain `## Category:` for that locale.
+    */
+    "toc-category-translation": "Any",
+    /*
     Enable diagnostics for a `## Key:` line that repeats a key whose lines do not add up (the last one wins, or only the first counts).
     */
     "toc-duplicate-header": "Any",
@@ -1432,6 +1442,10 @@ object<string, string>
     Enable diagnostics for a `.toc` file name suffix the game does not read any more (`_BCC`, `_WOTLK`): the file is ignored, rename it.
     */
     "toc-retired-suffix": "Any",
+    /*
+    Enable diagnostics for a `## Category:` that is not one of the recommended names of the Addon Categories wiki page (a custom category is allowed, the page recommends its names).
+    */
+    "toc-unknown-category": "Any",
     /*
     Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
     */
@@ -1876,6 +1890,10 @@ object<string, string>
     */
     "spell-check": "Information",
     /*
+    Enable diagnostics for a `## Category-xxXX:` whose text differs from the Addon Categories wiki page translation of the plain `## Category:` for that locale.
+    */
+    "toc-category-translation": "Hint",
+    /*
     Enable diagnostics for a `## Key:` line that repeats a key whose lines do not add up (the last one wins, or only the first counts).
     */
     "toc-duplicate-header": "Warning",
@@ -1939,6 +1957,10 @@ object<string, string>
     Enable diagnostics for a `.toc` file name suffix the game does not read any more (`_BCC`, `_WOTLK`): the file is ignored, rename it.
     */
     "toc-retired-suffix": "Warning",
+    /*
+    Enable diagnostics for a `## Category:` that is not one of the recommended names of the Addon Categories wiki page (a custom category is allowed, the page recommends its names).
+    */
+    "toc-unknown-category": "Hint",
     /*
     Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
     */

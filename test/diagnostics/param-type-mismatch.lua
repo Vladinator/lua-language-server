@@ -19,7 +19,7 @@ local a = {}
 ---@type A?
 a.x = XX
 
-f(a.x)
+f(<!a.x!>)
 ]]
 TEST [[
 ---@alias A string|boolean
@@ -919,7 +919,8 @@ process(<!getToggle()!>)
 plainProcess(getPlain())
 ]]
 
--- Lua.type.checkFieldNilArguments: false (the original LuaLS) takes the nil out of a field read before the check, true checks it like a variable
+-- Lua.type.checkFieldNilArguments: false (the original LuaLS) takes the nil out of a field read before the check, true (the default) checks it like a variable
+config.set(nil, 'Lua.type.checkFieldNilArguments', false)
 TEST [[
 ---@class Opt
 ---@field f? table
@@ -1033,5 +1034,5 @@ local function plain(t) end
 plain(o.f)
 ]]
 config.set(nil, 'Lua.type.weakNilCheck', false)
-config.set(nil, 'Lua.type.checkFieldNilArguments', false)
+config.set(nil, 'Lua.type.checkFieldNilArguments', true)
 config.set(nil, 'Lua.type.weakUnionCheck', false)

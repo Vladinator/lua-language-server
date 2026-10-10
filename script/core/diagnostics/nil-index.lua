@@ -9,7 +9,7 @@ protoDiagnostic.register {
 } {
     group    = 'type-check',
     severity = 'Warning',
-    status   = 'None',
+    status   = 'Opened',
     description = 'Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.',
 }
 

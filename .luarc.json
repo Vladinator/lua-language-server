@@ -58,7 +58,8 @@
         }
     },
     "type": {
-        "castNumberToInteger": false
+        "castNumberToInteger": false,
+        "checkFieldNilArguments": false
     },
     "doc": {
         "privateName": [

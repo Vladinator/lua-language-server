@@ -1265,7 +1265,7 @@ object<string, string>
     /*
     Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
     */
-    "nil-index": "None",
+    "nil-index": "Opened",
     /*
     Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
     */
@@ -2985,7 +2985,7 @@ boolean
 ## default
 
 ```jsonc
-true
+false
 ```
 
 # type.checkFieldNilArguments
@@ -3001,7 +3001,7 @@ boolean
 ## default
 
 ```jsonc
-false
+true
 ```
 
 # type.checkTableShape

@@ -1,6 +1,7 @@
 --require 'other.filewatch'
 require 'other.view-string'
 require 'other.configuration'
+require 'other.defaults'
 require 'other.compile-order'
 require 'other.retention'
 require 'other.generic-flags'

@@ -1,3 +1,4 @@
+local config = require 'config.config'
 
 TEST 'boolean' [[
 ---@overload fun(x: number, y: number):string
@@ -200,6 +201,8 @@ local function f(a) end
 local <?r?> = f(2)
 ]]
 
+-- (a `number` fits the integer literals of the overloads only while `Lua.type.castNumberToInteger` is on; strictly it fits none of them)
+config.set(nil, 'Lua.type.castNumberToInteger', true)
 TEST 'string|number' [[
 ---@overload fun(a: 1): string
 ---@overload fun(a: 2): number
@@ -209,6 +212,7 @@ local function f(a) end
 local v
 local <?r?> = f(v)
 ]]
+config.set(nil, 'Lua.type.castNumberToInteger', false)
 
 TEST 'number' [[
 ---@overload fun(a: 1, c: fun(x: number))

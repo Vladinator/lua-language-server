@@ -92,7 +92,8 @@ Array<string>
 
 # codeLens.enable
 
-Enable code lens.
+Show the number of references above each definition; clicking it lists them.
+
 
 ## type
 
@@ -108,7 +109,8 @@ false
 
 # completion.autoRequire
 
-When the input looks like a file name, automatically `require` this file.
+When you complete a name that is a file of the workspace, insert the matching `local x = require 'x'` at the top of the file.
+
 
 ## type
 
@@ -124,7 +126,10 @@ true
 
 # completion.callSnippet
 
-Shows function call snippets.
+Whether a completed function is inserted with its argument list.
+
+`Disable` inserts the name only, `Both` offers the name and a snippet entry, `Replace` inserts the snippet `f(arg1, arg2)` with tab stops.
+
 
 ## type
 
@@ -146,7 +151,10 @@ string
 
 # completion.displayContext
 
-Previewing the relevant code snippet of the suggestion may help you understand the usage of the suggestion. The number set indicates the number of intercepted lines in the code fragment. If it is set to `0`, this feature can be disabled.
+Show the lines of source around a suggestion in its documentation.
+
+The number is how many lines to show; `0` turns the preview off.
+
 
 ## type
 
@@ -162,7 +170,8 @@ integer
 
 # completion.enable
 
-Enable completion.
+Offer completion while you type.
+
 
 ## type
 
@@ -178,7 +187,10 @@ true
 
 # completion.keywordSnippet
 
-Shows keyword syntax snippets.
+Whether a keyword such as `if` or `function` is offered with its whole block.
+
+`Disable` offers the word only, `Both` the word and a snippet entry, `Replace` the snippet (`if ... then ... end`).
+
 
 ## type
 
@@ -200,7 +212,10 @@ string
 
 # completion.maxSuggestCount
 
-Maximum number of fields to analyze for completions. When an object has more fields than this limit, completions will require more specific input to appear.
+The most fields of one table the server examines for a completion.
+
+A table with more fields than this offers nothing until you have typed more of the name. Raise it only if a big table (a generated API) is missing from the list.
+
 
 ## type
 
@@ -216,7 +231,8 @@ integer
 
 # completion.postfix
 
-The symbol used to trigger the postfix suggestion.
+The character that starts a postfix suggestion: after `value@` you can pick a template such as `if value then ... end`.
+
 
 ## type
 
@@ -232,7 +248,8 @@ string
 
 # completion.requireSeparator
 
-The separator used when `require`.
+The character that separates the folders in an inserted `require` (`.` gives `require 'a.b'`, `/` gives `require 'a/b'`).
+
 
 ## type
 
@@ -248,7 +265,10 @@ string
 
 # completion.showParams
 
-Display parameters in completion list. When the function has multiple definitions, they will be displayed separately.
+Show the parameter list of a function in the completion list.
+
+A function with several definitions (overloads) gets one entry for each.
+
 
 ## type
 
@@ -264,7 +284,10 @@ true
 
 # completion.showWord
 
-Show contextual words in suggestions.
+Suggest plain words found in the text when nothing better is known.
+
+`Fallback` offers them only when the type information gives no suggestion, `Enable` always, `Disable` never.
+
 
 ## type
 
@@ -286,7 +309,8 @@ string
 
 # completion.workspaceWord
 
-Whether the displayed context word contains the content of other files in the workspace.
+Let the word suggestions (see `Lua.completion.showWord`) include words from the other files of the workspace, not only the current file.
+
 
 ## type
 
@@ -321,7 +345,14 @@ Array<string>
 
 # diagnostics.disable
 
-Disabled diagnostic (Use code in hover brackets).
+The diagnostics that are not reported, by code (the code is shown in brackets next to a problem).
+
+```json
+"Lua.diagnostics.disable": ["undefined-global", "lowercase-global"]
+```
+
+One finding can be silenced in the source with `---@diagnostic disable-next-line: code`.
+
 
 ## type
 
@@ -544,7 +575,10 @@ Array<string>
 
 # diagnostics.enable
 
-Enable diagnostics.
+Run the diagnostics at all.
+
+`false` turns every check off, the syntax errors too; hover, completion and the rest keep working.
+
 
 ## type
 
@@ -576,7 +610,10 @@ Array<string>
 
 # diagnostics.globals
 
-Defined global variables.
+Global variables that are known to exist, so that `undefined-global` does not report them.
+
+Use it for the globals a host program or framework provides (`vim`, `love`, the WoW API). Better still, declare them in a library folder (`Lua.workspace.library`) with their types.
+
 
 ## type
 
@@ -592,7 +629,10 @@ Array<string>
 
 # diagnostics.globalsRegex
 
-Find defined global variables using regex.
+Known globals given as patterns.
+
+Every global whose name matches one of these Lua patterns counts as defined, e.g. `^MyAddon` for all globals that start with `MyAddon`.
+
 
 ## type
 
@@ -608,14 +648,13 @@ Array<string>
 
 # diagnostics.groupFileStatus
 
-Modify the diagnostic needed file status in a group.
+Change the file status (`Opened`, `Any`, `None`) of a whole group of diagnostics.
 
-* Opened:  only diagnose opened files
-* Any:     diagnose all files
-* None:    disable this diagnostic
+* `Opened`: only the open files
+* `Any`: every file of the workspace
+* `None`: the group is off
 
-`Fallback` means that diagnostics in this group are controlled by `diagnostics.neededFileStatus` separately.
-Other settings will override individual settings without end of `!`.
+`Fallback` leaves each diagnostic to `Lua.diagnostics.neededFileStatus`. A group value overrides the single settings, except the ones that end with `!`.
 
 
 ## type
@@ -806,9 +845,9 @@ object<string, string>
 
 # diagnostics.groupSeverity
 
-Modify the diagnostic severity in a group.
-`Fallback` means that diagnostics in this group are controlled by `diagnostics.severity` separately.
-Other settings will override individual settings without end of `!`.
+Change the severity of a whole group of diagnostics (`ambiguity`, `await`, `codestyle`, `conventions`, `duplicate`, `global`, `luadoc`, `redefined`, `redundant`, `secret`, `strict`, `strong`, `type-check`, `unbalanced`, `unused`).
+
+`Fallback` leaves each diagnostic to `Lua.diagnostics.severity`. A group value overrides the single settings, except the ones that end with `!`.
 
 
 ## type
@@ -1000,7 +1039,10 @@ object<string, string>
 
 # diagnostics.ignoredFiles
 
-How to diagnose ignored files.
+Whether the files that `Lua.workspace.ignoreDir` and `.gitignore` exclude are diagnosed.
+
+`Opened` diagnoses an ignored file only while it is open in the editor.
+
 
 ## type
 
@@ -1022,7 +1064,10 @@ string
 
 # diagnostics.libraryFiles
 
-How to diagnose files loaded via `Lua.workspace.library`.
+Whether the files of `Lua.workspace.library` are diagnosed.
+
+`Opened` diagnoses a library file only while it is open in the editor.
+
 
 ## type
 
@@ -1044,11 +1089,13 @@ string
 
 # diagnostics.neededFileStatus
 
-* Opened:  only diagnose opened files
-* Any:     diagnose all files
-* None:    disable this diagnostic
+Which files a diagnostic runs on, by code.
 
-End with `!` means override the group setting `diagnostics.groupFileStatus`.
+* `Opened`: only the files that are open in the editor
+* `Any`: every file of the workspace (slower, and fills the Problems panel)
+* `None`: the diagnostic is off
+
+A trailing `!` on the value makes it win over the group setting `Lua.diagnostics.groupFileStatus`.
 
 
 ## type
@@ -1273,7 +1320,7 @@ object<string, string>
     /*
     Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
     */
-    "nil-index": "None",
+    "nil-index": "Opened",
     /*
     Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
     */
@@ -1568,9 +1615,13 @@ string
 
 # diagnostics.severity
 
-Modify the diagnostic severity.
+Change how serious a diagnostic is, by code: `Error`, `Warning`, `Information` or `Hint`.
 
-End with `!` means override the group setting `diagnostics.groupSeverity`.
+A trailing `!` on the value makes it win over the group setting `Lua.diagnostics.groupSeverity`.
+
+```json
+"Lua.diagnostics.severity": { "unused-local": "Warning", "undefined-field!": "Error" }
+```
 
 
 ## type
@@ -2071,7 +2122,10 @@ object<string, string>
 
 # diagnostics.unusedLocalExclude
 
-Do not diagnose `unused-local` when the variable name matches the following pattern.
+Names that `unused-local` leaves alone, given as patterns.
+
+`_*` skips every variable that starts with an underscore, the usual way to say "unused on purpose".
+
 
 ## type
 
@@ -2087,7 +2141,10 @@ Array<string>
 
 # diagnostics.workspaceDelay
 
-Latency (milliseconds) for workspace diagnostics.
+How long to wait, in milliseconds, after the trigger of `Lua.diagnostics.workspaceEvent` before the workspace diagnosis starts.
+
+A longer delay avoids restarts while you keep editing.
+
 
 ## type
 
@@ -2103,7 +2160,10 @@ integer
 
 # diagnostics.workspaceEvent
 
-Set the time to trigger workspace diagnostics.
+When the diagnostics of the files that are not open are (re)run.
+
+`OnSave` (after the file is saved), `OnChange` (while you type, heavier), or `None` (never; only open files are checked).
+
 
 ## type
 
@@ -2125,7 +2185,10 @@ string
 
 # diagnostics.workspaceRate
 
-Workspace diagnostics run rate (%). Decreasing this value reduces CPU usage, but also reduces the speed of workspace diagnostics. The diagnosis of the file you are currently editing is always done at full speed and is not affected by this setting.
+How much of the CPU the workspace diagnosis may use, in percent.
+
+A lower value keeps the machine responsive and makes the diagnosis of the other files slower. The file you are editing is always diagnosed at full speed.
+
 
 ## type
 
@@ -2141,7 +2204,10 @@ integer
 
 # doc.packageName
 
-Treat specific field names as package, e.g. `m_*` means `XXX.m_id` and `XXX.m_type` are package, witch can only be accessed in the file where the definition is located.
+Treat the fields whose names match as `package`: they can be used only inside the file that declares them.
+
+`m_*` makes `XXX.m_id` and `XXX.m_type` package.
+
 
 ## type
 
@@ -2157,7 +2223,10 @@ Array<string>
 
 # doc.privateName
 
-Treat specific field names as private, e.g. `m_*` means `XXX.m_id` and `XXX.m_type` are private, witch can only be accessed in the class where the definition is located.
+Treat the fields whose names match as `private`: they can be used only inside the class that declares them.
+
+`m_*` makes `XXX.m_id` and `XXX.m_type` private.
+
 
 ## type
 
@@ -2173,7 +2242,10 @@ Array<string>
 
 # doc.protectedName
 
-Treat specific field names as protected, e.g. `m_*` means `XXX.m_id` and `XXX.m_type` are protected, witch can only be accessed in the class where the definition is located and its subclasses.
+Treat the fields whose names match as `protected`: they can be used only inside the class that declares them and its subclasses.
+
+`m_*` makes `XXX.m_id` and `XXX.m_type` protected.
+
 
 ## type
 
@@ -2189,7 +2261,8 @@ Array<string>
 
 # doc.regengine
 
-The regular expression engine used for matching documentation scope names.
+The pattern syntax of the names in `Lua.doc.privateName`, `Lua.doc.protectedName` and `Lua.doc.packageName`.
+
 
 ## type
 
@@ -2226,8 +2299,9 @@ string
 
 # format.defaultConfig
 
-The default format configuration. Has a lower priority than `.editorconfig` file in the workspace.
-Read [formatter docs](https://github.com/CppCXY/EmmyLuaCodeStyle/tree/master/docs) to learn usage.
+The default options of the formatter, as a table of name to value (`indent_style`, `indent_size`, `max_line_length`, ...).
+
+A `.editorconfig` in the workspace wins over this. See the [formatter docs](https://github.com/CppCXY/EmmyLuaCodeStyle/tree/master/docs).
 
 
 ## type
@@ -2244,7 +2318,8 @@ Object<string, string>
 
 # format.enable
 
-Enable code formatter.
+Offer the code formatter (format document, format selection, format on type).
+
 
 ## type
 
@@ -2260,7 +2335,10 @@ true
 
 # hint.arrayIndex
 
-Show hints of array index when constructing a table.
+Show the index of each item in a table constructor (`{ [1] = "a", [2] = "b" }`).
+
+`Auto` shows them in a mixed table or one with more than three items, `Enable` in every table, `Disable` never.
+
 
 ## type
 
@@ -2282,7 +2360,8 @@ string
 
 # hint.await
 
-If the called function is marked `---@async`, prompt `await` at the call.
+Show `await` in front of a call to a function marked `---@async`.
+
 
 ## type
 
@@ -2298,7 +2377,8 @@ true
 
 # hint.awaitPropagate
 
-Enable the propagation of `await`. When a function calls a function marked `---@async`,it will be automatically marked as `---@async`.
+Treat a function that calls an `---@async` function as `---@async` itself, and show its `await` hints too.
+
 
 ## type
 
@@ -2314,7 +2394,8 @@ false
 
 # hint.enable
 
-Enable inlay hint.
+Show inlay hints: small grey texts the editor draws inside the code (parameter names, types, `await`, ...). The kinds are chosen by the other `Lua.hint.*` settings.
+
 
 ## type
 
@@ -2330,7 +2411,10 @@ false
 
 # hint.paramName
 
-Show hints of parameter name at the function call.
+Show the name of the parameter in front of an argument in a call.
+
+`All` for every argument, `Literal` only for literals and constants (where the meaning is not clear), `Disable` for none.
+
 
 ## type
 
@@ -2352,7 +2436,8 @@ string
 
 # hint.paramType
 
-Show type hints at the parameter of the function.
+Show the type of each parameter at the function definition.
+
 
 ## type
 
@@ -2368,7 +2453,10 @@ true
 
 # hint.semicolon
 
-If there is no semicolon at the end of the statement, display a virtual semicolon.
+Show a grey semicolon at the end of a statement that has none.
+
+`SameLine` only between two statements on one line, `All` after every statement, `Disable` never.
+
 
 ## type
 
@@ -2390,7 +2478,8 @@ string
 
 # hint.setType
 
-Show hints of type at assignment operation.
+Show the inferred type after the name of a variable in an assignment, as `x: number = 1`.
+
 
 ## type
 
@@ -2406,7 +2495,8 @@ false
 
 # hover.enable
 
-Enable hover.
+Show the information card when the mouse rests on a name.
+
 
 ## type
 
@@ -2422,7 +2512,8 @@ true
 
 # hover.enumsLimit
 
-When the value corresponds to multiple types, limit the number of types displaying.
+The most members of a union or an enum the hover lists before it cuts the list with `...`.
+
 
 ## type
 
@@ -2438,7 +2529,9 @@ integer
 
 # hover.expandAlias
 
-Whether to expand the alias. For example, expands `---@alias myType boolean|number` appears as `boolean|number`, otherwise it appears as `myType'.
+Show what an alias stands for.
+
+`true`: a value of `---@alias myType boolean|number` shows as `boolean|number`. `false`: it shows as `myType`.
 
 
 ## type
@@ -2455,7 +2548,8 @@ true
 
 # hover.previewFields
 
-When hovering to view a table, limits the maximum number of previews for fields.
+The most fields of a table the hover lists.
+
 
 ## type
 
@@ -2471,7 +2565,8 @@ integer
 
 # hover.viewNumber
 
-Hover to view numeric content (only if literal is not decimal).
+Show the decimal value of a number literal written in another base (`0xFF` shows 255).
+
 
 ## type
 
@@ -2487,7 +2582,8 @@ true
 
 # hover.viewString
 
-Hover to view the contents of a string (only if the literal contains an escape character).
+Show the text of a string literal in the hover, when the source has escapes (`\n`, `\x41`) that make it hard to read.
+
 
 ## type
 
@@ -2503,7 +2599,8 @@ true
 
 # hover.viewStringMax
 
-The maximum length of a hover to view the contents of a string.
+The most characters of a string the hover shows (see `Lua.hover.viewString`).
+
 
 ## type
 
@@ -2519,7 +2616,8 @@ integer
 
 # language.completeAnnotation
 
-(VSCode only) Automatically insert "---@ " after a line break following a annotation.
+(VS Code only) Continue a `---@` comment on the next line: pressing Enter inserts `---@ ` at the start of it.
+
 
 ## type
 
@@ -2535,7 +2633,8 @@ true
 
 # language.fixIndent
 
-(VSCode only) Fix incorrect auto-indentation, such as incorrect indentation when line breaks occur within a string containing the word "function".
+(VS Code only) Repair the indentation the editor guesses wrong, for example after a line break inside a string that contains the word `function`.
+
 
 ## type
 
@@ -2551,7 +2650,8 @@ true
 
 # misc.executablePath
 
-Specify the executable path in VSCode.
+The path of the language server executable the VS Code extension starts, when it should not use its own.
+
 
 ## type
 
@@ -2567,7 +2667,8 @@ string
 
 # misc.parameters
 
-[Command line parameters](https://github.com/LuaLS/lua-telemetry-server/tree/master/method) when starting the language server in VSCode.
+[Command line parameters](https://github.com/LuaLS/lua-telemetry-server/tree/master/method) the VS Code extension passes to the server when it starts it.
+
 
 ## type
 
@@ -2583,8 +2684,9 @@ Array<string>
 
 # nameStyle.config
 
-Set name style config.
-Read [formatter docs](https://github.com/CppCXY/EmmyLuaCodeStyle/tree/master/docs) to learn usage.
+The naming rules the `name-style-check` diagnostic enforces (for example camelCase for locals, PascalCase for classes).
+
+See the [formatter docs](https://github.com/CppCXY/EmmyLuaCodeStyle/tree/master/docs).
 
 
 ## type
@@ -2601,11 +2703,15 @@ Object<string, string | array>
 
 # runtime.builtin
 
-Adjust the enabled state of the built-in library. You can disable (or redefine) the non-existent library according to the actual runtime environment.
+Switch the built-in libraries on or off by name (`basic`, `string`, `table`, `math`, `os`, `io`, `debug`, `package`, `coroutine`, `utf8`, `bit`, `bit32`, `jit`, `ffi`).
 
-* `default`: Indicates that the library will be enabled or disabled according to the runtime version
-* `enable`: always enable
-* `disable`: always disable
+* `default`: on or off according to `Lua.runtime.version`
+* `enable`: always on
+* `disable`: always off. Use it when a framework replaces the library with its own (the WoW client has no `io`, `os` or `debug`).
+
+```json
+"Lua.runtime.builtin": { "io": "disable", "os": "disable" }
+```
 
 
 ## type
@@ -2649,8 +2755,9 @@ object<string, string>
 
 # runtime.enableLuaJITExtensions
 
-Enable LuaJIT extension syntax (requires `Lua.runtime.version` to be set to `LuaJIT`).
-Each extension can also be enabled individually via `Lua.runtime.nonstandardSymbol`.
+Accept the LuaJIT syntax extensions (`0x1p4` hex floats, `1LL` and `1ULL` integer suffixes, the `ffi` literals).
+
+Needs `Lua.runtime.version` to be `LuaJIT`. Each extension can also be switched on alone through `Lua.runtime.nonstandardSymbol`.
 
 
 ## type
@@ -2667,7 +2774,10 @@ false
 
 # runtime.fileEncoding
 
-File encoding. The `ansi` option is only available under the `Windows` platform.
+The text encoding of the source files.
+
+`utf8` is right for nearly every project. `utf16le` and `utf16be` are for files saved as UTF-16; `ansi` follows the system code page and exists on Windows only.
+
 
 ## type
 
@@ -2690,7 +2800,10 @@ string
 
 # runtime.meta
 
-Format of the directory name of the meta files.
+The name of the folder the generated library files (the "meta" files for the built-in libraries) are written to.
+
+`${version}`, `${language}` and `${encoding}` are replaced by the Lua version, the language of the server and `Lua.runtime.fileEncoding`.
+
 
 ## type
 
@@ -2706,7 +2819,10 @@ string
 
 # runtime.nonstandardSymbol
 
-Supports non-standard symbols. Make sure that your runtime environment supports these symbols.
+Accept syntax that is not standard Lua.
+
+Each entry switches one form on (`+=`, `continue`, `//` comments, `?.`, ...). Turn on only what your runtime or preprocessor really supports: the editor otherwise accepts code that fails at run time.
+
 
 ## type
 
@@ -2760,10 +2876,11 @@ Array<string>
 
 # runtime.path
 
-When using `require`, how to find the file based on the input name.
-Setting this config to `?/init.lua` means that when you enter `require 'myfile'`, `${workspace}/myfile/init.lua` will be searched from the loaded files.
-if `runtime.pathStrict` is `false`, `${workspace}/**/myfile/init.lua` will also be searched.
-If you want to load files outside the workspace, you need to set `Lua.workspace.library` first.
+Where `require 'name'` looks for a file.
+
+Each entry is a pattern in which `?` stands for the name, with dots turned into folder separators: `?.lua` finds `myfile.lua`, `?/init.lua` finds `myfile/init.lua`. The patterns are tried inside the workspace and the libraries of `Lua.workspace.library`.
+
+Unless `Lua.runtime.pathStrict` is on, a pattern is also tried in every sub folder (`${workspace}/**/myfile/init.lua`).
 
 
 ## type
@@ -2780,7 +2897,10 @@ Array<string>
 
 # runtime.pathStrict
 
-When enabled, `runtime.path` will only search the first level of directories, see the description of `runtime.path`.
+Search the `Lua.runtime.path` patterns from the root of the workspace only.
+
+`true`: `require 'a.b'` finds only `<root>/a/b.lua`. `false`: it also finds `<root>/**/a/b.lua`, which is convenient but can pick a wrong file in a big project.
+
 
 ## type
 
@@ -2796,7 +2916,10 @@ false
 
 # runtime.plugin
 
-Plugin path. Please read [wiki](https://luals.github.io/wiki/plugins) to learn more.
+A Lua file (or a list of them) that rewrites the text of every source file before it is parsed, and can help `require` find files.
+
+A plugin runs arbitrary code, so the first load asks you to trust it. See `doc/en-us/plugin.md` and the [wiki](https://luals.github.io/wiki/plugins).
+
 
 ## type
 
@@ -2812,7 +2935,10 @@ null
 
 # runtime.pluginArgs
 
-Additional arguments for the plugin.
+Extra arguments handed to the plugin of `Lua.runtime.plugin`.
+
+Either a list (given to every plugin) or a table whose keys are a part of a plugin path and whose values are the arguments of that plugin.
+
 
 ## type
 
@@ -2828,11 +2954,13 @@ null
 
 # runtime.special
 
-The custom global variables are regarded as some special built-in variables, and the language server will provide special support
-The following example shows that 'include' is treated as' require '.
+Treat a custom global function as a built-in one.
+
+The key is the name you use, the value the built-in it behaves like (`require`, `dofile`, `loadfile`, `pcall`, `xpcall`, `assert`, `error`, `type`, `setmetatable`, `rawset`, `rawget`, `os.exit`, `_G`). The server then resolves its arguments the same way.
+
 ```json
-"Lua.runtime.special" : {
-    "include" : "require"
+"Lua.runtime.special": {
+    "include": "require"
 }
 ```
 
@@ -2851,7 +2979,10 @@ Object<string, string>
 
 # runtime.unicodeName
 
-Allows Unicode characters in name.
+Allow Unicode letters in names.
+
+`true`: `local größe = 1` is accepted. `false`: only ASCII letters, digits and `_` (the Lua standard) are, and a Unicode name is reported by the `unicode-name` syntax check.
+
 
 ## type
 
@@ -2867,7 +2998,10 @@ false
 
 # runtime.version
 
-Lua runtime version.
+The Lua version the code is written for.
+
+It decides which syntax is accepted (`goto` from 5.2, integer division and bit operators from 5.3, `<const>` and `<close>` from 5.4) and which standard library the server assumes (see `Lua.runtime.builtin`). Use `Lua 5.1` for World of Warcraft addons and `LuaJIT` for LuaJIT code (see `Lua.runtime.enableLuaJITExtensions`).
+
 
 ## type
 
@@ -2892,7 +3026,8 @@ string
 
 # semantic.annotation
 
-Semantic coloring of type annotations.
+Colour the types and tags inside `---@` comments.
+
 
 ## type
 
@@ -2908,7 +3043,10 @@ true
 
 # semantic.enable
 
-Enable semantic color. You may need to set `editor.semanticHighlighting.enabled` to `true` to take effect.
+Colour the code from what the server knows about it (a parameter, a global, a type) instead of from the grammar alone.
+
+The editor must have `editor.semanticHighlighting.enabled` on.
+
 
 ## type
 
@@ -2924,7 +3062,10 @@ true
 
 # semantic.keyword
 
-Semantic coloring of keywords/literals/operators. You only need to enable this feature if your editor cannot do syntax coloring.
+Colour keywords, literals and operators from the server too.
+
+Only needed when the editor has no grammar for Lua of its own.
+
 
 ## type
 
@@ -2940,7 +3081,8 @@ false
 
 # semantic.variable
 
-Semantic coloring of variables/fields/parameters.
+Colour variables, fields and parameters by kind (local, global, parameter, field, ...).
+
 
 ## type
 
@@ -2956,7 +3098,8 @@ true
 
 # signatureHelp.enable
 
-Enable signature help.
+Show the parameter list and the current argument while you type a call.
+
 
 ## type
 
@@ -2972,7 +3115,8 @@ true
 
 # spell.dict
 
-Custom words for spell checking.
+Words the spell check (`spell-check` diagnostic) accepts.
+
 
 ## type
 
@@ -2988,29 +3132,9 @@ Array<string>
 
 # type.castNumberToInteger
 
-Allowed to assign the `number` type to the `integer` type.
+Let a `number` be assigned to an `integer`.
 
-## type
-
-```ts
-boolean
-```
-
-## default
-
-```jsonc
-true
-```
-
-# type.checkFieldNilArguments
-
-Check the `nil` of a field that is passed as an argument.
-
-`false` (the default, the original LuaLS): `nil` is taken out of `f(obj.field)` before it is checked, so a `table?` field can be passed for a `table` parameter. The original could not narrow fields.
-
-`true`: the field is checked like a variable, and narrowed like one: `if obj.field then f(obj.field) end` and `f(obj.field or {})` are fine.
-
-The `nil` of a field is checked even under `Lua.type.weakUnionCheck` (which takes a union as fitting when one member does), unless `Lua.type.weakNilCheck` ignores `nil`.
+`false` (strict): a `number` does not fit an `integer`, because it may have a fraction (`math.floor` or `//` give one). `true`: it fits, as in the original LuaLS. The other way round, `integer` to `number`, always works.
 
 
 ## type
@@ -3025,9 +3149,34 @@ boolean
 false
 ```
 
+# type.checkFieldNilArguments
+
+Check the `nil` of a field that is passed as an argument.
+
+`true` (the default): the field is checked like a variable, and narrowed like one: `if obj.field then f(obj.field) end` and `f(obj.field or {})` are fine.
+
+`false` (the original LuaLS): `nil` is taken out of `f(obj.field)` before it is checked, so a `table?` field can be passed for a `table` parameter. The original could not narrow fields.
+
+The `nil` of a field is checked even under `Lua.type.weakUnionCheck` (which takes a union as fitting when one member does), unless `Lua.type.weakNilCheck` ignores `nil`.
+
+
+## type
+
+```ts
+boolean
+```
+
+## default
+
+```jsonc
+true
+```
+
 # type.checkTableShape
 
-Strictly check the shape of the table.
+Require a table value to have the fields of the class it is assigned to: a missing field is a type mismatch.
+
+Off by default, because a table built in steps (`setmetatable({}, Meta)`, a mixin) is reported while it is still incomplete.
 
 
 ## type
@@ -3044,9 +3193,9 @@ false
 
 # type.inferParamType
 
-When a parameter type is not annotated, it is inferred from the function's call sites.
+Infer the type of a parameter that has no annotation from the arguments the function is called with.
 
-When this setting is `false`, the type of the parameter is `any` when it is not annotated.
+`false`: such a parameter is `any`. `true`: it takes the types of the calls, which finds more but can produce surprising errors in a function with many callers.
 
 
 ## type
@@ -3063,7 +3212,10 @@ false
 
 # type.inferTableSize
 
-Maximum number of table fields analyzed during type inference.
+The most fields of a table constructor the server looks at when it infers the type of the table.
+
+A low value keeps the inference of big data tables cheap.
+
 
 ## type
 
@@ -3098,9 +3250,9 @@ integer
 
 # type.weakNilCheck
 
-When checking the type of union type, ignore the `nil` in it.
+Ignore the `nil` of a union when checking.
 
-When this setting is `false`, the `number|nil` type cannot be assigned to the `number` type. It can be with `true`.
+`false` (strict): `number|nil` cannot be assigned to `number`. `true`: it can, as if the `nil` were not there.
 
 
 ## type
@@ -3117,9 +3269,9 @@ false
 
 # type.weakUnionCheck
 
-Once one subtype of a union type meets the condition, the union type also meets the condition.
+Take a union as fitting once one of its members fits.
 
-When this setting is `false`, the `number|boolean` type cannot be assigned to the `number` type. It can be with `true`.
+`false` (strict): `number|boolean` cannot be assigned to `number`, all members must fit. `true`: it can.
 
 
 ## type
@@ -3165,7 +3317,8 @@ object<string, string>
 
 # window.progressBar
 
-Show progress bar in status bar.
+Show a progress bar while the server loads and diagnoses the workspace.
+
 
 ## type
 
@@ -3181,7 +3334,8 @@ true
 
 # window.statusBar
 
-Show extension status in status bar.
+Show the server status in the status bar of the editor.
+
 
 ## type
 
@@ -3197,14 +3351,9 @@ true
 
 # workspace.checkThirdParty
 
-Automatic detection and adaptation of third-party libraries, currently supported libraries are:
+Offer to add the type definitions of a known third-party environment when the workspace uses it: OpenResty, Cocos4.0, LÖVE, LÖVR, skynet and Jass.
 
-* OpenResty
-* Cocos4.0
-* LÖVE
-* LÖVR
-* skynet
-* Jass
+`Ask` asks once per workspace, `Apply` adds it without asking, `ApplyInMemory` adds it without writing a setting, `Disable` never offers.
 
 
 ## type
@@ -3221,7 +3370,10 @@ null
 
 # workspace.dofileRoots
 
-In addition to the current workspace, which directories `dofile` will treat as a possible root. The files in these directories will be loaded immediately.
+Extra folders that `dofile` and `loadfile` may resolve a relative path in, besides the workspace.
+
+The files there are loaded at once.
+
 
 ## type
 
@@ -3237,7 +3389,12 @@ Array<string>
 
 # workspace.ignoreDir
 
-Ignored files and directories (Use `.gitignore` grammar).
+Files and folders the server does not load, in `.gitignore` syntax.
+
+```json
+"Lua.workspace.ignoreDir": [".vscode", "Libs/", "**/*.min.lua"]
+```
+
 
 ## type
 
@@ -3253,7 +3410,10 @@ Array<string>
 
 # workspace.ignoreSubmodules
 
-Ignore submodules.
+Do not load the files of git submodules.
+
+`true` is right when a submodule is a library you only use; set it to `false` when the submodule holds code you work on.
+
 
 ## type
 
@@ -3269,7 +3429,14 @@ true
 
 # workspace.library
 
-In addition to the current workspace, which directories will load files from. The files in these directories will be treated as externally provided code libraries, and some features (such as renaming fields) will not modify these files.
+Folders outside the workspace whose Lua files are read as libraries.
+
+The code in them is known to completion, hover and the type checks, but is not changed by renaming and is not diagnosed (see `Lua.diagnostics.libraryFiles`). Use it for annotation packages such as the WoW API annotations, or for a framework's sources.
+
+```json
+"Lua.workspace.library": ["~/.vscode/extensions/ketho.wow-api-0.22.3/Annotations/Core"]
+```
+
 
 ## type
 
@@ -3285,7 +3452,10 @@ Array<string>
 
 # workspace.maxPreload
 
-Max preloaded files.
+The most files the server reads when it opens a workspace.
+
+Files beyond the limit are loaded only when they are opened or required. Raise it for a very big project, lower it to open faster.
+
 
 ## type
 
@@ -3301,7 +3471,10 @@ integer
 
 # workspace.preloadFileSize
 
-Skip files larger than this value (KB) when preloading.
+The size, in KB, above which a file is not read when the workspace opens.
+
+Big generated files (data tables, minified code) slow the server down and are better skipped; they load when you open them.
+
 
 ## type
 
@@ -3381,7 +3554,10 @@ false
 
 # workspace.useGitIgnore
 
-Ignore files list in `.gitignore` .
+Do not load what the `.gitignore` of the workspace lists.
+
+`false` loads those files too (generated code, build output).
+
 
 ## type
 
@@ -3397,7 +3573,8 @@ true
 
 # workspace.userThirdParty
 
-Add private third-party library configuration file paths here, please refer to the built-in [configuration file path](https://github.com/LuaLS/lua-language-server/tree/master/meta/3rd)
+Paths to your own third-party configuration files, in the format of the [built-in ones](https://github.com/LuaLS/lua-language-server/tree/master/meta/3rd).
+
 
 ## type
 

@@ -201,7 +201,7 @@ local function f(a) end
 local <?r?> = f(2)
 ]]
 
--- (a `number` fits the integer literals of the overloads only while `Lua.type.castNumberToInteger` is on; strictly it fits none of them)
+-- (a `number` fits the integer literals of the overloads only while `Lua.type.castNumberToInteger` is on, the default)
 config.set(nil, 'Lua.type.castNumberToInteger', true)
 TEST 'string|number' [[
 ---@overload fun(a: 1): string

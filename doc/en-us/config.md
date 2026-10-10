@@ -3134,7 +3134,7 @@ Array<string>
 
 Let a `number` be assigned to an `integer`.
 
-`false` (strict): a `number` does not fit an `integer`, because it may have a fraction (`math.floor` or `//` give one). `true`: it fits, as in the original LuaLS. The other way round, `integer` to `number`, always works.
+`true`: it fits, as in the original LuaLS, which suits code that computes with plain numbers. `false` (strict): a `number` does not fit an `integer`, because it may have a fraction. The other way round, `integer` to `number`, always works.
 
 
 ## type
@@ -3146,7 +3146,7 @@ boolean
 ## default
 
 ```jsonc
-false
+true
 ```
 
 # type.checkFieldNilArguments

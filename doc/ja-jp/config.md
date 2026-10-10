@@ -2986,7 +2986,7 @@ boolean
 ## default
 
 ```jsonc
-false
+true
 ```
 
 # type.checkFieldNilArguments

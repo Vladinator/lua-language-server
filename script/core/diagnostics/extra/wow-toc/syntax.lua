@@ -595,10 +595,8 @@ function m.diagnose(uri, text)
     local folder = furi.decode(uri):match('([^/\\]+)[/\\][^/\\]+$')
 
     -- the file name belongs to its folder
-    -- (not in a repository checkout: its folder carries the repository's name, the install folder is named later)
-    local dirOfFile = furi.decode(uri):match('^(.*)[/\\][^/\\]*$')
-    local okGit, isCheckout = pcall(fs.exists, fs.path((dirOfFile or '') .. '/.git'))
-    if folder and base:lower() ~= folder:lower() and not (okGit and isCheckout) then
+    -- (a repository checkout can be the install folder: the game only compares the folder name with the file name)
+    if folder and base:lower() ~= folder:lower() then
         report(0, 1, math.max(#(lines[1] and lines[1].text or ''), 1), 'toc-file-name',
             ('The file name should match the folder: `%s.toc` (it is `%s`).'):format(folder, base))
     end

@@ -64,9 +64,11 @@ string
 
 # annotations.dialects
 
-The annotation dialects the project is written for: `legacyluals` (the original LuaLS), `luals` (this fork), `wowluals` (wowlua-ls), or `mixed` (all of them, the default).
+The annotation dialects the project is written for.
 
-A `---@tag` that none of the listed dialects knows is reported as a hint (`non-portable-annotation`) instead of being silently ignored. Parsing is not changed: every spelling is always read.
+`legacyluals` (the original LuaLS), `luals` (this fork), `wowluals` (wowlua-ls), or `mixed` (all three, the default).
+
+A `---@tag` that none of the listed dialects knows is reported as a hint (`non-portable-annotation`) instead of being ignored in silence. Parsing does not change: every spelling is always read.
 
 
 ## type
@@ -300,7 +302,10 @@ true
 
 # diagnostics.assignReadonlyBuilders
 
-Function names that `assign-readonly` treats as building the object, so an assignment to a `readonly` field inside them is not reported (`new`, `init`, `constructor`, `ctor`, `__init`, `create` by default).
+Names of functions that may fill in a `readonly` field of the object they build.
+
+Inside a function with one of these names, an assignment to a `readonly` field is not reported by `assign-readonly`. By default: `new`, `init`, `constructor`, `ctor`, `__init`, `create`.
+
 
 ## type
 
@@ -1542,7 +1547,12 @@ object<string, string>
 
 # diagnostics.pluginsDir
 
-Directory containing custom diagnostic plugin files (`.lua`). Blank by default -- disabled unless set. Each file must self-register (via `proto.diagnostic.register`) under a name matching its own filename, and return `function(uri, callback) ... end`, the same as a built-in diagnostic. Loading a plugin from here runs arbitrary Lua code, so you will be asked to trust the directory the first time it is loaded.
+A folder of custom diagnostic plugins (`.lua` files).
+
+Blank (the default) loads none. Each file registers one diagnostic with `proto.diagnostic.register`, under a name equal to its file name, and returns `function(uri, callback) ... end`, like a built-in diagnostic.
+
+A plugin runs arbitrary Lua code, so the first load of a folder asks you to trust it.
+
 
 ## type
 
@@ -2994,9 +3004,11 @@ true
 
 # type.checkFieldNilArguments
 
-Check an argument that reads a field (`f(obj.field)`) with the `nil` of its type.
+Check the `nil` of a field that is passed as an argument.
 
-When this setting is `false` (the original LuaLS behavior, from when a field could not be narrowed), `nil` is taken out of a field read before it is checked against the parameter, so `obj.field` of type `table?` can be passed for a `table` parameter. With `true` a field is checked like a variable (and narrowed like one: `if obj.field then f(obj.field) end` is fine).
+`false` (the default, the original LuaLS): `nil` is taken out of `f(obj.field)` before it is checked, so a `table?` field can be passed for a `table` parameter. The original could not narrow fields.
+
+`true`: the field is checked like a variable, and narrowed like one: `if obj.field then f(obj.field) end` and `f(obj.field or {})` are fine.
 
 
 ## type
@@ -3065,7 +3077,10 @@ integer
 
 # type.maxUnionVariants
 
-How many variants of a union type a weak union check (`Lua.type.weakUnionCheck`) compares before it stops looking. `0` (the default) means all of them; a limit trades precision for speed on very large unions.
+How many variants of a union type `Lua.type.weakUnionCheck` compares before it stops.
+
+`0` (the default) compares all of them. A limit trades precision for speed on very large unions.
+
 
 ## type
 
@@ -3300,7 +3315,16 @@ integer
 
 # workspace.tocFileArguments
 
-Type the two arguments a WoW addon file receives at its top level (`local addonName, ns = ...` or `local ns = select(2, ...)`): the first as the addon's folder name (a string literal), the second as the class `<Folder>NS`, which accepts new keys like a class written with `---@class` on that line. A `---@class` or `---@type` of your own on or above the line replaces it. Only for files that have a `.toc` file in their folder or above it.
+Type the two arguments every addon file receives at its top level.
+
+```lua
+local addonName, ns = ...
+local ns = select(2, ...)
+```
+
+The first is the folder name of the addon (a string literal). The second is the class `<Folder>NS` (see `Lua.workspace.tocNamespaceClass`), which takes new keys like a class written with `---@class` on that line. A `---@class` or `---@type` of your own on or above the line replaces it.
+
+Only for files that have a `.toc` in their folder or above it.
 
 
 ## type
@@ -3317,7 +3341,9 @@ false
 
 # workspace.tocNamespaceClass
 
-The name of the class the namespace argument of an addon file gets (see `Lua.workspace.tocFileArguments`): `{addon}` is replaced by the addon's folder name (letters, digits and underscores). For example `{addon}NS` (the default), `{addon}.ns` or `{addon}_ns`. Use the same name in your own `---@class` so they merge.
+The class name of the namespace argument of an addon file (see `Lua.workspace.tocFileArguments`).
+
+`{addon}` becomes the folder name of the addon (letters, digits and underscores): `{addon}NS` (the default), `{addon}.ns`, `{addon}_ns`. Use the same name in your own `---@class`, so the two merge.
 
 
 ## type
@@ -3334,7 +3360,9 @@ string
 
 # workspace.tocSavedVariables
 
-Treat the variables a WoW addon's `.toc` file declares with `## SavedVariables:` (and `SavedVariablesPerCharacter`, `SavedVariablesMachine`) as defined globals, so `undefined-global`, `lowercase-global` and `global-element` do not report them. The `.toc` is the one in the file's own folder or the nearest folder above it that has one.
+Treat the variables a WoW addon's `.toc` file saves as defined globals.
+
+The names of `## SavedVariables:`, `## SavedVariablesPerCharacter:` and `## SavedVariablesMachine:` are no longer reported by `undefined-global`, `lowercase-global` or `global-element`. The `.toc` is the one in the folder of the file, or in the nearest folder above it that has one.
 
 
 ## type

@@ -86,6 +86,150 @@ local function directoryOf(uri)
     return furi.decode(uri):match('^(.*)[/\\][^/\\]*$')
 end
 
+-- The look of a hover (HOVER-STYLE.md in the docs repo): a code-fenced signature, a summary, then short labelled facts -------------------------
+
+--- The shape of the value of a directive, for the signature line.
+---@param directive wowToc.directive
+---@return string
+local function valueShape(directive)
+    local kind = directive.value
+    if kind == 'text' then return '<text>' end
+    if kind == 'boolean01' then return '<0|1>' end
+    if kind == 'interface' then return '<number>[, <number>...]' end
+    if kind == 'names' then return directive.addons and '<AddonName>[, <AddonName>...]' or '<GlobalName>[, <GlobalName>...]' end
+    if kind == 'gametypes' then return '<game type>[, <game type>...]' end
+    if kind == 'function' then return '<GlobalFunction>' end
+    if kind == 'path' then return '<path>' end
+    if kind == 'enum' then return '<' .. table.concat(directive.values or {}, '|') .. '>' end
+    return '<value>'
+end
+
+--- What the value of a directive is, in a few words.
+---@param directive wowToc.directive
+---@return string
+local function valueMeaning(directive)
+    local kind = directive.value
+    if kind == 'text' then return 'free text' end
+    if kind == 'boolean01' then return '`1` (yes) or `0` (no)' end
+    if kind == 'interface' then return 'whole numbers above 0, comma separated (`120100` is 12.1.0)' end
+    if kind == 'names' then return directive.addons and 'names of addon folders, comma separated' or 'names of global variables, comma separated' end
+    if kind == 'gametypes' then return 'game types or families, comma separated (`standard`, `classic`, ...)' end
+    if kind == 'function' then return 'the name of a global function' end
+    if kind == 'path' then return 'a path in the game files' end
+    if kind == 'enum' then return table.concat((function ()
+        ---@type string[]
+        local shown = {}
+        for _, value in ipairs(directive.values or {}) do shown[#shown+1] = '`' .. value .. '`' end
+        return shown
+    end)(), ', ') end
+    return ''
+end
+
+--- A card: the signature in a code block, the summary, then labelled facts as a list.
+---@param signature string
+---@param summary   string?
+---@param facts     string[]  each `**Label:** text`
+---@return string
+local function card(signature, summary, facts)
+    local parts = { '```toc\n' .. signature .. '\n```' }
+    if summary and summary ~= '' then
+        parts[#parts+1] = summary
+    end
+    if #facts > 0 then
+        ---@type string[]
+        local rows = {}
+        for _, fact in ipairs(facts) do rows[#rows+1] = '- ' .. fact end
+        parts[#parts+1] = table.concat(rows, '\n')
+    end
+    return table.concat(parts, '\n\n')
+end
+
+--- The card of a `## Key: value` directive (`locale`: the key is a localized variant).
+---@param directive wowToc.directive
+---@param locale    string?
+---@param typed     string  the key as it is written
+---@return string
+local function describeDirective(directive, locale, typed)
+    local key = typed
+    ---@type string[]
+    local facts = { '**Value:** ' .. valueMeaning(directive) .. '.' }
+    if directive.appends then
+        facts[#facts+1] = '**Repeating the line:** adds to the list.'
+    elseif directive.firstWins then
+        facts[#facts+1] = '**Repeating the line:** only the first one counts.'
+    else
+        facts[#facts+1] = '**Repeating the line:** the last one wins.'
+    end
+    if directive.irreversible then
+        facts[#facts+1] = '**Note:** once `1`, it cannot be turned off later in the file.'
+    end
+    if directive.localizable and not locale then
+        facts[#facts+1] = ('**Localized:** `%s-<locale>` (for example `%s-deDE`). Write the plain line first, or the localized ones go unused.'):format(directive.name, directive.name)
+    elseif locale then
+        facts[#facts+1] = ('**Localized:** the text for the `%s` client. The plain `%s` line must come first.'):format(locale, directive.name)
+    end
+    if directive.aliases or directive.prefixes then
+        ---@type string[]
+        local also = {}
+        for _, alias in ipairs(directive.aliases or {}) do also[#also+1] = '`' .. alias .. '`' end
+        for _, prefix in ipairs(directive.prefixes or {}) do also[#also+1] = 'any key that starts with `' .. prefix .. '`' end
+        facts[#facts+1] = '**Also written:** ' .. table.concat(also, ', ') .. '.'
+    end
+    if directive.only then
+        facts[#facts+1] = '**Games:** only ' .. table.concat(directive.only, ', ') .. '.'
+    end
+    if directive.restricted then
+        facts[#facts+1] = '**Not available** to third-party addons.'
+    end
+    if directive.since then
+        facts[#facts+1] = '**History:** ' .. directive.since
+    end
+    return card(('## %s: %s'):format(key, valueShape(directive)), directive.description, facts)
+end
+
+--- The card of an inline directive (`[AllowLoadGameType standard]`).
+---@param inline wowToc.inline
+---@return string
+local function describeInline(inline)
+    local shape = ({
+        none     = '',
+        gametypes = ' <game type>[, <game type>...]',
+        locales  = ' <locale>[, <locale>...]',
+    })[inline.value]
+    if inline.value == 'enum' then
+        shape = ' <' .. table.concat(inline.values or {}, '|') .. '>'
+    end
+    ---@type string[]
+    local facts = {}
+    if inline.value == 'enum' then
+        ---@type string[]
+        local shown = {}
+        for _, value in ipairs(inline.values or {}) do shown[#shown+1] = '`' .. value .. '`' end
+        facts[#facts+1] = '**Values:** ' .. table.concat(shown, ', ') .. ' (case-insensitive).'
+    elseif inline.value == 'gametypes' then
+        facts[#facts+1] = '**Values:** game types or families, comma separated (`standard`, `classic`, ...).'
+    elseif inline.value == 'locales' then
+        facts[#facts+1] = '**Values:** client locales as `GetLocale` returns them (`enUS`, `frFR`, ...), comma separated.'
+    else
+        facts[#facts+1] = '**Values:** none.'
+    end
+    facts[#facts+1] = '**Where:** after the file name, or on a `## Key:` line; several brackets can follow each other.'
+    if inline.only then
+        facts[#facts+1] = '**Games:** only ' .. table.concat(inline.only, ', ') .. '.'
+    end
+    if inline.since then
+        facts[#facts+1] = '**History:** ' .. inline.since
+    end
+    return card('[' .. inline.name .. shape .. ']', inline.description, facts)
+end
+
+--- The card of a `[Variable]` of a path.
+---@param variable wowToc.variable
+---@return string
+local function describeVariable(variable)
+    return card('[' .. variable.name .. ']', variable.description, { '**Use:** anywhere in a line, usually in a file path.' })
+end
+
 -- Completion and hover of the `# @diagnostic` comment ----------------------------------------------------------------
 
 --- The parts of a `# @diagnostic <mode>: toc-x, toc-y` comment line, with their 1-based byte positions.
@@ -122,7 +266,10 @@ end
 local function describeTocCode(code)
     for _, info in ipairs(syntax.diagnosticInfos) do
         if info[1] == code then
-            return ('**%s** (%s by default)\n\n%s'):format(code, info[2]:lower(), (info[3]:gsub('^Enable diagnostics for ', 'Reports ')))
+            return card('diagnostic  ' .. code, (info[3]:gsub('^Enable diagnostics for ', 'Reports ')), {
+                '**Default severity:** ' .. info[2]:lower() .. '.',
+                ('**Switch it off:** `# @diagnostic disable-next-line: %s` above a line, `# @diagnostic disable: %s` for the rest of the file, or `Lua.diagnostics.disable` for the workspace.'):format(code, code),
+            })
         end
     end
     return nil
@@ -192,20 +339,19 @@ end
 ---@param game wowToc.game
 ---@return string
 local function describeGame(game)
-    local parts = { ('**%s** (`%s`)'):format(game.display, game.id) }
+    ---@type string[]
+    local facts = {}
     if game.aliases and #game.aliases > 0 then
-        parts[#parts+1] = 'Also spelled: ' .. table.concat(game.aliases, ', ') .. '.'
+        facts[#facts+1] = '**Also written:** `' .. table.concat(game.aliases, '`, `') .. '`.'
     end
-    parts[#parts+1] = 'Families: ' .. table.concat(game.families, ', ') .. '. File name suffix: `_' .. table.concat(game.suffixes, '`, `_') .. '`.'
+    facts[#facts+1] = '**Families:** ' .. table.concat(game.families, ', ') .. '.'
+    facts[#facts+1] = '**File name suffix:** `_' .. table.concat(game.suffixes, '`, `_') .. '` (`Name_' .. game.suffixes[1] .. '.toc`).'
     if game.interface then
-        parts[#parts+1] = ('Interface numbers `%d`-`%d` (today at least `%d`).'):format(game.interface.first, game.interface.last, game.interface.minimum)
+        facts[#facts+1] = ('**Interface numbers:** `%d` to `%d`; the lowest worth declaring today is `%d`.'):format(game.interface.first, game.interface.last, game.interface.minimum)
     else
-        parts[#parts+1] = 'No Interface range is known for it.'
+        facts[#facts+1] = '**Interface numbers:** no range is known for it.'
     end
-    if game.note then
-        parts[#parts+1] = game.note
-    end
-    return table.concat(parts, '\n\n')
+    return card('game type  ' .. game.id, game.display .. '.' .. (game.note and (' ' .. game.note) or ''), facts)
 end
 
 --- What a game type word means (a game, an alias or a family).
@@ -223,7 +369,9 @@ local function describeGameWord(word)
         for _, id in ipairs(ids) do
             names[#names+1] = syntax.gameById[id].display
         end
-        return ('**%s** (family): %s.'):format(word, table.concat(names, ', '))
+        local family = lower:gsub('^%l', string.upper)
+        return card('game family  ' .. lower, 'Every game type of the ' .. family .. ' family.',
+            { '**Game types:** ' .. table.concat(names, ', ') .. '.', ('**File name suffix:** `_%s` (`Name_%s.toc`).'):format(family, family) })
     end
     return describeGame(syntax.gameById[ids[1]])
 end
@@ -254,21 +402,22 @@ end
 ---@param category wowToc.category
 ---@return string
 local function describeCategory(category)
-    local parts = { ('**%s** (an Addon Categories name)'):format(category.name) }
-    if category.description then
-        parts[#parts+1] = category.description
+    ---@type string[]
+    local facts = {}
+    for _, locale in ipairs(games.locales) do
+        if category.names[locale] then
+            facts[#facts+1] = ('`%s`  %s'):format(locale, category.names[locale])
+        end
     end
     ---@type string[]
     local rows = {}
-    for _, locale in ipairs(games.locales) do
-        if category.names[locale] then
-            rows[#rows+1] = ('`%s` %s'):format(locale, category.names[locale])
-        end
-    end
+    for _, fact in ipairs(facts) do rows[#rows+1] = fact end
+    local text = card('## Category: ' .. category.name, 'A recommended category of the Addon Categories page.'
+        .. (category.description and (' ' .. category.description .. '.') or ''), {})
     if #rows > 0 then
-        parts[#parts+1] = table.concat(rows, ' · ')
+        text = text .. '\n\n**Translations** (`## Category-<locale>:`)\n\n- ' .. table.concat(rows, '\n- ')
     end
-    return table.concat(parts, '\n\n')
+    return text
 end
 
 --- "Loads on ..." for a line.
@@ -285,16 +434,18 @@ local function loadScope(uri, cursor)
         end
     end
     ---@type string
-    local text
+    local summary
     if everything then
-        text = 'Loads on every game type.'
+        summary = 'Loads on every game type.'
     else
-        text = 'Loads on: ' .. syntax.describeGames(scope) .. '.'
+        summary = 'Loads on: ' .. syntax.describeGames(scope) .. '.'
     end
+    ---@type string[]
+    local facts = {}
     if suffix then
-        text = text .. (' The file name suffix `_%s` restricts the whole file.'):format(suffix)
+        facts[#facts+1] = ('**File name suffix:** `_%s` restricts the whole file.'):format(suffix)
     end
-    return text
+    return card(cursor.line.path or 'file', summary, facts)
 end
 
 -- Tokens ------------------------------------------------------------------------------------------------
@@ -341,15 +492,22 @@ local function hover(uri, text, position)
         if keyword then
             if at >= keyword.first and at <= keyword.last + 1 then
                 return {
-                    value = '**@diagnostic**: `# @diagnostic <mode>: toc-x, toc-y` switches `toc-*` diagnostics off or on, like the LuaDoc comment does for Lua. '
-                        .. 'A `#` line is a comment for the game, so the file does not change.',
+                    value = card('# @diagnostic <mode>: <code>[, <code>...]',
+                        'Switches `toc-*` diagnostics off or on, like the LuaDoc comment does for Lua.', {
+                            '**Modes:** `disable-next-line`, `disable`, `enable`, `expect-next-line`.',
+                            '**Codes:** no code after the colon means every diagnostic.',
+                            '**Note:** a `#` line is a comment for the game, so the file does not change.',
+                        }),
                     range = range(keyword.first, keyword.last),
                 }
             end
             if mode and at >= mode.first and at <= mode.last + 1 then
                 for _, info in ipairs(directives.diagnosticModes) do
                     if info.name == mode.name:lower() then
-                        return { value = ('**%s**\n\n%s'):format(info.name, info.description), range = range(mode.first, mode.last) }
+                        return {
+                            value = card('# @diagnostic ' .. info.name .. ': <code>[, <code>...]', info.description, {}),
+                            range = range(mode.first, mode.last),
+                        }
                     end
                 end
                 return nil
@@ -371,19 +529,12 @@ local function hover(uri, text, position)
                 local lower = bracket.name:lower()
                 for _, inline in ipairs(directives.inlines) do
                     if inline.name:lower() == lower then
-                        local parts = { ('`[%s]` %s'):format(inline.name, inline.description) }
-                        if inline.value == 'enum' then
-                            parts[#parts+1] = 'Values: ' .. table.concat(inline.values or {}, ', ') .. '.'
-                        end
-                        if inline.since then
-                            parts[#parts+1] = inline.since
-                        end
-                        return { value = table.concat(parts, '\n\n'), range = range(bracket.nameStart, bracket.nameFinish) }
+                        return { value = describeInline(inline), range = range(bracket.nameStart, bracket.nameFinish) }
                     end
                 end
                 local variable = syntax.variableByName[lower]
                 if variable then
-                    return { value = ('`[%s]` %s'):format(variable.name, variable.description), range = range(bracket.nameStart, bracket.nameFinish) }
+                    return { value = describeVariable(variable), range = range(bracket.nameStart, bracket.nameFinish) }
                 end
             elseif bracket.value ~= '' and at >= bracket.valueStart and at <= bracket.valueFinish then
                 local lower = bracket.name:lower()
@@ -403,27 +554,12 @@ local function hover(uri, text, position)
         if at >= line.keyStart and at <= line.keyFinish + 1 and at <= line.keyFinish then
             local directive, locale, custom = syntax.directiveOf(line.key)
             if directive then
-                local parts = { ('**%s**%s'):format(directive.name, locale and (' (localized for ' .. locale .. ')') or '') }
-                parts[#parts+1] = directive.description
-                ---@type string[]
-                local flags = {}
-                if directive.appends then flags[#flags+1] = 'a repeated line adds to the list' end
-                if directive.firstWins then flags[#flags+1] = 'only the first line counts' end
-                if directive.irreversible then flags[#flags+1] = 'once `1` it stays `1`' end
-                if directive.restricted then flags[#flags+1] = 'not available to third-party addons' end
-                if directive.only then flags[#flags+1] = 'only on ' .. table.concat(directive.only, ', ') end
-                if directive.localizable and not locale then flags[#flags+1] = 'localizable: `' .. directive.name .. '-<locale>`' end
-                if directive.aliases then flags[#flags+1] = 'also: ' .. table.concat(directive.aliases, ', ') end
-                if #flags > 0 then
-                    parts[#parts+1] = table.concat(flags, '; ') .. '.'
-                end
-                if directive.since then
-                    parts[#parts+1] = directive.since
-                end
-                return { value = table.concat(parts, '\n\n'), range = range(line.keyStart, line.keyFinish) }
+                return { value = describeDirective(directive, locale, line.key), range = range(line.keyStart, line.keyFinish) }
             elseif custom then
                 return {
-                    value = ('**%s**\n\nA custom key: the client keeps every `X-` key, `C_AddOns.GetAddOnMetadata` reads it.'):format(line.key),
+                    value = card(('## %s: <text>'):format(line.key), 'A custom key of your own.',
+                        { '**Value:** free text.', '**Read with:** `C_AddOns.GetAddOnMetadata(addon, "' .. line.key .. '")`.',
+                          '**Note:** the client keeps every key that starts with `X-`.' }),
                     range = range(line.keyStart, line.keyFinish),
                 }
             end
@@ -448,14 +584,21 @@ local function hover(uri, text, position)
                         number = tonumber(word) --[[@as integer]]
                     end
                     if number and number > 0 then
-                        local parts = { ('`%d` reads as **%s**.'):format(number, readInterface(number)) }
+                        ---@type string[]
+                        local facts = {}
                         for _, id in ipairs(syntax.gameOrder) do
                             local game = syntax.gameById[id]
                             if game.interface and number >= game.interface.first and number <= game.interface.last then
-                                parts[#parts+1] = ('A number of %s (today at least `%d`).'):format(game.display, game.interface.minimum)
+                                facts[#facts+1] = ('**Game:** %s. The lowest number worth declaring today is `%d`.'):format(game.display, game.interface.minimum)
                             end
                         end
-                        return { value = table.concat(parts, '\n\n'), range = range(first, last) }
+                        if #facts == 0 then
+                            facts[1] = '**Game:** none of the known game types uses this range.'
+                        end
+                        return {
+                            value = card('Interface  ' .. number, ('Reads as **%s** (major.minor.patch).'):format(readInterface(number)), facts),
+                            range = range(first, last),
+                        }
                     end
                 elseif kind == 'gametypes' then
                     local described = describeGameWord(word)
@@ -467,11 +610,16 @@ local function hover(uri, text, position)
                     if addon then
                         local title = titleOf(addon.toc)
                         return {
-                            value = ('**%s**%s\n\n`%s`'):format(addon.name, title and (' (' .. title .. ')') or '', addon.toc),
+                            value = card('addon  ' .. addon.name, title and ('**' .. title .. '**') or 'An addon installed next to this one.',
+                                { '**Table of contents:** `' .. addon.toc .. '`.' }),
                             range = range(first, last),
                         }
                     end
-                    return { value = ('No addon `%s` is installed next to this one.'):format(word), range = range(first, last) }
+                    return {
+                        value = card('addon  ' .. word, ('No addon `%s` is installed next to this one.'):format(word),
+                            { '**Looked in:** the folders next to this addon, for `<Name>/<Name>.toc`.' }),
+                        range = range(first, last),
+                    }
                 end
             end
         end
@@ -483,7 +631,7 @@ local function hover(uri, text, position)
         for first, name, last in line.text:gmatch('()%[(%a+)%]()') --[==[@as fun(): (integer, string, integer)]==] do
             local variable = syntax.variableByName[name:lower()]
             if variable and at >= first and at < last then
-                return { value = ('`[%s]` %s'):format(variable.name, variable.description), range = range(first, last - 1) }
+                return { value = describeVariable(variable), range = range(first, last - 1) }
             end
         end
     end
@@ -727,7 +875,10 @@ local function complete(uri, text, position)
         ---@type wowToc.completionItem[]
         local modes = {}
         for _, info in ipairs(directives.diagnosticModes) do
-            modes[#modes+1] = item(info.name, CompletionItemKind.Keyword, cursor, cursor.col - #modeWord + 1, { detail = info.description })
+            modes[#modes+1] = item(info.name, CompletionItemKind.Keyword, cursor, cursor.col - #modeWord + 1, {
+                detail = '# @diagnostic ' .. info.name .. ': <code>',
+                documentation = { kind = 'markdown', value = info.description },
+            })
         end
         return modes
     end
@@ -761,7 +912,10 @@ local function complete(uri, text, position)
             local items = {}
             local closing = cursor.suffix:sub(1, 1) == ']'
             for _, inline in ipairs(directives.inlines) do
-                local entry = item(inline.name, CompletionItemKind.Keyword, cursor, first, { detail = inline.description })
+                local entry = item(inline.name, CompletionItemKind.Keyword, cursor, first, {
+                    detail = '[' .. inline.name .. (inline.value == 'none' and '' or ' <value>') .. ']',
+                    documentation = { kind = 'markdown', value = describeInline(inline) },
+                })
                 if inline.value == 'none' then
                     entry.textEdit.newText = inline.name .. (closing and '' or ']')
                 else
@@ -770,7 +924,10 @@ local function complete(uri, text, position)
                 items[#items+1] = entry
             end
             for _, variable in ipairs(directives.variables) do
-                local entry = item(variable.name, CompletionItemKind.Variable, cursor, first, { detail = variable.description })
+                local entry = item(variable.name, CompletionItemKind.Variable, cursor, first, {
+                    detail = '[' .. variable.name .. ']',
+                    documentation = { kind = 'markdown', value = describeVariable(variable) },
+                })
                 entry.textEdit.newText = variable.name .. (closing and '' or ']')
                 items[#items+1] = entry
             end
@@ -810,14 +967,14 @@ local function complete(uri, text, position)
         end
         for _, directive in ipairs(directives.headers) do
             local entry = item(directive.name, CompletionItemKind.Property, cursor, first, {
-                detail   = directive.value,
-                sortText = (directive.restricted and '1' or '0') .. directive.name:lower(),
+                detail        = ('## %s: %s'):format(directive.name, valueShape(directive)),
+                documentation = { kind = 'markdown', value = describeDirective(directive, nil, directive.name) },
+                sortText      = (directive.restricted and '1' or '0') .. directive.name:lower(),
             })
             local hasColon = cursor.suffix:match('^%s*:') ~= nil
             entry.textEdit.newText = directive.name .. (hasColon and '' or ': ')
             if directive.restricted then
                 entry.tags = { 1 }
-                entry.documentation = 'Not available to third-party addons.'
             end
             items[#items+1] = entry
         end

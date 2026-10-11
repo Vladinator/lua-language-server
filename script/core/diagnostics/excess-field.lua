@@ -37,6 +37,38 @@ local function getDeclaredKeys(def)
     return keys
 end
 
+--- `return { ... }` in a function with `---@return Class`: the declared type of that return value.
+---@param src parser.object a table constructor
+---@return parser.object?
+local function declaredReturnOf(src)
+    local ret = src.parent
+    if not ret or ret.type ~= 'return' then
+        return nil
+    end
+    ---@type integer?
+    local index
+    for i, value in ipairs(ret) do
+        if value == src then
+            index = i
+            break
+        end
+    end
+    local func = guide.getParentFunction(src)
+    if not index or not func or func.type ~= 'function' then
+        return nil
+    end
+    for _, doc in ipairs(func.bindDocs or {}) do
+        if doc.type == 'doc.return' then
+            for _, rtn in ipairs(doc.returns) do
+                if rtn.returnIndex == index then
+                    return rtn
+                end
+            end
+        end
+    end
+    return nil
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -51,6 +83,18 @@ return function (uri, callback)
 
         vm.removeNode(src)
         local defs = vm.getDefs(src)
+        local returned = declaredReturnOf(src)
+        if returned then
+            defs = {}
+            for _, unit in ipairs(returned.types or { returned }) do
+                -- (`Line|nil`: nil is no class of the table that is returned)
+                if not (unit.type == 'doc.type.name' and unit[1] == 'nil') then
+                    for _, def in ipairs(vm.getDefs(unit)) do
+                        defs[#defs+1] = def
+                    end
+                end
+            end
+        end
         ---@type parser.object[]
         local classes = {}
         for _, def in ipairs(defs) do

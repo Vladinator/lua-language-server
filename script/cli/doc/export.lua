@@ -38,6 +38,7 @@ local furi     = require 'file-uri'
 ---@field args? docUnion[] list of argument docs passed to function
 ---@field async? boolean has @async tag
 ---@field defines? docUnion[] list of places where this is doc is defined and how its defined there
+---@field DOC? string the documentation root, in the `luals.config` entry
 ---@field deprecated? boolean has @deprecated tag
 ---@field desc? string code commentary
 ---@field extends? string | docUnion what type this 'is'. string:<Parent_Class> for type: 'type', docUnion for type: 'function', string<primative> for other type 's

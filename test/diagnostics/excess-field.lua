@@ -72,3 +72,36 @@ local key = "dynamic"
 ---@type Line
 local l = { label = "a", [key] = 1, [1] = 2 }
 ]]
+
+-- a table returned from a function with `---@return Class` is checked against that class
+TEST [[
+---@class Line
+---@field label string
+
+---@return Line
+local function make()
+    return { label = "a", <!extra!> = true }
+end
+
+---@class Other
+---@field size number
+
+---@return Line, Other
+local function pair()
+    return { label = "a" }, { size = 1, <!label!> = "b" }
+end
+
+---@return Line|nil
+local function maybe()
+    return { label = "a", <!extra!> = 1 }
+end
+
+---@return table
+local function anything()
+    return { label = "a", extra = 1 }
+end
+
+local function undeclared()
+    return { label = "a", extra = 1 }
+end
+]]

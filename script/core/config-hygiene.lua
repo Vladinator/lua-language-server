@@ -213,11 +213,20 @@ function m.scan(text)
     return entries
 end
 
+--- The words of the files the server skips for their size (and that are closed), by scope. Nothing is known of what such a file reads or
+--- defines, but a name that does not appear in its text cannot be used there: an entry whose name is mentioned is kept (we cannot say it
+--- is unused), one that is not mentioned can still be reported.
+---@type table<string, table<string, true>>
+local skippedWords = {}
+
 --- Whether a file of the project (not a library) reads the global.
 ---@param suri uri
 ---@param name string
 ---@return boolean
 local function isUsed(suri, name)
+    if skippedWords[scope.getScope(suri).uri or ''] and skippedWords[scope.getScope(suri).uri or ''][name] then
+        return true
+    end
     local globalVar = vm.getGlobal('variable', name)
     if not globalVar then
         return false
@@ -313,6 +322,11 @@ local function usedUndefinedNames(suri)
             names[#names+1] = name
         end
     end
+    for word in pairs(skippedWords[key] or {}) do
+        if not vm.getGlobal('variable', word) and not isDefined(suri, word) then
+            names[#names+1] = word
+        end
+    end
     cache[key] = names
     return names
 end
@@ -329,17 +343,6 @@ local function patternIsNeeded(suri, pattern)
         end
     end
     return false
-end
-
---- The scopes in which the last preparation left a file of the project unread because it is too big for `Lua.workspace.preloadFileSize`
---- (the server never reads such a file unless it is open): what that file uses or defines is unknown, so "nothing uses it" cannot be said.
----@type table<string, boolean>
-local incomplete = {}
-
----@param suri uri
----@return boolean
-local function pictureIsIncomplete(suri)
-    return incomplete[scope.getScope(suri).uri or ''] == true
 end
 
 --- Whether the server skips this file when it loads the workspace (too big, not open, not a library).
@@ -372,20 +375,21 @@ end
 --- What the preparation does for a scope: the files of the project to compile, and whether one was left out for its size (then what
 --- the project uses is not completely known).
 ---@param scopeUri uri
----@return { compile: uri[], tooBig: boolean }
+---@return { compile: uri[], skipped: uri[] }
 function m.plan(scopeUri)
     ---@type uri[]
     local compile = {}
-    local tooBig = false
+    ---@type uri[]
+    local skipped = {}
     for _, fileUri in ipairs(files.getChildFiles(scopeUri)) do
         local what = m.classify(fileUri)
         if what == 'too-big' then
-            tooBig = true
+            skipped[#skipped+1] = fileUri
         elseif what == 'compile' then
             compile[#compile+1] = fileUri
         end
     end
-    return { compile = compile, tooBig = tooBig }
+    return { compile = compile, skipped = skipped }
 end
 
 --- The reason an entry can go, or nil when it is needed.
@@ -401,9 +405,6 @@ function m.verdict(suri, entry)
             return ('`%s` is defined in the workspace or a library: the entry is not needed, `undefined-global` stays quiet without it.'):format(entry.name)
         end
         if not isUsed(suri, entry.name) then
-            if pictureIsIncomplete(suri) then
-                return nil
-            end
             return ('Nothing in the workspace uses `%s`: remove it from `Lua.diagnostics.globals`.'):format(entry.name)
         end
         return nil
@@ -413,9 +414,6 @@ function m.verdict(suri, entry)
         return nil
     end
     if not patternIsNeeded(suri, entry.name) then
-        if pictureIsIncomplete(suri) then
-            return nil
-        end
         return ('No global that the project uses without defining it matches the pattern `%s`: remove it from `Lua.diagnostics.globalsRegex`.'):format(entry.name)
     end
     return nil
@@ -463,7 +461,16 @@ local kind = {
         end
         -- (a file the server skips for its size is not compiled: that would also show the "too large" notice for a file nobody opened)
         local plan = m.plan(scope.getScope(uri).uri)
-        incomplete[scope.getScope(uri).uri or ''] = plan.tooBig
+        local key = scope.getScope(uri).uri or ''
+        ---@type table<string, true>
+        local words = {}
+        for _, skippedUri in ipairs(plan.skipped) do
+            for word in (files.getText(skippedUri) or ''):gmatch('[%a_][%w_]*') do
+                words[word] = true
+            end
+        end
+        skippedWords[key] = words
+        usedUndefinedCache = nil
         for _, fileUri in ipairs(plan.compile) do
             files.compileState(fileUri)
             await.delay()

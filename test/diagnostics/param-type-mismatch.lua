@@ -1107,3 +1107,16 @@ local counter = setmetatable({}, {
 })
 counter('anything')
 ]]
+
+-- ... a `...` parameter after the first: nil is accepted there, not for a plain parameter
+TEST [[
+---@diagnostic disable: unused-local
+local counter = setmetatable({}, {
+    ---@param self table
+    ---@param step integer
+    ---@param ... string
+    __call = function (self, step, ...) end,
+})
+counter(1, nil)
+counter(<!nil!>, 'a')
+]]

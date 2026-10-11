@@ -7106,3 +7106,81 @@ function Box:get() end
 local d
 local <?v?> = d:get()
 ]]
+
+-- the metatable that `setmetatable` gave to a table says what the table does: `__call` is the result of calling it
+TEST 'string' [[
+local counter = setmetatable({ n = 0 }, {
+    __call = function (self)
+        return 'text'
+    end,
+})
+local <?v?> = counter()
+]]
+
+TEST 'string' [[
+local mt = {}
+function mt.__call() return 'text' end
+local counter = setmetatable({}, mt)
+local <?v?> = counter()
+]]
+
+-- ... also through a function that builds the object
+TEST 'string' [[
+local function new()
+    return setmetatable({}, { __call = function () return 'text' end })
+end
+local obj = new()
+local <?v?> = obj()
+]]
+
+-- `__len`, `__unm`, `__concat` and the arithmetic metamethods
+TEST 'boolean' [[
+local obj = setmetatable({}, { __unm = function () return true end })
+local <?v?> = -obj
+]]
+
+TEST 'string' [[
+local obj = setmetatable({}, { __add = function () return 'sum' end })
+local <?v?> = obj + 1
+]]
+
+TEST 'string' [[
+local obj = setmetatable({}, { __add = function () return 'sum' end })
+local <?v?> = 1 + obj
+]]
+
+TEST 'string' [[
+local obj = setmetatable({}, { __concat = function () return 'joined' end })
+local <?v?> = obj .. 'x'
+]]
+
+-- a metatable without the metamethod, and a table without a metatable, change nothing
+TEST 'integer' [[
+local obj = setmetatable({}, { __index = {} })
+local <?v?> = 1 + 2
+]]
+
+TEST 'unknown' [[
+local obj = setmetatable({}, { __index = {} })
+local <?v?> = obj()
+]]
+
+TEST 'unknown' [[
+local obj = {}
+local <?v?> = obj()
+]]
+
+TEST 'boolean' [[
+local obj = setmetatable({}, { __len = function () return true end })
+local <?v?> = #obj
+]]
+
+-- a metamethod declared on a class that is used as the metatable
+TEST 'string' [[
+---@class Callable
+---@field __call fun(self: Callable): string
+local Callable = {}
+
+local obj = setmetatable({}, Callable)
+local <?v?> = obj()
+]]

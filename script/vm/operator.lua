@@ -133,6 +133,76 @@ local function checkOperators(operators, op, value, result, uri, classGlobal, si
     return result
 end
 
+--- The metatables `setmetatable` gave to a table constructor, so that what a metatable does to the table (`__call`, `__len`, the
+--- arithmetic and `..` metamethods) can be read from the table later. Keyed by the constructor, weakly: it lives as long as the tree.
+---@type table<parser.object, parser.object[]>
+local metatableLinks = setmetatable({}, { __mode = 'k' })
+
+---@param tbl parser.object a table constructor
+---@param mt  parser.object the second argument of `setmetatable`
+function vm.linkMetatable(tbl, mt)
+    local links = metatableLinks[tbl]
+    if not links then
+        links = {}
+        metatableLinks[tbl] = links
+    end
+    for _, linked in ipairs(links) do
+        if linked == mt then
+            return
+        end
+    end
+    links[#links+1] = mt
+end
+
+--- The first result of the metamethod `__<op>` of the metatables linked to `obj`.
+---@param op  string
+---@param obj parser.object
+---@return vm.node?
+local function runMetamethod(op, obj)
+    local links = metatableLinks[obj]
+    if not links then
+        return nil
+    end
+    ---@type vm.node?
+    local result
+    for _, mt in ipairs(links) do
+        vm.compileByParentNodeAll(mt, '__' .. op, function (src)
+            -- the declaration of the standard `metatable` class (`__len: fun(t): integer`) is not what this metatable does
+            if vm.isMetaFile(guide.getUri(src)) then
+                return
+            end
+            -- the function written in the metatable says what the metamethod does; the type the field also has from the
+            -- `metatable` class (`fun(t1, t2): any`) only counts when there is no function (a `---@field __call fun(): T`)
+            ---@type parser.object[]
+            local written = {}
+            ---@type parser.object[]
+            local declared = {}
+            for func in vm.compileNode(src):eachObject() do
+                if func.type == 'function' then
+                    ---@cast func parser.object
+                    written[#written+1] = func
+                elseif func.type == 'doc.type.function' then
+                    ---@cast func parser.object
+                    declared[#declared+1] = func
+                end
+            end
+            for _, func in ipairs(#written > 0 and written or declared) do
+                local rtn = vm.getReturnOfFunction(func, 1)
+                if rtn then
+                    for obj in vm.compileNode(rtn):eachObject() do
+                        -- an `unknown` says nothing about the result (it stands for a return not worked out yet)
+                        if not (obj.type == 'global' and obj.cate == 'type' and obj.name == 'unknown') then
+                            result = result or vm.createNode()
+                            result:merge(obj)
+                        end
+                    end
+                end
+            end
+        end)
+    end
+    return result
+end
+
 ---@param op string
 ---@param exp parser.object
 ---@param value? parser.object
@@ -144,6 +214,13 @@ function vm.runOperator(op, exp, value)
     local result
     for cVal in node:eachObject() do
         local c = cVal
+        if c.type == 'table' then
+            ---@cast c parser.object
+            local viaMetatable = runMetamethod(op, c)
+            if viaMetatable then
+                result = result and result:merge(viaMetatable) or viaMetatable
+            end
+        end
         if c.type == 'string'
         or c.type == 'doc.type.string' then
             c = vm.declareGlobal('type', 'string')

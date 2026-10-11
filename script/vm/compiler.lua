@@ -1337,6 +1337,14 @@ local function getReturnOfSetMetaTable(args)
         node:merge(vm.compileNode(tbl))
     end
     if mt then
+        if tbl then
+            for n in vm.compileNode(tbl):eachObject() do
+                if n.type == 'table' then
+                    ---@cast n parser.object
+                    vm.linkMetatable(n, mt)
+                end
+            end
+        end
         vm.compileByParentNodeAll(mt, '__index', function (src)
             for n in vm.compileNode(src):eachObject() do
                 if n.type == 'global'

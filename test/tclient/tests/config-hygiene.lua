@@ -34,6 +34,8 @@ local LUA = table.concat({
     '',
 }, string.char(10))
 util.saveFile((DIR / 'addon.lua'):string(), LUA)
+-- a file nobody opens: it defines one global and reads another (the verdict must see it, the editor never compiled it)
+util.saveFile((DIR / 'unopened.lua'):string(), 'FromElsewhere = 1' .. string.char(10) .. 'print(ReadElsewhere)' .. string.char(10))
 
 local TEXT = table.concat({
     '{',
@@ -77,8 +79,11 @@ lclient():start(function (client)
 
     ---@type table<uri, any[]>
     local published = {}
+    ---@type table<uri, integer?>
+    local versions = {}
     client:register('textDocument/publishDiagnostics', function (params)
         published[params.uri] = params.diagnostics
+        versions[params.uri] = params.version
         return nil
     end)
 
@@ -110,15 +115,19 @@ lclient():start(function (client)
         error('timed out: ' .. what)
     end
 
+    local nextVersion = 0
+
     --- Open a settings text and return what the server published for it.
     ---@async
     ---@param uri  uri
     ---@param text string
     ---@return table[]
     local function open(uri, text)
-        published[uri] = nil
-        client:notify('textDocument/didOpen', { textDocument = { uri = uri, languageId = 'jsonc', version = 1, text = text } })
-        waitFor(function () return published[uri] ~= nil end, 'diagnostics of ' .. uri)
+        -- (a republish of the text before may still arrive: only the version that was sent counts)
+        nextVersion = nextVersion + 1
+        local version = nextVersion
+        client:notify('textDocument/didOpen', { textDocument = { uri = uri, languageId = 'jsonc', version = version, text = text } })
+        waitFor(function () return versions[uri] == version end, 'diagnostics of ' .. uri)
         return published[uri]
     end
 
@@ -225,6 +234,22 @@ lclient():start(function (client)
     table.sort(flaggedNames)
     assert(table.concat(flaggedNames, ',') == 'boundThing,metaThing', 'global-element needs the entry of Defined: ' .. table.concat(flaggedNames, ','))
     pinChecks('None')
+
+    -- the files that are not open count too, also when nothing compiled them yet (the workspace diagnosis only visits the files it needs)
+    local elsewhere = open(cfgUri, '{ "Lua.diagnostics.globals": ["FromElsewhere", "ReadElsewhere"] }')
+    assert(#elsewhere == 1 and elsewhere[1].message:find('`FromElsewhere` is defined', 1, true), 'a file that nobody opened: ' .. #elsewhere)
+    local lazyUri = rootUri .. '/lazy.lua'
+    files.setText(lazyUri, 'FromLazy = 1' .. string.char(10) .. 'print(ReadLazy)' .. string.char(10))
+    assert(files.getLastState(lazyUri) == nil, 'precondition: the new file was not compiled')
+    local lazy = open(cfgUri, '{ "Lua.diagnostics.globals": ["FromLazy", "ReadLazy"] }')
+    assert(#lazy == 1 and lazy[1].message:find('`FromLazy` is defined', 1, true), 'a file that nothing compiled yet: ' .. #lazy)
+    -- (the preparation compiles the files itself: the check that no one else did it first)
+    local lazy2Uri = rootUri .. '/lazy2.lua'
+    files.setText(lazy2Uri, 'FromLazyToo = 1' .. string.char(10))
+    assert(files.getLastState(lazy2Uri) == nil, 'precondition: the second new file was not compiled')
+    local prepare = hygiene.kind.prepare --[[@as async fun(uri: uri, text: string)]]
+    prepare(cfgUri, '{ "Lua.diagnostics.globals": ["x"] }')
+    assert(files.getLastState(lazy2Uri) ~= nil, 'the preparation compiled the files of the project')
 
     -- a broken pattern is not reported as unused
     assert(#open(cfgUri, '{ "Lua.diagnostics.globalsRegex": ["["] }') == 0, 'a broken pattern')

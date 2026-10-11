@@ -54,6 +54,7 @@ local files   = require 'files'
 ---@field codeAction?         fun(uri: uri, text: string, range: fileKind.range, diagnostics: fileKind.clientDiagnostic[]): table[]?  LSP CodeAction[] (`edit.changes` / `edit.documentChanges` in LSP positions)
 ---@field triggerCharacters?  string[] characters that open completion in a document of this kind
 ---@field needsWorkspace?     boolean the diagnostics depend on the whole workspace: they wait until it is loaded and are made again when it reloads
+---@field prepare?             async fun(uri: uri, text: string) with `needsWorkspace`: runs before every verdict, to build the full picture of the workspace (compile the files nobody opened); nothing is published before it ends
 
 ---@class file-kinds
 local m = {}
@@ -165,21 +166,10 @@ function m.collectDiagnostics(uri, kind, text)
     return result
 end
 
---- Sends the diagnostics of a document to the client.
 ---@param uri uri
-function m.publish(uri)
+local function send(uri)
     local document = documents[uri]
     if not document then
-        return
-    end
-    if document.kind.needsWorkspace and not ws.isReady(uri) then
-        -- (a verdict about the workspace made while it loads would be wrong)
-        await.call(function () ---@async
-            ws.awaitReady(uri)
-            if documents[uri] == document then
-                m.publish(uri)
-            end
-        end)
         return
     end
     local result = m.collectDiagnostics(uri, document.kind, document.text)
@@ -188,6 +178,30 @@ function m.publish(uri)
         version     = document.version,
         diagnostics = result,
     })
+end
+
+--- Sends the diagnostics of a document to the client.
+---@param uri uri
+function m.publish(uri)
+    local document = documents[uri]
+    if not document then
+        return
+    end
+    if not document.kind.needsWorkspace then
+        send(uri)
+        return
+    end
+    -- a verdict about the workspace made while it loads, or before the files nobody opened are known, would be wrong: a wrong
+    -- warning is noise, so nothing is sent until the picture is complete (a newer request replaces an older one that is still waiting)
+    await.call(function () ---@async
+        await.unique('file-kinds: publish ' .. uri)
+        ws.awaitReady(uri)
+        local now = documents[uri]
+        if now and now.kind.prepare then
+            now.kind.prepare(uri, now.text)
+        end
+        send(uri)
+    end)
 end
 
 ---@param uri     uri

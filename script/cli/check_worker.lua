@@ -278,6 +278,10 @@ function export.runCLI()
                 local uri  = text and furi.encode(path)
                 local kind = uri and fileKinds.of(uri)
                 if text and uri and kind then
+                    -- (this worker compiled its share of the files only: the verdict needs all of them)
+                    if kind.prepare then
+                        kind.prepare(uri, text)
+                    end
                     local found = fileKinds.collectDiagnostics(uri, kind, text)
                     if #found > 0 then
                         results[uri] = found

@@ -6,6 +6,8 @@ local guide  = require 'parser.guide'
 local scope  = require 'workspace.scope'
 local furi   = require 'file-uri'
 local util   = require 'utility'
+local ws     = require 'workspace'
+local await  = require 'await'
 local lang   = require 'language'
 
 -- Config hygiene: the lists in a project's settings grow and are never cleaned. This kind of document (`.luarc.json`, `.luarc.jsonc`,
@@ -343,6 +345,20 @@ local kind = {
         return util.stringEndWith(path, '/.luarc.json')
             or util.stringEndWith(path, '/.luarc.jsonc')
             or util.stringEndWith(path, '/.vscode/settings.json')
+    end,
+    --- Every file of the project has to be compiled before the verdict: the globals of a file are known once it was compiled, and the
+    --- workspace diagnosis only compiles the files it needs (the checks of an open file, the ones that run on every file).
+    ---@async
+    prepare = function (uri, text)
+        if not hasFolder(uri) or not diagd.isEnabled(uri, CODE, true) or #m.scan(text) == 0 then
+            return
+        end
+        for _, fileUri in ipairs(files.getChildFiles(scope.getScope(uri).uri)) do
+            if not ws.isIgnored(fileUri) and not files.isLibrary(fileUri) then
+                files.compileState(fileUri)
+                await.delay()
+            end
+        end
     end,
     diagnose = function (uri, text)
         ---@type fileKind.diagnostic[]

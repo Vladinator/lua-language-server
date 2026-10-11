@@ -117,6 +117,9 @@ function m.scan(text)
             if c == ']' then
                 pos = pos + 1
                 break
+            elseif c == '}' then
+                -- (a damaged text: the array was never closed, the object around it ends here)
+                break
             elseif c == ',' then
                 commas[#elements] = pos
                 pos = pos + 1
@@ -194,7 +197,12 @@ function m.scan(text)
         elseif c == '"' then
             parseString()
         else
+            local start = pos
             while pos <= len and not text:sub(pos, pos):find('[%s,%]}]') do
+                pos = pos + 1
+            end
+            if pos == start and pos <= len then
+                -- (a stray `]` or `,` where a value should be: always move on, a text that is being typed is damaged most of the time)
                 pos = pos + 1
             end
         end

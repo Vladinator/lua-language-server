@@ -274,6 +274,26 @@ lclient():start(function (client)
     })
     waitFor(function () return #published[cfgUri] == 1 end, 'the user is gone again')
 
+    -- a text that is being typed is damaged: the scan always ends (it ran for ever on `["a" }`), and what comes before the damage is still read
+    for _, damaged in ipairs {
+        '{ "Lua.diagnostics.globals": ["a" } ',
+        '{ "Lua.diagnostics.globals": ["a", } ',
+        '{ "Lua.diagnostics.globals": [ ',
+        '{ "Lua.diagnostics.globals": ["a", "b',
+        '{ "Lua.diagnostics.globals": [1, {"x": [}] }',
+        '{ "x": }, "Lua.diagnostics.globals": ["a"] }',
+        '[ ] ] ] }',
+        '',
+    } do
+        hygiene.scan(damaged)
+    end
+    assert(#hygiene.scan('{ "Lua.diagnostics.globals": ["a", "b", } ') == 2, 'the entries before the damage')
+    -- every text that is TEXT with one character deleted, and every start of it
+    for i = 1, #TEXT do
+        hygiene.scan(TEXT:sub(1, i - 1) .. TEXT:sub(i + 1))
+        hygiene.scan(TEXT:sub(1, i))
+    end
+
     -- the `.luarc.json` spellings find the same entries
     for _, text in ipairs {
         '{ "diagnostics.globals": ["Gone"] }',

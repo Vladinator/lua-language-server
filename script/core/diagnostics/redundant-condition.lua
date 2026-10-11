@@ -193,6 +193,26 @@ local function hasNeverEqual(expr, callback)
     return reported
 end
 
+--- Is the expression (part of) the condition of an `if` / `elseif` / `while`? Those are judged as a whole by the pass below.
+---@param expr parser.object
+---@return boolean
+local function inCondition(expr)
+    ---@type parser.object
+    local child = expr
+    local parent = child.parent
+    while parent do
+        if (parent.type == 'ifblock' or parent.type == 'elseifblock' or parent.type == 'while') and parent.filter == child then
+            return true
+        end
+        if parent.type == 'function' or parent.type == 'main' then
+            return false
+        end
+        child = parent
+        parent = child.parent
+    end
+    return false
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -255,5 +275,20 @@ return function (uri, callback)
                 message = 'This condition is always false.',
             }
         end
+    end)
+    -- a comparison anywhere else (`local b = n == "x"`, an argument, a return): TypeScript's TS2367 judges those too. Only "can never be
+    -- equal" is reported ("always equal" is how a value is deliberately tested for what it must be), and not against nil.
+    ---@async
+    guide.eachSourceType(state.ast, 'binary', function (src)
+        if not src.op or (src.op.type ~= '==' and src.op.type ~= '~=') or inCondition(src) then
+            return
+        end
+        -- (a test against nil is how Lua asks whether something is there: `local has = t[1] ~= nil`, and the type of an index read
+        -- or of a field declared without `?` does not say it cannot be nil; TypeScript exempts null / undefined here as well)
+        if (src[1] and src[1].type == 'nil') or (src[2] and src[2].type == 'nil') then
+            return
+        end
+        delayer:delay()
+        checkComparison(src, callback, false)
     end)
 end

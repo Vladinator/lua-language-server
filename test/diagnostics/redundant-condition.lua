@@ -187,3 +187,45 @@ local n
 if n > 0 and one == 'a' then end
 if n > 0 or one ~= 'a' then end
 ]]
+
+-- a comparison that is not a condition is judged too (TypeScript: TS2367 anywhere): only "can never be equal"
+TEST [[
+---@param n number
+---@param m number?
+local function f(n, m)
+    local flag = <!n == "x"!>
+    print(<!n ~= "y"!>, <!m == "z"!>)
+    return <!n == "x"!>
+end
+f(1)
+]]
+
+-- ... what can hold, what must hold and a test against nil are left alone outside a condition
+TEST [[
+---@param n number
+---@param s string|number
+---@param k 1
+local function f(n, s, k)
+    local a = n == 1
+    local b = s == "x"
+    local c = n == nil
+    local d = 1 == 2
+    local e = k == 1
+    return a, b, c, d, e
+end
+f(1, 2, 1)
+]]
+
+-- a comparison in a condition is reported once, by the condition's own judgement
+TEST [[
+---@param n number
+local function f(n)
+    if <!n == "x"!> then
+    end
+    while <!n == "x"!> do
+    end
+end
+f(1)
+]] (function (diags)
+    assert(#diags == 2, 'one report per comparison: ' .. #diags)
+end)

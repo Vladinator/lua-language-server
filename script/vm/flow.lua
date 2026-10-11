@@ -1666,6 +1666,54 @@ local function narrowBooleanLiteral(node, value, keep)
     return out
 end
 
+--- The kind of a string / number literal type or literal expression: 'string' or 'number', nil for anything else.
+---@param obj vm.node.object|parser.object
+---@return 'string'|'number'?
+local function literalKind(obj)
+    local t = obj.type
+    if t == 'doc.type.string' or t == 'string' then
+        return 'string'
+    elseif t == 'doc.type.integer' or t == 'integer' or t == 'number' then
+        return 'number'
+    end
+    return nil
+end
+
+--- `x == "A"` / `x == 3` on a union of literal types (`"A" | "B" | number`): keep the literals equal to the compared one (and the other
+--- kinds of type), or drop it. Only the literal members are told apart; a plain `string` or `number` member stays whatever the
+--- comparison says. When keeping would leave no literal at all, the node is returned as it is (the comparison is not a promise
+--- about this node: `narrow` and the rest of the rule speak for it).
+---@param node vm.node
+---@param lit  parser.object a string / number literal expression
+---@param keep boolean  true: keep the literals equal to it; false: drop them
+---@return vm.node
+local function narrowLiteral(node, lit, keep)
+    local kind = literalKind(lit)
+    local value = lit[1]
+    if not kind or value == nil then
+        return node
+    end
+    local out = node:copy()
+    ---@type boolean?
+    local found
+    for _, obj in ipairs(out) do
+        if literalKind(obj) == kind and obj[1] == value then
+            found = true
+        end
+    end
+    if keep and not found then
+        return node
+    end
+    for i = #out, 1, -1 do
+        local obj = out[i]
+        if literalKind(obj) == kind and obj[1] ~= nil and ((obj[1] == value) ~= keep) then
+            table.remove(out, i)
+            out[obj] = nil
+        end
+    end
+    return out
+end
+
 --- Narrows what `expr` refers to in `state` with `fn`; `state` itself when it is nothing tracked.
 --- A path nothing has narrowed yet starts from its static type.
 ---@param state table<vm.flow.key, vm.node>
@@ -1960,12 +2008,12 @@ local function evalCondition(state, expr)
                         if cannotEqualLiteral(node, name, uri) then
                             return node:copy()
                         end
-                        return node:copy():narrow(uri, name)
+                        return narrowLiteral(node:copy():narrow(uri, name), right, true)
                     end)
                     no  = narrowRef(state, left, function (node)
                         local out = node:copy()
                         out:removeNode(checkerNode)
-                        return out
+                        return narrowLiteral(out, right, false)
                     end)
                 end
             end

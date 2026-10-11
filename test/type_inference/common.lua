@@ -7446,3 +7446,92 @@ local function f(row)
     end
 end
 ]]
+
+-- equality with a literal on a union of literal types keeps (or drops) that literal, the way TypeScript narrows `"A" | "B"`
+TEST '"LAST"' [[
+---@param x "FIRST" | "LAST" | number | nil
+local function f(x)
+    if x == "LAST" then
+        local <?a?> = x
+    end
+end
+]]
+
+TEST '"FIRST"' [[
+---@param x "FIRST" | "LAST" | number | nil
+local function f(x)
+    if x == "LAST" then
+    elseif x == "FIRST" then
+        local <?b?> = x
+    end
+end
+]]
+
+TEST 'number' [[
+---@param x "FIRST" | "LAST" | number | nil
+local function f(x)
+    if x == "LAST" then
+    elseif x == "FIRST" then
+    elseif x then
+        local <?c?> = x
+    end
+end
+]]
+
+TEST 'number|"B"|"C"' [[
+---@param x "A" | "B" | "C" | number
+local function f(x)
+    if x ~= "A" then
+        local <?a?> = x
+    end
+end
+]]
+
+TEST '"A"' [[
+---@param x "A" | "B" | "C" | number
+local function f(x)
+    if x ~= "A" then
+        return
+    end
+    local <?a?> = x
+end
+]]
+
+-- numbers too
+TEST '2' [[
+---@param x 1 | 2 | 3
+local function f(x)
+    if x == 2 then
+        local <?a?> = x
+    end
+end
+]]
+
+-- a plain string is not a literal: the comparison leaves it (the old behaviour)
+TEST 'string' [[
+---@param x string
+local function f(x)
+    if x == "LAST" then
+        local <?a?> = x
+    end
+end
+]]
+
+TEST 'string' [[
+---@param x string
+local function f(x)
+    if x ~= "LAST" then
+        local <?a?> = x
+    end
+end
+]]
+
+-- a literal that none of the literals of the union is: the literals stay (and the other kinds of type go, as for any string)
+TEST '"A"|"B"' [[
+---@param x "A" | "B" | number
+local function f(x)
+    if x == "Z" then
+        local <?a?> = x
+    end
+end
+]]

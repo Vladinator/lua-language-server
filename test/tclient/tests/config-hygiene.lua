@@ -18,6 +18,8 @@ pcall((fs --[[@as any]]).remove_all, DIR)
 pcall((fs --[[@as any]]).remove_all, LIB)
 fs.create_directories(DIR)
 fs.create_directories(LIB)
+fs.create_directories(DIR / 'inlib')
+util.saveFile((DIR / 'inlib' / 'in.lua'):string(), 'InLibrary = 1' .. string.char(10))
 util.saveFile((LIB / 'lib.lua'):string(), 'print(OnlyLib)' .. string.char(10))
 util.saveFile((LIB / 'meta.lua'):string(), '---@meta' .. string.char(10) .. 'metaThing = 1' .. string.char(10))
 local rootUri = assert(furi.encode(DIR:string()))
@@ -92,7 +94,7 @@ lclient():start(function (client)
     end)
 
     client:register('workspace/configuration', function ()
-        return { { ['workspace.library'] = { LIB:string() } } }
+        return { { ['workspace.library'] = { LIB:string(), (DIR / 'inlib'):string() }, ['workspace.ignoreDir'] = { '/ignored', '/ignored/**' } } }
     end)
     client:initialize { rootUri = rootUri }
     ws.awaitReady(rootUri)
@@ -254,6 +256,32 @@ lclient():start(function (client)
     local prepare = hygiene.kind.prepare --[[@as async fun(uri: uri, text: string)]]
     prepare(cfgUri, '{ "Lua.diagnostics.globals": ["x"] }')
     assert(files.getLastState(lazy2Uri) ~= nil, 'the preparation compiled the files of the project')
+
+    -- a file that is too big for the server to read (past `Lua.workspace.preloadFileSize`, 500 KB) hides what it uses: nothing is
+    -- called unused then, and no notice about the file is shown for opening a settings file; what is defined elsewhere is still said
+    local hugeUri = rootUri .. '/huge.lua'
+    files.setText(hugeUri, 'print(ReadInHuge)' .. string.char(10) .. ('-- padding of a big file ' .. ('x'):rep(70) .. string.char(10)):rep(6500))
+    local huge = open(cfgUri, '{ "Lua.diagnostics.globals": ["ReadInHuge", "Defined"], "Lua.diagnostics.globalsRegex": ["^NothingAtAll"] }')
+    assert(#huge == 1 and huge[1].message:find('`Defined` is defined', 1, true),
+        'only the definition is reported while a big file is unread: ' .. #huge)
+    assert(hygiene.classify(hugeUri) == 'too-big', 'the file the server skips is not compiled by the preparation (that would show the "too large" notice)')
+    local ignoredUri = rootUri .. '/ignored/skipped.lua'
+    files.setText(ignoredUri, 'print(ReadInIgnored)' .. string.char(10))
+    local plan = hygiene.plan(rootUri)
+    ---@type table<uri, boolean>
+    local compiled = {}
+    for _, planned in ipairs(plan.compile) do
+        compiled[planned] = true
+    end
+    assert(plan.tooBig, 'the plan knows a file was left out for its size')
+    assert(compiled[luaUri], 'the plan compiles the files of the project')
+    local inLibrary = rootUri .. '/inlib/in.lua'
+    assert(files.isLibrary(inLibrary), 'precondition: a library inside the folder of the project')
+    assert(not compiled[hugeUri] and not compiled[ignoredUri] and not compiled[inLibrary], 'the plan leaves out a big file, an ignored folder and a library')
+    files.remove(ignoredUri)
+    files.remove(hugeUri)
+    assert(not hygiene.plan(rootUri).tooBig, 'without the big file the picture is complete')
+
 
     -- a broken pattern is not reported as unused
     assert(#open(cfgUri, '{ "Lua.diagnostics.globalsRegex": ["["] }') == 0, 'a broken pattern')

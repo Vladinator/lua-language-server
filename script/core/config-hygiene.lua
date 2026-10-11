@@ -9,6 +9,7 @@ local util   = require 'utility'
 local ws     = require 'workspace'
 local await  = require 'await'
 local lang   = require 'language'
+local config = require 'config'
 
 -- Config hygiene: the lists in a project's settings grow and are never cleaned. This kind of document (`.luarc.json`, `.luarc.jsonc`,
 -- `.vscode/settings.json` of a project) is read for `Lua.diagnostics.globals` and `Lua.diagnostics.globalsRegex`, and every entry that
@@ -330,6 +331,63 @@ local function patternIsNeeded(suri, pattern)
     return false
 end
 
+--- The scopes in which the last preparation left a file of the project unread because it is too big for `Lua.workspace.preloadFileSize`
+--- (the server never reads such a file unless it is open): what that file uses or defines is unknown, so "nothing uses it" cannot be said.
+---@type table<string, boolean>
+local incomplete = {}
+
+---@param suri uri
+---@return boolean
+local function pictureIsIncomplete(suri)
+    return incomplete[scope.getScope(suri).uri or ''] == true
+end
+
+--- Whether the server skips this file when it loads the workspace (too big, not open, not a library).
+---@param fileUri uri
+---@return boolean
+local function skippedBySize(fileUri)
+    local text = files.getText(fileUri)
+    return text ~= nil
+       and not files.isOpen(fileUri)
+       and #text >= config.get(fileUri, 'Lua.workspace.preloadFileSize') * 1000
+end
+
+--- What the preparation does with a file of the project: `compile` it, or leave it (`ignored`: Lua.workspace.ignoreDir and .gitignore;
+--- `library`; `too-big`: the server does not read it, so its globals are unknown).
+---@param fileUri uri
+---@return 'compile'|'ignored'|'library'|'too-big'
+function m.classify(fileUri)
+    if ws.isIgnored(fileUri) then
+        return 'ignored'
+    end
+    if files.isLibrary(fileUri) then
+        return 'library'
+    end
+    if skippedBySize(fileUri) then
+        return 'too-big'
+    end
+    return 'compile'
+end
+
+--- What the preparation does for a scope: the files of the project to compile, and whether one was left out for its size (then what
+--- the project uses is not completely known).
+---@param scopeUri uri
+---@return { compile: uri[], tooBig: boolean }
+function m.plan(scopeUri)
+    ---@type uri[]
+    local compile = {}
+    local tooBig = false
+    for _, fileUri in ipairs(files.getChildFiles(scopeUri)) do
+        local what = m.classify(fileUri)
+        if what == 'too-big' then
+            tooBig = true
+        elseif what == 'compile' then
+            compile[#compile+1] = fileUri
+        end
+    end
+    return { compile = compile, tooBig = tooBig }
+end
+
 --- The reason an entry can go, or nil when it is needed.
 ---@param suri  uri
 ---@param entry configHygiene.entry
@@ -343,6 +401,9 @@ function m.verdict(suri, entry)
             return ('`%s` is defined in the workspace or a library: the entry is not needed, `undefined-global` stays quiet without it.'):format(entry.name)
         end
         if not isUsed(suri, entry.name) then
+            if pictureIsIncomplete(suri) then
+                return nil
+            end
             return ('Nothing in the workspace uses `%s`: remove it from `Lua.diagnostics.globals`.'):format(entry.name)
         end
         return nil
@@ -352,6 +413,9 @@ function m.verdict(suri, entry)
         return nil
     end
     if not patternIsNeeded(suri, entry.name) then
+        if pictureIsIncomplete(suri) then
+            return nil
+        end
         return ('No global that the project uses without defining it matches the pattern `%s`: remove it from `Lua.diagnostics.globalsRegex`.'):format(entry.name)
     end
     return nil
@@ -397,11 +461,12 @@ local kind = {
         if not hasFolder(uri) or not diagd.isEnabled(uri, CODE, true) or #m.scan(text) == 0 then
             return
         end
-        for _, fileUri in ipairs(files.getChildFiles(scope.getScope(uri).uri)) do
-            if not ws.isIgnored(fileUri) and not files.isLibrary(fileUri) then
-                files.compileState(fileUri)
-                await.delay()
-            end
+        -- (a file the server skips for its size is not compiled: that would also show the "too large" notice for a file nobody opened)
+        local plan = m.plan(scope.getScope(uri).uri)
+        incomplete[scope.getScope(uri).uri or ''] = plan.tooBig
+        for _, fileUri in ipairs(plan.compile) do
+            files.compileState(fileUri)
+            await.delay()
         end
     end,
     diagnose = function (uri, text)

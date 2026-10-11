@@ -7240,3 +7240,61 @@ local obj = setmetatable({
     __call = function (<?self?>) end,
 }, {})
 ]]
+
+-- `n == "x"` with `n: number` can never hold: the value is not turned into a string, below the `if` it is still a number
+TEST 'number' [[
+---@param n number
+local function f(n)
+    if n == 'x' then
+        local <?inside?> = n
+    end
+end
+]]
+
+TEST 'number' [[
+---@param n number
+local function f(n)
+    if n == 'x' then
+    end
+    local <?after?> = n
+end
+]]
+
+TEST 'number' [[
+---@param n number
+local function f(n)
+    if n ~= 'x' then
+        local <?inside?> = n
+    end
+end
+]]
+
+TEST 'number' [[
+---@param n number
+local function f(n)
+    while n == 'x' do
+        n = n + 1
+    end
+    local <?after?> = n
+end
+]]
+
+-- ... while a literal that can hold still narrows
+TEST 'string' [[
+---@param v string|number
+local function f(v)
+    if v == 'x' then
+        local <?inside?> = v
+    end
+end
+]]
+
+-- an `any` value can be anything: it stays as it was
+TEST 'any' [[
+---@param a any
+local function f(a)
+    if a == 'x' then
+        local <?inside?> = a
+    end
+end
+]]

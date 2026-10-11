@@ -1419,6 +1419,28 @@ local function namesOverlap(a, b, uri)
     return vm.isSubType(uri, a, b) == true or vm.isSubType(uri, b, a) == true
 end
 
+--- Could none of the types of `node` ever be equal to a literal of the type `name`? Only when every type it has is one `overlapName`
+--- models and none overlaps it; a type it does not model, `any` and `unknown` say no. (`nil` never equals a literal and does not
+--- count; the `variable` / `local` members are the places the type came from, not types.)
+---@param node vm.node
+---@param name string
+---@param uri  uri
+---@return boolean
+local function cannotEqualLiteral(node, name, uri)
+    local any = false
+    for i = 1, #node do
+        local member = node[i]
+        if member.type ~= 'variable' and member.type ~= 'local' and not isNilObject(member) then
+            local memberName = overlapName(member)
+            if not memberName or namesOverlap(memberName, name, uri) then
+                return false
+            end
+            any = true
+        end
+    end
+    return any
+end
+
 ---@param node vm.node
 ---@return boolean
 local function nilPossible(node)
@@ -1917,7 +1939,15 @@ local function evalCondition(state, expr)
                 local name = vm.getNodeName(right)
                 if name then
                     local checkerNode = vm.compileNode(right)
-                    yes = narrowRef(state, left, function (node) return node:copy():narrow(uri, name) end)
+                    yes = narrowRef(state, left, function (node)
+                        -- `n == "x"` with `n: number` can never hold (TypeScript: `n` is `never` there). It does not make `n` a string:
+                        -- the value keeps what it is, so the join below the `if` is still `number` (an empty answer would mean "no
+                        -- answer" and hand the read to the old tracer, which widens)
+                        if cannotEqualLiteral(node, name, uri) then
+                            return node:copy()
+                        end
+                        return node:copy():narrow(uri, name)
+                    end)
                     no  = narrowRef(state, left, function (node)
                         local out = node:copy()
                         out:removeNode(checkerNode)

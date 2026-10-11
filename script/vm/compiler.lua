@@ -1327,6 +1327,36 @@ function vm.getReturnOfFunction(func, index)
     return nil
 end
 
+--- The metamethods whose first argument is the table itself, whatever the name of the parameter.
+local SELF_METAMETHODS = {
+    __call = true, __index = true, __newindex = true, __len = true, __tostring = true,
+    __unm = true, __bnot = true, __pairs = true, __close = true, __gc = true,
+}
+
+--- For a function written as a metamethod in the table that is the second argument of `setmetatable`: the first argument of that call.
+---@param func parser.object
+---@return parser.object?
+local function getMetatableSubject(func)
+    local field = func.parent
+    if not field or field.type ~= 'tablefield' or field.value ~= func then
+        return nil
+    end
+    local key = guide.getKeyName(field)
+    if type(key) ~= 'string' or not SELF_METAMETHODS[key] then
+        return nil
+    end
+    local mt   = field.parent
+    local args = mt and mt.parent
+    local call = args and args.parent
+    if not call or call.type ~= 'call' or not call.node or call.node.special ~= 'setmetatable' then
+        return nil
+    end
+    if args[2] ~= mt then
+        return nil
+    end
+    return args[1]
+end
+
 ---@param args parser.object[]
 ---@return vm.node
 local function getReturnOfSetMetaTable(args)
@@ -2259,6 +2289,17 @@ local function compileLocal(source)
         if setfield.type == 'setfield' then
             hasMarkParam = true
             vm.setNode(source, vm.compileNode(setfield.node))
+        end
+    end
+    -- the first parameter of a metamethod written in the metatable of `setmetatable(t, { __call = function (self) end })` is `t`
+    if  not hasMarkDoc
+    and not hasMarkParam
+    and source.parent.type == 'funcargs'
+    and source.parent[1] == source then
+        local tbl = getMetatableSubject(source.parent.parent)
+        if tbl then
+            hasMarkParam = true
+            vm.setNode(source, vm.compileNode(tbl))
         end
     end
     if source.parent.type == 'funcargs' and not hasMarkDoc and not hasMarkParam then

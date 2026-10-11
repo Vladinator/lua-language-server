@@ -7184,3 +7184,59 @@ local Callable = {}
 local obj = setmetatable({}, Callable)
 local <?v?> = obj()
 ]]
+
+-- the first parameter of a metamethod written in the metatable is the table, whatever it is called
+TEST 'integer' [[
+local obj = setmetatable({ n = 0 }, {
+    __call = function (self)
+        local <?x?> = self.n
+        return x
+    end,
+})
+]]
+
+TEST 'string' [[
+local obj = setmetatable({ name = 'x' }, {
+    __tostring = function (t)
+        local <?x?> = t.name
+        return x
+    end,
+})
+]]
+
+TEST 'integer' [[
+local obj = setmetatable({ n = 1 }, {
+    __index = function (t, key)
+        local <?x?> = t.n
+        return x
+    end,
+})
+]]
+
+-- not a metamethod, not the metatable of setmetatable, or a declared parameter: nothing is assumed
+TEST 'any' [[
+local obj = setmetatable({ n = 0 }, {
+    method = function (<?self?>) end,
+})
+]]
+
+TEST 'any' [[
+local function f(tbl, mt) end
+f({ n = 0 }, {
+    __call = function (<?self?>) end,
+})
+]]
+
+TEST 'string' [[
+local obj = setmetatable({ n = 0 }, {
+    ---@param self string
+    __call = function (<?self?>) end,
+})
+]]
+
+-- the table is the FIRST argument: it is the object, not the metatable
+TEST 'any' [[
+local obj = setmetatable({
+    __call = function (<?self?>) end,
+}, {})
+]]

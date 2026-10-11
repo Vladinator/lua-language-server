@@ -112,6 +112,8 @@ local Version
 ---@field multi?  integer
 ---@field version? any
 ---@field info?    any
+---@field relative? any
+---@field related?  any
 
 ---@param script string
 ---@return fun(expect?: syntax_check.expect)

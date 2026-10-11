@@ -363,6 +363,7 @@ Array<string>
 * ``"err-esc"``
 * ``"err-nonstandard-symbol"``
 * ``"err-then-as-do"``
+* ``"excess-field"``: A table constructor given to a class has a field the class does not declare (the excess property check of TypeScript).
 * ``"exp-in-action"``: Expresión usada en posición de sentencia
 * ``"generic-constraint-mismatch"``: Enable diagnostics for the type arguments of a class or an alias that do not satisfy the constraint of their type parameter (`Widget<number>` where `---@class Widget<T: Frame>`), and for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.
 * ``"generic-param-mismatch"``: Enable diagnostics for calls of a generic function where two arguments bound to the same type parameter (`---@param a T`, `---@param b T`) have types that do not fit together: the first argument binds `T`, a later one has to be assignable to it (or be wider, which widens `T`).
@@ -757,6 +758,7 @@ object<string, string>
     * cannot-call
     * cast-local-type
     * cast-type-mismatch
+    * excess-field
     * generic-constraint-mismatch
     * generic-param-mismatch
     * grouped-return-mismatch
@@ -953,6 +955,7 @@ object<string, string>
     * cannot-call
     * cast-local-type
     * cast-type-mismatch
+    * excess-field
     * generic-constraint-mismatch
     * generic-param-mismatch
     * grouped-return-mismatch
@@ -1156,6 +1159,10 @@ object<string, string>
     Habilita el diagnóstico de bloques de código vacíos.
     */
     "empty-block": "Opened",
+    /*
+    A table constructor given to a class has a field the class does not declare (the excess property check of TypeScript).
+    */
+    "excess-field": "Opened",
     /*
     Enable diagnostics for the type arguments of a class or an alias that do not satisfy the constraint of their type parameter (`Widget<number>` where `---@class Widget<T: Frame>`), and for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.
     */
@@ -1683,6 +1690,10 @@ object<string, string>
     Habilita el diagnóstico de bloques de código vacíos.
     */
     "empty-block": "Hint",
+    /*
+    A table constructor given to a class has a field the class does not declare (the excess property check of TypeScript).
+    */
+    "excess-field": "Warning",
     /*
     Enable diagnostics for the type arguments of a class or an alias that do not satisfy the constraint of their type parameter (`Widget<number>` where `---@class Widget<T: Frame>`), and for calls of a generic function where an argument does not fit a `keyof` of another argument: the type bound to a type parameter does not satisfy a constraint that names another type parameter (`---@generic K: keyof T`), or the argument of a parameter typed `keyof T` (`---@param key keyof T`, `---@param ... keyof T`: every extra argument) is not a key of `T`. A constraint on its own (`---@generic T: Base`) is already reported by `param-type-mismatch`. The wowlua-ls diagnostic of the same name.
     */

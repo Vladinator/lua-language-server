@@ -288,6 +288,7 @@ end
 
 ---@class parser.state.err.fix
 ---@field title string
+---@field symbol? string
 ---@field [integer] parser.state.err.fix.edit
 
 ---@class parser.state.err
@@ -298,6 +299,7 @@ end
 ---@field fix? parser.state.err.fix
 ---@field version? string[]|string
 ---@field level? string | 'Error' | 'Warning'
+---@field relative? table[] -- other places the error talks about, as `{ start = , finish = }` or `{ start, finish }`
 
 ---@class parser.state.options
 ---@field nonstandardSymbol table<string, boolean> -- always defaulted to {} by initState if not supplied

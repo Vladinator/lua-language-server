@@ -140,6 +140,7 @@ end
 local listen_mt = {}
 ---@class net.listen: net.socket
 ---@field public shutdown_r boolean
+---@field public shutdown_w boolean
 local listen = {}
 listen_mt.__index = listen
 ---@param self net.listen
@@ -164,6 +165,7 @@ end
 local connect_mt = {}
 ---@class net.connect: net.socket
 ---@field public _writebuf string
+---@field public shutdown_r boolean
 ---@field public shutdown_w boolean
 ---@field public on_connected? fun(self: net.connect)
 ---@field public on_data? fun(self: net.connect, data: string)

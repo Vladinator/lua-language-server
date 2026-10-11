@@ -1378,3 +1378,82 @@ if p then
     print(<!q!> + 1)
 end
 ]]
+
+-- a field assigned from a read whose type is never nil is not nil right after (the read of a field, a local or a global)
+TEST [[
+---@class Info
+---@field ranksPurchased number
+---@field extra? number
+
+---@param group Info[]
+local function tally(group)
+    local first = group[1]
+    first.extra = first.ranksPurchased
+    for i = 2, #group do
+        local other = group[i]
+        first.extra = first.extra + other.ranksPurchased
+    end
+end
+
+]]
+
+-- ... but not from an optional read, and not from itself
+TEST [[
+---@class Info
+---@field maybe? number
+---@field extra? number
+
+---@param first Info
+local function fromOptionalField(first)
+    first.extra = first.maybe
+    local _ = <!first.extra!> + 1
+end
+
+---@param first Info
+---@param n number?
+local function fromOptionalLocal(first, n)
+    first.extra = n
+    local _ = <!first.extra!> + 1
+end
+
+---@param first Info
+---@param anything any
+local function fromAny(first, anything)
+    first.extra = anything
+    local _ = <!first.extra!> + 1
+end
+
+---@param first Info
+local function fromUnknownGlobal(first)
+    first.extra = SomeUndefinedGlobal
+    local _ = <!first.extra!> + 1
+end
+
+---@param first Info
+local function fromItself(first)
+    first.extra = first.extra
+    local _ = <!first.extra!> + 1
+end
+]]
+
+-- a cache filled through a local that was read from the same place: still fine (and never unknown)
+TEST [[
+---@class Holder
+---@field cache? table<string, table[]>
+
+---@param holder Holder
+---@param tp string
+local function fill(holder, tp)
+    local cache = holder.cache
+    if not cache then
+        cache = {}
+        holder.cache = cache
+    end
+    local mine = cache[tp]
+    if not mine then
+        mine = {}
+        cache[tp] = mine
+    end
+    mine[#mine+1] = tp
+end
+]]

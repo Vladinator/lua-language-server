@@ -1593,7 +1593,11 @@ local function neverNil(value)
         return (value[2] ~= nil and neverNil(value[2]))
             or (value[1] ~= nil and neverNil(value[1]))
     end
-    if tp == 'call' or (tp == 'select' and value.vararg and value.vararg.type == 'call') then
+    if tp == 'call' or (tp == 'select' and value.vararg and value.vararg.type == 'call')
+    or tp == 'getfield' or tp == 'getmethod' then
+        -- (the read of a field is decided the same way: by its type, `t.x = t.y` with `y: number` leaves `t.x` a number; one that is
+        -- optional, or circular with this very assignment, does not. Not a local: `cache[k] = fresh` where `fresh` came from the
+        -- very read `cache[k]` is circular, and the walk that asks comes back with an unknown)
         -- Unlike the shapes above, this can't be decided syntactically: it needs the callee's
         -- actual declared return type. A single-value call RHS (`t.x = f()`) is parsed as a
         -- `select` wrapping the `call`, not a bare `call`, same as any other return position --
@@ -1605,6 +1609,11 @@ local function neverNil(value)
         local watch <close> = vm.watchCompileCycles()
         local callNode = vm.compileNode(value)
         if watch.hit or callNode:isEmpty() then
+            return false
+        end
+        -- (a read whose type is not known -- an undefined global, `any` -- may be nil as well as anything)
+        if tp ~= 'call' and tp ~= 'select'
+        and (not callNode:hasKnownType() or callNode:hasType('any') or callNode:hasType('unknown')) then
             return false
         end
         return not callNode:hasFalsy()

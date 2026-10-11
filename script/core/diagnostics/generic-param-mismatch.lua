@@ -54,6 +54,37 @@ local function directGenerics(signNode)
     return names
 end
 
+--- The element type of the arrays a node declares (`Frame[]`); nil when it is not declared as an array (a plain `table`, an inferred table).
+---@param node vm.node
+---@return vm.node?
+local function elementNode(node)
+    ---@type vm.node?
+    local result
+    for obj in node:eachObject() do
+        if obj.type == 'doc.type.array' and obj.node then
+            result = result or vm.createNode()
+            result:merge(vm.compileNode(obj.node))
+        elseif obj.type ~= 'local' and obj.type ~= 'variable' and obj.type ~= 'table' then
+            return nil
+        end
+    end
+    return result
+end
+
+--- The type parameters a parameter names as the element of an array (`T[]`): the argument binds them through the element type it declares.
+---@param signNode vm.node
+---@return string[]
+local function arrayGenerics(signNode)
+    ---@type string[]
+    local names = {}
+    for obj in signNode:eachObject() do
+        if obj.type == 'doc.type.array' and obj.node and obj.node.type == 'doc.generic.name' then
+            names[#names+1] = obj.node[1] --[[@as string]]
+        end
+    end
+    return names
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -98,11 +129,21 @@ return function (uri, callback)
                 break
             end
             local names = directGenerics(signNode)
+            ---@type vm.node?
+            local argNode
             if #names == 0 then
-                goto CONTINUE
+                -- `T[]`: the element type the argument declares binds `T`
+                names = arrayGenerics(signNode)
+                if #names == 0 then
+                    goto CONTINUE
+                end
+                argNode = elementNode(vm.compileNode(arg))
+                if not argNode then
+                    goto CONTINUE
+                end
             end
             do
-                local candidate = candidateOf(uri, vm.compileNode(arg))
+                local candidate = candidateOf(uri, argNode or vm.compileNode(arg))
                 if not candidate then
                     goto CONTINUE
                 end

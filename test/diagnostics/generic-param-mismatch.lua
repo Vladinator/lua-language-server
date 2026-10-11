@@ -187,3 +187,62 @@ local function f(a, b, c) return a end
 f(1, 2, <!'x'!>)
 f(1, <!'x'!>, <!'y'!>)
 ]]
+
+-- `T[]` binds `T` through the element type the argument declares: the later argument has to fit it
+TEST [[
+---@class Frame
+---@field name string
+
+---@generic T
+---@param list T[]
+---@param value T
+local function push(list, value) end
+
+---@type Frame[]
+local frames = {}
+push(frames, <!'not a frame'!>)
+push(frames, <!42!>)
+push(frames, { name = 'ok' })
+
+---@type string[]
+local names = {}
+push(names, <!5!>)
+push(names, 'fine')
+]]
+
+-- no declared element type, nothing is bound: a plain `table`, an inferred table, `any`
+TEST [[
+---@generic T
+---@param list T[]
+---@param value T
+local function push(list, value) end
+
+---@type table
+local plain = {}
+push(plain, 1)
+
+local inferred = { 1, 2, 3 }
+push(inferred, 'x')
+
+---@type any
+local anything
+push(anything, 'x')
+]]
+
+-- a union element takes each of its members, a wider later argument widens `T`
+TEST [[
+---@generic T
+---@param list T[]
+---@param value T
+local function push(list, value) end
+
+---@type (string|number)[]
+local mixed = {}
+push(mixed, 'a')
+push(mixed, 1)
+push(mixed, <!true!>)
+
+---@type integer[]
+local ints = {}
+push(ints, 1.5)
+]]

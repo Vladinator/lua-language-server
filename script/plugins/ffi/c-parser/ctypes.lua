@@ -600,6 +600,7 @@ end
 ---@param ids any
 ---@param spec any
 ---@return boolean
+---@return string?
 local register_decls = function (lst, ids, spec)
     return register_many(register_decl_item, lst, ids, spec)
 end
@@ -620,8 +621,10 @@ local function register_function(lst, item)
     return register_decl_item(lst, id, item.spec)
 end
 
+---@return boolean
+---@return string?
 local function register_static_function(_, _)
-    return true
+    return true, nil
 end
 
 ---@type fun(lst: ctypes.TypeList, id: any, spec: any): boolean, string?
@@ -658,6 +661,7 @@ local register_typedef_item = typed("TypeList, table, table -> boolean, string?"
 ---@param lst ctypes.TypeList
 ---@param item any
 ---@return boolean
+---@return string?
 local register_typedefs = function (lst, item)
     return register_many(register_typedef_item, lst, item.ids, item.spec)
 end

@@ -5447,6 +5447,7 @@ end
 ---@param version? string
 ---@param options? parser.state.options
 ---@return parser.state
+---@return string? err always nil: a syntax error is a node of the tree (`state.errs`); callers read the slot all the same
 return function (lua, mode, version, options)
     Mode = mode
     initState(lua, version, options)

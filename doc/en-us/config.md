@@ -534,7 +534,7 @@ Array<string>
 * ``"toc-unreachable-line"``: Enable diagnostics for a line of a `.toc` whose load conditions and file name suffix leave no game type it can load on.
 * ``"trailing-space"``: Enable trailing space diagnostics.
 * ``"type-mismatch"``
-* ``"unbalanced-assignments"``: Enable diagnostics on multiple assignments if not all variables obtain a value (e.g., `local x,y = 1`).
+* ``"unbalanced-assignments"``: Enable diagnostics on multiple assignments if not all variables obtain a value (e.g., `local x,y = 1`), also when the last value is a call of a function of the project that returns fewer values than there are variables.
 * ``"unchecked-array-index"``: Enable diagnostics for reading an element of a `T[]` array (`arr[i]`) in a context that treats the value as definitely not `nil` (arithmetic, further indexing, a call, a numeric `for` bound, ...). Off by default: a Lua array has no compile-time length, so most such reads are guarded by something the checker cannot see (a loop bound, a known constructor); this finds candidates to review.
 * ``"undefined-doc-class"``: Enable diagnostics for class annotations in which an undefined class is referenced.
 * ``"undefined-doc-name"``: Enable diagnostics for type annotations referencing an undefined type or alias.
@@ -1528,7 +1528,7 @@ object<string, string>
     */
     "trailing-space": "Opened",
     /*
-    Enable diagnostics on multiple assignments if not all variables obtain a value (e.g., `local x,y = 1`).
+    Enable diagnostics on multiple assignments if not all variables obtain a value (e.g., `local x,y = 1`), also when the last value is a call of a function of the project that returns fewer values than there are variables.
     */
     "unbalanced-assignments": "Any",
     /*
@@ -2064,7 +2064,7 @@ object<string, string>
     */
     "trailing-space": "Hint",
     /*
-    Enable diagnostics on multiple assignments if not all variables obtain a value (e.g., `local x,y = 1`).
+    Enable diagnostics on multiple assignments if not all variables obtain a value (e.g., `local x,y = 1`), also when the last value is a call of a function of the project that returns fewer values than there are variables.
     */
     "unbalanced-assignments": "Warning",
     /*

@@ -255,6 +255,7 @@ end
 ---@param oop boolean?
 ---@param level integer
 ---@return string?
+---@return integer? maxLevel the deepest level reached (only set by a table)
 return function (source, oop, level)
     if     source.type == 'function'
     or     source.type == 'doc.type.function' then

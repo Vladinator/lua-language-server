@@ -65,7 +65,39 @@ local kind = {
 }
 kinds.register(kind)
 
+-- a kind whose verdict is about the whole workspace (`needsWorkspace`): it is prepared before every verdict, and nothing is
+-- published before that ended
+local PREP_CODE = 'zz-prep-note'
+diagd.register { PREP_CODE } {
+    group       = 'zz-kind',
+    severity    = 'Hint',
+    status      = 'Any',
+    fileKind    = 'zzprep',
+    description = 'test only',
+}
+local prepared = 0
+---@type string[]
+local order = {}
+kinds.register {
+    id             = 'zzprep',
+    needsWorkspace = true,
+    match          = function (u) return u:sub(-7) == '.zzprep' end,
+    prepare        = function (_u, _text)
+        prepared = prepared + 1
+        order[#order+1] = 'prepare'
+    end,
+    diagnose       = function (_u, _text)
+        order[#order+1] = 'diagnose'
+        return { {
+            code    = PREP_CODE,
+            message = 'prepared ' .. prepared,
+            range   = { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 1 } },
+        } }
+    end,
+}
+
 local uri = 'file:///kinds/test.zzkind'
+local prepUri = 'file:///kinds/test.zzprep'
 
 ---@async
 lclient():start(function (client)
@@ -73,9 +105,14 @@ lclient():start(function (client)
 
     ---@type { uri: string, version: integer?, diagnostics: any[] }[]
     local published = {}
+    ---@type { uri: string, version: integer?, diagnostics: any[] }[]
+    local prepPublished = {}
     client:register('textDocument/publishDiagnostics', function (params)
         if params.uri == uri then
             published[#published+1] = params
+        end
+        if params.uri == prepUri then
+            prepPublished[#prepPublished+1] = params
         end
         return nil
     end)
@@ -111,6 +148,21 @@ lclient():start(function (client)
     assert(diags[1].code == CODE and diags[1].range.start.line == 1 and diags[1].range.start.character == 8, 'its place')
     assert(diags[1].severity == define.DiagnosticSeverity.Warning, 'the severity of the registration')
     assert(last().version == 1, 'the version')
+
+    -- needsWorkspace + prepare: the preparation runs before the verdict, and the verdict is only sent after it
+    client:notify('textDocument/didOpen', {
+        textDocument = { uri = prepUri, languageId = 'zzprep', version = 1, text = 'x' },
+    })
+    waitFor(function () return #prepPublished >= 1 end, 'the prepared document')
+    assert(prepared >= 1 and order[1] == 'prepare' and order[2] == 'diagnose', 'prepare, then diagnose: ' .. table.concat(order, ','))
+    assert(prepPublished[1].diagnostics[1].message == 'prepared 1', 'the verdict knows the preparation ended: ' .. prepPublished[1].diagnostics[1].message)
+    -- every new text is prepared again (the picture of the workspace may have changed since)
+    client:notify('textDocument/didChange', {
+        textDocument = { uri = prepUri, version = 2 }, contentChanges = { { text = 'y' } },
+    })
+    waitFor(function () return prepared >= 2 and #prepPublished >= 2 end, 'prepared again')
+    assert(prepPublished[#prepPublished].diagnostics[1].message == 'prepared ' .. prepared, 'the latest verdict follows the latest preparation')
+    client:notify('textDocument/didClose', { textDocument = { uri = prepUri } })
 
     -- the Lua pipeline does not run the diagnostic of a kind
     for _, name in ipairs(diagd.getRunOrder()) do
@@ -195,6 +247,9 @@ lclient():start(function (client)
     client:notify('textDocument/didClose', { textDocument = { uri = luaUri } })
 
     -- (the fake diagnostic goes again)
+    diagd.diagnosticDatas[PREP_CODE] = nil
+    define.DiagnosticDefaultSeverity[PREP_CODE] = nil
+    define.DiagnosticDefaultNeededFileStatus[PREP_CODE] = nil
     diagd.diagnosticDatas[CODE] = nil
     diagd.diagnosticGroups['zz-kind'] = nil
     define.DiagnosticDefaultSeverity[CODE] = nil

@@ -10,6 +10,7 @@ local fs      = require 'bee.filesystem'
 local util    = require 'utility'
 local kinds   = require 'file-kinds'
 local hygiene = require 'core.config-hygiene'
+local scope   = require 'workspace.scope'
 
 local DIR = fs.path(LOGPATH) / 'hygiene-ws'
 local LIB = fs.path(LOGPATH) / 'hygiene-lib'
@@ -81,9 +82,12 @@ lclient():start(function (client)
     local published = {}
     ---@type table<uri, integer?>
     local versions = {}
+    ---@type table<uri, integer>
+    local counts = {}
     client:register('textDocument/publishDiagnostics', function (params)
         published[params.uri] = params.diagnostics
         versions[params.uri] = params.version
+        counts[params.uri] = (counts[params.uri] or 0) + 1
         return nil
     end)
 
@@ -309,6 +313,21 @@ lclient():start(function (client)
     -- a settings file that is in no folder of the workspace says nothing about it (the settings of the user)
     local outside = 'file:///somewhere-else/project/.vscode/settings.json'
     assert(#open(outside, '{ "Lua.diagnostics.globals": ["Gone"] }') == 0, 'outside the workspace')
+
+    -- a reload of the workspace judges the open settings file again, at once (not only after the debounce of the changed files: 1 s)
+    open(cfgUri, LAST)
+    await.sleep(2)
+    local before = counts[cfgUri]
+    ws.reload(scope.getScope(cfgUri))
+    local seen = false
+    for _ = 1, 8 do
+        await.sleep(0.1)
+        if counts[cfgUri] > before then
+            seen = true
+            break
+        end
+    end
+    assert(seen, 'the reload judged the settings file again')
 
     -- the disable list and the severity apply like for any diagnostic
     config.set(cfgUri, 'Lua.diagnostics.disable', { hygiene.CODE })

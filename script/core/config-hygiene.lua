@@ -279,15 +279,51 @@ local function silencesTheDefinition(suri, name)
     return flagged
 end
 
+--- The names of the globals that the project reads without anything defining them, by scope. Walking every global of the workspace
+--- (a WoW project has ten thousand from its API annotations) is far too much to repeat for each entry on each keystroke: the list is
+--- kept until a file is compiled, changed or removed.
+---@type table<string, string[]>?
+local usedUndefinedCache
+
+files.watch(function (ev)
+    if ev == 'compile' or ev == 'update' or ev == 'remove' or ev == 'create' then
+        usedUndefinedCache = nil
+    end
+end)
+
+---@param suri uri
+---@return string[]
+local function usedUndefinedNames(suri)
+    local cache = usedUndefinedCache
+    if not cache then
+        cache = {}
+        usedUndefinedCache = cache
+    end
+    local scp = scope.getScope(suri)
+    local key = scp.uri or ''
+    local names = cache[key]
+    if names then
+        return names
+    end
+    names = {}
+    for _, globalVar in ipairs(vm.getGlobals('variable')) do
+        local name = globalVar.name
+        if isUsed(suri, name) and not isDefined(suri, name) then
+            names[#names+1] = name
+        end
+    end
+    cache[key] = names
+    return names
+end
+
 --- Whether a global that the project uses without defining it matches the pattern.
 ---@param suri     uri
 ---@param pattern  string
 ---@return boolean
 local function patternIsNeeded(suri, pattern)
-    for _, globalVar in ipairs(vm.getGlobals('variable')) do
-        local name = globalVar.name
+    for _, name in ipairs(usedUndefinedNames(suri)) do
         local ok, matched = pcall(string.match, name, pattern)
-        if ok and matched and isUsed(suri, name) and not isDefined(suri, name) then
+        if ok and matched then
             return true
         end
     end
@@ -433,6 +469,20 @@ local kind = {
         end
         return actions
     end,
+}
+
+kind.samples = {
+    {
+        name = '/.vscode/settings.json',
+        text = table.concat({
+            '{',
+            '    // the globals of the addon',
+            '    "Lua.diagnostics.globals": ["Foo", "Bar"],',
+            '    "Lua.diagnostics.globalsRegex": ["^Addon", "^Other"],',
+            '    "Lua": { "diagnostics": { "globals": ["Baz"] } }',
+            '}',
+        }, string.char(10)),
+    },
 }
 
 kinds.register(kind)

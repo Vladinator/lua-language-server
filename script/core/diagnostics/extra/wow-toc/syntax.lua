@@ -1231,6 +1231,26 @@ m.kind = {
     id       = 'toc',
     match    = function (uri) return uri:lower():sub(-4) == '.toc' end,
     diagnose = m.diagnose,
+    samples  = {
+        {
+            name = '/DamageSample.toc',
+            text = table.concat({
+                '## Interface: 110105, 40402',
+                '## Title: Damage Sample',
+                '## Title-deDE: Schadenbeispiel',
+                '## Notes: A typical file',
+                '## Author: Somebody',
+                '## Version: 1.0.0',
+                '## SavedVariables: SampleDB',
+                '## Dependencies: Ace3',
+                '## Category: Combat',
+                '# @diagnostic disable-next-line: toc-nonexistent-file',
+                'Core.lua',
+                'Sub\\Deep.lua [AllowLoadGameType mainline]',
+                'Views.xml',
+            }, string.char(10)),
+        },
+    },
 }
 fileKinds.register(m.kind)
 

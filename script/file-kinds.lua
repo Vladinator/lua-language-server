@@ -44,6 +44,10 @@ local files   = require 'files'
 ---@field value  string markdown
 ---@field range? fileKind.range
 
+---@class fileKind.sample
+---@field name string the file name below the root of the test workspace, as the kind recognizes it (`Addon.toc`, `.vscode/settings.json`)
+---@field text string
+
 ---@class fileKind
 ---@field id                  string
 ---@field match               fun(uri: uri): boolean
@@ -53,6 +57,7 @@ local files   = require 'files'
 ---@field definition?         fun(uri: uri, text: string, position: fileKind.position): table[]?  LSP Location[]
 ---@field codeAction?         fun(uri: uri, text: string, range: fileKind.range, diagnostics: fileKind.clientDiagnostic[]): table[]?  LSP CodeAction[] (`edit.changes` / `edit.documentChanges` in LSP positions)
 ---@field triggerCharacters?  string[] characters that open completion in a document of this kind
+---@field samples?            fileKind.sample[] typical documents of the kind: the test that damages every registered kind (test/other/file-kind-damage.lua) starts from them
 ---@field needsWorkspace?     boolean the diagnostics depend on the whole workspace: they wait until it is loaded and are made again when it reloads
 ---@field prepare?             async fun(uri: uri, text: string) with `needsWorkspace`: runs before every verdict, to build the full picture of the workspace (compile the files nobody opened); nothing is published before it ends
 
@@ -73,6 +78,12 @@ local documents = {}
 ---@param kind fileKind
 function m.register(kind)
     kinds[#kinds+1] = kind
+end
+
+--- The registered kinds, in order (for the tests that go over all of them).
+---@return fileKind[]
+function m.all()
+    return kinds
 end
 
 --- The kind a uri is a document of, if any.

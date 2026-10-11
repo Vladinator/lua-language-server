@@ -253,3 +253,75 @@ local function f(flag, s, mixed, blank)
     local _ = _G[flag and "a" or "b"]
 end
 ]]
+
+-- a module-private table whose fields are all spelled in the code that can reach it is closed: a field it never has is a typo
+TEST [[
+local rec = { x = 1 }
+rec.alpha = 1
+function rec.beta() return rec.alpha end
+function rec:gamma() end
+
+print(rec.x, rec.alpha, rec.beta, rec.gamma)
+print(rec.<!alfa!>, rec.<!Beta!>)
+rec:<!gama!>()
+local _ = rec.<!zz!> ~= nil
+]]
+
+-- a string-literal index is the same field
+TEST [[
+local rec = { first = 1 }
+rec["second"] = 2
+print(rec.second, rec.<!thrid!>)
+]]
+
+-- anything that lets the table be used through a name the code does not spell keeps it open
+TEST [[
+local function use(t) return t end
+
+local passed = { a = 1 }
+use(passed)
+print(passed.zzz)
+
+local dynamic = { a = 1 }
+dynamic[tostring(1)] = 2
+print(dynamic.zzz)
+
+local computed = { [tostring(1)] = 1 }
+print(computed.zzz)
+
+local reassigned = { a = 1 }
+reassigned = { b = 2 }
+print(reassigned.zzz)
+
+local returned = { a = 1 }
+local function give() return returned end
+print(returned.zzz)
+
+local looped = { a = 1 }
+for _ in pairs(looped) do end
+print(looped.zzz)
+
+local meta = { a = 1 }
+setmetatable(meta, { __index = function () end })
+print(meta.zzz)
+]]
+
+-- a declared class or a table with a type is checked the way it always was
+TEST [[
+---@type { alfa: number }
+local typed = { alfa = 1 }
+print(typed.alfa, typed.<!beta!>)
+]]
+
+-- a table declared empty and never given a field says nothing about what it will hold
+TEST [[
+local cache = {}
+print(cache.anything)
+]]
+
+-- a type the author wrote is not second-guessed
+TEST [[
+---@type table
+local declared = { a = 1 }
+print(declared.zzz)
+]]

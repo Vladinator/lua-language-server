@@ -39,6 +39,57 @@ local skipCheckClass = {
     ['table']         = true,
 }
 
+--- The accesses that keep a table "closed": the fields it ever has are all named in the code that can reach it.
+local fieldAccess = {
+    getfield  = true,
+    setfield  = true,
+    getmethod = true,
+    setmethod = true,
+}
+
+--- A `local rec = { ... }` that nothing else can add fields to or read through a name it does not spell: every reference is a field or
+--- method access by a literal name (a read, a write, a `function rec.name()`), the constructor has no computed key, and the local is
+--- never reassigned. Passing it to a function, returning it, `pairs(rec)`, `rec[key]` or `setmetatable(rec, ...)` make it open.
+---@param loc parser.object
+---@return boolean
+local function isClosedRecord(loc)
+    if loc.type ~= 'local' or loc.bindDocs and #loc.bindDocs > 0 then
+        return false
+    end
+    local value = loc.value
+    if not value or value.type ~= 'table' then
+        return false
+    end
+    -- (a table that is declared empty and never given a field, `local cache = {}`, says nothing about what it will hold)
+    ---@type boolean?
+    local hasFields
+    for _, item in ipairs(value) do
+        if item.type == 'tableindex' and (not item.index or item.index.type ~= 'string') then
+            return false
+        end
+        if item.type == 'varargs' then
+            return false
+        end
+        if item.type == 'tablefield' or item.type == 'tableindex' then
+            hasFields = true
+        end
+    end
+    for _, ref in ipairs(loc.ref or {}) do
+        local parent = ref.parent
+        if ref.type ~= 'getlocal' or not parent or parent.node ~= ref then
+            return false
+        end
+        if not fieldAccess[parent.type]
+        and not ((parent.type == 'getindex' or parent.type == 'setindex') and parent.index and parent.index.type == 'string') then
+            return false
+        end
+        if parent.type == 'setfield' or parent.type == 'setmethod' or parent.type == 'setindex' then
+            hasFields = true
+        end
+    end
+    return hasFields == true
+end
+
 ---@async
 return function (uri, callback)
     local ast = files.getState(uri)
@@ -55,7 +106,7 @@ return function (uri, callback)
             return
         end
         local node = src.node
-        if node then
+        if node and not (node.type == 'getlocal' and node.node and isClosedRecord(node.node)) then
             ---@type boolean?
             local ok
             for view in vm.getInfer(node):eachView(uri) do

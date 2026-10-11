@@ -282,6 +282,21 @@ lclient():start(function (client)
     files.remove(hugeUri)
     assert(not hygiene.plan(rootUri).tooBig, 'without the big file the picture is complete')
 
+    -- opening the big file in the editor makes it count: the server reads an open file whatever its size, and the open settings file is judged again
+    files.setText(hugeUri, 'print(ReadInHuge)' .. string.char(10) .. ('-- padding of a big file ' .. ('x'):rep(70) .. string.char(10)):rep(6500))
+    open(cfgUri, '{ "Lua.diagnostics.globals": ["ReadInHuge"] }')
+    assert(#published[cfgUri] == 0, 'while the big file is unread nothing is called unused')
+    client:notify('textDocument/didOpen', {
+        textDocument = { uri = hugeUri, languageId = 'lua', version = 1, text = assert(files.getText(hugeUri)) },
+    })
+    assert(not hygiene.plan(rootUri).tooBig and hygiene.classify(hugeUri) == 'compile', 'an open big file is compiled by the preparation')
+    waitFor(function () return #published[cfgUri] == 0 and counts[cfgUri] > 0 end, 'the settings file after the big file was opened')
+    local only = open(cfgUri, '{ "Lua.diagnostics.globals": ["ReadInHuge", "NobodyUsesThis"] }')
+    assert(#only == 1 and only[1].message:find('NobodyUsesThis', 1, true),
+        'with the big file open the picture is complete: what it reads is needed, the rest is unused: ' .. #only)
+    client:notify('textDocument/didClose', { textDocument = { uri = hugeUri } })
+    files.remove(hugeUri)
+
 
     -- a broken pattern is not reported as unused
     assert(#open(cfgUri, '{ "Lua.diagnostics.globalsRegex": ["["] }') == 0, 'a broken pattern')

@@ -258,3 +258,23 @@ local function push(list, value) end
 local either = {}
 push(either, 5)
 ]]
+
+-- the standard library: `table.insert(list, value)` takes the element type of a declared array
+TEST [[
+---@class Frame
+---@field name string
+
+---@type Frame[]
+local frames = {}
+table.insert(frames, <!'not a frame'!>)
+table.insert(frames, { name = 'ok' })
+table.insert(frames, 1, { name = 'at a position' })
+
+---@type table
+local plain = {}
+table.insert(plain, 'anything')
+
+local inferred = {}
+table.insert(inferred, 1)
+table.insert(inferred, 'x')
+]]

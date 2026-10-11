@@ -85,6 +85,20 @@ local function arrayGenerics(signNode)
     return names
 end
 
+--- The name of the i-th parameter of a function or of a `fun(...)` type, else its position.
+---@param func parser.object
+---@param i    integer
+---@return string
+local function paramName(func, i)
+    local param = (func.args or {})[i]
+    if not param then
+        return tostring(i)
+    end
+    -- (a `fun(list: T[])` argument keeps its name in `name`, the parameter of a function is the name itself)
+    local name = param.name and param.name[1] or param[1]
+    return tostring(name or i)
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -111,7 +125,7 @@ return function (uri, callback)
                 end
             end
         end
-        if #funcs ~= 1 or funcs[1].type ~= 'function' then
+        if #funcs ~= 1 then
             return
         end
         local func = funcs[1]
@@ -157,16 +171,15 @@ return function (uri, callback)
                         -- wider than what was bound: T becomes that (`f(1, 2.5)`, `f(x, xOrNil)`)
                         first.node = candidate
                     else
-                        local params = func.args or {}
                         callback {
                             start   = arg.start,
                             finish  = arg.finish,
                             message = MESSAGE:format(
                                 vm.getInfer(candidate):view(uri),
-                                tostring(params[i] and params[i][1] or i),
+                                paramName(func, i),
                                 name,
                                 vm.getInfer(first.node):view(uri),
-                                tostring(params[first.index] and params[first.index][1] or first.index)
+                                paramName(func, first.index)
                             ),
                         }
                     end

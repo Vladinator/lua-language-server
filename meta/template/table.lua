@@ -22,7 +22,7 @@ function table.concat(list, sep, i, j) end
 function table.create(nseq, nrec) end
 
 ---#DES 'table.insert'
----@overload fun(list: table, value: any)
+---@overload fun<T>(list: T[], value: T)
 ---@param list table
 ---@param pos integer
 ---@param value any

@@ -11,7 +11,7 @@ protoDiagnostic.register {
     severity = 'Warning',
     -- off by default here: `---@class AddOnName : string` (an opaque, named string type) is a common idiom in addon annotations
     status   = 'None',
-    description = 'Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.',
+    description = 'Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `true`, `false`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.',
 }
 
 --- What a class cannot extend. `table` is what classes are, `userdata` is how the engine's objects are annotated, `any` and
@@ -22,6 +22,8 @@ local PRIMITIVES = {
     ['number']   = true,
     ['integer']  = true,
     ['boolean']  = true,
+    ['true']     = true,
+    ['false']    = true,
     ['nil']      = true,
     ['function'] = true,
     ['thread']   = true,

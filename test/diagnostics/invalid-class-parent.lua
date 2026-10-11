@@ -37,3 +37,9 @@ TEST [[
 TEST [[
 ---@class Orphan : Missing
 ]]
+
+-- the literal booleans are primitive parents too
+TEST [[
+---@class FromTrue : <!true!>
+---@class FromFalse : <!false!>
+]]

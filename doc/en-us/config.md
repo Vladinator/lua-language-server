@@ -413,7 +413,7 @@ Array<string>
 * ``"incomplete-signature-doc"``: Incomplete @param or @return annotations for functions.
 * ``"index-in-func-name"``: Index in a function name
 * ``"inject-field"``: Injecting a field into an object
-* ``"invalid-class-parent"``: Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
+* ``"invalid-class-parent"``: Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `true`, `false`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
 * ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
 * ``"invalid-secret-context"``: Enable diagnostics for a secret-context tag (`---@secret-when`, `---@secret-unless`, `---@secret-clears`, `---@secret-restriction-guard`, `---@secret-precondition`, `---@secret-satisfies`) that is not of its form, is not above a function, or names a parameter the function does not have.
 * ``"invalid-secret-guard"``: Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
@@ -482,6 +482,7 @@ Array<string>
 * ``"no-unknown"``: Enable diagnostics for cases in which the type cannot be inferred.
 * ``"no-visible-label"``: Invisible label
 * ``"non-portable-annotation"``: Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
+* ``"not-precedence"``: Enable diagnostics for a comparison whose left side is a bare `not x`: `not x == y` is `(not x) == y`, not `not (x == y)`. Brackets say which one is meant.
 * ``"not-yieldable"``: Enable diagnostics for calls to `coroutine.yield()` when it is not permitted.
 * ``"param-constraint-mismatch"``: Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The receiver may also inherit the method from a parent class (`---@class Numbers: Widget<number>`). The wowlua-ls diagnostic of the same name.
 * ``"param-type-mismatch"``: Enable diagnostics for function calls where the type of a provided parameter does not match the type of the annotated function definition.
@@ -681,6 +682,7 @@ object<string, string>
     * different-requires
     * newfield-call
     * newline-call
+    * not-precedence
     */
     "ambiguity": "Fallback",
     /*
@@ -876,6 +878,7 @@ object<string, string>
     * different-requires
     * newfield-call
     * newline-call
+    * not-precedence
     */
     "ambiguity": "Fallback",
     /*
@@ -1241,7 +1244,7 @@ object<string, string>
     */
     "inject-field": "Opened",
     /*
-    Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
+    Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `true`, `false`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
     */
     "invalid-class-parent": "None",
     /*
@@ -1336,6 +1339,10 @@ object<string, string>
     Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
     */
     "non-portable-annotation": "Any",
+    /*
+    Enable diagnostics for a comparison whose left side is a bare `not x`: `not x == y` is `(not x) == y`, not `not (x == y)`. Brackets say which one is meant.
+    */
+    "not-precedence": "Any",
     /*
     Enable diagnostics for calls to `coroutine.yield()` when it is not permitted.
     */
@@ -1773,7 +1780,7 @@ object<string, string>
     */
     "inject-field": "Warning",
     /*
-    Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
+    Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `true`, `false`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
     */
     "invalid-class-parent": "Warning",
     /*
@@ -1868,6 +1875,10 @@ object<string, string>
     Enable diagnostics for a `---@tag` that none of the dialects listed in `Lua.annotations.dialects` knows (it is otherwise silently ignored).
     */
     "non-portable-annotation": "Hint",
+    /*
+    Enable diagnostics for a comparison whose left side is a bare `not x`: `not x == y` is `(not x) == y`, not `not (x == y)`. Brackets say which one is meant.
+    */
+    "not-precedence": "Warning",
     /*
     Enable diagnostics for calls to `coroutine.yield()` when it is not permitted.
     */

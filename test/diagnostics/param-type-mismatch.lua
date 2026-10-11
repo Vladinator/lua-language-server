@@ -1036,3 +1036,51 @@ plain(o.f)
 config.set(nil, 'Lua.type.weakNilCheck', false)
 config.set(nil, 'Lua.type.checkFieldNilArguments', true)
 config.set(nil, 'Lua.type.weakUnionCheck', false)
+
+-- `params<F>` where F is a type parameter of the CLASS (the registry pattern): the receiver says what it stands for, a child class passes it on, an unbound receiver checks nothing
+TEST [[
+---@class Registry<F>
+local Registry = {}
+
+---@param key string
+---@param ... params<F>
+function Registry:Call(key, ...) end
+
+---@class Plain
+local Plain = {}
+
+---@param key string
+---@param ... number
+function Plain:Call(key, ...) end
+
+---@class Child : Registry<fun(name: string)>
+
+---@type Registry<fun(name: string, count: number)>
+local reg
+
+---@type Registry<fun(name: string, count?: number)>
+local optional
+
+---@type Child
+local child
+
+---@type Registry
+local unbound
+
+---@class Sub<T> : Registry<fun(x: T)>
+
+---@type Sub<string>
+local sub
+
+reg:Call('k', 'orc', 3)
+reg:Call('k', <!5!>, 3)
+reg:Call('k', 'orc', <!'three'!>)
+reg.Call(reg, 'k', <!5!>, 3)
+optional:Call('k', 'orc')
+optional:Call('k', 'orc', 3)
+child:Call('k', 'orc')
+child:Call('k', <!5!>)
+unbound:Call('k', 5, 'anything')
+sub:Call('k', 'text')
+sub:Call('k', <!5!>)
+]]

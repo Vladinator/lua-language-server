@@ -260,3 +260,40 @@ call(spawn, 'orc', 3)
 call(spawn, 'orc', 3, <!4!>)
 call(rest, 'a', 1, 2, 3, 4)
 ]]
+
+-- `params<F>` where F is a type parameter of the class: no more arguments than F has parameters
+TEST [[
+---@class Registry<F>
+local Registry = {}
+
+---@param key string
+---@param ... params<F>
+function Registry:Call(key, ...) end
+
+---@class Plain
+local Plain = {}
+
+---@param key string
+---@param ... number
+function Plain:Call(key, ...) end
+
+---@class Child : Registry<fun(name: string)>
+
+---@type Registry<fun(name: string, count: number)>
+local reg
+
+---@type Registry<fun(name: string, count?: number)>
+local optional
+
+---@type Child
+local child
+
+---@type Registry
+local unbound
+
+reg:Call('k', 'orc', 3)
+reg:Call('k', 'orc', 3, <!4!>)
+optional:Call('k', 'orc', 3, <!4!>)
+child:Call('k', 'orc', <!3!>)
+unbound:Call('k', 1, 2, 3, 4)
+]]

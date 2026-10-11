@@ -112,3 +112,43 @@ call(spawn, 'orc', 3)
 call(optional, 'orc')
 <!call(optional)!>
 ]]
+
+-- `params<F>` where F is a type parameter of the class: the parameters of F that are not optional are required
+TEST [[
+---@class Registry<F>
+local Registry = {}
+
+---@param key string
+---@param ... params<F>
+function Registry:Call(key, ...) end
+
+---@class Plain
+local Plain = {}
+
+---@param key string
+---@param ... number
+function Plain:Call(key, ...) end
+
+---@class Child : Registry<fun(name: string)>
+
+---@type Registry<fun(name: string, count: number)>
+local reg
+
+---@type Registry<fun(name: string, count?: number)>
+local optional
+
+---@type Child
+local child
+
+---@type Registry
+local unbound
+
+reg:Call('k', 'orc', 3)
+<!reg:Call('k', 'orc')!>
+<!reg:Call('k')!>
+optional:Call('k', 'orc')
+<!optional:Call('k')!>
+child:Call('k', 'orc')
+<!child:Call('k')!>
+unbound:Call('k')
+]]

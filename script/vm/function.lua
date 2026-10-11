@@ -612,7 +612,9 @@ local function paramsProjectionOf(func)
                 if unit.type == 'doc.type.sign' and unit.node and unit.node[1] == 'params' and unit.signs and unit.signs[1] then
                     ---@type string?
                     local name
-                    guide.eachSourceType(unit.signs[1], 'doc.generic.name', function (src)
+                    -- (`doc.generic.name`: a type parameter of the function; `doc.type.name`: a name the function does not declare, a
+                    -- type parameter of the class it belongs to)
+                    guide.eachSourceTypes(unit.signs[1], { 'doc.generic.name', 'doc.type.name' }, function (src)
                         name = name or src[1] --[[@as string]]
                     end)
                     if name then
@@ -671,6 +673,30 @@ function vm.getParamsProjection(uri, call)
     return target, varIndex
 end
 
+--- `F` as a type parameter of the CLASS the called method belongs to (`GenericRegistry<F>` with `---@param ... params<F>` on its `Call`):
+--- what the receiver says it stands for (`---@type GenericRegistry<fun(name: string, count: number)>`), the same route `returns<F>` takes.
+---@param uri  uri
+---@param call parser.object
+---@param func parser.object the method the call resolved to
+---@param name string        the name of the type parameter
+---@return vm.node?
+local function boundByReceiver(uri, call, func, name)
+    local callNode = call.node
+    if not callNode or (callNode.type ~= 'getmethod' and callNode.type ~= 'getfield') or not callNode.node then
+        return nil
+    end
+    for receiver in vm.compileNode(callNode.node):eachObject() do
+        if receiver.type == 'doc.type.sign' or (receiver.type == 'global' and receiver.cate == 'type') then
+            ---@cast receiver parser.object|vm.global
+            local map = vm.getReceiverGenericMap(uri, receiver, func)
+            if map and map[name] then
+                return map[name]
+            end
+        end
+    end
+    return nil
+end
+
 ---@async
 ---@param uri  uri
 ---@param call parser.object
@@ -684,12 +710,13 @@ function vm.findParamsProjection(uri, call)
     end
     local func = funcs[1]
     local name = paramsProjectionOf(func)
-    local sign = name and vm.getSign(func)
-    if not name or not sign then
+    if not name then
         return nil
     end
-    local resolved = sign:resolve(uri, args)
-    local bound = resolved and resolved[name]
+    -- bound by an earlier argument (a type parameter of the function), or by the receiver (a type parameter of the class)
+    local sign = vm.getSign(func)
+    local resolved = sign and sign:resolve(uri, args)
+    local bound = resolved and resolved[name] or boundByReceiver(uri, call, func, name)
     if not bound then
         return nil
     end

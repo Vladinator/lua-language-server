@@ -7079,3 +7079,30 @@ local function f(key)
     local <?v?> = cb[key]
 end
 ]]
+
+-- a type parameter used inside a bigger type in the `extends` of a generic class: the parent's argument takes what the receiver says
+TEST 'string[]' [[
+---@class Box<T>
+local Box = {}
+---@return T
+function Box:get() end
+
+---@class Sub<U> : Box<U[]>
+
+---@type Sub<string>
+local s
+local <?v?> = s:get()
+]]
+
+TEST 'number' [[
+---@class Box<T>
+local Box = {}
+---@return T
+function Box:get() end
+
+---@class Direct<U> : Box<U>
+
+---@type Direct<number>
+local d
+local <?v?> = d:get()
+]]

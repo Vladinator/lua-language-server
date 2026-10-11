@@ -355,7 +355,9 @@ local function classArgumentsOf(uri, classGlobal, signs, outer)
                         unit = signType.types[1]
                     end
                     local outerNode = outer and unit.type == 'doc.generic.name' and outer[unit[1] --[[@as string]]]
-                    resolved[name] = outerNode or vm.compileNode(signType)
+                    -- ... or uses one inside a bigger type (`---@class Child<U>: Box<fun(x: U)>`, `Box<U[]>`): the type with it replaced
+                    local cloned = not outerNode and outer and containsGenericName(signType) and vm.cloneObject(signType, outer)
+                    resolved[name] = outerNode or (cloned and vm.compileNode(cloned)) or vm.compileNode(signType)
                 end
             end
             return next(resolved) and resolved or nil

@@ -152,3 +152,18 @@ child:Call('k', 'orc')
 <!child:Call('k')!>
 unbound:Call('k')
 ]]
+
+-- a table called through the `__call` of its metatable: the table is the first argument, the call supplies the rest
+TEST [[
+---@diagnostic disable: unused-local
+local counter = setmetatable({}, {
+    ---@param self table
+    ---@param step integer
+    ---@param label string
+    __call = function (self, step, label) end,
+})
+
+counter(1, 'a')
+<!counter(1)!>
+<!counter()!>
+]]

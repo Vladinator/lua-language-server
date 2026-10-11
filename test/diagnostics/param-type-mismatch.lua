@@ -1084,3 +1084,26 @@ unbound:Call('k', 5, 'anything')
 sub:Call('k', 'text')
 sub:Call('k', <!5!>)
 ]]
+
+-- a table called through the `__call` of its metatable: the arguments are checked against the parameters after the first (the table)
+TEST [[
+---@diagnostic disable: unused-local
+local counter = setmetatable({}, {
+    ---@param self table
+    ---@param step integer
+    ---@param label string
+    __call = function (self, step, label) end,
+})
+
+counter(1, 'a')
+counter(<!'x'!>, 'a')
+counter(1, <!2!>)
+]]
+
+-- no declared parameter type: nothing to compare with
+TEST [[
+local counter = setmetatable({}, {
+    __call = function (self, step) end,
+})
+counter('anything')
+]]

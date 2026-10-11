@@ -179,6 +179,22 @@ function vm.countParamsOfNode(node)
             if not def or fdef > def then
                 def = fdef
             end
+        elseif n.type == 'table' then
+            -- a table called through the `__call` of its metatable: the function gets the table as its first argument
+            ---@cast n parser.object
+            for _, func in ipairs(vm.getMetamethodFunctions('call', n)) do
+                local fmin, fmax, fdef = vm.countParamsOfFunction(func)
+                fmin, fmax, fdef = math.max(fmin - 1, 0), fmax - 1, math.max(fdef - 1, 0)
+                if not min or fmin < min then
+                    min = fmin
+                end
+                if not max or fmax > max then
+                    max = fmax
+                end
+                if not def or fdef > def then
+                    def = fdef
+                end
+            end
         end
     end
     return min or 0, max or math.huge, def or 0

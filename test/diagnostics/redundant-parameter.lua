@@ -297,3 +297,22 @@ optional:Call('k', 'orc', 3, <!4!>)
 child:Call('k', 'orc', <!3!>)
 unbound:Call('k', 1, 2, 3, 4)
 ]]
+
+-- a table called through the `__call` of its metatable: one argument less than the function has parameters (the table is the first)
+TEST [[
+---@diagnostic disable: unused-local
+local counter = setmetatable({}, {
+    ---@param self table
+    ---@param step integer
+    __call = function (self, step) end,
+})
+
+counter(1)
+counter(1, <!2!>)
+]]
+
+-- no `__call` function is known: nothing to compare with
+TEST [[
+local plain = setmetatable({}, { __index = {} })
+plain(1, 2, 3)
+]]

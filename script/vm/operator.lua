@@ -154,25 +154,24 @@ function vm.linkMetatable(tbl, mt)
     links[#links+1] = mt
 end
 
---- The first result of the metamethod `__<op>` of the metatables linked to `obj`.
----@param op  string
----@param obj parser.object
----@return vm.node?
-local function runMetamethod(op, obj)
+--- The functions the metatables linked to `obj` give to the metamethod `__<name>`: the ones written in the metatable, else the ones its
+--- class declares. (The field also has the type of the standard `metatable` class, `fun(t1, t2): any`, which says nothing about this one.)
+---@param name string
+---@param obj  parser.object a table constructor
+---@return parser.object[]
+function vm.getMetamethodFunctions(name, obj)
+    ---@type parser.object[]
+    local found = {}
     local links = metatableLinks[obj]
     if not links then
-        return nil
+        return found
     end
-    ---@type vm.node?
-    local result
     for _, mt in ipairs(links) do
-        vm.compileByParentNodeAll(mt, '__' .. op, function (src)
+        vm.compileByParentNodeAll(mt, '__' .. name, function (src)
             -- the declaration of the standard `metatable` class (`__len: fun(t): integer`) is not what this metatable does
             if vm.isMetaFile(guide.getUri(src)) then
                 return
             end
-            -- the function written in the metatable says what the metamethod does; the type the field also has from the
-            -- `metatable` class (`fun(t1, t2): any`) only counts when there is no function (a `---@field __call fun(): T`)
             ---@type parser.object[]
             local written = {}
             ---@type parser.object[]
@@ -187,18 +186,31 @@ local function runMetamethod(op, obj)
                 end
             end
             for _, func in ipairs(#written > 0 and written or declared) do
-                local rtn = vm.getReturnOfFunction(func, 1)
-                if rtn then
-                    for obj in vm.compileNode(rtn):eachObject() do
-                        -- an `unknown` says nothing about the result (it stands for a return not worked out yet)
-                        if not (obj.type == 'global' and obj.cate == 'type' and obj.name == 'unknown') then
-                            result = result or vm.createNode()
-                            result:merge(obj)
-                        end
-                    end
-                end
+                found[#found+1] = func
             end
         end)
+    end
+    return found
+end
+
+--- The first result of the metamethod `__<op>` of the metatables linked to `obj`.
+---@param op  string
+---@param obj parser.object
+---@return vm.node?
+local function runMetamethod(op, obj)
+    ---@type vm.node?
+    local result
+    for _, func in ipairs(vm.getMetamethodFunctions(op, obj)) do
+        local rtn = vm.getReturnOfFunction(func, 1)
+        if rtn then
+            for ret in vm.compileNode(rtn):eachObject() do
+                -- an `unknown` says nothing about the result (it stands for a return not worked out yet)
+                if not (ret.type == 'global' and ret.cate == 'type' and ret.name == 'unknown') then
+                    result = result or vm.createNode()
+                    result:merge(ret)
+                end
+            end
+        end
     end
     return result
 end

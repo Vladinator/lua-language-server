@@ -145,6 +145,18 @@ local function getDefNode(funcNode, i, classGenericMap)
                     defNode:addOptional()
                 end
             end
+        elseif src.type == 'table' then
+            -- called through the `__call` of its metatable: the table is the first argument
+            ---@cast src parser.object
+            for _, func in ipairs(vm.getMetamethodFunctions('call', src)) do
+                local param = paramAt(func, i + 1)
+                if param then
+                    defNode:merge(vm.compileNode(param))
+                    if param[1] == '...' then
+                        defNode:addOptional()
+                    end
+                end
+            end
         end
     end
     if defNode:isEmpty() then
@@ -201,6 +213,14 @@ local function getRawDefNode(funcNode, i)
             local param = paramAt(f, i)
             if param then
                 defNode:merge(vm.compileNode(param))
+            end
+        elseif f.type == 'table' then
+            ---@cast f parser.object
+            for _, func in ipairs(vm.getMetamethodFunctions('call', f)) do
+                local param = paramAt(func, i + 1)
+                if param then
+                    defNode:merge(vm.compileNode(param))
+                end
             end
         end
     end

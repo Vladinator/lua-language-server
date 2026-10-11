@@ -53,8 +53,14 @@ local fieldAccess = {
 ---@param loc parser.object
 ---@return boolean
 local function isClosedRecord(loc)
-    if loc.type ~= 'local' or loc.bindDocs and #loc.bindDocs > 0 then
+    if loc.type ~= 'local' then
         return false
+    end
+    -- (a type the author wrote counts; the plain comment above the declaration is bound as a doc too)
+    for _, doc in ipairs(loc.bindDocs or {}) do
+        if doc.type ~= 'doc.comment' then
+            return false
+        end
     end
     local value = loc.value
     if not value or value.type ~= 'table' then

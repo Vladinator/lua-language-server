@@ -325,3 +325,10 @@ TEST [[
 local declared = { a = 1 }
 print(declared.zzz)
 ]]
+
+-- a plain comment above the declaration changes nothing
+TEST [[
+-- the record of this module
+local rec = { x = 1 }
+print(rec.x, rec.<!y!>)
+]]

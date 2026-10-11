@@ -58,7 +58,7 @@ MWS_WCONFIG_UPDATED     =
 'Workspace setting updated.'
 
 WORKSPACE_SKIP_LARGE_FILE =
-'Too large file: {} skipped. The currently set size limit is: {} KB, and the file size is: {} KB.'
+'Too large file: {} skipped. The currently set size limit is: {} KB, and the file size is: {} KB. What it defines (classes, aliases, globals) stays unknown to the other files until you open it, or raise `Lua.workspace.preloadFileSize`.'
 WORKSPACE_LOADING         =
 'Loading workspace'
 WORKSPACE_DIAGNOSTIC      =

@@ -94,7 +94,7 @@ lclient():start(function (client)
     end)
 
     client:register('workspace/configuration', function ()
-        return { { ['workspace.library'] = { LIB:string(), (DIR / 'inlib'):string() }, ['workspace.ignoreDir'] = { '/ignored', '/ignored/**' } } }
+        return { { ['workspace.library'] = { LIB:string(), (DIR / 'inlib'):string() }, ['workspace.ignoreDir'] = { '/ignored', '/ignored/**' }, ['workspace.preloadFileSize'] = 500 } }
     end)
     client:initialize { rootUri = rootUri }
     ws.awaitReady(rootUri)
@@ -257,7 +257,7 @@ lclient():start(function (client)
     prepare(cfgUri, '{ "Lua.diagnostics.globals": ["x"] }')
     assert(files.getLastState(lazy2Uri) ~= nil, 'the preparation compiled the files of the project')
 
-    -- a file that is too big for the server to read (past `Lua.workspace.preloadFileSize`, 500 KB) is not compiled, and no notice about
+    -- a file that is too big for the server to read (past `Lua.workspace.preloadFileSize`, 500 KB here) is not compiled, and no notice about
     -- it is shown for opening a settings file; its text is searched for the names instead: a name it mentions is kept, one it does not
     -- mention is still reported
     local hugeUri = rootUri .. '/huge.lua'

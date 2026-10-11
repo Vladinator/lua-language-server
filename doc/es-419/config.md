@@ -3315,7 +3315,7 @@ integer
 ## default
 
 ```jsonc
-500
+2000
 ```
 
 # workspace.tocFileArguments

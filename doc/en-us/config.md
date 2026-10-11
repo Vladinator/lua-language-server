@@ -3495,7 +3495,7 @@ integer
 
 The size, in KB, above which a file is not read when the workspace opens.
 
-Big generated files (data tables, minified code) slow the server down and are better skipped; they load when you open them.
+A file past the limit is skipped until you open it: the classes, aliases and globals it defines are unknown to the other files meanwhile (they report `undefined-doc-name`, `undefined-global`, ...). Parsing costs about 5 seconds for 850 KB of hand-written code, so the default (2000) keeps real source files in and leaves generated data tables (megabytes) out. Lower it to open big projects faster.
 
 
 ## type
@@ -3507,7 +3507,7 @@ integer
 ## default
 
 ```jsonc
-500
+2000
 ```
 
 # workspace.tocFileArguments

@@ -1876,6 +1876,20 @@ local function evalCondition(state, expr)
         local uri = guide.getUri(expr)
         ---@type vm.flow.state, vm.flow.state
         local yes, no = state, state
+        -- `if row:IsSubRow() then` on a union whose members give `---@return true` / `---@return false`: the members are told apart
+        local receiver = expr.node.type == 'getmethod' and expr.node.method and expr.node.node
+        local receiverKey = receiver and refKey(receiver)
+        if receiver and receiverKey then
+            local tracked = state and state[receiverKey]
+            local base = (tracked and tracked ~= IMPOSSIBLE) and tracked or staticNodeOf(receiver)
+            if base then
+                local whenTrue, whenFalse = vm.getMethodResultNarrowers(base, expr.node.method[1])
+                if whenTrue and whenFalse then
+                    yes = yes and narrowRef(yes, receiver, whenTrue)
+                    no  = no and narrowRef(no, receiver, whenFalse)
+                end
+            end
+        end
         for _, narrowing in ipairs(vm.getFlowNarrowings(expr)) do
             local whenTrue, whenFalse = narrowing.whenTrue, narrowing.whenFalse
             if whenTrue and yes then
@@ -1928,7 +1942,7 @@ local function evalCondition(state, expr)
                 local name = right[1]
                 local arg = left.args[1]
                 yes = narrowRef(state, arg, function (node) return node:copy():narrow(uri, name) end)
-                no  = narrowRef(state, arg, function (node) return node:copy():remove(name) end)
+                no  = narrowRef(state, arg, function (node) return node:copy():remove(name):removeEnumsOf(uri, name) end)
             elseif refKey(left) and right.type == 'boolean' and right[1] ~= nil then
                 -- if ok == true then / if ok == false then
                 local value = right[1]

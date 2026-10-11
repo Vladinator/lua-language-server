@@ -364,6 +364,30 @@ function mt:remove(name)
     return self
 end
 
+--- Drops the enums whose values are all of the type `name` (`type(x) == "number"` is false: an `---@enum` of numbers is not what `x` can be).
+--- An enum with members of several kinds stays: some value of it can be of another type.
+---@param uri uri
+---@param name string
+---@return vm.node
+function mt:removeEnumsOf(uri, name)
+    for index = #self, 1, -1 do
+        local c = self[index]
+        if c.type == 'global' and c.cate == 'type' and c.name ~= name then
+            ---@cast c vm.global
+            for _, set in ipairs(c:getSets(uri)) do
+                if set.type == 'doc.enum' then
+                    if vm.isSubType(uri, c.name, name) == true then
+                        table.remove(self, index)
+                        self[c] = nil
+                    end
+                    break
+                end
+            end
+        end
+    end
+    return self
+end
+
 ---@param uri uri
 ---@param name string
 ---@return vm.node

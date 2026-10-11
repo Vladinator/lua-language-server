@@ -747,6 +747,129 @@ function vm.getFieldPresenceNarrowers(uri, topNode, fieldName)
     return whenPresent, whenAbsent
 end
 
+--- What the first return of a function is when it only ever is a literal `true` or `false` (`---@return true`); nil otherwise.
+---@param func parser.object
+---@return boolean?
+local function literalBoolReturn(func)
+    local rtn = vm.getReturnOfFunction(func, 1)
+    if not rtn then
+        return nil
+    end
+    ---@type boolean?
+    local verdict
+    for obj in vm.compileNode(rtn):eachObject() do
+        ---@type boolean?
+        local value
+        if obj.type == 'doc.type.boolean' or obj.type == 'boolean' then
+            value = obj[1]
+        elseif obj.type == 'global' and obj.cate == 'type' and (obj.name == 'true' or obj.name == 'false') then
+            value = obj.name == 'true'
+        elseif obj.type == 'local' or obj.type == 'variable' then
+            goto CONTINUE
+        end
+        if value == nil or (verdict ~= nil and verdict ~= value) then
+            return nil
+        end
+        verdict = value
+        ::CONTINUE::
+    end
+    return verdict
+end
+
+--- Does the function `func` belong to the class `class` itself (`function Class:method()`), not to a class it inherits from?
+---@param func  parser.object
+---@param class vm.node.object
+---@return boolean
+local function isMethodOf(func, class)
+    local def = func.parent
+    if not def or (def.type ~= 'setmethod' and def.type ~= 'setfield') or not def.node then
+        return false
+    end
+    for obj in vm.compileNode(def.node):eachObject() do
+        if obj == class then
+            return true
+        end
+    end
+    return false
+end
+
+--- Whether the method `methodName` of a class always gives `true`, always `false`, or is not told by its declaration (nil). The methods the
+--- class itself defines win over the ones it inherits, which is what makes `Row:IsSubRow() --> false`, `SubRow:IsSubRow() --> true` work.
+---@param obj        vm.node.object
+---@param methodName string
+---@return boolean?
+local function methodResultOf(obj, methodName)
+    if obj.type ~= 'global' or obj.cate ~= 'type' then
+        return nil
+    end
+    -- (`compileByParentNodeAll` takes a class global as well: it looks the key up in the class)
+    ---@cast obj parser.object
+    ---@type parser.object[], parser.object[]
+    local own, inherited = {}, {}
+    vm.compileByParentNodeAll(obj, methodName, function (src)
+        ---@cast src parser.object
+        for func in vm.compileNode(src):eachObject() do
+            if func.type == 'function' then
+                ---@cast func parser.object
+                local list = isMethodOf(func, obj) and own or inherited
+                list[#list+1] = func
+            end
+        end
+    end)
+    local funcs = #own > 0 and own or inherited
+    ---@type boolean?
+    local verdict
+    for _, func in ipairs(funcs) do
+        local value = literalBoolReturn(func)
+        if value == nil or (verdict ~= nil and verdict ~= value) then
+            return nil
+        end
+        verdict = value
+    end
+    return verdict
+end
+
+--- The two narrowings of `if x:method() then` for the node `topNode` of `x`, for a union of classes whose method gives `---@return true` in
+--- some and `---@return false` in others (wowlua-ls's literal bool return narrowing): where the call is truthy the members whose method is
+--- always false are dropped, where it is not the members whose method is always true. nil when the method does not tell the members apart.
+---@param topNode    vm.node
+---@param methodName string
+---@return (fun(node: vm.node): vm.node)? whenTrue
+---@return (fun(node: vm.node): vm.node)? whenFalse
+function vm.getMethodResultNarrowers(topNode, methodName)
+    ---@type table<vm.node.object, boolean>
+    local verdicts = {}
+    local anyTrue, anyFalse = false, false
+    for obj in topNode:eachObject() do
+        local verdict = methodResultOf(obj, methodName)
+        if verdict ~= nil then
+            verdicts[obj] = verdict
+            if verdict then
+                anyTrue = true
+            else
+                anyFalse = true
+            end
+        end
+    end
+    if not anyTrue and not anyFalse then
+        return nil, nil
+    end
+    ---@param drop boolean
+    ---@return fun(node: vm.node): vm.node
+    local function without(drop)
+        return function (node)
+            local result = node:copy()
+            for i = 1, #node do
+                if verdicts[node[i]] == drop then
+                    removeType(result, node[i])
+                end
+            end
+            return result
+        end
+    end
+    return without(false), without(true)
+end
+
 vm.registerEqualityNarrowing {
     -- if x.kind == 'literal' then (narrow a union by a field that every member declares with a literal
     -- type: classes, and table types written inline)

@@ -7298,3 +7298,151 @@ local function f(a)
     end
 end
 ]]
+
+-- `type(x) == "number"` is false: an enum whose values are all numbers is not what `x` can be there (TypeScript: the enum is a number type)
+TEST 'string' [[
+---@enum Profession
+local Profession = { Mining = 3, Herbalism = 4 }
+
+---@param profession string|Profession
+local function f(profession)
+    if type(profession) == "number" then
+        return
+    end
+    local <?rest?> = profession
+end
+]]
+
+TEST 'string' [[
+---@enum Profession
+local Profession = { Mining = 3, Herbalism = 4 }
+
+---@param profession string|Profession
+local function f(profession)
+    if type(profession) ~= "number" then
+        local <?rest?> = profession
+    end
+end
+]]
+
+-- ... while the true edge keeps the enum
+TEST 'Profession' [[
+---@enum Profession
+local Profession = { Mining = 3, Herbalism = 4 }
+
+---@param profession string|Profession
+local function f(profession)
+    if type(profession) == "number" then
+        local <?inside?> = profession
+    end
+end
+]]
+
+-- an enum with values of several kinds can still be a string: it stays
+TEST 'string|Mixed' [[
+---@enum Mixed
+local Mixed = { A = 1, B = "b" }
+
+---@param m string|Mixed
+local function f(m)
+    if type(m) == "number" then
+        return
+    end
+    local <?rest?> = m
+end
+]]
+
+-- a method that gives `---@return true` in one class of a union and `---@return false` in another tells them apart
+TEST 'SubRow' [[
+---@class Row
+local Row = {}
+---@class SubRow : Row
+local SubRow = {}
+---@return false
+function Row:IsSubRow() return false end
+---@return true
+function SubRow:IsSubRow() return true end
+
+---@param row Row|SubRow
+local function f(row)
+    if row:IsSubRow() then
+        local <?r?> = row
+    end
+end
+]]
+
+TEST 'Row' [[
+---@class Row
+local Row = {}
+---@class SubRow : Row
+local SubRow = {}
+---@return false
+function Row:IsSubRow() return false end
+---@return true
+function SubRow:IsSubRow() return true end
+
+---@param row Row|SubRow
+local function f(row)
+    if row:IsSubRow() then
+        return
+    end
+    local <?r?> = row
+end
+]]
+
+TEST 'Row' [[
+---@class Row
+local Row = {}
+---@class SubRow : Row
+local SubRow = {}
+---@return false
+function Row:IsSubRow() return false end
+---@return true
+function SubRow:IsSubRow() return true end
+
+---@param row Row|SubRow
+local function f(row)
+    if not row:IsSubRow() then
+        local <?r?> = row
+    end
+end
+]]
+
+-- a method that does not tell them apart narrows nothing: the same result in both, a plain boolean, or only one class declares it
+TEST 'Row|SubRow' [[
+---@class Row
+local Row = {}
+---@class SubRow : Row
+local SubRow = {}
+---@return boolean
+function Row:IsSubRow() return false end
+---@return boolean
+function SubRow:IsSubRow() return true end
+
+---@param row Row|SubRow
+local function f(row)
+    if row:IsSubRow() then
+        local <?r?> = row
+    end
+end
+]]
+
+TEST 'Row|SubRow' [[
+---@class Row
+local Row = {}
+---@class SubRow : Row
+local SubRow = {}
+---@return true
+function Row:Ready() return true end
+---@return true
+function SubRow:Ready() return true end
+
+---@param row Row|SubRow
+local function f(row)
+    if row:Ready() then
+        local <?r?> = row
+    else
+        local <?q?> = row
+    end
+end
+]]

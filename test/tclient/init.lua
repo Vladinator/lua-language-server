@@ -19,6 +19,8 @@ require 'tclient.tests.file-kind'
 require 'tclient.tests.config-hygiene'
 require 'tclient.tests.excess-field'
 require 'tclient.tests.settings-gates'
+require 'tclient.tests.settings-auto-require'
+require 'tclient.tests.settings-diagnostic-scope'
 require 'tclient.tests.settings-workspace'
 require 'tclient.tests.library-inside-workspace'
 

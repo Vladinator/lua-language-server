@@ -91,3 +91,42 @@ with('completion.postfix', '', function ()
     assert(not has(labelsAt(atScript), 'ipairs'), 'off')
     assert(not has(labelsAt(hashScript), 'ipairs'), 'off')
 end)
+
+-- displayContext: the documentation of a function shows that many lines of its definition (0 = none)
+---@param script string
+---@param label  string
+---@return string
+local function documentationOf(script, label)
+    local text, catched = catch(script, '?')
+    files.remove(TESTURI)
+    files.setText(TESTURI, text)
+    local items = completion.completion(TESTURI, catched['?'][1][2], nil) or {}
+    ---@type string
+    local found = ''
+    for _, item in ipairs(items) do
+        if item.label == label and item.id then
+            local resolved = completion.resolve(item.id --[[@as integer]])
+            found = tostring(resolved and resolved.description or '')
+        end
+    end
+    files.remove(TESTURI)
+    return found
+end
+
+local contextScript = table.concat({
+    'local function widgetCount(a)',
+    '    local first = a',
+    '    local second = first',
+    '    return second',
+    'end',
+    'widgetC<??>',
+}, string.char(10))
+with('completion.displayContext', 0, function ()
+    local doc = documentationOf(contextScript, 'widgetCount(a)')
+    assert(not doc:find('local first', 1, true), 'no context lines: ' .. doc)
+end)
+with('completion.displayContext', 3, function ()
+    local doc = documentationOf(contextScript, 'widgetCount(a)')
+    assert(doc:find('local first', 1, true), 'three lines of the definition: ' .. doc)
+    assert(not doc:find('return second', 1, true), 'only three: ' .. doc)
+end)

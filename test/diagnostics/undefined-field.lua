@@ -332,3 +332,10 @@ TEST [[
 local rec = { x = 1 }
 print(rec.x, rec.<!y!>)
 ]]
+
+-- a table declared empty becomes a record by the fields the code gives it
+TEST [[
+local rec = {}
+rec.alpha = 1
+print(rec.alpha, rec.<!alfa!>)
+]]

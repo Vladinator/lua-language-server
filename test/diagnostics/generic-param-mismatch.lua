@@ -246,3 +246,15 @@ push(mixed, <!true!>)
 local ints = {}
 push(ints, 1.5)
 ]]
+
+-- an argument that may also be a plain table binds nothing
+TEST [[
+---@generic T
+---@param list T[]
+---@param value T
+local function push(list, value) end
+
+---@type string[]|table
+local either = {}
+push(either, 5)
+]]

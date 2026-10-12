@@ -7854,3 +7854,94 @@ local function f(a)
     local <?v?> = a
 end
 ]]
+
+-- the type parameters of the receiver's class reach the parameters of a function written as the argument (`fun(value: T)` on `Box<boolean>`)
+TEST 'boolean' [[
+---@class CallbackBox<T>
+local CallbackBox = {}
+
+---@param func fun(value: T)
+function CallbackBox:Apply(func) end
+
+---@type CallbackBox<boolean>
+local box = {}
+box:Apply(function (value)
+    local <?v?> = value
+end)
+]]
+
+TEST 'boolean' [[
+---@class CallbackBox<T>
+local CallbackBox = {}
+
+---@param func fun(value: T): T
+function CallbackBox:Transform(func) end
+
+---@type CallbackBox<boolean>
+local box = {}
+box:Transform(function (value)
+    local <?v?> = value
+    return value
+end)
+]]
+
+TEST 'string' [[
+---@class PairBox<K, V>
+local PairBox = {}
+
+---@param func fun(key: K, val: V)
+function PairBox:Each(func) end
+
+---@type PairBox<string, number>
+local pb = {}
+pb:Each(function (key, val)
+    local <?k?> = key
+end)
+]]
+
+TEST 'number' [[
+---@class PairBox<K, V>
+local PairBox = {}
+
+---@param func fun(key: K, val: V)
+function PairBox:Each(func) end
+
+---@type PairBox<string, number>
+local pb = {}
+pb:Each(function (key, val)
+    local <?v?> = val
+end)
+]]
+
+-- a class that inherits the argument: the parent's `T` is what the child's declaration says
+TEST 'string' [[
+---@class Box<T>
+local Box = {}
+
+---@param func fun(value: T)
+function Box:Apply(func) end
+
+---@class StringBox : Box<string>
+
+---@type StringBox
+local box = {}
+box:Apply(function (value)
+    local <?v?> = value
+end)
+]]
+
+-- a parameter the function declares itself wins, and a receiver without arguments says nothing
+TEST 'integer' [[
+---@class CallbackBox<T>
+local CallbackBox = {}
+
+---@param func fun(value: T)
+function CallbackBox:Apply(func) end
+
+---@type CallbackBox<boolean>
+local box = {}
+box:Apply(function (value)
+    ---@type integer
+    local <?v?> = 1
+end)
+]]

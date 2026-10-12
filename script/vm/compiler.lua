@@ -2021,6 +2021,30 @@ local function compileForVars(source, target)
     return false
 end
 
+--- For a function written as an argument of a method call (`box:Apply(function (value) end)`): what the type parameters of the receiver's
+--- class stand for (`Box<boolean>` gives `T = boolean`). Nil when the callee is not a method call or the receiver says nothing.
+---@param func parser.object the function literal
+---@return table<string, vm.node>?
+local function getReceiverArgumentsOfCallback(func)
+    local args = func.parent
+    local call = args and args.parent
+    local callee = call and call.type == 'call' and call.node
+    if not callee or (callee.type ~= 'getmethod' and callee.type ~= 'getfield') or not callee.node then
+        return nil
+    end
+    local uri = guide.getUri(func)
+    for receiver in vm.compileNode(callee.node):eachObject() do
+        if receiver.type == 'doc.type.sign' or (receiver.type == 'global' and receiver.cate == 'type') then
+            ---@cast receiver parser.object|vm.global
+            local map = vm.getReceiverGenericMap(uri, receiver)
+            if map then
+                return map
+            end
+        end
+    end
+    return nil
+end
+
 ---@param func parser.object
 ---@param source parser.object
 ---@return boolean?
@@ -2041,8 +2065,13 @@ local function compileFunctionParam(func, source)
         for n in funcNode:eachObject() do
             if n.type == 'doc.type.function' and n.args[aindex] then
                 local argNode = vm.compileNode(n.args[aindex])
+                -- `box:Apply(function (value) end)` with `---@param func fun(value: T)` on `Box<T>`: `T` is what the receiver says
+                local classArguments = getReceiverArgumentsOfCallback(func)
                 for an in argNode:eachObject() do
-                    if an.type ~= 'doc.generic.name' then
+                    local said = classArguments and an.type == 'global' and an.cate == 'type' and classArguments[an.name]
+                    if said then
+                        vm.setNode(source, said)
+                    elseif an.type ~= 'doc.generic.name' then
                         vm.setNode(source, an)
                     end
                 end

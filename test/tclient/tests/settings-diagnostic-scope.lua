@@ -105,4 +105,48 @@ do
     assert((counts[UNTITLED] or 0) >= 1, 'enableScheme = file, untitled: an untitled document is diagnosed')
 end
 
+-- Lua.runtime.builtin: a builtin library set to "disable" is not defined (its globals are undefined), "default" keeps it
+do
+    ---@param settings table<string, any>
+    ---@return string[] the names reported as undefined globals in a file that uses `string` and `table`
+    local function undefinedGlobals(settings)
+        ---@type string[]
+        local names = {}
+        local text = 'print(string.upper("a"), table.concat({}))' .. nl
+        util.saveFile((DIR / 'uses.lua'):string(), text)
+        ---@async
+        lclient():start(function (client)
+            client:registerFakers()
+            client:register('workspace/configuration', function ()
+                return { settings }
+            end)
+            ---@param params { uri: string, diagnostics: { code: string?, message: string }[] }
+            client:register('textDocument/publishDiagnostics', function (params)
+                if params.uri == root .. '/uses.lua' then
+                    for _, diag in ipairs(params.diagnostics) do
+                        if diag.code == 'undefined-global' then
+                            names[#names+1] = diag.message
+                        end
+                    end
+                end
+                return nil
+            end)
+            client:initialize { rootUri = root }
+            ws.awaitReady(root)
+            client:notify('textDocument/didOpen', {
+                textDocument = { uri = root .. '/uses.lua', languageId = 'lua', version = 1, text = text },
+            })
+            await.sleep(1)
+        end)
+        return names
+    end
+    local default = undefinedGlobals(with { ['runtime.builtin'] = { string = 'default' } })
+    local disabled = undefinedGlobals(with { ['runtime.builtin'] = { string = 'disable' } })
+    assert(#default == 0, 'builtin string = default: nothing is undefined: ' .. table.concat(default, ' | '))
+    assert(#disabled >= 1, 'builtin string = disable: `string` is an undefined global')
+    for _, message in ipairs(disabled) do
+        assert(message:find('string', 1, true) and not message:find('table', 1, true), 'only string: ' .. message)
+    end
+end
+
 pcall((fs --[[@as any]]).remove_all, DIR)

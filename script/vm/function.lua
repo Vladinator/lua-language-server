@@ -406,6 +406,18 @@ function vm.countList(list, mark)
     return min, max, def
 end
 
+--- Is this parameter the `self` of a method (the implicit one of `function a:b()`, or one written in a `fun(self, ...)` overload)?
+---@param param parser.object?
+---@return boolean
+local function isSelfParam(param)
+    if not param then
+        return false
+    end
+    return param.type == 'self'
+        or param[1] == 'self'
+        or (param.name ~= nil and param.name[1] == 'self')
+end
+
 ---@param uri uri
 ---@param args parser.object[]
 ---@param params parser.object[]?
@@ -448,6 +460,36 @@ local function calcFunctionMatchScore(uri, args, func)
     local matchScore = 0
     for i = 1, math.min(#args, #func.args) do
         local arg, param = args[i], func.args[i]
+        -- a signature that names a type for this parameter is more specific than one that takes anything (`any` / `unknown`), and a
+        -- parameter that has to be given more specific than one that may be left out: the tiebreak between overloads that all accept
+        -- the call (`raw: number` over `raw: unknown`, `fallback: number` over `fallback?: number`). Far below a literal match.
+        ---@type boolean?
+        local names
+        local paramNode = isSelfParam(param) and vm.createNode() or vm.compileNode(param)
+        for obj in paramNode:eachObject() do
+            if (obj.type == 'global' and obj.cate == 'type' and (obj.name == 'any' or obj.name == 'unknown' or obj.name == 'nil'))
+            or obj.type == 'doc.generic.name' then
+                names = false
+                break
+            end
+            names = true
+        end
+        -- (the `self` of a method says the same in every signature, and an argument that is itself `any` / `unknown` fits any
+        -- parameter: neither tells which signature is meant)
+        if names then
+            for obj in vm.compileNode(arg):eachObject() do
+                if obj.type == 'global' and obj.cate == 'type' and (obj.name == 'any' or obj.name == 'unknown') then
+                    names = false
+                    break
+                end
+            end
+        end
+        if names then
+            matchScore = matchScore + 0.001
+            if not paramNode:isNullable() then
+                matchScore = matchScore + 0.0005
+            end
+        end
         local defLiterals, literalsCount = vm.getLiterals(param)
         if defLiterals then
             for n in vm.compileNode(arg):eachObject() do

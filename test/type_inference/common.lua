@@ -7701,3 +7701,145 @@ local function f(raw)
     end
 end
 ]]
+
+-- overloads that all accept the call: the one that names the more specific type wins (`raw: number` over `raw: unknown`, a given
+-- `fallback: number` over `fallback?: number`), so an input that is a number, or a fallback that is, makes the result a number
+TEST 'number' [[
+---@class NS
+local ns = {}
+
+---@param raw unknown
+---@param fallback? number
+---@param minval? number
+---@return number?
+---@overload fun(self, raw: number, fallback?: number, minval?: number): number
+---@overload fun(self, raw: number, fallback: number, minval?: number): number
+---@overload fun(self, raw: unknown, fallback: number, minval?: number): number
+function ns:ConvertToNumber(raw, fallback, minval) return fallback end
+
+---@type unknown
+local u
+---@type number
+local n
+local <?v?> = ns:ConvertToNumber(5)
+]]
+
+TEST 'number' [[
+---@class NS
+local ns = {}
+
+---@param raw unknown
+---@param fallback? number
+---@param minval? number
+---@return number?
+---@overload fun(self, raw: number, fallback?: number, minval?: number): number
+---@overload fun(self, raw: number, fallback: number, minval?: number): number
+---@overload fun(self, raw: unknown, fallback: number, minval?: number): number
+function ns:ConvertToNumber(raw, fallback, minval) return fallback end
+
+---@type unknown
+local u
+---@type number
+local n
+local <?v?> = ns:ConvertToNumber(n)
+]]
+
+TEST 'number' [[
+---@class NS
+local ns = {}
+
+---@param raw unknown
+---@param fallback? number
+---@param minval? number
+---@return number?
+---@overload fun(self, raw: number, fallback?: number, minval?: number): number
+---@overload fun(self, raw: number, fallback: number, minval?: number): number
+---@overload fun(self, raw: unknown, fallback: number, minval?: number): number
+function ns:ConvertToNumber(raw, fallback, minval) return fallback end
+
+---@type unknown
+local u
+---@type number
+local n
+local <?v?> = ns:ConvertToNumber("x", 3)
+]]
+
+TEST 'number' [[
+---@class NS
+local ns = {}
+
+---@param raw unknown
+---@param fallback? number
+---@param minval? number
+---@return number?
+---@overload fun(self, raw: number, fallback?: number, minval?: number): number
+---@overload fun(self, raw: number, fallback: number, minval?: number): number
+---@overload fun(self, raw: unknown, fallback: number, minval?: number): number
+function ns:ConvertToNumber(raw, fallback, minval) return fallback end
+
+---@type unknown
+local u
+---@type number
+local n
+local <?v?> = ns:ConvertToNumber(u, 1)
+]]
+
+TEST 'number' [[
+---@class NS
+local ns = {}
+
+---@param raw unknown
+---@param fallback? number
+---@param minval? number
+---@return number?
+---@overload fun(self, raw: number, fallback?: number, minval?: number): number
+---@overload fun(self, raw: number, fallback: number, minval?: number): number
+---@overload fun(self, raw: unknown, fallback: number, minval?: number): number
+function ns:ConvertToNumber(raw, fallback, minval) return fallback end
+
+---@type unknown
+local u
+---@type number
+local n
+local <?v?> = ns:ConvertToNumber(5, 2)
+]]
+
+TEST 'number?' [[
+---@class NS
+local ns = {}
+
+---@param raw unknown
+---@param fallback? number
+---@param minval? number
+---@return number?
+---@overload fun(self, raw: number, fallback?: number, minval?: number): number
+---@overload fun(self, raw: number, fallback: number, minval?: number): number
+---@overload fun(self, raw: unknown, fallback: number, minval?: number): number
+function ns:ConvertToNumber(raw, fallback, minval) return fallback end
+
+---@type unknown
+local u
+---@type number
+local n
+local <?v?> = ns:ConvertToNumber("x")
+]]
+
+TEST 'number?' [[
+---@class NS
+local ns = {}
+
+---@param raw unknown
+---@param fallback? number
+---@param minval? number
+---@return number?
+---@overload fun(self, raw: number, fallback?: number, minval?: number): number
+---@overload fun(self, raw: number, fallback: number, minval?: number): number
+---@overload fun(self, raw: unknown, fallback: number, minval?: number): number
+function ns:ConvertToNumber(raw, fallback, minval) return fallback end
+
+---@type unknown
+local u
+---@type number
+local n
+local <?v?> = ns:ConvertToNumber(u)
+]]

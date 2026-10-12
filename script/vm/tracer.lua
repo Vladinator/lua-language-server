@@ -524,14 +524,14 @@ vm.registerEqualityNarrowing {
         if checkerName then
             topNode = topNode:copy()
             if action.op.type == '==' then
-                topNode:narrow(tracer.uri, checkerName)
+                topNode:narrow(tracer.uri, checkerName, true)
                 if outNode then
                     outNode:removeNode(checkerNode)
                 end
             else
                 topNode:removeNode(checkerNode)
                 if outNode then
-                    outNode:narrow(tracer.uri, checkerName)
+                    outNode:narrow(tracer.uri, checkerName, true)
                 end
             end
         end

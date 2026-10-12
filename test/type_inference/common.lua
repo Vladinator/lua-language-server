@@ -7632,3 +7632,72 @@ local function f(x)
     local <?v?> = x
 end
 ]]
+
+-- a type guard on an `unknown` or `any` value narrows it to the guarded type (TypeScript does for both)
+TEST 'string' [[
+---@param raw unknown
+local function f(raw)
+    if type(raw) == "string" and raw:len() > 0 then
+        local <?a?> = raw
+    end
+end
+]]
+
+TEST 'string' [[
+---@param raw unknown
+local function f(raw)
+    if type(raw) == "string" then
+        local <?a?> = raw
+    end
+end
+]]
+
+TEST 'string' [[
+---@param raw any
+local function f(raw)
+    if type(raw) == "string" then
+        local <?a?> = raw
+    end
+end
+]]
+
+TEST 'string' [[
+---@param raw unknown
+local function f(raw)
+    if type(raw) ~= "number" then
+        if type(raw) ~= "string" then
+            return
+        end
+        local <?c?> = raw
+    end
+end
+]]
+
+TEST 'number' [[
+---@param raw unknown
+local function f(raw)
+    if type(raw) == "number" then
+        local <?n?> = raw
+    end
+end
+]]
+
+-- ... the other edge says nothing more than it did (`unknown` minus a type is still unknown)
+TEST 'unknown' [[
+---@param raw unknown
+local function f(raw)
+    if type(raw) ~= "string" then
+        local <?d?> = raw
+    end
+end
+]]
+
+-- a union with `unknown` in it keeps its other members narrowed as before
+TEST 'string' [[
+---@param raw string|number
+local function f(raw)
+    if type(raw) == "string" then
+        local <?s?> = raw
+    end
+end
+]]

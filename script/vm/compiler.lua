@@ -2773,7 +2773,7 @@ local compilerSwitch = util.switch()
             vm.setNode(source, locNode)
             local assigned = vm.getNode(source)
             if assigned then
-                assigned:narrow(guide.getUri(source), source.value.type)
+                assigned:narrow(guide.getUri(source), source.value.type, true)
                 -- (built from the variable's node, which holds the flags of every value it was ever given: the flags of
                 -- what is assigned NOW are the value's own, plus what the declaration itself stands for)
                 vm.resetFlags(assigned, valueNode, source.node)

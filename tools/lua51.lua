@@ -511,7 +511,7 @@ lua51.table = {}
 lua51.table.concat = table.concat
 lua51.table.insert = table.insert
 ---@param t table
----@return integer
+---@return number
 function lua51.table.maxn(t)
     checkType(t, 'table')
     local max = 0

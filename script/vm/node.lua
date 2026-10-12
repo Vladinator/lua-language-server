@@ -390,11 +390,14 @@ end
 
 ---@param uri uri
 ---@param name string
+---@param anyStays? boolean an `any` member is kept (an equality or an assignment says nothing about it), else it becomes `name`
 ---@return vm.node
-function mt:narrow(uri, name)
+function mt:narrow(uri, name, anyStays)
     if self.optional == true then
         self.optional = nil
     end
+    ---@type boolean?
+    local replaced
     for index = #self, 1, -1 do
         local c = self[index]
         if (c.type == name)
@@ -408,6 +411,17 @@ function mt:narrow(uri, name)
             goto CONTINUE
         end
         if c.type == 'global' and c.cate == 'type' then
+            if c.name == 'any' and anyStays then
+                goto CONTINUE
+            end
+            if c.name == 'any' or c.name == 'unknown' then
+                -- `type(x) == "string"` on an `any` / `unknown` value: it is a string there (TypeScript narrows both). An equality
+                -- (`x == "a"`) leaves `any` alone, like TypeScript, and narrows `unknown`
+                table.remove(self, index)
+                self[c] = nil
+                replaced = true
+                goto CONTINUE
+            end
             if (c.name == name)
             or (vm.isSubType(uri, c.name, name)) then
                 goto CONTINUE
@@ -416,6 +430,12 @@ function mt:narrow(uri, name)
         table.remove(self, index)
         self[c] = nil
         ::CONTINUE::
+    end
+    if replaced then
+        local named = vm.getGlobal('type', name)
+        if named then
+            self:merge(named)
+        end
     end
     if #self == 0 then
         self[#self+1] = vm.getGlobal('type', name)

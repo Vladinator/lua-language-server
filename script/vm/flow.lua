@@ -2024,7 +2024,7 @@ local function evalCondition(state, expr)
                         if cannotEqualLiteral(node, name, uri) then
                             return node:copy()
                         end
-                        return narrowLiteral(node:copy():narrow(uri, name), right, true)
+                        return narrowLiteral(node:copy():narrow(uri, name, true), right, true)
                     end)
                     no  = narrowRef(state, left, function (node)
                         local out = node:copy()

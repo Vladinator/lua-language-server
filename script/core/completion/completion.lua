@@ -70,6 +70,10 @@ local diagnosticModes = {
 ---@field description? string|markdown
 ---@field additionalTextEdits? vm.completion.edit[]
 
+--- The local a variable result was made from, to rank it by the type the place asks for (see `boostExpectedType`).
+---@type table<vm.completion.result, parser.object>
+local resultSources = setmetatable({}, { __mode = 'k' })
+
 local stackID = 0
 ---@type table<integer, async fun(): vm.completion.resolved?>
 local stacks = {}
@@ -493,7 +497,7 @@ local function checkLocal(state, word, position, results)
                 end
             end
         else
-            results[#results+1] = {
+            local res = {
                 label  = name,
                 kind   = define.CompletionItemKind.Variable,
                 id     = stack(source, function (newSource) ---@async
@@ -503,8 +507,96 @@ local function checkLocal(state, word, position, results)
                     }
                 end),
             }
+            resultSources[res] = source
+            results[#results+1] = res
         end
         ::CONTINUE::
+    end
+end
+
+--- The declared type of the parameter the cursor is at in a call `f(a, <??>)`: only when the call resolves to exactly one function
+--- (an overloaded callee has no single expectation). A parameter that takes anything fits every variable, so nothing moves.
+---@param state    parser.state
+---@param position integer start of the word being typed
+---@return vm.node?
+local function getExpectedArgType(state, position)
+    ---@type parser.object?
+    local call
+    guide.eachSourceContain(state.ast, position, function (src)
+        if src.type == 'table' or src.type == 'function' then
+            call = nil
+            return true
+        end
+        if src.type == 'call' and src.node and src.node.finish <= position then
+            call = src
+        end
+    end)
+    if not call or not call.node then
+        return nil
+    end
+    local index = 1
+    for _, arg in ipairs(call.args or {}) do
+        if arg.finish <= position then
+            index = index + 1
+        end
+    end
+    -- (the args of a colon call already hold the receiver as their first element)
+    ---@type parser.object?
+    local callee
+    for obj in vm.compileNode(call.node):eachObject() do
+        if obj.type == 'function' or obj.type == 'doc.type.function' then
+            if callee then
+                return nil
+            end
+            ---@cast obj parser.object
+            callee = obj
+        end
+    end
+    local param = callee and callee.args and callee.args[index]
+    if not param or param.type == '...' then
+        return nil
+    end
+    local expected = vm.compileNode(param)
+    if expected:isEmpty() then
+        return nil
+    end
+    return expected
+end
+
+--- Variables whose type fits what the place asks for come first, the rest keep their order (TypeScript preselects by the expected type).
+---@param state    parser.state
+---@param position integer
+---@param results  completion.results
+---@param from     integer the first result to rank
+local function boostExpectedType(state, position, results, from)
+    if from > #results then
+        return
+    end
+    local expected = getExpectedArgType(state, position)
+    if not expected then
+        return
+    end
+    ---@type vm.completion.result[]
+    local fits = {}
+    ---@type vm.completion.result[]
+    local others = {}
+    for i = from, #results do
+        local res = results[i]
+        local source = resultSources[res]
+        if source and vm.isSubType(state.uri, vm.compileNode(source), expected) == true then
+            fits[#fits+1] = res
+        else
+            others[#others+1] = res
+        end
+    end
+    local at = from
+    for _, res in ipairs(fits) do
+        results[at] = res
+        at = at + 1
+    end
+    for _, res in ipairs(others) do
+        results[at] = res
+        at = at + 1
     end
 end
 
@@ -1809,15 +1901,23 @@ local function tryWord(state, position, triggerCharacter, results)
             checkFunctionArgByDocParam(state, word, startPos, results)
         else
             local afterLocal = isAfterLocal(state, text, startPos)
-            local stop = checkKeyWord(state, startPos, position, word, hasSpace, afterLocal, results)
+            -- the keywords go after the variables and types of the scope (TypeScript's order), unless they stop the search
+            ---@type completion.results
+            local keywordResults = {}
+            local stop = checkKeyWord(state, startPos, position, word, hasSpace, afterLocal, keywordResults)
             if stop then
+                for _, res in ipairs(keywordResults) do
+                    results[#results+1] = res
+                end
                 return
             end
             if not hasSpace then
                 if afterLocal then
                     checkProvideLocal(state, word, startPos, results)
                 else
+                    local firstLocal = #results + 1
                     checkLocal(state, word, startPos, results)
+                    boostExpectedType(state, startPos, results, firstLocal)
                     checkTableField(state, word, startPos, results)
                     local env = guide.getENV(state.ast, startPos)
                     if env then
@@ -1825,6 +1925,9 @@ local function tryWord(state, position, triggerCharacter, results)
                         checkModule(state, word, startPos, results)
                     end
                 end
+            end
+            for _, res in ipairs(keywordResults) do
+                results[#results+1] = res
             end
         end
         if not hasSpace and (#results == 0 or word ~= '') then

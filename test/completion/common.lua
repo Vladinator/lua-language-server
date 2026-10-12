@@ -420,16 +420,16 @@ print(fff)
 ]]
 {
     {
+        label = 'fff',
+        kind = define.CompletionItemKind.Variable,
+    },
+    {
         label = 'function',
         kind = define.CompletionItemKind.Keyword,
     },
     {
         label = 'function ()',
         kind = define.CompletionItemKind.Snippet,
-    },
-    {
-        label = 'fff',
-        kind = define.CompletionItemKind.Variable,
     },
     {
         label = 'ff2',
@@ -875,6 +875,14 @@ else<??>
 ]]
 {
     {
+        label = 'elseaaa',
+        kind = define.CompletionItemKind.Variable,
+    },
+    {
+        label = 'ELSE',
+        kind = define.CompletionItemKind.Enum,
+    },
+    {
         label = 'else',
         kind = define.CompletionItemKind.Keyword,
     },
@@ -885,14 +893,6 @@ else<??>
     {
         label = 'elseif .. then',
         kind = define.CompletionItemKind.Snippet,
-    },
-    {
-        label = 'elseaaa',
-        kind = define.CompletionItemKind.Variable,
-    },
-    {
-        label = 'ELSE',
-        kind = define.CompletionItemKind.Enum,
     },
 }
 
@@ -3269,16 +3269,16 @@ end
 ]]
 {
     [1] = {
+        label = 'inferCache',
+        kind  = define.CompletionItemKind.Variable,
+    },
+    [2] = {
         label = 'in',
         kind  = define.CompletionItemKind.Keyword,
     },
-    [2] = {
+    [3] = {
         label = 'in ..',
         kind  = define.CompletionItemKind.Snippet,
-    },
-    [3] = {
-        label = 'inferCache',
-        kind  = define.CompletionItemKind.Variable,
     }
 }
 
@@ -5254,3 +5254,127 @@ local x = cb["Reg<??>"]
 end)
 config.set(nil, 'Lua.completion.showWord', 'Enable')
 config.set(nil, 'Lua.completion.workspaceWord', false)
+
+-- variables that fit the parameter the cursor is at come first (TypeScript ranks by the expected type); the rest keep their order
+---@param result table[]
+---@param label string
+---@return number
+local function indexOfLabel(result, label)
+    for i, item in ipairs(result) do
+        if item.label == label then
+            return i
+        end
+    end
+    return math.huge
+end
+
+TEST [[
+---@param s string
+local function takes(s) end
+local vara = 1
+local varb = "x"
+takes(var<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varb') < indexOfLabel(result, 'vara'), 'the string variable is before the number one')
+end)
+
+-- the second parameter is the one that counts
+TEST [[
+---@param n number
+---@param s string
+local function takes(n, s) end
+local vara = 1
+local varb = "x"
+takes(1, var<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varb') < indexOfLabel(result, 'vara'), 'second parameter: the string variable first')
+end)
+
+-- a method call: the implicit self is not a parameter of the call
+TEST [[
+---@class RankObj
+local obj = {}
+---@param s string
+function obj:takes(s) end
+local vara = 1
+local varb = "x"
+obj:takes(var<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varb') < indexOfLabel(result, 'vara'), 'method: the string variable first')
+end)
+
+-- negative: a parameter that takes anything keeps the order
+TEST [[
+---@param s any
+local function takes(s) end
+local vara = 1
+local varb = "x"
+takes(var<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varb'), 'any: order unchanged')
+end)
+
+-- negative: a generic parameter has no single expected type
+TEST [[
+---@generic T
+---@param s T
+local function takes(s) end
+local vara = 1
+local varb = "x"
+takes(var<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varb'), 'generic: order unchanged')
+end)
+
+-- negative: an optional variable does not fit a parameter that is not optional
+TEST [[
+---@param s string
+local function takes(s) end
+---@type string?
+local vara
+local varb = "x"
+takes(var<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varb') < indexOfLabel(result, 'vara'), 'only the string variable fits')
+end)
+
+-- negative: inside a table constructor the argument is not what the cursor is at
+TEST [[
+---@param s string
+local function takes(s) end
+local vara = 1
+local varb = "x"
+takes({ var<??> })
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varb'), 'table: order unchanged')
+end)
+
+-- negative: overloads have no single expected type
+TEST [[
+---@overload fun(s: string)
+---@param n number
+local function takes(n) end
+local vara = 1
+local varb = "x"
+takes(var<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varb'), 'overloaded: order unchanged')
+end)
+
+-- negative: outside a call nothing is ranked
+TEST [[
+local vara = 1
+local varb = "x"
+local ccc = var<??>
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varb'), 'no call: order unchanged')
+end)

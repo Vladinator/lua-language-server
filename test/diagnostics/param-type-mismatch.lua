@@ -1120,3 +1120,88 @@ local counter = setmetatable({}, {
 counter(1, nil)
 counter(<!nil!>, 'a')
 ]]
+
+-- an index with a key that is a local nobody assigns again narrows like a literal key (TypeScript 5.5: constant indexed accesses)
+TEST [[
+---@class Profile
+local Profile = {}
+
+---@type table<string, Profile?>
+local db = {}
+
+---@param p Profile
+local function take(p) end
+
+---@param bid string
+local function param(bid)
+    if db[bid] then
+        take(db[bid])
+    end
+end
+
+local key = "x"
+if db[key] then
+    take(db[key])
+end
+
+for _, k in ipairs({ "a", "b" }) do
+    if db[k] then
+        take(db[k])
+    end
+end
+
+---@param bid? string
+---@param create? boolean
+local function guarded(bid, create)
+    if not bid or bid == "" then
+        return false
+    end
+    if db[bid] then
+        take(db[bid])
+        if not create then
+            db[bid] = nil
+            return true
+        end
+        return true, db[bid]
+    end
+end
+param("a") guarded()
+]]
+
+-- ... a key that is assigned again, another key, a key a nested function may change: not narrowed
+TEST [[
+---@class Profile
+local Profile = {}
+
+---@type table<string, Profile?>
+local db = {}
+
+---@param p Profile
+local function take(p) end
+
+---@param bid string
+local function reassigned(bid)
+    if db[bid] then
+        bid = "other"
+        take(<!db[bid]!>)
+    end
+end
+
+---@param bid string
+---@param other string
+local function otherKey(bid, other)
+    if db[bid] then
+        take(<!db[other]!>)
+    end
+end
+
+---@param bid string
+local function changed(bid)
+    local function change() bid = "x" end
+    if db[bid] then
+        change()
+        take(<!db[bid]!>)
+    end
+end
+reassigned("a") otherKey("a", "b") changed("a")
+]]

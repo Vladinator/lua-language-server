@@ -129,7 +129,23 @@ function pathKey(expr)
     end
     local name = guide.getKeyName(expr)
     if name == nil then
-        return nil
+        -- `t[k]` with a key that is a local that is never assigned after it is declared (a parameter, a loop variable, a `local k = ...`):
+        -- the same slot at every read, so it narrows like a literal key (TypeScript 5.5: "constant indexed accesses")
+        local index = (t == 'getindex' or t == 'setindex') and expr.index
+        local decl = index and index.type == 'getlocal' and index.node
+        if not decl then
+            return nil
+        end
+        for _, ref in ipairs(decl.ref or {}) do
+            if ref.type == 'setlocal' then
+                return nil
+            end
+        end
+        local base = baseKeyFor(expr.node)
+        if not base then
+            return nil
+        end
+        return base .. SEP .. 'key' .. declKey(decl)
     end
     local base = baseKeyFor(expr.node)
     if not base then

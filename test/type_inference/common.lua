@@ -840,6 +840,85 @@ local function F(v)
 end
 ]]
 
+-- `NonNullable<T>` keeps the type and drops `nil` / the optional mark (positive); a type without nil stays as it is (negative).
+TEST 'string|number' [[
+---@param v NonNullable<string|number|nil>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+TEST 'string' [[
+---@param v NonNullable<string?>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+TEST 'string|number' [[
+---@param v NonNullable<string|number>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+TEST 'UtilNN.Box' [[
+---@class UtilNN.Box
+---@alias UtilNN.MaybeBox UtilNN.Box?
+
+---@param v NonNullable<UtilNN.MaybeBox>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+-- `Exclude<T, U>` removes the members of `T` that are in `U`; `Extract<T, U>` keeps only those.
+TEST '"b"|"c"' [[
+---@alias UtilEx.Event "a"|"b"|"c"
+
+---@param v Exclude<UtilEx.Event, "a">
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+TEST 'string' [[
+---@param v Exclude<string|number, number>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+TEST 'string' [[
+---@param v Exclude<string|nil, nil>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+TEST 'string|number|nil' [[
+---@param v Exclude<string|number|nil, boolean>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+TEST 'string' [[
+---@param v Extract<string|number, string>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+TEST '"a"|"b"|"c"' [[
+---@alias UtilEx.Event2 "a"|"b"|"c"|1
+
+---@param v Extract<UtilEx.Event2, string>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
 -- `A & B` (TypeScript's intersection types): merges the fields of both.
 TEST '{ x: number, y: string }' [[
 ---@class InterCommon.A

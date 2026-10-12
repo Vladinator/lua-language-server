@@ -933,11 +933,14 @@ end
 --- declaration for each one.
 ---@type table<string, true>
 local UTILITY_TYPE_NAMES = {
-    Partial  = true,
-    Required = true,
-    Pick     = true,
-    Omit     = true,
-    Record   = true,
+    Partial     = true,
+    Required    = true,
+    Pick        = true,
+    Omit        = true,
+    Record      = true,
+    NonNullable = true,
+    Exclude     = true,
+    Extract     = true,
 }
 -- (read by type-name completion)
 vm.utilityTypeNames = UTILITY_TYPE_NAMES
@@ -1153,6 +1156,60 @@ local function resolveUtilityType(uri, source)
         fields = {},
     }
     local fields = tableObj.fields
+
+    -- NonNullable<T> / Exclude<T, U> / Extract<T, U>: a union without (or with only) some of its members, TypeScript's
+    if name == 'NonNullable' or name == 'Exclude' or name == 'Extract' then
+        local baseOfUnion = signs[1] and vm.compileNode(signs[1])
+        if not baseOfUnion then
+            vm.setNode(source, vm.declareGlobal('type', 'unknown'))
+            return true
+        end
+        local result = baseOfUnion:copy()
+        if name == 'NonNullable' then
+            result:removeOptional()
+            result:remove 'nil'
+        else
+            local other = signs[2] and vm.compileNode(signs[2]) or vm.createNode()
+            if name == 'Exclude' then
+                if other:isOptional() or other:hasType 'nil' then
+                    result:removeOptional()
+                    result:remove 'nil'
+                end
+                for obj in other:eachObject() do
+                    if obj.type == 'doc.type.string' or obj.type == 'doc.type.integer' or obj.type == 'doc.type.boolean' then
+                        for i = #result, 1, -1 do
+                            local member = result[i]
+                            if member.type == obj.type and member[1] == obj[1] then
+                                table.remove(result, i)
+                                result[member] = nil
+                            end
+                        end
+                    elseif obj.type == 'global' and obj.cate == 'type' then
+                        local typeName = obj.name
+                        if type(typeName) == 'string' then
+                            result:remove(typeName)
+                        end
+                    end
+                end
+            else
+                -- Extract: the members of T that fit U
+                local kept = vm.createNode()
+                for member in baseOfUnion:eachObject() do
+                    local single = vm.createNode()
+                    single:merge(member)
+                    if vm.isSubType(uri, single, other) == true then
+                        kept:merge(member)
+                    end
+                end
+                if baseOfUnion:isOptional() and (other:isOptional() or other:hasType 'nil') then
+                    kept:addOptional()
+                end
+                result = kept
+            end
+        end
+        vm.setNode(source, result)
+        return true
+    end
 
     if name == 'Record' then
         local keyNode = signs[1] and vm.compileNode(signs[1])

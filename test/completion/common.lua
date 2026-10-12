@@ -1351,6 +1351,36 @@ TEST [[
 }
 
 TEST [[
+---@type NonNull<??>
+]]
+{
+    {
+        label = 'NonNullable',
+        kind = define.CompletionItemKind.Class,
+    },
+}
+
+TEST [[
+---@type Excl<??>
+]]
+{
+    {
+        label = 'Exclude',
+        kind = define.CompletionItemKind.Class,
+    },
+}
+
+TEST [[
+---@type Extr<??>
+]]
+{
+    {
+        label = 'Extract',
+        kind = define.CompletionItemKind.Class,
+    },
+}
+
+TEST [[
 ---@type Rec<??>
 ]]
 {

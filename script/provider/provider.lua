@@ -942,7 +942,8 @@ m.register 'textDocument/signatureHelp' {
             }
         end
         return {
-            signatures = infos,
+            signatures      = infos,
+            activeSignature = results.active and results.active - 1 or nil,
         }
     end
 }

@@ -8,7 +8,12 @@ local lookback   = require 'core.look-backward'
 ---@class core.signature.param
 ---@field label [integer, integer]
 
+---@class core.signature.list
+---@field [integer] core.signature.result
+---@field active? integer the index of the signature the written arguments fit best
+
 ---@class core.signature.result
+---@field source? parser.object the function this signature was made from
 ---@field label string
 ---@field params core.signature.param[]
 ---@field index integer
@@ -59,8 +64,9 @@ end
 ---@param source parser.object
 ---@param oop boolean
 ---@param index? integer
+---@param emptyCall? boolean no argument is written
 ---@return core.signature.result?
-local function makeOneSignature(source, oop, index)
+local function makeOneSignature(source, oop, index, emptyCall)
     local label = hoverLabel(source, oop, 0)
     if not label then
         return nil
@@ -110,7 +116,7 @@ local function makeOneSignature(source, oop, index)
             index = i --[[@as integer]]
         end
     end
-    if #params < (index or 0) then
+    if #params < (index or 0) and not emptyCall then
         return nil
     end
     return {
@@ -165,7 +171,7 @@ end
 ---@param text string
 ---@param call parser.object
 ---@param pos integer
----@return core.signature.result[]
+---@return core.signature.list
 local function makeSignatures(text, call, pos)
     local func = call.node
     local oop = func.type == 'method'
@@ -173,6 +179,8 @@ local function makeSignatures(text, call, pos)
              or func.type == 'setmethod'
     ---@type integer?
     local index
+    -- (no argument written yet, the receiver of a colon call aside: a function without parameters has a signature to show too)
+    local emptyCall = not call.args
     if call.args then
         ---@type parser.object[]
         local args = {}
@@ -202,6 +210,7 @@ local function makeSignatures(text, call, pos)
             if not index then
                 local offset     = guide.positionToOffset(state, pos)
                 local backSymbol = lookback.findSymbol(text, offset)
+                emptyCall = #args == 0
                 if backSymbol == ','
                 or backSymbol == '(' then
                     index = #args + 1
@@ -211,7 +220,7 @@ local function makeSignatures(text, call, pos)
             end
         end
     end
-    ---@type core.signature.result[]
+    ---@type core.signature.list
     local signs = {}
     local node = vm.compileNode(func)
     ---@type vm.node
@@ -225,7 +234,11 @@ local function makeSignatures(text, call, pos)
                 if  not mark[src]
                 and not isEventNotMatch(call, src) then
                     mark[src] = true
-                    signs[#signs+1] = makeOneSignature(src, oop, index)
+                    local sign = makeOneSignature(src, oop, index, emptyCall)
+                    if sign then
+                        sign.source = src
+                        signs[#signs+1] = sign
+                    end
                 end
             end
         elseif src.type == 'global' and src.cate == 'type' then
@@ -237,7 +250,7 @@ local function makeSignatures(text, call, pos)
                         if  not mark[f]
                         and not isEventNotMatch(call, src) then
                             mark[f] = true
-                            signs[#signs+1] = makeOneSignature(f, oop, index)
+                            signs[#signs+1] = makeOneSignature(f, oop, index, emptyCall)
                         end
                     end
                 end
@@ -250,7 +263,7 @@ end
 ---@async
 ---@param uri uri
 ---@param pos integer
----@return core.signature.result[]?
+---@return core.signature.list?
 return function (uri, pos)
     local state = files.getState(uri)
     local text  = files.getText(uri)
@@ -270,5 +283,20 @@ return function (uri, pos)
     table.sort(signs, function (a, b)
         return #a.params < #b.params
     end)
+    -- the overload the arguments written so far fit best is the active one (the client would take the first)
+    local matched = call.node and vm.getExactMatchedFunctions(call.node, call.args or {})
+    if matched and #matched > 0 then
+        ---@type table<parser.object, true>
+        local fits = {}
+        for _, f in ipairs(matched) do
+            fits[f] = true
+        end
+        for i, sign in ipairs(signs) do
+            if sign.source and fits[sign.source] then
+                signs.active = i
+                break
+            end
+        end
+    end
     return signs
 end

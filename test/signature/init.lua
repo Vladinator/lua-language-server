@@ -465,4 +465,65 @@ x(<??>)
 'function x(<!a: string|integer!>)',
 }
 
+-- a function without parameters has a signature while nothing is written in the parentheses (and none once an argument is)
+TEST [[
+local function none()
+end
+
+none(<??>)
+]]
+{'function none()'}
+
+TEST [[
+---@class SigObj
+local obj = {}
+---@return string
+function obj:GetText() return "" end
+
+obj:GetText(<??>)
+]]
+{'(method) SigObj:GetText()'}
+
+TEST [[
+local function none()
+end
+
+none(1<??>)
+]]
+(nil)
+
+-- the active signature is the overload the written arguments fit
+---@param script string
+---@param label string the start of the label of the signature that must be active
+local function ACTIVE(script, label)
+    local newScript, catched = catch(script, '?')
+    files.setText(TESTURI, newScript)
+    local results = core(TESTURI, catched['?'][1][1])
+    assert(results, 'no signature help')
+    local active = results[results.active or 1]
+    assert(active.label:sub(1, #label) == label, 'active: ' .. active.label .. ', wanted ' .. label)
+    files.remove(TESTURI)
+end
+
+ACTIVE([[
+---@param a string
+---@overload fun(a: number, b: number): number
+local function bar(a) end
+bar(1, <??>)
+]], 'function bar(a: number, b: number)')
+
+ACTIVE([[
+---@param a string
+---@overload fun(a: number)
+local function bar(a) end
+bar("x"<??>)
+]], 'function bar(a: string)')
+
+ACTIVE([[
+---@param a string
+---@overload fun(a: number)
+local function bar(a) end
+bar(1<??>)
+]], 'function bar(a: number)')
+
 config.set(nil, "Lua.type.inferParamType", false)

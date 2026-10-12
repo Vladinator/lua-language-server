@@ -2069,8 +2069,26 @@ local function compileFunctionParam(func, source)
                 local classArguments = getReceiverArgumentsOfCallback(func)
                 for an in argNode:eachObject() do
                     local said = classArguments and an.type == 'global' and an.cate == 'type' and classArguments[an.name]
+                    -- (`fun(values: T[])`, `fun(map: table<string, T>)`: the type parameter sits inside a bigger type)
+                    ---@type vm.node.object?
+                    local composite
+                    if classArguments and not said and an.type ~= 'global' and an.type ~= 'doc.generic.name' then
+                        ---@cast an parser.object
+                        ---@type boolean?
+                        local mentions
+                        guide.eachSourceType(an, 'doc.type.name', function (name)
+                            if classArguments[name[1]] then
+                                mentions = true
+                            end
+                        end)
+                        if mentions then
+                            composite = vm.cloneObject(an, classArguments)
+                        end
+                    end
                     if said then
                         vm.setNode(source, said)
+                    elseif composite then
+                        vm.setNode(source, composite)
                     elseif an.type ~= 'doc.generic.name' then
                         vm.setNode(source, an)
                     end

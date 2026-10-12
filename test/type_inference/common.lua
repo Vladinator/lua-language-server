@@ -7945,3 +7945,46 @@ box:Apply(function (value)
     local <?v?> = 1
 end)
 ]]
+
+-- ... also when the type parameter sits inside a bigger type of the callback's parameter
+TEST 'boolean[]' [[
+---@class StructBox<T>
+local StructBox = {}
+
+---@param func fun(values: T[])
+function StructBox:EachArray(func) end
+
+---@type StructBox<boolean>
+local sb = {}
+sb:EachArray(function (values)
+    local <?arr?> = values
+end)
+]]
+
+TEST 'boolean' [[
+---@class StructBox<T>
+local StructBox = {}
+
+---@param func fun(values: T[])
+function StructBox:EachArray(func) end
+
+---@type StructBox<boolean>
+local sb = {}
+sb:EachArray(function (values)
+    local <?elem?> = values[1]
+end)
+]]
+
+TEST 'table<string, boolean>' [[
+---@class StructBox<T>
+local StructBox = {}
+
+---@param func fun(map: table<string, T>)
+function StructBox:EachMap(func) end
+
+---@type StructBox<boolean>
+local sb = {}
+sb:EachMap(function (map)
+    local <?m?> = map
+end)
+]]

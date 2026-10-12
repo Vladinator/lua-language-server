@@ -8111,3 +8111,58 @@ sb:EachMap(function (map)
     local <?v?> = map["key"]
 end)
 ]]
+
+-- a field of a union type is told apart by a type guard or an equality, like a local (it used to be traced only when it could be nil)
+TEST 'string' [[
+---@class FieldUnion.A
+---@field v string|number
+local a
+
+if type(a.v) == "string" then
+    local <?x?> = a.v
+end
+]]
+
+TEST 'number' [[
+---@class FieldUnion.B
+---@field v string|number
+local b
+
+if type(b.v) == "string" then
+    return
+end
+local <?x?> = b.v
+]]
+
+TEST '"idle"' [[
+---@class FieldUnion.C
+---@field mode "idle"|"run"
+local c
+
+if c.mode == "idle" then
+    local <?x?> = c.mode
+end
+]]
+
+-- the field outside the guard is still the whole union
+TEST 'string|number' [[
+---@class FieldUnion.D
+---@field v string|number
+local d
+
+if type(d.v) == "string" then
+end
+local <?x?> = d.v
+]]
+
+-- a call between the guard and the use does not make the narrowing wrong for a plain read of another field
+TEST 'string|number' [[
+---@class FieldUnion.E
+---@field v string|number
+---@field w string|number
+local e
+
+if type(e.v) == "string" then
+    local <?x?> = e.w
+end
+]]

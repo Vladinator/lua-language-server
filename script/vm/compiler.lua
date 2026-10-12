@@ -3005,7 +3005,8 @@ local compilerSwitch = util.switch()
             -- non-optional, unflagged values, so this keeps them from
             -- ever starting a field tracer at all.
             local staticNode = vm.getNode(source)
-            if staticNode and (staticNode:hasFalsy() or vm.hasAnyPropagatingFlag(staticNode)) then
+            -- (a union can be told apart by a type guard or an equality: `type(o.v) == 'string'`, `o.mode == 'idle'`)
+            if staticNode and (#staticNode > 1 or staticNode:hasFalsy() or vm.hasAnyPropagatingFlag(staticNode)) then
                 -- what vm/flow.lua starts a field path from (the node cache gets the traced one)
                 source.preTraceNode = staticNode
                 local tracedNode = vm.traceNode(source)

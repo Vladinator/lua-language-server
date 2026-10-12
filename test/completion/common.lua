@@ -5356,6 +5356,20 @@ takes({ var<??> })
     assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varb'), 'table: order unchanged')
 end)
 
+-- a call inside a table constructor is the call that counts
+TEST [[
+---@param t table
+local function outer(t) end
+---@param n number
+local function inner(n) end
+local vara = "x"
+local varz = 1
+outer({ inner(var<??>) })
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varz') < indexOfLabel(result, 'vara'), 'inner call: the number variable first')
+end)
+
 -- negative: overloads have no single expected type
 TEST [[
 ---@overload fun(s: string)

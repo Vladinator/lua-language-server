@@ -524,8 +524,9 @@ local function getExpectedArgType(state, position)
     local call
     guide.eachSourceContain(state.ast, position, function (src)
         if src.type == 'table' or src.type == 'function' then
+            -- (a call inside the table is a new, nearer call: it is met later in this walk)
             call = nil
-            return true
+            return
         end
         if src.type == 'call' and src.node and src.node.finish <= position then
             call = src
@@ -569,9 +570,6 @@ end
 ---@param results  completion.results
 ---@param from     integer the first result to rank
 local function boostExpectedType(state, position, results, from)
-    if from > #results then
-        return
-    end
     local expected = getExpectedArgType(state, position)
     if not expected then
         return

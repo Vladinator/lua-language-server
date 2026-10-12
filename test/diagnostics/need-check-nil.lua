@@ -1457,3 +1457,133 @@ local function fill(holder, tp)
     mine[#mine+1] = tp
 end
 ]]
+
+-- a loop over a table that certainly holds an entry runs its body at least once: what the body assigns is there afterwards
+TEST [[
+local EXPANSION = { A = 0, B = 1, C = 2 }
+local latest ---@type number?
+for _, id in pairs(EXPANSION) do
+    if not latest or latest < id then
+        latest = id
+    end
+end
+print(latest > 1)
+]]
+
+TEST [[
+local list = { 10, 20, 30 }
+local first ---@type number?
+for _, v in ipairs(list) do
+    first = v
+end
+print(first > 1)
+]]
+
+TEST [[
+local last ---@type number?
+for i = 1, 3 do
+    last = i
+end
+print(last > 1)
+]]
+
+-- ... and only then: a table that may be empty, handed to a function, emptied, or iterated as an array without one
+TEST [[
+local function wipe(t) end
+
+local empty = {}
+local a ---@type number?
+for _, v in pairs(empty) do a = v end
+print(<!a!> > 1)
+
+local passed = { x = 1 }
+wipe(passed)
+local b ---@type number?
+for _, v in pairs(passed) do b = v end
+print(<!b!> > 1)
+
+local emptied = { x = 1 }
+emptied.x = nil
+local c ---@type number?
+for _, v in pairs(emptied) do c = v end
+print(<!c!> > 1)
+
+local hash = { x = 1 }
+local d ---@type number?
+for _, v in ipairs(hash) do d = v end
+print(<!d!> > 1)
+
+local maybeNil = { x = 1 }
+maybeNil.x = os.time() > 0 and nil or 1
+local e ---@type number?
+for _, v in pairs(maybeNil) do e = v end
+print(<!e!> > 1)
+
+local f ---@type number?
+for i = 3, 1 do f = i end
+print(<!f!> > 1)
+]]
+
+-- a `break` before the assignment, and a table that only grows
+TEST [[
+local withBreak = { x = 1 }
+local c ---@type number?
+for _, v in pairs(withBreak) do
+    if v > 5 then break end
+    c = v
+end
+print(<!c!> > 1)
+
+local grown = { x = 1 }
+grown.y = 2
+local e ---@type number?
+for _, v in pairs(grown) do e = v end
+print(e > 1)
+]]
+
+-- the step decides whether a numeric loop runs at all
+TEST [[
+local down ---@type number?
+for i = 3, 1, -1 do down = i end
+print(down > 1)
+
+local wrong ---@type number?
+for i = 1, 3, -1 do wrong = i end
+print(<!wrong!> > 1)
+
+local zero ---@type number?
+for i = 1, 3, 0 do zero = i end
+print(<!zero!> > 1)
+]]
+
+-- a table that is itself called is not just read
+TEST [[
+local callee = { x = 1 }
+pcall(callee)
+local r ---@type number?
+for _, v in pairs(callee) do r = v end
+print(<!r!> > 1)
+]]
+
+-- other iterations of the same table (or a nested function that reads it) take nothing away
+TEST [[
+local EXPANSION = { CLASSIC = 0, TBC = 1 }
+
+local latest ---@type number?
+for _, id in pairs(EXPANSION) do
+    if not latest or latest < id then
+        latest = id
+    end
+end
+print(latest > 1)
+
+local function again()
+    for _, id in pairs(EXPANSION) do
+        print(id, EXPANSION.CLASSIC)
+    end
+    for _, id in ipairs(EXPANSION) do
+        print(id)
+    end
+end
+again()
+]]

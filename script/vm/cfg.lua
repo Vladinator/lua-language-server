@@ -210,6 +210,106 @@ function Builder:walkIf(ifStmt, cur, ctx)
     return joinBlock
 end
 
+--- Syntactic kinds of value that are never `nil`: assigning one of these to a field cannot remove the field.
+local NEVER_NIL_VALUE = {
+    ['string'] = true, ['number'] = true, ['integer'] = true, ['boolean'] = true,
+    ['table'] = true, ['function'] = true,
+}
+
+--- Does `local rec = { ... }` certainly hold at least one entry whenever it is iterated with `pairs` (or `ipairs`: a first positional
+--- entry)? Only when the constructor itself has one, and nothing in the code can take it away: every use is a read, a write of a value
+--- that is never nil, or the `pairs` / `ipairs` call itself. Passing it anywhere else (a function could `table.wipe` it), a computed key,
+--- a reassignment or an assignment of something that may be nil all make it "may be empty".
+---@param loc  parser.object a `local`
+---@param positional boolean `ipairs`: the first entry has to be positional
+---@return boolean
+local function holdsAnEntry(loc, positional)
+    local value = loc.type == 'local' and loc.value
+    if not value or value.type ~= 'table' then
+        return false
+    end
+    ---@type boolean?
+    local hasEntry
+    for i, item in ipairs(value) do
+        local itemValue = item.value
+        if item.type == 'varargs' then
+            return false
+        end
+        if itemValue and NEVER_NIL_VALUE[itemValue.type] then
+            if positional then
+                hasEntry = hasEntry or (i == 1 and item.type == 'tableexp')
+            else
+                hasEntry = true
+            end
+        end
+    end
+    if not hasEntry then
+        return false
+    end
+    for _, ref in ipairs(loc.ref or {}) do
+        local parent = ref.parent
+        if ref.type ~= 'getlocal' or not parent then
+            return false
+        end
+        if parent.node == ref then
+            local t = parent.type
+            if t == 'setfield' or t == 'setmethod' or t == 'setindex' then
+                local assigned = parent.value
+                if not assigned or not NEVER_NIL_VALUE[assigned.type] then
+                    return false
+                end
+                if t == 'setindex' and (not parent.index or (parent.index.type ~= 'string' and parent.index.type ~= 'integer' and parent.index.type ~= 'number')) then
+                    return false
+                end
+            elseif t ~= 'getfield' and t ~= 'getmethod' and t ~= 'getindex' then
+                return false
+            end
+        elseif parent.type == 'callargs' and parent.parent and parent.parent.type == 'call'
+        and parent.parent.node and (parent.parent.node.special == 'pairs' or parent.parent.node.special == 'ipairs') then
+            -- an iteration (this loop's own, or another one: iterating takes nothing away)
+        else
+            return false
+        end
+    end
+    return true
+end
+
+--- A loop whose body certainly runs at least once: `for i = 1, 3`, or `for k, v in pairs(rec)` over a local table constructor that
+--- certainly holds an entry (see `holdsAnEntry`). Syntactic on purpose: the graph is built before any type is known.
+---@param stmt parser.object a loop / in node
+---@return boolean
+local function runsAtLeastOnce(stmt)
+    if stmt.type == 'loop' then
+        local init, max, step = stmt.init, stmt.max, stmt.step
+        local function number(expr)
+            return expr and (expr.type == 'integer' or expr.type == 'number') and type(expr[1]) == 'number' and expr[1] or nil
+        end
+        local a, b = number(init), number(max)
+        if not a or not b then
+            return false
+        end
+        if step == nil then
+            return a <= b
+        end
+        local s = number(step)
+        if not s or s == 0 then
+            return false
+        end
+        return s > 0 and a <= b or s < 0 and a >= b
+    end
+    if stmt.type == 'in' and stmt.exps and #stmt.exps == 1 then
+        local call = stmt.exps[1]
+        local special = call.type == 'call' and call.node and call.node.special
+        if (special == 'pairs' or special == 'ipairs') and call.args and #call.args == 1 then
+            local arg = call.args[1]
+            if arg.type == 'getlocal' and arg.node then
+                return holdsAnEntry(arg.node, special == 'ipairs')
+            end
+        end
+    end
+    return false
+end
+
 ---@param stmt parser.object a while/loop/in node (block-doubles-as-statement-list)
 ---@param cur  vm.cfg.block
 ---@param ctx  vm.cfg.ctx
@@ -232,7 +332,12 @@ function Builder:walkLoop(stmt, cur, ctx, kind)
         end
     end
     local headerBlock = self:newBlock()
-    self:addEdge(cur, headerBlock, 'normal')
+    -- a `for` whose body certainly runs once is entered straight into the body the first time: the way past the loop that skips
+    -- it does not exist, so what the body assigns is what is there afterwards (the header is only reached from the loop-back edge)
+    local entersBody = kind == 'for' and runsAtLeastOnce(stmt)
+    if not entersBody then
+        self:addEdge(cur, headerBlock, 'normal')
+    end
     if kind == 'while' then
         -- numeric/generic for's own "more iterations remain" isn't a plain boolean expression
         -- (it's driven by the loop variable against init/max, or the iterator call) -- deferred,
@@ -240,6 +345,9 @@ function Builder:walkLoop(stmt, cur, ctx, kind)
         headerBlock.condition = stmt.filter
     end
     local bodyEntry = self:newBlock()
+    if entersBody then
+        self:addEdge(cur, bodyEntry, 'normal')
+    end
     self:addEdge(headerBlock, bodyEntry, 'true')
     local exitBlock = self:newBlock()
     self:addEdge(headerBlock, exitBlock, 'false')

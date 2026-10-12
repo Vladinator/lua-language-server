@@ -37,6 +37,38 @@ local function getDeclaredKeys(def)
     return keys
 end
 
+--- Does the class, or a class it inherits from, extend a class nothing defines? Its fields are unknown then (the API annotations of the
+--- game are not loaded, a library is missing): a key that looks undeclared may belong to the parent.
+---@param uri  uri
+---@param class parser.object a `doc.class`
+---@param seen table<parser.object, true>
+---@return boolean
+local function hasUnknownAncestor(uri, class, seen)
+    if seen[class] then
+        return false
+    end
+    seen[class] = true
+    for _, ext in ipairs(class.extends or {}) do
+        local name = ext.type == 'doc.extends.name' and ext[1]
+        if name then
+            ---@type boolean?
+            local known
+            for _, doc in ipairs(vm.getDocSets(uri, name)) do
+                if doc.type == 'doc.class' then
+                    known = true
+                    if hasUnknownAncestor(uri, doc, seen) then
+                        return true
+                    end
+                end
+            end
+            if not known then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 --- `return { ... }` in a function with `---@return Class`: the declared type of that return value.
 ---@param src parser.object a table constructor
 ---@return parser.object?
@@ -115,6 +147,11 @@ return function (uri, callback)
         end
         if #classes == 0 then
             return
+        end
+        for _, class in ipairs(classes) do
+            if hasUnknownAncestor(uri, class, {}) then
+                return
+            end
         end
         ---@type string[]
         local names = {}

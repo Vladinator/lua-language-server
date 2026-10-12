@@ -105,3 +105,36 @@ local function undeclared()
     return { label = "a", extra = 1 }
 end
 ]]
+
+-- a class that extends a class nothing defines (the annotations of a library are not loaded): its fields are unknown, nothing is reported
+TEST [[
+---@class Child : MissingParent
+---@field own number
+
+---@type Child
+local a = { own = 1, fromTheParent = true }
+]]
+
+-- ... also when the class that is missing is further up the chain
+TEST [[
+---@class Middle : MissingGrandParent
+---@field middle number
+
+---@class Leaf : Middle
+---@field leaf number
+
+---@type Leaf
+local a = { leaf = 1, middle = 2, fromTheGrandParent = true }
+]]
+
+-- ... and a parent that is defined still gives its fields (and is still checked)
+TEST [[
+---@class Parent
+---@field parentField number
+
+---@class Child : Parent
+---@field own number
+
+---@type Child
+local a = { own = 1, parentField = 2, <!typo!> = true }
+]]

@@ -1645,6 +1645,9 @@ local docSwitch = util.switch()
         -- cases of equal width, so the labeled shorthand below and a plain grouped type still parse
         -- the way they always did.
         if checkToken('symbol', '(', 1) then
+            -- (no slot's own type may pull the `| ...` line below it in as its continuation: that line is the next case, read below)
+            local savedLock = lockResume
+            lockResume = true
             try(function ()
                 ---@type parser.object[][]
                 local cases = {}
@@ -1675,6 +1678,15 @@ local docSwitch = util.switch()
                     end
                     nextToken()
                     cases[#cases+1] = caseTypes
+                    -- the next case on the following comment line, which starts with the `|`:
+                    --     ---@return (true ok, number value)
+                    --     ---      | (false, string)
+                    if not peekToken() then
+                        local nextComm = NextComment(0, true)
+                        if nextComm and nextComm.text:match '^%-%s*%|' then
+                            slideToNextLine()
+                        end
+                    end
                     if not checkToken('symbol', '|', 1) then
                         break
                     end
@@ -1744,6 +1756,7 @@ local docSwitch = util.switch()
                 result.finish  = getFinish()
                 return true
             end)
+            lockResume = savedLock
             ---@diagnostic expect-next-line: need-check-nil
             if #result.returns > 0 then
                 return result

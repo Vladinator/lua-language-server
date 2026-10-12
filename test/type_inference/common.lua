@@ -7572,3 +7572,63 @@ if not ok then
     local <?d?> = v
 end
 ]]
+
+-- the cases of a tuple-union return on the following comment lines, each starting with the `|`
+TEST 'true|false' [[
+---@return (true ok, number value)
+---      | (false, string)
+local function parse() return true, 1 end
+
+local ok, v = parse()
+local <?a?> = ok
+]]
+
+TEST 'string|number' [[
+---@return (true ok, number value)
+---      | (false, string)
+local function parse() return true, 1 end
+
+local ok, v = parse()
+local <?b?> = v
+]]
+
+TEST 'number' [[
+---@return (true ok, number value)
+---      | (false, string)
+local function parse() return true, 1 end
+
+local ok, v = parse()
+if ok then
+    local <?c?> = v
+end
+]]
+
+TEST 'string' [[
+---@return (true, number)
+---| (false, string)
+---| (false, string)
+local function parse() return true, 1 end
+
+local ok, v = parse()
+if not ok then
+    local <?d?> = v
+end
+]]
+
+-- a plain comment line after the tuple is not a case, and an ordinary union still continues on the next line
+TEST 'true' [[
+---@return (true ok, number value)
+--- the second line is a description
+local function parse() return true, 1 end
+
+local ok, v = parse()
+local <?a?> = ok
+]]
+
+TEST 'string|number' [[
+---@param x number
+---| string
+local function f(x)
+    local <?v?> = x
+end
+]]

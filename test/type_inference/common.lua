@@ -7843,3 +7843,14 @@ local u
 local n
 local <?v?> = ns:ConvertToNumber(u)
 ]]
+
+-- the false edge of `~=` is where the value equals the literal: an `any` is not turned into the literal's type there either
+TEST 'any' [[
+---@param a any
+local function f(a)
+    if a ~= 'x' then
+        return
+    end
+    local <?v?> = a
+end
+]]

@@ -1686,3 +1686,26 @@ local function other(c1)
 end
 brokenValue(true) apart(true) reset(true) other(true)
 ]]
+
+-- a value that reads ANOTHER of the variables is still a value of its own that is never nil (only a read of the variable itself is neutral)
+TEST [[
+local function f(c)
+    local a ---@type number?
+    local b ---@type table?
+    if c then
+        a = 1
+        b = { a }
+    end
+    if a then print(b.x) end
+end
+f(true)
+]]
+
+-- a table that is called is not just read
+TEST [[
+local callee = { x = function () end }
+callee()
+local r ---@type number?
+for _, v in pairs(callee) do r = 1 end
+print(<!r!> > 1)
+]]

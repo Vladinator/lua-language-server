@@ -2067,7 +2067,26 @@ local function compileFunctionParam(func, source)
                 local argNode = vm.compileNode(n.args[aindex])
                 -- `box:Apply(function (value) end)` with `---@param func fun(value: T)` on `Box<T>`: `T` is what the receiver says
                 local classArguments = getReceiverArgumentsOfCallback(func)
+                -- (a `table<K, V>` parameter lists the sign and the table type it resolves to, with the unsubstituted `V` inside:
+                -- once the sign is replaced the table type next to it is the same thing, still unreplaced)
+                ---@type boolean?
+                local replacesTables
+                if classArguments then
+                    for an in argNode:eachObject() do
+                        if an.type == 'doc.type.sign' and an.node and an.node[1] == 'table' then
+                            ---@cast an parser.object
+                            guide.eachSourceTypes(an, { 'doc.type.name', 'doc.generic.name' }, function (name)
+                                if classArguments[name[1]] then
+                                    replacesTables = true
+                                end
+                            end)
+                        end
+                    end
+                end
                 for an in argNode:eachObject() do
+                    if replacesTables and an.type == 'doc.type.table' then
+                        goto NEXT_OBJECT
+                    end
                     local said = classArguments and an.type == 'global' and an.cate == 'type' and classArguments[an.name]
                     -- (`fun(values: T[])`, `fun(map: table<string, T>)`: the type parameter sits inside a bigger type)
                     ---@type vm.node.object?
@@ -2076,7 +2095,7 @@ local function compileFunctionParam(func, source)
                         ---@cast an parser.object
                         ---@type boolean?
                         local mentions
-                        guide.eachSourceType(an, 'doc.type.name', function (name)
+                        guide.eachSourceTypes(an, { 'doc.type.name', 'doc.generic.name' }, function (name)
                             if classArguments[name[1]] then
                                 mentions = true
                             end
@@ -2088,10 +2107,12 @@ local function compileFunctionParam(func, source)
                     if said then
                         vm.setNode(source, said)
                     elseif composite then
-                        vm.setNode(source, composite)
+                        -- (compiled: a `table<K, V>` sign stands for the table type it resolves to)
+                        vm.setNode(source, vm.compileNode(composite))
                     elseif an.type ~= 'doc.generic.name' then
                         vm.setNode(source, an)
                     end
+                    ::NEXT_OBJECT::
                 end
                 -- (the objects above carry no node flags: what the expected parameter type stands for comes along)
                 local paramNode = vm.getNode(source)

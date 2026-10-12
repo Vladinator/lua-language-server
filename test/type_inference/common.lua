@@ -7988,3 +7988,47 @@ sb:EachMap(function (map)
     local <?m?> = map
 end)
 ]]
+
+-- ... and reading that table: the element is the argument too (not the type parameter)
+TEST 'boolean' [[
+---@class StructBox<T>
+local StructBox = {}
+
+---@param func fun(map: table<string, T>)
+function StructBox:EachMap(func) end
+
+---@type StructBox<boolean>
+local sb = {}
+sb:EachMap(function (map)
+    local <?v?> = map.x
+end)
+]]
+
+TEST 'boolean' [[
+---@class StructBox<T>
+local StructBox = {}
+
+---@param func fun(map: table<string, T>)
+function StructBox:EachMap(func) end
+
+---@type StructBox<boolean>
+local sb = {}
+sb:EachMap(function (map)
+    for _, <?v?> in pairs(map) do
+    end
+end)
+]]
+
+TEST 'boolean' [[
+---@class StructBox<T>
+local StructBox = {}
+
+---@param func fun(map: table<string, T>)
+function StructBox:EachMap(func) end
+
+---@type StructBox<boolean>
+local sb = {}
+sb:EachMap(function (map)
+    local <?v?> = map["key"]
+end)
+]]

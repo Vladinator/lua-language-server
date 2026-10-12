@@ -128,6 +128,53 @@ w:Dispatch('Hide')
 w:Dispatch(<!'Nope'!>)
 ]]
 
+-- an optional parameter of a method stays optional (a method call builds the parameter type again from the receiver)
+TEST [[
+---@class OptionalMethodPTM
+local M = {}
+
+---@param count integer?
+function M:Run(count) end
+
+---@type OptionalMethodPTM
+local m = {}
+---@type integer?
+local maybe
+
+m:Run(maybe)
+m:Run(nil)
+m:Run(<!'x'!>)
+]]
+
+-- `keyof self` follows the receiver of the call: a subclass's own member is a valid key, the base class's receiver does not know it
+TEST [[
+---@class KeyofSelfPoly.Animal
+local Animal = {}
+
+function Animal:Eat() end
+
+---@generic K: keyof self
+---@param method K
+function Animal:Do(method)
+end
+
+---@class KeyofSelfPoly.Dog : KeyofSelfPoly.Animal
+local Dog = {}
+
+function Dog:Bark() end
+
+---@type KeyofSelfPoly.Dog
+local dog = {}
+---@type KeyofSelfPoly.Animal
+local animal = {}
+
+dog:Do('Eat')
+dog:Do('Bark')
+dog:Do(<!'Fly'!>)
+animal:Do('Eat')
+animal:Do(<!'Bark'!>)
+]]
+
 TEST [[
 ---@generic T: string | boolean | table
 ---@param x T

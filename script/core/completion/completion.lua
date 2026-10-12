@@ -2176,7 +2176,15 @@ local function keyofArgNode(state, call, argIndex)
     for i = 1, argIndex - 1 do
         before[i] = call.args and call.args[i]
     end
-    local resolved = sign:resolve(state.uri, before)
+    ---@type table<string, vm.node>
+    local resolved = {}
+    for name, node in pairs(sign:resolve(state.uri, before) or {}) do
+        resolved[name] = node
+    end
+    -- (`keyof self` is the receiver of this call, not the class that declares the method)
+    if call.node.type == 'getmethod' and call.node.node then
+        resolved.self = vm.compileNode(call.node.node)
+    end
     return vm.compileNode(vm.cloneObject(target, resolved) --[[@as parser.object]])
 end
 

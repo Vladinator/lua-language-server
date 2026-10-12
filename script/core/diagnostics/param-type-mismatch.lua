@@ -41,6 +41,10 @@ local function expandGenerics(defNode, classGenericMap)
             -- Fall back to constraint or unknown
             local limits = generic.generic and generic.generic.extends
             if limits then
+                -- (`---@generic K: keyof self`: `self` is the receiver of this call, not the class that declares the method)
+                if classGenericMap and classGenericMap.self then
+                    limits = vm.cloneObject(limits, { self = classGenericMap.self }) --[[@as parser.object]]
+                end
                 defNode:merge(vm.compileNode(limits))
             else
                 local unknownType = vm.declareGlobal('type', 'unknown')
@@ -78,17 +82,22 @@ local function getReceiverGenericMap(uri, source, funcNode)
         end
     end
     local receiverNode = vm.compileNode(receiver)
+    ---@type table<string, vm.node>
+    local result = { self = receiverNode }
     for rn in receiverNode:eachObject() do
         -- `Box<number>`, or a class that inherits from one (`---@class NumberBox: Box<number>`)
         if rn.type == 'doc.type.sign' or (rn.type == 'global' and rn.cate == 'type') then
             ---@cast rn parser.object|vm.global
             local map = vm.getReceiverGenericMap(uri, rn, method)
             if map then
-                return map
+                for name, node in pairs(map) do
+                    result[name] = node
+                end
+                break
             end
         end
     end
-    return nil
+    return result
 end
 
 --- The parameter an argument at position `i` goes to: its own, or the `...` of the function when the position is past the declared
@@ -136,6 +145,10 @@ local function getDefNode(funcNode, i, classGenericMap)
                         else
                             newNode:merge(pn)
                         end
+                    end
+                    -- (a parameter written `x?` stays optional)
+                    if paramNode:isOptional() then
+                        newNode:addOptional()
                     end
                     defNode:merge(newNode)
                 else

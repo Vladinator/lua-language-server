@@ -5356,6 +5356,50 @@ takes({ var<??> })
     assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varb'), 'table: order unchanged')
 end)
 
+-- `keyof self` completes the keys of the receiver of the call, a subclass's own method included
+TEST [[
+---@class KeyofSelfComp.Animal
+local Animal = {}
+function Animal:Eat() end
+
+---@generic K: keyof self
+---@param method K
+function Animal:Do(method) end
+
+---@class KeyofSelfComp.Dog : KeyofSelfComp.Animal
+local Dog = {}
+function Dog:Bark() end
+
+---@type KeyofSelfComp.Dog
+local dog = {}
+dog:Do('<??>')
+]]
+(function (result)
+    assert(indexOfLabel(result, "'Bark'") < math.huge or indexOfLabel(result, 'Bark') < math.huge, 'the subclass method is offered')
+    assert(indexOfLabel(result, "'Eat'") < math.huge or indexOfLabel(result, 'Eat') < math.huge, 'the inherited method is offered')
+end)
+
+TEST [[
+---@class KeyofSelfComp2.Animal
+local Animal = {}
+function Animal:Eat() end
+
+---@generic K: keyof self
+---@param method K
+function Animal:Do(method) end
+
+---@class KeyofSelfComp2.Dog : KeyofSelfComp2.Animal
+local Dog = {}
+function Dog:Bark() end
+
+---@type KeyofSelfComp2.Animal
+local animal = {}
+animal:Do('<??>')
+]]
+(function (result)
+    assert(indexOfLabel(result, "'Bark'") == math.huge and indexOfLabel(result, 'Bark') == math.huge, 'a base class receiver does not know the subclass method')
+end)
+
 -- a call inside a table constructor is the call that counts
 TEST [[
 ---@param t table

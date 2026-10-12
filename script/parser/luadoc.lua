@@ -1660,6 +1660,10 @@ local docSwitch = util.switch()
                         if not docType then
                             return false
                         end
+                        -- a label after the type (`(true ok, number value) | (false, string)`): the name of the slot, taken
+                        -- from the first case that has one
+                        ---@diagnostic expect-next-line: assign-type-mismatch
+                        docType.name = parseName('doc.return.name', docType)
                         caseTypes[#caseTypes+1] = docType
                         if not checkToken('symbol', ',', 1) then
                             break
@@ -1721,6 +1725,14 @@ local docSwitch = util.switch()
                             union.optional = true
                         else
                             union.types[1] = nilUnits[1]
+                        end
+                    end
+                    for k = 1, #cases do
+                        local label = cases[k][i].name
+                        if label then
+                            label.parent = union
+                            union.name = label
+                            break
                         end
                     end
                     union.firstFinish = union.finish

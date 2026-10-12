@@ -7535,3 +7535,40 @@ local function f(x)
     end
 end
 ]]
+
+-- labels in the cases of a tuple-union return: the label names the slot, the cases still come together
+TEST 'true|false' [[
+---@return (true ok, number value) | (false, string)
+local function parse() return true, 1 end
+
+local ok, v = parse()
+local <?a?> = ok
+]]
+
+TEST 'string|number' [[
+---@return (true ok, number value) | (false, string)
+local function parse() return true, 1 end
+
+local ok, v = parse()
+local <?b?> = v
+]]
+
+TEST 'number' [[
+---@return (true ok, number value) | (false, string)
+local function parse() return true, 1 end
+
+local ok, v = parse()
+if ok then
+    local <?c?> = v
+end
+]]
+
+TEST 'string' [[
+---@return (true ok, number value) | (false, string error)
+local function parse() return true, 1 end
+
+local ok, v = parse()
+if not ok then
+    local <?d?> = v
+end
+]]

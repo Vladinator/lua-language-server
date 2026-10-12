@@ -782,8 +782,8 @@ else
 end
 ]]
 
--- without the `---@correlated` tag, the same shape is correctly still flagged -- the narrowing
--- extension only applies to a declared group, not a general property of the guard.
+-- without the `---@correlated` tag the same shape is inferred (both are assigned a value that is never nil in the same block, and
+-- nowhere else): no warning. A value that may be nil is no promise of the correlation: flagged, below.
 TEST [[
 ---@type string?
 local tradeType = nil
@@ -796,9 +796,25 @@ if math.random() > 0.5 then
 end
 
 if tradeType then
-    S = <!money!> + 1
+    S = money + 1
 else
     S = money
+end
+]]
+
+TEST [[
+---@type string?
+local tradeType = nil
+---@type number?
+local money = nil
+
+if math.random() > 0.5 then
+    tradeType = "buy"
+    money = os.time() > 0 and 100 or nil
+end
+
+if tradeType then
+    S = <!money!> + 1
 end
 ]]
 
@@ -1156,6 +1172,8 @@ local other = nil
 if math.random() > 0.5 then
     a = "x"
     b = 1
+end
+if math.random() > 0.5 then
     other = 2
 end
 
@@ -1586,4 +1604,85 @@ local function again()
     end
 end
 again()
+]]
+
+-- locals that start out nil and only become non-nil together are correlated without a `---@correlated`: narrowing one narrows the other
+TEST [[
+local function mini(list)
+    local closeResults ---@type string[]?
+    local closeIndex ---@type number?
+    for _, v in ipairs(list) do
+        if not closeResults then
+            closeResults = {}
+            closeIndex = 0
+        end
+        closeIndex = closeIndex + 1
+        closeResults[closeIndex] = v
+    end
+end
+mini({})
+]]
+
+TEST [[
+---@param c1 boolean
+---@param c2 boolean
+local function basic(c1, c2)
+    local money = nil ---@type number?
+    local tradeType = nil ---@type string?
+    if c1 then
+        tradeType = "buy"
+        money = 100
+    elseif c2 then
+        tradeType = "sell"
+        money = 200
+    end
+    if not tradeType then return end
+    print(money + 1)
+end
+basic(true, false)
+]]
+
+-- ... and not when the assignments do not come together, may give nil, or the variable is set elsewhere
+TEST [[
+local function brokenValue(c1)
+    local a ---@type number?
+    local b ---@type number?
+    if c1 then
+        a = 1
+        b = os.time()
+    end
+    if a then print(<!b!> + 1) end
+end
+
+local function apart(c1)
+    local a ---@type number?
+    local b ---@type number?
+    if c1 then a = 1 end
+    if c1 then b = 1 end
+    if a then print(<!b!> + 1) end
+end
+
+local function reset(c1)
+    local a ---@type number?
+    local b ---@type number?
+    if c1 then
+        a = 1
+        b = 2
+    end
+    b = nil
+    if a then print(<!b!> + 1) end
+end
+
+local function other(c1)
+    local a ---@type number?
+    local b ---@type number?
+    local function setB() b = 3 end
+    if c1 then
+        a = 1
+        b = 2
+    end
+    setB()
+    if a then print(<!b!> + 1) end
+end
+brokenValue(true) apart(true) reset(true) other(true)
 ]]

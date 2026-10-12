@@ -2705,6 +2705,101 @@ function vm.buildFlowBody(main)
         end
     end
 
+    -- Inferred correlated locals (no `---@correlated` needed): locals that start out nil and only ever become non-nil together,
+    -- because every assignment of a value that is never nil to one of them sits in the same straight-line block as an assignment to
+    -- each of the others:
+    --     if not closeResults then closeResults = {}; closeIndex = 0 end
+    --     if cond1 then tradeType = "buy"; money = 100 elseif cond2 then tradeType = "sell"; money = 200 end
+    -- An assignment that reads the variable itself (`closeIndex = closeIndex + 1`) can only run when it is already set: it changes
+    -- nothing about when it is. Anything else that could make one of them non-nil on its own (an initial value, an assignment of
+    -- something that may be nil, an assignment inside another function, or `= nil` for one of them) takes it out of the running.
+    do
+        ---@type table<parser.object, table<vm.cfg.block, true>>
+        local blocksOf = {}
+        ---@type table<parser.object, true>
+        local excluded = {}
+        for _, block in ipairs(cfg.blocks) do
+            for _, stmt in ipairs(block.stmts) do
+                if stmt.type == 'setlocal' and stmt.node then
+                    local decl = stmt.node
+                    local value = stmt.value
+                    ---@type boolean?
+                    local selfReading
+                    if value then
+                        guide.eachSourceType(value, 'getlocal', function (read)
+                            if read.node == decl then
+                                selfReading = true
+                            end
+                        end)
+                    end
+                    if selfReading then
+                        -- neutral
+                    elseif value and (value.type == 'string' or value.type == 'number' or value.type == 'integer'
+                    or value.type == 'boolean' or value.type == 'table' or value.type == 'function') then
+                        blocksOf[decl] = blocksOf[decl] or {}
+                        blocksOf[decl][block] = true
+                    else
+                        excluded[decl] = true
+                    end
+                end
+            end
+        end
+        ---@type parser.object[]
+        local candidates = {}
+        for decl, blocks in pairs(blocksOf) do
+            local startsNil = decl.type == 'local' and (decl.value == nil or decl.value.type == 'nil')
+                and decl.parent and decl.parent.type ~= 'funcargs'
+            ---@type boolean?
+            local onlyHere = startsNil and not excluded[decl]
+            if onlyHere then
+                for _, ref in ipairs(decl.ref or {}) do
+                    if ref.type == 'setlocal' and guide.getParentFunction(ref) ~= guide.getParentFunction(decl) then
+                        onlyHere = false
+                        break
+                    end
+                end
+            end
+            if onlyHere and next(blocks) then
+                candidates[#candidates+1] = decl
+            end
+        end
+        table.sort(candidates, function (a, b) return a.start < b.start end)
+        ---@param a table<vm.cfg.block, true>
+        ---@param b table<vm.cfg.block, true>
+        ---@return boolean
+        local function sameBlocks(a, b)
+            for block in pairs(a) do
+                if not b[block] then
+                    return false
+                end
+            end
+            for block in pairs(b) do
+                if not a[block] then
+                    return false
+                end
+            end
+            return true
+        end
+        for i, declA in ipairs(candidates) do
+            for j, declB in ipairs(candidates) do
+                if i ~= j and sameBlocks(blocksOf[declA], blocksOf[declB]) then
+                    local siblings = correlatedGroups[declA] or {}
+                    ---@type boolean?
+                    local known
+                    for _, other in ipairs(siblings) do
+                        if other == declB then
+                            known = true
+                        end
+                    end
+                    if not known then
+                        siblings[#siblings+1] = declB
+                        correlatedGroups[declA] = siblings
+                    end
+                end
+            end
+        end
+    end
+
     -- A correlation (explicit tag or inferred from a callee's returns) is narrowing only this flow
     -- knows -- the old tracer has no idea what it means -- so a read answered by the old tracer
     -- while this flow is absent or building must be dropped once a build succeeds, exactly like

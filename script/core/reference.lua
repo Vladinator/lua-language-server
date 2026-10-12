@@ -57,7 +57,22 @@ local accept = {
     ['doc.alias.name']   = true,
     ['doc.enum.name']    = true,
     ['doc.field.name']   = true,
+    ['doc.param.name']   = true,
 }
+
+--- The parameter a `---@param name` line is about, when the name is the parameter's own.
+---@param doc parser.object a `doc.param`
+---@return parser.object?
+local function getDocumentedParam(doc)
+    local param = doc.bindSource
+    if param
+    and param.type == 'local'
+    and param.parent
+    and param.parent.type == 'funcargs' then
+        return param
+    end
+    return nil
+end
 
 ---@async
 ---@param uri uri
@@ -77,7 +92,30 @@ return function (uri, position, includeDeclaration)
 
     local metaSource = vm.isMetaFile(uri)
 
-    local refs = vm.getRefs(source)
+    -- the cursor on the name of a `---@param name` line is a reference of the parameter
+    ---@type parser.object?
+    local param
+    if source.type == 'doc.param.name' then
+        param = source.parent and getDocumentedParam(source.parent)
+        if not param then
+            return nil
+        end
+    elseif source.type == 'local' then
+        param = source
+    elseif source.type == 'getlocal' or source.type == 'setlocal' then
+        param = source.node
+    end
+
+    local refs = vm.getRefs(param and source.type == 'doc.param.name' and param or source)
+    if param then
+        -- (a copy: the list belongs to the cache) the `---@param` lines of the parameter are references too
+        refs = { table.unpack(refs) }
+        for _, doc in ipairs(param.bindDocs or {}) do
+            if doc.type == 'doc.param' and getDocumentedParam(doc) == param then
+                refs[#refs+1] = doc.param
+            end
+        end
+    end
 
     ---@type core.reference.result[]
     local results = {}

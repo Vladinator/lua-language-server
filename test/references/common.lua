@@ -245,3 +245,47 @@ local b
 
 b.<?<!test!>?> = a.test
 ]]
+
+-- the `---@param` line names the parameter: it is a reference of it, from either side
+TEST [[
+---@param <!value!> number
+local function f(<!value!>)
+    return <?<!value!>?> * <!value!>
+end
+]]
+
+TEST [[
+---@param <?<!value!>?> number
+local function f(<!value!>)
+    return <!value!>
+end
+]]
+
+-- negative: a `---@param` of another name does not belong to the parameter
+TEST [[
+---@param other number
+local function f(<!value!>)
+    return <?<!value!>?>
+end
+]]
+
+-- negative: a plain local has no `---@param`
+TEST [[
+local <!x!> = 1
+print(<?<!x!>?>)
+]]
+
+-- from the declaration of the parameter itself
+TEST [[
+---@param <!value!> number
+local function f(<?<!value!>?>)
+    return <!value!>
+end
+]]
+
+-- negative: a `---@param` above a plain local is not a reference of it
+TEST [[
+---@param x number
+local <!x!> = 1
+print(<?<!x!>?>)
+]]

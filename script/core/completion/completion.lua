@@ -564,13 +564,62 @@ local function getExpectedArgType(state, position)
     return expected
 end
 
+--- The declared type of the value the word is: `local x ---@type T = <??>` and `return <??>` in a function with `---@return T`.
+---@param state    parser.state
+---@param position integer start of the word being typed
+---@return vm.node?
+local function getExpectedValueType(state, position)
+    ---@type parser.object?
+    local declared
+    guide.eachSourceContain(state.ast, position, function (src)
+        -- (the word is the whole value: the parent of the name that starts at the cursor)
+        local parent = src.start == position and src.parent
+        if not parent then
+            return
+        end
+        if parent.type == 'local' and parent.value == src then
+            for _, doc in ipairs(parent.bindDocs or {}) do
+                if doc.type == 'doc.type' then
+                    declared = doc
+                end
+            end
+        elseif parent.type == 'return' then
+            ---@type integer?
+            local index
+            for i, value in ipairs(parent) do
+                if value == src then
+                    index = i
+                end
+            end
+            local func = index and guide.getParentFunction(parent)
+            for _, doc in ipairs(func and func.bindDocs or {}) do
+                if doc.type == 'doc.return' then
+                    for _, rtn in ipairs(doc.returns) do
+                        if rtn.returnIndex == index then
+                            declared = rtn
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    if not declared then
+        return nil
+    end
+    local expected = vm.compileNode(declared)
+    if expected:isEmpty() then
+        return nil
+    end
+    return expected
+end
+
 --- Variables whose type fits what the place asks for come first, the rest keep their order (TypeScript preselects by the expected type).
 ---@param state    parser.state
 ---@param position integer
 ---@param results  completion.results
 ---@param from     integer the first result to rank
 local function boostExpectedType(state, position, results, from)
-    local expected = getExpectedArgType(state, position)
+    local expected = getExpectedArgType(state, position) or getExpectedValueType(state, position)
     if not expected then
         return
     end

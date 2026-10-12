@@ -5392,3 +5392,59 @@ local ccc = var<??>
 (function (result)
     assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varb'), 'no call: order unchanged')
 end)
+
+-- the declared type of the value being written asks for the same: `---@type T` above the local, `---@return T` above the function
+TEST [[
+local vara = "x"
+local varz = 1
+---@type number
+local n = var<??>
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varz') < indexOfLabel(result, 'vara'), 'declared local: the number variable first')
+end)
+
+TEST [[
+local vara = "x"
+local varz = 1
+---@return number
+local function f()
+    return var<??>
+end
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varz') < indexOfLabel(result, 'vara'), 'return: the number variable first')
+end)
+
+TEST [[
+local vara = "x"
+local varz = 1
+---@return string, number
+local function f()
+    return vara, var<??>
+end
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varz') < indexOfLabel(result, 'vara'), 'second return value: the number variable first')
+end)
+
+-- negative: no declared type, nothing is ranked
+TEST [[
+local vara = "x"
+local varz = 1
+local n = var<??>
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varz'), 'undeclared local: order unchanged')
+end)
+
+-- negative: a longer expression is not the value itself
+TEST [[
+local vara = "x"
+local varz = 1
+---@type number
+local n = 1 + var<??>
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varz'), 'inside an expression: order unchanged')
+end)

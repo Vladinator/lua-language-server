@@ -72,6 +72,46 @@ assert(ignored['keep.lua'] and ignored['deep/keep/inner.lua'], 'the rest is load
 local unanchored = loaded { ['workspace.useGitIgnore'] = true, ['workspace.ignoreDir'] = { 'keep' } }
 assert(not unanchored['deep/keep/inner.lua'], 'a folder name matches at any depth')
 
+-- ignoreSubmodules: the folders a `.gitmodules` lists are skipped (on by default); off, they load
+util.saveFile((DIR / '.gitmodules'):string(), '[submodule "vendor"]' .. string.char(10) .. '	path = submod' .. string.char(10))
+fs.create_directories(DIR / 'submod')
+util.saveFile((DIR / 'submod' / 'in.lua'):string(), 'X = 1' .. string.char(10))
+NAMES[#NAMES+1] = 'submod/in.lua'
+local withSubmodules = loaded { ['workspace.useGitIgnore'] = false, ['workspace.ignoreDir'] = {}, ['workspace.ignoreSubmodules'] = true }
+assert(not withSubmodules['submod/in.lua'], 'ignoreSubmodules on: the submodule folder is not loaded')
+assert(withSubmodules['keep.lua'], 'ignoreSubmodules on: the rest is')
+local keepSubmodules = loaded { ['workspace.useGitIgnore'] = false, ['workspace.ignoreDir'] = {}, ['workspace.ignoreSubmodules'] = false }
+assert(keepSubmodules['submod/in.lua'], 'ignoreSubmodules off: the submodule folder is loaded')
+
+-- dofileRoots: the folders `dofile('name.lua')` is looked up in, outside the workspace too; their files are loaded
+local DOF = fs.path(LOGPATH) / 'settings-workspace-dofile'
+pcall((fs --[[@as any]]).remove_all, DOF)
+fs.create_directories(DOF)
+util.saveFile((DOF / 'rooted.lua'):string(), 'Y = 1' .. string.char(10))
+---@param roots string[]
+---@return boolean loaded
+---@return integer found
+local function dofileFrom(roots)
+    local isLoaded, found = false, 0
+    ---@async
+    lclient():start(function (client)
+        client:registerFakers()
+        client:register('workspace/configuration', function ()
+            return { { ['workspace.useGitIgnore'] = false, ['workspace.ignoreDir'] = {}, ['workspace.dofileRoots'] = roots } }
+        end)
+        client:initialize { rootUri = root }
+        ws.awaitReady(root)
+        isLoaded = files.exists(assert(furi.encode((DOF / 'rooted.lua'):string())))
+        found = #ws.findUrisByDofile('rooted.lua', root .. '/keep.lua')
+    end)
+    return isLoaded, found
+end
+local rootLoaded, rootFound = dofileFrom { DOF:string() }
+assert(rootLoaded and rootFound == 1, 'dofileRoots set: the file of the folder is loaded and dofile finds it: ' .. tostring(rootLoaded) .. ' ' .. rootFound)
+local noRootLoaded, noRootFound = dofileFrom {}
+assert(not noRootLoaded and noRootFound == 0, 'dofileRoots empty: neither: ' .. tostring(noRootLoaded) .. ' ' .. noRootFound)
+pcall((fs --[[@as any]]).remove_all, DOF)
+
 -- maxPreload: no more files than that are read when the workspace opens
 local limited = loaded { ['workspace.useGitIgnore'] = false, ['workspace.ignoreDir'] = {}, ['workspace.maxPreload'] = 1 }
 assert(count(limited) < count(noGit), 'maxPreload = 1 loads fewer files than the default: ' .. count(limited) .. ' of ' .. count(noGit))

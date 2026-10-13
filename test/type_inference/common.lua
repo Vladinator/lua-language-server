@@ -8258,3 +8258,62 @@ local f
 f = function () return 1 end
 local <?x?> = f()
 ]]
+
+-- an argument of type `any` against a generic container parameter makes what is inside `any` (TypeScript: iterating `any` gives `any`)
+TEST 'any' [[
+---@param value any
+local function f(value)
+    for <?k?>, v in pairs(value) do end
+end
+]]
+
+TEST 'any' [[
+---@param value any
+local function f(value)
+    for k, <?v?> in pairs(value) do end
+end
+]]
+
+TEST 'any' [[
+---@param value any
+local function f(value)
+    for i, <?v?> in ipairs(value) do end
+end
+]]
+
+TEST 'any' [[
+---@param value any
+local function f(value)
+    local <?first?> = table.unpack(value)
+end
+]]
+
+TEST 'any' [[
+---@param value any
+local function f(value)
+    local <?key?> = next(value)
+end
+]]
+
+-- negative: a typed table keeps its own key and value types
+TEST 'string' [[
+---@param value table<string, number>
+local function f(value)
+    for <?k?>, v in pairs(value) do end
+end
+]]
+
+TEST 'number' [[
+---@param value table<string, number>
+local function f(value)
+    for k, <?v?> in pairs(value) do end
+end
+]]
+
+-- negative: `unknown` is not `any`: nothing is known about what is inside
+TEST 'unknown' [[
+---@param value unknown
+local function f(value)
+    for <?k?>, v in pairs(value) do end
+end
+]]

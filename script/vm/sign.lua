@@ -435,6 +435,18 @@ function mt:resolve(uri, args)
         return wider
     end
 
+    --- Is `any` among the types of the node? (what iterating or unpacking it gives is `any` too, not `unknown`)
+    ---@param node vm.node
+    ---@return boolean
+    local function hasAny(node)
+        for obj in node:eachObject() do
+            if obj.type == 'global' and obj.cate == 'type' and obj.name == 'any' then
+                return true
+            end
+        end
+        return false
+    end
+
     for i, arg in ipairs(args or {}) do
         local sign = self.signList[i]
         if not sign then
@@ -460,6 +472,15 @@ function mt:resolve(uri, args)
                     if widened then
                         resolved[name] = widened
                     end
+                end
+            end
+        end
+        -- an argument of type `any` against `table<K, V>` / `T[]` / `{ [K]: V }`: what is inside is `any` as well
+        -- (`for k, v in pairs(value)` with `value: any`), instead of the generics staying unbound and reading `unknown`
+        if hasAny(argNode) then
+            for name in pairs(genericNames) do
+                if not resolved[name] then
+                    resolved[name] = vm.createNode(vm.declareGlobal('type', 'any'))
                 end
             end
         end

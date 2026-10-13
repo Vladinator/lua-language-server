@@ -70,7 +70,7 @@ local diagnosticModes = {
 ---@field description? string|markdown
 ---@field additionalTextEdits? vm.completion.edit[]
 
---- The local a variable result was made from, to rank it by the type the place asks for (see `boostExpectedType`).
+--- The local, global or field a variable result was made from, to rank it by the type the place asks for (see `boostExpectedType`).
 ---@type table<vm.completion.result, parser.object>
 local resultSources = setmetatable({}, { __mode = 'k' })
 
@@ -809,7 +809,8 @@ local function checkFieldThen(state, name, src, word, position, parent, oop, res
     else
         textEdit, additionalTextEdits = checkFieldFromFieldToIndex(state, name, parent, word, position)
     end
-    results[#results+1] = {
+    ---@type vm.completion.result
+    local res = {
         label      = name,
         kind       = kind,
         deprecated = vm.getDeprecated(src) and true or nil,
@@ -823,6 +824,8 @@ local function checkFieldThen(state, name, src, word, position, parent, oop, res
 
         additionalTextEdits = additionalTextEdits,
     }
+    resultSources[res] = src
+    results[#results+1] = res
 end
 
 ---@async
@@ -1938,7 +1941,9 @@ local function tryWord(state, position, triggerCharacter, results)
     else
         local parent, oop = findParent(state, startPos)
         if     parent then
+            local firstField = #results + 1
             checkField(state, word, startPos, position, parent, oop, results)
+            boostExpectedType(state, startPos, results, firstField)
         elseif isFuncArg(state, position) then
             checkProvideLocal(state, word, startPos, results)
             checkFunctionArgByDocParam(state, word, startPos, results)
@@ -1960,13 +1965,14 @@ local function tryWord(state, position, triggerCharacter, results)
                 else
                     local firstLocal = #results + 1
                     checkLocal(state, word, startPos, results)
-                    boostExpectedType(state, startPos, results, firstLocal)
                     checkTableField(state, word, startPos, results)
                     local env = guide.getENV(state.ast, startPos)
                     if env then
                         checkGlobal(state, word, startPos, position, env, false, results)
                         checkModule(state, word, startPos, results)
                     end
+                    -- (the variables of the scope together: a global that fits goes before a local that does not)
+                    boostExpectedType(state, startPos, results, firstLocal)
                 end
             end
             for _, res in ipairs(keywordResults) do

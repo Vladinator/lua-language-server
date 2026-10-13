@@ -5492,3 +5492,56 @@ local n = 1 + var<??>
 (function (result)
     assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varz'), 'inside an expression: order unchanged')
 end)
+
+-- the globals and the fields are ranked by the expected type too
+TEST [[
+---@param s string
+local function takes(s) end
+varGlobalA = 1
+varGlobalZ = "x"
+takes(varGlobal<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varGlobalZ') < indexOfLabel(result, 'varGlobalA'), 'the string global is before the number one')
+end)
+
+-- a global that fits goes before a local that does not
+TEST [[
+---@param s string
+local function takes(s) end
+local varLocalA = 1
+varLocalZ = "x"
+takes(varLocal<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varLocalZ') < indexOfLabel(result, 'varLocalA'), 'a fitting global before a local that does not fit')
+end)
+
+TEST [[
+---@param s string
+local function takes(s) end
+local t = { va = 1, vz = "x" }
+takes(t.v<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vz') < indexOfLabel(result, 'va'), 'the string field is before the number one')
+end)
+
+-- negative: nothing is expected, so the order stays
+TEST [[
+varGlobalA = 1
+varGlobalZ = "x"
+print(varGlobal<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varGlobalA') < indexOfLabel(result, 'varGlobalZ'), 'any: order unchanged')
+end)
+
+-- negative: outside a call
+TEST [[
+local t = { va = 1, vz = "x" }
+local x = t.v<??>
+]]
+(function (result)
+    assert(indexOfLabel(result, 'va') < indexOfLabel(result, 'vz'), 'no call: order unchanged')
+end)

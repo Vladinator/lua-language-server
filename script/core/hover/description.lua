@@ -243,12 +243,14 @@ local function lookUpDocComments(source)
     local uri = guide.getUri(source)
     ---@type string[]
     local lines = {}
+    -- (the reason is in the diagnostic at each use too; the hover of the definition says it as well)
+    local deprecated = vm.getDeprecated(source)
+    if deprecated then
+        local reason = deprecated.comment and util.trim(deprecated.comment.text) or ''
+        lines[#lines+1] = '**Deprecated.**' .. (reason ~= '' and (' ' .. reason) or '')
+    end
     for _, doc in ipairs(docGroup) do
-        if doc.type == 'doc.deprecated' then
-            -- (the reason is in the diagnostic at each use too; the hover of the definition says it as well)
-            local reason = doc.comment and util.trim(doc.comment.text) or ''
-            table.insert(lines, 1, '**Deprecated.**' .. (reason ~= '' and (' ' .. reason) or ''))
-        elseif doc.type == 'doc.comment' then
+        if doc.type == 'doc.comment' then
             lines[#lines+1] = normalizeComment(doc.comment.text, uri)
         elseif doc.type == 'doc.type'
         or     doc.type == 'doc.public'

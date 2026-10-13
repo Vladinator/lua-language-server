@@ -53,6 +53,24 @@ local features = {
     renameTo    = function (uri, pos)
         return require 'core.rename'.rename(uri, pos, 'renamed')
     end,
+    linkedEdit  = require 'core.linked-editing',
+    -- the prepare, then the two requests the editor sends for the item it got back
+    ---@async
+    typeHier    = function (uri, pos)
+        local hierarchy = require 'core.type-hierarchy'
+        for _, item in ipairs(hierarchy.prepare(uri, pos) or {}) do
+            hierarchy.supertypes(item.uri, item.name)
+            hierarchy.subtypes(item.uri, item.name)
+        end
+    end,
+    ---@async
+    callHier    = function (uri, pos)
+        local hierarchy = require 'core.call-hierarchy'
+        for _, item in ipairs(hierarchy.prepare(uri, pos) or {}) do
+            hierarchy.incoming(item)
+            hierarchy.outgoing(item)
+        end
+    end,
     -- what the editor asks on typing a newline
     ---@async
     typeFormat  = function (uri, pos)

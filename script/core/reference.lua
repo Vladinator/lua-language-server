@@ -3,6 +3,7 @@ local files      = require 'files'
 local vm         = require 'vm'
 local findSource = require 'core.find-source'
 local jumpSource = require 'core.jump-source'
+local keyofRefs  = require 'core.keyof-refs'
 
 ---@class core.reference.result: jump-source.result
 ---@field source parser.object
@@ -192,6 +193,31 @@ return function (uri, position, includeDeclaration)
             source = source,
         }
         ::CONTINUE::
+    end
+
+    -- a string argument of a `keyof` parameter names the field too (`invoke(receiver, "Activate")`)
+    if source.type == 'field' or source.type == 'method' then
+        local key = guide.getKeyName(source)
+        if type(key) == 'string' then
+            ---@type parser.object[]
+            local defs = {}
+            for _, def in ipairs(vm.getDefs(source)) do
+                defs[#defs+1] = def
+            end
+            for _, ref in ipairs(refs) do
+                defs[#defs+1] = ref
+                if ref.parent then
+                    defs[#defs+1] = ref.parent
+                end
+            end
+            for _, str in ipairs(keyofRefs(uri, key, defs)) do
+                results[#results+1] = {
+                    target = str,
+                    uri    = guide.getUri(str),
+                    source = source,
+                }
+            end
+        end
     end
 
     if #results == 0 then

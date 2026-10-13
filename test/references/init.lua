@@ -43,5 +43,7 @@ function TEST(script)
     files.remove(TESTURI)
 end
 
+-- script/core/keyof-refs.lua (the string argument of a `keyof` parameter that names a field) is reached through these
+-- tests and through the rename tests: see the `KeyofRefs` cases of references/common.lua
 require 'references.common'
 require 'references.all'

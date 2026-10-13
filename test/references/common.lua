@@ -289,3 +289,74 @@ TEST [[
 local <!x!> = 1
 print(<?<!x!>?>)
 ]]
+
+-- a string argument of a `keyof` parameter is a reference of the field it names
+TEST [[
+---@class KeyofRefs.Recv
+local R = {}
+
+function R:<?<!Activate!>?>() end
+function R:Deactivate() end
+
+---@generic T, K: keyof T
+---@param obj T
+---@param method K
+local function invoke(obj, method) end
+
+---@type KeyofRefs.Recv
+local rv
+
+rv:<!Activate!>()
+invoke(rv, <!"Activate"!>)
+invoke(rv, <!'Activate'!>)
+invoke(rv, "Deactivate")
+]]
+
+-- `keyof self`: the receiver of the call
+TEST [[
+---@class KeyofRefs.Animal
+local Animal = {}
+
+function Animal:<?<!Eat!>?>() end
+
+---@generic K: keyof self
+---@param method K
+function Animal:Do(method) end
+
+---@class KeyofRefs.Dog : KeyofRefs.Animal
+local Dog = {}
+
+---@type KeyofRefs.Dog
+local dog
+
+dog:Do(<!"Eat"!>)
+]]
+
+-- negative: the same name on another class, or in a call that has no `keyof` parameter, is not a reference
+TEST [[
+---@class KeyofRefs.A
+local A = {}
+function A:<?<!Go!>?>() end
+
+---@class KeyofRefs.B
+local B = {}
+function B:Go() end
+
+---@generic T, K: keyof T
+---@param obj T
+---@param method K
+local function invoke(obj, method) end
+
+---@param name string
+local function plain(name) end
+
+---@type KeyofRefs.A
+local a
+---@type KeyofRefs.B
+local b
+
+invoke(a, <!"Go"!>)
+invoke(b, "Go")
+plain("Go")
+print("Go")
+]]

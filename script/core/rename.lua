@@ -4,6 +4,7 @@ local util       = require 'utility'
 local findSource = require 'core.find-source'
 local guide      = require 'parser.guide'
 local config     = require 'config'
+local keyofRefs  = require 'core.keyof-refs'
 
 ---@alias core.rename.callback fun(target: parser.object, start: integer, finish: integer, text: string)
 
@@ -227,6 +228,26 @@ local function ofField(source, newname, callback)
     local refs = vm.getRefs(source)
     for _, ref in ipairs(refs) do
         ofFieldThen(key, ref, newname, callback)
+    end
+    -- the string arguments of a `keyof` parameter that name the field (`invoke(receiver, "Activate")`)
+    if type(key) == 'string'
+    and (source.type == 'field' or source.type == 'method'
+    or   source.type == 'getfield' or source.type == 'setfield'
+    or   source.type == 'getmethod' or source.type == 'setmethod') then
+        ---@type parser.object[]
+        local defs = {}
+        for _, def in ipairs(vm.getDefs(source)) do
+            defs[#defs+1] = def
+        end
+        for _, ref in ipairs(refs) do
+            defs[#defs+1] = ref
+            if ref.parent then
+                defs[#defs+1] = ref.parent
+            end
+        end
+        for _, str in ipairs(keyofRefs(guide.getUri(source), key, defs)) do
+            callback(str, str.start, str.finish, util.viewString(newname, str[2]))
+        end
     end
 end
 

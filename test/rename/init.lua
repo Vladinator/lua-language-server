@@ -45,7 +45,7 @@ function TEST(oldName, newName)
             if positions then
                 script = replace(script, positions)
             end
-            assert(script == expectScript)
+            assert(script == expectScript, script)
             files.remove(TESTURI)
         end
     end
@@ -253,4 +253,45 @@ TEST ('A', 'C') [[
 ---@class B: A
 ]] [[
 ---@class B: C
+]]
+
+-- the string arguments of a `keyof` parameter that name the field are renamed with it
+TEST ('Activate', 'Start') [[
+---@class KeyofRename.Recv
+local R = {}
+
+function R:Activate() end
+function R:Deactivate() end
+
+---@generic T, K: keyof T
+---@param obj T
+---@param method K
+local function invoke(obj, method) end
+
+---@type KeyofRename.Recv
+local rv
+
+rv:Activate()
+invoke(rv, "Activate")
+invoke(rv, 'Activate')
+invoke(rv, "Deactivate")
+]] [[
+---@class KeyofRename.Recv
+local R = {}
+
+function R:Start() end
+function R:Deactivate() end
+
+---@generic T, K: keyof T
+---@param obj T
+---@param method K
+local function invoke(obj, method) end
+
+---@type KeyofRename.Recv
+local rv
+
+rv:Start()
+invoke(rv, "Start")
+invoke(rv, 'Start')
+invoke(rv, "Deactivate")
 ]]

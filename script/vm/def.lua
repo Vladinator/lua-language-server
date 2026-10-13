@@ -68,6 +68,10 @@ function vm.getDefs(source)
     local hasLocal
     ---@param src parser.object
     local function pushResult(src)
+        -- (a field of `Pick<T, K>` / `A & B` stands for the field of `T` / `A` it was made from)
+        while src.utilityOrigin do
+            src = src.utilityOrigin
+        end
         if src.type == 'local' then
             if hasLocal then
                 return
@@ -112,6 +116,10 @@ function vm.hasDef(source)
     local hasLocal
     ---@param src parser.object
     local function pushResult(src)
+        -- (a field of `Pick<T, K>` / `A & B` stands for the field of `T` / `A` it was made from)
+        while src.utilityOrigin do
+            src = src.utilityOrigin
+        end
         if src.type == 'local' then
             if hasLocal then
                 return

@@ -1099,3 +1099,29 @@ TEST [[
 
 ---@alias <!<?A?>!> number
 ]]
+
+-- a field read through an intersection goes to the field of the class it comes from
+TEST [[
+---@class IsectDefA
+---@field pubA number
+
+---@class IsectDefB
+---@field <!pubB!> number
+
+local function f()
+    ---@type IsectDefA & IsectDefB
+    local both
+    print(both.<?pubB?>)
+end
+]]
+
+-- and through a utility type
+TEST [[
+---@class PickDef
+---@field <!x!> number
+---@field y number
+
+---@type Pick<PickDef, 'x'>
+local picked
+print(picked.<?x?>)
+]]

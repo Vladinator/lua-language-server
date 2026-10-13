@@ -17,6 +17,7 @@ local plugin     = require 'plugin'
 ---@field func                  parser.object
 ---@field hideView              boolean
 ---@field safe?                 boolean # LuaJIT 安全导航 ?. 标记
+---@field utilityOrigin?        parser.object # the field a utility type's synthetic field was made from (go-to-definition, visibility)
 ---@field package _returns?     parser.object[]
 ---@field package _callReturns? parser.object[]
 ---@field package _asCache?     parser.object[]
@@ -1099,12 +1100,14 @@ end
 ---@param tableObj parser.object
 ---@param key      string|integer
 ---@param node     vm.node
+---@param origin?  parser.object the field of the type this one was made from (the definition to go to)
 ---@return parser.object
-local function buildUtilityField(tableObj, key, node)
+local function buildUtilityField(tableObj, key, node, origin)
     ---@type parser.object
     local field = {
-        type   = 'doc.type.field',
-        parent = tableObj,
+        type          = 'doc.type.field',
+        parent        = tableObj,
+        utilityOrigin = origin,
     }
     field.name = {
         type   = 'doc.field.name',
@@ -1278,7 +1281,7 @@ local function resolveUtilityType(uri, source)
             elseif name == 'Required' then
                 fieldNode:removeOptional()
             end
-            fields[#fields+1] = buildUtilityField(tableObj, key, fieldNode)
+            fields[#fields+1] = buildUtilityField(tableObj, key, fieldNode, field)
         end)
     end
     vm.setNode(source, tableObj)
@@ -3676,9 +3679,9 @@ local compilerSwitch = util.switch()
                         local fieldNode = vm.compileNode(field)
                         local at = index[key]
                         if at then
-                            fields[at] = buildUtilityField(tableObj, key, fieldNode)
+                            fields[at] = buildUtilityField(tableObj, key, fieldNode, field)
                         else
-                            fields[#fields+1] = buildUtilityField(tableObj, key, fieldNode)
+                            fields[#fields+1] = buildUtilityField(tableObj, key, fieldNode, field)
                             index[key] = #fields
                         end
                     end)

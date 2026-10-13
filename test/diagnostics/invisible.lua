@@ -233,3 +233,32 @@ B.hiddenField = 1
 local b
 print(b.<!hiddenField!>)
 ]]
+
+-- an intersection keeps the visibility of the class each field comes from
+TEST [[
+---@class IsectVisPrimary
+---@field pubP number
+local Primary = {}
+
+---@class IsectVisSecondary
+---@field pubS number
+---@field private secretS number
+---@field protected protS number
+local Secondary = {}
+
+function Primary:Method()
+    ---@type IsectVisPrimary & IsectVisSecondary
+    local both
+    print(both.<!secretS!>)
+    print(both.<!protS!>)
+    print(both.pubS)
+    print(both.pubP)
+end
+
+function Secondary:Method()
+    ---@type IsectVisPrimary & IsectVisSecondary
+    local both
+    print(both.secretS)
+    print(both.protS)
+end
+]]

@@ -180,3 +180,29 @@ do
 end
 
 files.remove(TESTURI)
+
+-- a global function and a function in a table field are named, found and called like the others
+do
+    local items = prepareAt [[
+function <?GlobalWork?>() end
+local function user()
+    GlobalWork()
+end
+]]
+    local item = assert(items and items[1])
+    assert(item.name == 'GlobalWork', 'a global function')
+    assert(summary(core.incoming(item)) == 'user x1', summary(core.incoming(item)))
+end
+do
+    local items = prepareAt [[
+local handlers = {
+    <?run?> = function () end,
+}
+local function user()
+    handlers.run()
+end
+]]
+    local item = assert(items and items[1])
+    assert(item.name == 'run', 'a function in a table field')
+    assert(summary(core.incoming(item)) == 'user x1', summary(core.incoming(item)))
+end

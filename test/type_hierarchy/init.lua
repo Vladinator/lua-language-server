@@ -148,3 +148,23 @@ local T2 = {}
     assert(names(core.subtypes(TESTURI, 'HBase')) == 'HTwice', 'the child once')
     files.remove(TESTURI)
 end
+
+-- a class held by a global variable, and a variable that is assigned again
+do
+    local items = prepareAt [[
+---@class HGlobal
+HGlobalValue = {}
+
+print(<?HGlobalValue?>)
+]]
+    assert(items and names(items) == 'HGlobal', 'a global variable that holds the class')
+end
+do
+    local items = prepareAt [[
+---@class HSet
+local held = {}
+held = held
+<?held?> = held
+]]
+    assert(items and names(items) == 'HSet', 'an assignment target')
+end

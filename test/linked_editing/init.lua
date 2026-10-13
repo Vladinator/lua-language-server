@@ -128,3 +128,10 @@ function obj:method()
     return <?self?>
 end
 ]]
+
+-- from an assignment to the variable
+TEST [[
+local <!m!> = 1
+<?<!m!>?> = "hello"
+print(<!m!>)
+]]

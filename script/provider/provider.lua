@@ -644,6 +644,236 @@ m.register 'textDocument/documentHighlight' {
     end
 }
 
+---@param item core.type-hierarchy.item
+---@return table?
+local function packHierarchyItem(item)
+    local state = files.getState(item.uri)
+    if not state then
+        return nil
+    end
+    return {
+        name           = item.name,
+        kind           = define.SymbolKind.Class,
+        uri            = item.uri,
+        range          = converter.packRange(state, item.start, item.finish),
+        selectionRange = converter.packRange(state, item.nameStart, item.nameFinish),
+        data           = { uri = item.uri, name = item.name },
+    }
+end
+
+---@param items core.type-hierarchy.item[]
+---@return table[]
+local function packHierarchy(items)
+    ---@type table[]
+    local result = {}
+    for _, item in ipairs(items) do
+        result[#result+1] = packHierarchyItem(item)
+    end
+    return result
+end
+
+m.register 'textDocument/prepareTypeHierarchy' {
+    capability = {
+        typeHierarchyProvider = true,
+    },
+    ---@async
+    ---@param params any
+    ---@return table[]?
+    function (params)
+        local core = require 'core.type-hierarchy'
+        ---@type provider.textDocumentItem
+        local doc  = params.textDocument
+        local uri  = files.getRealUri(doc.uri)
+        workspace.awaitReady(uri)
+        local state = files.getState(uri)
+        if not state then
+            return nil
+        end
+        local items = core.prepare(uri, converter.unpackPosition(state, params.position))
+        if not items then
+            return nil
+        end
+        return packHierarchy(items)
+    end
+}
+
+m.register 'typeHierarchy/supertypes' {
+    ---@async
+    ---@param params any
+    ---@return table[]
+    function (params)
+        local core = require 'core.type-hierarchy'
+        ---@type { uri: uri, name: string }?
+        local data = params.item and params.item.data
+        if not data then
+            return {}
+        end
+        return packHierarchy(core.supertypes(data.uri, data.name))
+    end
+}
+
+m.register 'typeHierarchy/subtypes' {
+    ---@async
+    ---@param params any
+    ---@return table[]
+    function (params)
+        local core = require 'core.type-hierarchy'
+        ---@type { uri: uri, name: string }?
+        local data = params.item and params.item.data
+        if not data then
+            return {}
+        end
+        return packHierarchy(core.subtypes(data.uri, data.name))
+    end
+}
+
+---@param item core.call-hierarchy.item
+---@return table?
+local function packCallItem(item)
+    local state = files.getState(item.uri)
+    if not state then
+        return nil
+    end
+    return {
+        name           = item.name,
+        kind           = item.isMethod and define.SymbolKind.Method or define.SymbolKind.Function,
+        uri            = item.uri,
+        range          = converter.packRange(state, item.start, item.finish),
+        selectionRange = converter.packRange(state, item.nameStart, item.nameFinish),
+        data           = {
+            uri = item.uri, name = item.name, isMethod = item.isMethod,
+            start = item.start, finish = item.finish, nameStart = item.nameStart, nameFinish = item.nameFinish,
+        },
+    }
+end
+
+---@param data { uri: uri, name: string, isMethod: boolean, start: integer, finish: integer, nameStart: integer, nameFinish: integer }?
+---@return core.call-hierarchy.item?
+local function callItemOf(data)
+    if not data or not data.uri then
+        return nil
+    end
+    return {
+        name = data.name, isMethod = data.isMethod, uri = data.uri,
+        start = data.start, finish = data.finish, nameStart = data.nameStart, nameFinish = data.nameFinish,
+    }
+end
+
+---@param calls    core.call-hierarchy.call[]
+---@param key      string `from` or `to`
+---@param asked    core.call-hierarchy.item the function the client asked about
+---@return table[]
+local function packCalls(calls, key, asked)
+    ---@type table[]
+    local result = {}
+    for _, call in ipairs(calls) do
+        -- (the calls are written in the caller: the other end for an incoming call, the asked function for an outgoing one)
+        local rangesUri = key == 'from' and call.item.uri or asked.uri
+        local state  = files.getState(rangesUri)
+        local packed = packCallItem(call.item)
+        if state and packed then
+            ---@type table[]
+            local ranges = {}
+            for _, range in ipairs(call.ranges) do
+                ranges[#ranges+1] = converter.packRange(state, range.start, range.finish)
+            end
+            result[#result+1] = { [key] = packed, fromRanges = ranges }
+        end
+    end
+    return result
+end
+
+m.register 'textDocument/prepareCallHierarchy' {
+    capability = {
+        callHierarchyProvider = true,
+    },
+    ---@async
+    ---@param params any
+    ---@return table[]?
+    function (params)
+        local core = require 'core.call-hierarchy'
+        ---@type provider.textDocumentItem
+        local doc  = params.textDocument
+        local uri  = files.getRealUri(doc.uri)
+        workspace.awaitReady(uri)
+        local state = files.getState(uri)
+        if not state then
+            return nil
+        end
+        local items = core.prepare(uri, converter.unpackPosition(state, params.position))
+        if not items then
+            return nil
+        end
+        ---@type table[]
+        local result = {}
+        for _, item in ipairs(items) do
+            result[#result+1] = packCallItem(item)
+        end
+        return result
+    end
+}
+
+m.register 'callHierarchy/incomingCalls' {
+    ---@async
+    ---@param params any
+    ---@return table[]
+    function (params)
+        local core = require 'core.call-hierarchy'
+        local item = callItemOf(params.item and params.item.data)
+        if not item then
+            return {}
+        end
+        return packCalls(core.incoming(item), 'from', item)
+    end
+}
+
+m.register 'callHierarchy/outgoingCalls' {
+    ---@async
+    ---@param params any
+    ---@return table[]
+    function (params)
+        local core = require 'core.call-hierarchy'
+        local item = callItemOf(params.item and params.item.data)
+        if not item then
+            return {}
+        end
+        return packCalls(core.outgoing(item), 'to', item)
+    end
+}
+
+m.register 'textDocument/linkedEditingRange' {
+    capability = {
+        linkedEditingRangeProvider = true,
+    },
+    ---@async
+    ---@param params any
+    ---@return table?
+    function (params)
+        local core = require 'core.linked-editing'
+        ---@type provider.textDocumentItem
+        local doc  = params.textDocument
+        local uri  = files.getRealUri(doc.uri)
+        workspace.awaitReady(uri)
+        local state = files.getState(uri)
+        if not state then
+            return nil
+        end
+        local pos    = converter.unpackPosition(state, params.position)
+        local result = core(uri, pos)
+        if not result then
+            return nil
+        end
+        ---@type table[]
+        local ranges = {}
+        for _, info in ipairs(result) do
+            ranges[#ranges+1] = converter.packRange(state, info.start, info.finish)
+        end
+        return {
+            ranges = ranges,
+        }
+    end
+}
+
 m.register 'textDocument/rename' {
     capability = {
         renameProvider = {

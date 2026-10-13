@@ -446,8 +446,14 @@ end
 ---@param position integer
 ---@return vm.node?
 local function evolvedNodeOf(source, position)
-    if source.type ~= 'local' or source.value or source.bindDocs then
+    if source.type ~= 'local' or source.value then
         return nil
+    end
+    -- (a comment above the local binds to it as well; only a declared type makes it not evolve)
+    for _, doc in ipairs(source.bindDocs or {}) do
+        if doc.type == 'doc.type' or doc.type == 'doc.class' then
+            return nil
+        end
     end
     if source.parent and source.parent.type == 'funcargs' then
         return nil

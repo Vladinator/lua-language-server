@@ -5599,3 +5599,41 @@ evolve<??>
     end
     assert(item and item.label == 'evolvedNumber' and item.kind == define.CompletionItemKind.Variable, 'a variable: ' .. tostring(item and item.label))
 end)
+
+-- a comment above the declaration does not stop the local from taking its later function
+TEST [[
+-- the handler is set below
+local evolvedCommented
+do
+    function evolvedCommented(a) end
+end
+evolve<??>
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^evolvedCommented') then
+            item = it
+        end
+    end
+    assert(item and item.label == 'evolvedCommented(a)', 'a commented local: ' .. tostring(item and item.label))
+end)
+
+-- negative: a declared type is kept as it is
+TEST [[
+---@type number
+local evolvedDeclared
+evolvedDeclared = 1
+evolve<??>
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^evolvedDeclared') then
+            item = it
+        end
+    end
+    assert(item and item.label == 'evolvedDeclared' and item.kind == define.CompletionItemKind.Variable, 'a declared local stays a variable: ' .. tostring(item and item.label))
+end)

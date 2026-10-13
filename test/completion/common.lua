@@ -5545,3 +5545,57 @@ local x = t.v<??>
 (function (result)
     assert(indexOfLabel(result, 'va') < indexOfLabel(result, 'vz'), 'no call: order unchanged')
 end)
+
+-- a local declared without a value and given a function later is offered as that function (the declaration alone says `unknown`)
+TEST [[
+local evolvedFn
+do
+    ---@param o number
+    function evolvedFn(o) end
+end
+evolve<??>
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^evolvedFn') then
+            item = it
+        end
+    end
+    assert(item and item.label == 'evolvedFn(o)', 'offered with its parameters: ' .. tostring(item and item.label))
+    assert(item.kind == define.CompletionItemKind.Function, 'as a function')
+end)
+
+TEST [[
+local evolvedFn2
+evolvedFn2 = function (a, b) end
+evolve<??>
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^evolvedFn2') then
+            item = it
+        end
+    end
+    assert(item and item.label == 'evolvedFn2(a, b)', 'assigned as a function expression: ' .. tostring(item and item.label))
+end)
+
+-- negative: a number given later does not make a function
+TEST [[
+local evolvedNumber
+evolvedNumber = 1
+evolve<??>
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^evolvedNumber') then
+            item = it
+        end
+    end
+    assert(item and item.label == 'evolvedNumber' and item.kind == define.CompletionItemKind.Variable, 'a variable: ' .. tostring(item and item.label))
+end)

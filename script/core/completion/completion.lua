@@ -310,10 +310,12 @@ local function buildFunctionSnip(source, value, oop)
 end
 
 ---@param source parser.object
+---@param node?   vm.node the type to show instead of the source's own
 ---@return string
-local function buildDetail(source)
-    local types = vm.getInfer(source):view(guide.getUri(source))
-    local literals = vm.getInfer(source):viewLiterals()
+local function buildDetail(source, node)
+    local infer = vm.getInfer(node or source)
+    local types = infer:view(guide.getUri(source))
+    local literals = infer:viewLiterals()
     if literals then
         return types .. ' = ' .. literals
     else
@@ -438,6 +440,29 @@ local function getParams(func, oop)
     return '(' .. table.concat(args, ', ') .. ')'
 end
 
+--- A local declared without a type or a value (`local f`, then `f = ...` or `function f() end` later): what the assignments before the
+--- cursor give it, which is what a hover on a use says (the declaration itself is `unknown`).
+---@param source   parser.object a `local`
+---@param position integer
+---@return vm.node?
+local function evolvedNodeOf(source, position)
+    if source.type ~= 'local' or source.value or source.bindDocs then
+        return nil
+    end
+    if source.parent and source.parent.type == 'funcargs' then
+        return nil
+    end
+    ---@type vm.node?
+    local node
+    for _, ref in ipairs(source.ref or {}) do
+        if ref.type == 'setlocal' and ref.value and ref.start < position then
+            node = node or vm.createNode()
+            node:merge(vm.compileNode(ref))
+        end
+    end
+    return node
+end
+
 ---@param state    parser.state
 ---@param word     string
 ---@param position integer
@@ -455,8 +480,14 @@ local function checkLocal(state, word, position, results)
         if name:sub(1, 1) == '@' then
             goto CONTINUE
         end
-        if vm.getInfer(source):hasFunction(state.uri) then
+        if vm.getInfer(evolvedNodeOf(source, position) or source):hasFunction(state.uri) then
             local defs = vm.getDefs(source)
+            -- (a local that is given its function later: the assignment stands for the function)
+            for i, def in ipairs(defs) do
+                if def.type == 'setlocal' and def.value and def.value.type == 'function' then
+                    defs[i] = def.value
+                end
+            end
             -- make sure `function` is before `doc.type.function`
             ---@type table<parser.object, integer>
             local orders = {}
@@ -489,7 +520,7 @@ local function checkLocal(state, word, position, results)
                         kind       = define.CompletionItemKind.Function,
                         id         = stack(source, function (newSource) ---@async
                             return {
-                                detail      = buildDetail(newSource),
+                                detail      = buildDetail(newSource, evolvedNodeOf(newSource, position)),
                                 description = buildDesc(newSource),
                             }
                         end),
@@ -502,7 +533,7 @@ local function checkLocal(state, word, position, results)
                 kind   = define.CompletionItemKind.Variable,
                 id     = stack(source, function (newSource) ---@async
                     return {
-                        detail      = buildDetail(newSource),
+                        detail      = buildDetail(newSource, evolvedNodeOf(newSource, position)),
                         description = buildDesc(newSource),
                     }
                 end),

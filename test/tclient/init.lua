@@ -22,6 +22,8 @@ require 'tclient.tests.settings-gates'
 require 'tclient.tests.settings-auto-require'
 require 'tclient.tests.settings-diagnostic-scope'
 require 'tclient.tests.settings-workspace'
+require 'tclient.tests.settings-runtime-meta'
+require 'tclient.tests.settings-plugin-args'
 require 'tclient.tests.library-inside-workspace'
 
 require 'tclient.tests.performance-jass-common'

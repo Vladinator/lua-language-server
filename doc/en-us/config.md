@@ -2976,7 +2976,7 @@ Either a list (given to every plugin) or a table whose keys are a part of a plug
 ## type
 
 ```ts
-array | object
+object | array
 ```
 
 ## default

@@ -186,6 +186,54 @@ TEST {
     ]]}
 }
 
+-- `Lua.doc.packageName`: a field whose name matches is `package` without a tag, so another file may not use it
+config.set(nil, 'Lua.doc.packageName', { '_*' })
+TEST {
+    code = 'invisible',
+    { path = 'a.lua', content = [[
+        ---@class PackageNamed
+        ---@field _internal string
+        ---@field shown string
+    ]]},
+    { path = 'b.lua', content = [[
+        ---@type PackageNamed
+        local obj
+
+        print(obj.<!_internal!>)
+        print(obj.shown)
+    ]]}
+}
+
+-- the same file may
+TEST {
+    code = 'invisible',
+    { path = 'a.lua', content = [[
+        ---@class PackageNamedHere
+        ---@field _internal string
+
+        ---@type PackageNamedHere
+        local obj
+
+        print(obj._internal)
+    ]]},
+}
+config.set(nil, 'Lua.doc.packageName', nil)
+
+-- setting off: the same field is public
+TEST {
+    code = 'invisible',
+    { path = 'a.lua', content = [[
+        ---@class PackageNamedOff
+        ---@field _internal string
+    ]]},
+    { path = 'b.lua', content = [[
+        ---@type PackageNamedOff
+        local obj
+
+        print(obj._internal)
+    ]]}
+}
+
 -- A bare marker on a method definition (`setmethod`), cross-file.
 TEST {
     code = 'invisible',

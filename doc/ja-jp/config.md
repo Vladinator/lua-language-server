@@ -2837,7 +2837,7 @@ null
 ## type
 
 ```ts
-array | object
+object | array
 ```
 
 ## default

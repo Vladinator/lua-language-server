@@ -2837,7 +2837,7 @@ Argumentos adicionais para o plugin.
 ## type
 
 ```ts
-array | object
+object | array
 ```
 
 ## default

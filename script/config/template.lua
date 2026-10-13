@@ -285,7 +285,8 @@ local template = {
                                             }),
     ['Lua.runtime.enableLuaJITExtensions']  = Type.Boolean >> false,
     ['Lua.runtime.plugin']                  = Type.Or(Type.String, Type.Array(Type.String)) ,
-    ['Lua.runtime.pluginArgs']              = Type.Or(Type.Array(Type.String), Type.Hash(Type.String, Type.String)),
+    -- (the object form first: the array form takes any table, and read a table keyed by plugin names as the list of its keys)
+    ['Lua.runtime.pluginArgs']              = Type.Or(Type.Hash(Type.String, Type.String), Type.Array(Type.String)),
     ['Lua.runtime.fileEncoding']            = Type.String >> 'utf8' << {
                                                 'utf8',
                                                 'ansi',

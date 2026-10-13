@@ -357,10 +357,8 @@ function mt:getLastAssign(start, finish)
         ---@type parser.object
         local obj
         if assign.type == 'variable' then
-            ---@cast assign vm.variable
             obj = assign.base
         else
-            ---@cast assign parser.object
             obj = assign
         end
         if obj.start < start then
@@ -441,29 +439,44 @@ end
 ---   'match'  the field is declared with exactly that literal
 ---   'union'  ... with that literal among others (`'a' | 'b'`): the type stays where the literal is one of them
 ---   'other'  ... with other literals only
+---   'wide'   ... with the plain type of the literal (`string` against `'a'`): it may have it, nothing is decided
 ---   nil      not decided by this field (missing, or declared with a type that is not a literal)
 --- The type is a class, or a table type written inline.
 --- @param uri uri
 --- @param obj vm.node.object
 --- @param fieldName string
 --- @param literal parser.object
---- @return 'match'|'union'|'other'|nil
+--- @return 'match'|'union'|'other'|'wide'|nil
 local function judgeByLiteralField(uri, obj, fieldName, literal)
     ---@param types parser.object[]
-    ---@return 'match'|'union'|'other'|nil
+    ---@return 'match'|'union'|'other'|'wide'|nil
     local function judge(types)
         local literals = 0
         local hit      = false
+        -- a field declared with the plain type of the literal (`---@field type string` against `'function'`) can have it too
+        local wide     = false
+        local literalType = type(literal[1])
         for _, t in ipairs(types) do
             if guide.isLiteral(t) and t[1] ~= nil then
                 literals = literals + 1
                 if t[1] == literal[1] then
                     hit = true
                 end
+            elseif t.type == 'doc.type.name' then
+                local name = t[1]
+                if name == 'any'
+                or (literalType == 'string'  and name == 'string')
+                or (literalType == 'number'  and (name == 'number' or name == 'integer'))
+                or (literalType == 'boolean' and name == 'boolean') then
+                    wide = true
+                end
             end
         end
         if literals == 0 then
-            return nil
+            return wide and 'wide' or nil
+        end
+        if wide then
+            return 'wide'
         end
         if not hit then
             return 'other'
@@ -549,10 +562,10 @@ vm.registerEqualityNarrowing {
 ---@return (fun(node: vm.node): vm.node)? keepMatching
 ---@return (fun(node: vm.node): vm.node)? dropMatching
 function vm.getLiteralFieldNarrowers(uri, topNode, fieldName, checker)
-    ---@type table<vm.node.object, 'match'|'union'|'other'|false>
+    ---@type table<vm.node.object, 'match'|'union'|'other'|'wide'|false>
     local verdicts = {}
     ---@param obj vm.node.object
-    ---@return 'match'|'union'|'other'|false
+    ---@return 'match'|'union'|'other'|'wide'|false
     local function verdictOf(obj)
         local verdict = verdicts[obj]
         if verdict == nil then
@@ -561,14 +574,18 @@ function vm.getLiteralFieldNarrowers(uri, topNode, fieldName, checker)
         end
         return verdict
     end
-    local anyMatch = false
+    -- the field tells the types apart when some type declares it with literals and some type can have the literal
+    local anyMatch, anyDeclared = false, false
     for obj in topNode:eachObject() do
         local verdict = verdictOf(obj)
-        if verdict == 'match' or verdict == 'union' then
+        if verdict == 'match' or verdict == 'union' or verdict == 'wide' then
             anyMatch = true
         end
+        if verdict == 'match' or verdict == 'union' or verdict == 'other' then
+            anyDeclared = true
+        end
     end
-    if not anyMatch then
+    if not anyMatch or not anyDeclared then
         return nil, nil
     end
     -- the branch where the field is that literal: only the types that can have it
@@ -579,7 +596,7 @@ function vm.getLiteralFieldNarrowers(uri, topNode, fieldName, checker)
         for i = 1, #node do
             local obj = node[i]
             local verdict = verdictOf(obj)
-            if verdict ~= 'match' and verdict ~= 'union' then
+            if verdict ~= 'match' and verdict ~= 'union' and verdict ~= 'wide' then
                 removeType(result, obj)
             end
         end
@@ -810,7 +827,6 @@ local function methodResultOf(obj, methodName)
         ---@cast src parser.object
         for func in vm.compileNode(src):eachObject() do
             if func.type == 'function' then
-                ---@cast func parser.object
                 local list = isMethodOf(func, obj) and own or inherited
                 list[#list+1] = func
             end
@@ -2048,10 +2064,8 @@ local function buildTracer(mode, source, name)
     ---@type parser.object?
     local main
     if source.type == 'variable' then
-        ---@cast source vm.variable
         main = guide.getParentBlock(source.base)
     else
-        ---@cast source parser.object
         main = guide.getParentBlock(source)
     end
     if not main then

@@ -4,6 +4,7 @@ local guide = require 'parser.guide'
 local vm    = require 'vm.vm'
 
 ---@class vm.variable
+---@field type 'variable'
 ---@field uri uri
 ---@field root parser.object
 ---@field id string

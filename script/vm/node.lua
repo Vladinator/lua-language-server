@@ -12,6 +12,7 @@ vm.nodeCache = setmetatable({}, util.MODE_K)
 ---@alias vm.node.object vm.object | vm.global | vm.variable
 
 ---@class vm.node
+---@field type 'vm.node'
 ---@field [integer] vm.node.object
 ---@field [vm.node.object] true
 ---@field fields? table<vm.node|string, vm.node>
@@ -88,7 +89,6 @@ function mt:merge(node)
             end
         end
     else
-        ---@cast node -vm.node
         if not self[node] then
             self[node]    = true
             self[#self+1] = node
@@ -373,7 +373,6 @@ function mt:removeEnumsOf(uri, name)
     for index = #self, 1, -1 do
         local c = self[index]
         if c.type == 'global' and c.cate == 'type' and c.name ~= name then
-            ---@cast c vm.global
             for _, set in ipairs(c:getSets(uri)) do
                 if set.type == 'doc.enum' then
                     if vm.isSubType(uri, c.name, name) == true then

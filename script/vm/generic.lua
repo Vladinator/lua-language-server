@@ -7,6 +7,7 @@ local guide   = require 'parser.guide'
 ---@field public _resolved vm.node
 
 ---@class vm.generic
+---@field type   'generic'
 ---@field sign   vm.sign
 ---@field proto  vm.object
 ---@field flags  table<string, boolean>?

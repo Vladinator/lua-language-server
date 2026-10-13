@@ -20,6 +20,7 @@ local globalSubs = util.multiTable(2)
 ---@field gets parser.object[]
 
 ---@class vm.global
+---@field type 'global'
 ---@field links table<uri, vm.global.link>
 ---@field setsCache? table<uri, parser.object[]>
 ---@field cate vm.global.cate

@@ -8317,3 +8317,110 @@ local function f(value)
     for <?k?>, v in pairs(value) do end
 end
 ]]
+
+-- a field declared with the plain type (`string`) can have any literal: that member stays where the others, declared with other
+-- literals, are ruled out
+TEST 'WideObj' [[
+---@class WideGlobal
+---@field type 'global'
+
+---@class WideGeneric
+---@field type 'generic'
+
+---@class WideObj
+---@field type string
+
+---@param x WideGlobal|WideGeneric|WideObj
+local function f(x)
+    if x.type == 'function' then
+        print(<?x?>)
+    end
+end
+]]
+
+-- the literal one of the members declares: that member and the plain one stay
+TEST 'WideGlobal|WideObj2' [[
+---@class WideGlobal
+---@field type 'global'
+
+---@class WideGeneric2
+---@field type 'generic'
+
+---@class WideObj2
+---@field type string
+
+---@param x WideGlobal|WideGeneric2|WideObj2
+local function f(x)
+    if x.type == 'global' then
+        print(<?x?>)
+    end
+end
+]]
+
+-- the other branch: the member that has only that literal is gone, the plain one stays
+TEST 'WideGeneric3|WideObj3' [[
+---@class WideGlobal3
+---@field type 'global'
+
+---@class WideGeneric3
+---@field type 'generic'
+
+---@class WideObj3
+---@field type string
+
+---@param x WideGlobal3|WideGeneric3|WideObj3
+local function f(x)
+    if x.type == 'global' then
+        return
+    end
+    print(<?x?>)
+end
+]]
+
+-- numbers too
+TEST 'WideN2' [[
+---@class WideN1
+---@field kind 1
+
+---@class WideN2
+---@field kind integer
+
+---@param x WideN1|WideN2
+local function f(x)
+    if x.kind == 2 then
+        print(<?x?>)
+    end
+end
+]]
+
+-- negative: no member declares the field with literals, so the field tells nothing apart
+TEST 'WideNone1|WideNone2' [[
+---@class WideNone1
+---@field type string
+
+---@class WideNone2
+---@field type string
+
+---@param x WideNone1|WideNone2
+local function f(x)
+    if x.type == 'function' then
+        print(<?x?>)
+    end
+end
+]]
+
+-- a field declared `any` can have the literal as well
+TEST 'WideAnyObj' [[
+---@class WideAnyA
+---@field type 'a'
+
+---@class WideAnyObj
+---@field type any
+
+---@param x WideAnyA|WideAnyObj
+local function f(x)
+    if x.type == 'b' then
+        print(<?x?>)
+    end
+end
+]]

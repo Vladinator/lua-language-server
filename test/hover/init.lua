@@ -2882,3 +2882,54 @@ local function f(<?p?>) end
 [[
 (parameter) p: number!
 ]]
+
+-- `---@deprecated` says so in the hover of the definition, with its reason
+hoverContains([[
+---@class HoverDeprecated
+local W = {}
+
+---@deprecated use SetLabel instead
+function W:<?SetName?>(name) end
+]], '**Deprecated.** use SetLabel instead')
+
+hoverContains([[
+---@deprecated
+local function <?old?>() end
+]], '**Deprecated.**')
+
+-- negative: a function that is not deprecated does not say it
+do
+    local newScript, catched = catch([[
+---Does the thing.
+local function <?fine?>() end
+]], '?')
+    files.setText(TESTURI, newScript)
+    local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
+    assert(hover and not hover:string():find('Deprecated', 1, true), 'not deprecated')
+    files.remove(TESTURI)
+end
+
+-- `---@see` with an address keeps the address whole (the name stopped at the colon)
+hoverContains([[
+---Does the thing.
+---@see https://example.com/docs
+local function <?documented?>() end
+]], '<https://example.com/docs>')
+
+-- a name that is not an address is still a name
+hoverContains([[
+---Does the thing.
+---@see OtherThing
+local function <?documented?>() end
+]], '~OtherThing~')
+
+-- `---@see` under a class shows in the hover of the class
+hoverContains([[
+---A class.
+---@see RelatedThing
+---@class HoverSeeClass
+local C = {}
+
+---@type <?HoverSeeClass?>
+local inst
+]], '~RelatedThing~')

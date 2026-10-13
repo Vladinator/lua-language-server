@@ -137,37 +137,18 @@ local function normalizeComment(comment, suri)
     return comment
 end
 
----@param source parser.object
----@return string?
-local function getBindComment(source)
-    local uri = guide.getUri(source)
-    -- normalizeComment can return nil, but `lines[#lines+1] = nil` is then a
-    -- no-op (doesn't grow the array), so lines never actually holds a nil
-    ---@type string[]
-    local lines = {}
-    for _, docComment in ipairs(source.bindComments) do
-        -- .comment here is always the object-shaped comment (not the plain
-        -- string used only on 'doc.resume' enum-default/additional nodes),
-        -- and its .text is always set
-        local comment = docComment.comment
-        ---@type string
-        local text = comment.text
-        local normalized = normalizeComment(text, uri)
-        if normalized then
-            lines[#lines+1] = normalized
-        end
-    end
-    if not lines or #lines == 0 then
-        return nil
-    end
-    return table.concat(lines, '\n')
-end
-
 ---@async
 ---@param see parser.object
 ---@return string
 local function packSee(see)
     local name = see.name[1]
+    -- (`@see https://host/path`: the name stops at the colon, the rest of the address is read as the comment)
+    local commentText = see.comment and see.comment.text or ''
+    local _, urlFinish, rest = commentText:find('^%s*(://%S+)')
+    if rest and urlFinish then
+        local tail = util.trim(commentText:sub(urlFinish + 1))
+        return ('<%s%s>%s'):format(name, rest, tail ~= '' and (' ' .. tail) or '')
+    end
     ---@type string[]
     local buf  = {}
     ---@type parser.object?
@@ -218,6 +199,35 @@ end
 ---@async
 ---@param source parser.object
 ---@return string?
+local function getBindComment(source)
+    local uri = guide.getUri(source)
+    -- normalizeComment can return nil, but `lines[#lines+1] = nil` is then a
+    -- no-op (doesn't grow the array), so lines never actually holds a nil
+    ---@type string[]
+    local lines = {}
+    for _, docComment in ipairs(source.bindComments) do
+        -- .comment here is always the object-shaped comment (not the plain
+        -- string used only on 'doc.resume' enum-default/additional nodes),
+        -- and its .text is always set
+        local comment = docComment.comment
+        ---@type string
+        local text = comment.text
+        local normalized = normalizeComment(text, uri)
+        if normalized then
+            lines[#lines+1] = normalized
+        end
+    end
+    -- (`---@see` under a class / alias / enum)
+    lookUpDocSees(lines, source.bindGroup or {})
+    if not lines or #lines == 0 then
+        return nil
+    end
+    return table.concat(lines, '\n')
+end
+
+---@async
+---@param source parser.object
+---@return string?
 local function lookUpDocComments(source)
     local docGroup = source.bindDocs
     if not docGroup then
@@ -234,7 +244,11 @@ local function lookUpDocComments(source)
     ---@type string[]
     local lines = {}
     for _, doc in ipairs(docGroup) do
-        if doc.type == 'doc.comment' then
+        if doc.type == 'doc.deprecated' then
+            -- (the reason is in the diagnostic at each use too; the hover of the definition says it as well)
+            local reason = doc.comment and util.trim(doc.comment.text) or ''
+            table.insert(lines, 1, '**Deprecated.**' .. (reason ~= '' and (' ' .. reason) or ''))
+        elseif doc.type == 'doc.comment' then
             lines[#lines+1] = normalizeComment(doc.comment.text, uri)
         elseif doc.type == 'doc.type'
         or     doc.type == 'doc.public'
@@ -259,6 +273,7 @@ local function lookUpDocComments(source)
     return table.concat(lines, '\n')
 end
 
+---@async
 ---@param source parser.object
 ---@return string?
 local function tryDocClassComment(source)
@@ -283,6 +298,7 @@ local function tryDocModule(source)
     return collectRequire('require', source.module, guide.getUri(source))
 end
 
+---@async
 ---@param docType parser.object?
 ---@param name string
 ---@param uri uri
@@ -340,6 +356,7 @@ local function buildEnumChunk(docType, name, uri)
     return table.concat(lines, '\n')
 end
 
+---@async
 ---@param source parser.object
 ---@param docGroup parser.object[]
 ---@return string?
@@ -387,6 +404,7 @@ local function getBindEnums(source, docGroup)
     return table.concat(chunks, '\n\n')
 end
 
+---@async
 ---@param source parser.object
 ---@return string?
 local function tryDocFieldComment(source)
@@ -401,6 +419,7 @@ local function tryDocFieldComment(source)
     end
 end
 
+---@async
 ---@param source parser.object
 ---@param raw boolean?
 ---@return markdown?
@@ -547,6 +566,7 @@ local function tyrDocParamComment(source)
     end
 end
 
+---@async
 ---@param source parser.object
 ---@return string?
 local function tryDocEnum(source)

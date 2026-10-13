@@ -8166,3 +8166,95 @@ if type(e.v) == "string" then
     local <?x?> = e.w
 end
 ]]
+
+-- `__index` as a function: reading a key the table does not have gives what the function returns
+TEST 'string' [[
+---@return string
+local function lookup(t, k) return "s" end
+local obj = setmetatable({}, { __index = lookup })
+local <?x?> = obj.name
+]]
+
+TEST 'integer' [[
+local obj = setmetatable({}, {
+    __index = function (t, k) return 1 end,
+})
+local <?x?> = obj.anything
+]]
+
+-- a declared field wins over the function
+TEST 'boolean' [[
+local obj = setmetatable({ name = true }, {
+    __index = function (t, k) return "no" end,
+})
+local <?x?> = obj.name
+]]
+
+-- `__index` as a table keeps its meaning
+TEST 'number' [[
+local obj = setmetatable({}, { __index = { size = 1.5 } })
+local <?x?> = obj.size
+]]
+
+-- a table without a metatable has no such result
+TEST 'unknown' [[
+local obj = {}
+local <?x?> = obj.name
+]]
+
+-- `setmetatable(M, meta)` as a statement links the metatable to the table M was made of
+TEST 'string' [[
+local M = {}
+local meta = { __add = function (a, b) return "sum" end }
+setmetatable(M, meta)
+local <?x?> = M + M
+]]
+
+TEST 'string' [[
+local M = {}
+setmetatable(M, { __call = function (self) return "called" end })
+local <?x?> = M()
+]]
+
+-- negative: another table's metatable is not M's
+TEST 'unknown' [[
+local M = {}
+local Other = {}
+setmetatable(Other, { __add = function (a, b) return "sum" end })
+local <?x?> = M + M
+]]
+
+-- a variable declared with a function type keeps that signature when a function is assigned to it (a declared type that is not a
+-- union is not narrowed by an assignment); the results of the assigned function do not replace the declared ones
+TEST 'string' [[
+---@type fun(): string
+local f
+local function other() return 1 end
+f = other
+local <?x?> = f()
+]]
+
+TEST 'string?' [[
+local function wrap(fn)
+    return function (...) return fn(...) end
+end
+---@type fun(): string?
+local f
+f = wrap(function () return nil end)
+local <?x?> = f()
+]]
+
+-- negative: an optional declared function type is outside the rule (the declared and the assigned function both count)
+TEST 'string|integer' [[
+---@type (fun(): string)?
+local f
+f = function () return 1 end
+local <?x?> = f()
+]]
+
+-- negative: no declared type, the assigned function is the type
+TEST 'integer' [[
+local f
+f = function () return 1 end
+local <?x?> = f()
+]]

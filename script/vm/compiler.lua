@@ -2353,6 +2353,34 @@ local function isUnresolved(node)
     return true
 end
 
+--- A declared function type and a value that is a function: the declared signature stays (TypeScript: a declared type that is not a
+--- union is not narrowed by an assignment), whatever the function that was assigned says about its results.
+---@param declared vm.node
+---@param value    vm.node
+---@return boolean
+local function keepsDeclaredFunction(declared, value)
+    local functions = 0
+    for _, c in ipairs(declared) do
+        if c.type == 'doc.type.function' then
+            functions = functions + 1
+        elseif c.type ~= 'variable' and c.type ~= 'local' then
+            return false
+        end
+    end
+    if functions == 0 or declared:isOptional() then
+        return false
+    end
+    local assigned = false
+    for _, c in ipairs(value) do
+        if c.type == 'function' or c.type == 'doc.type.function' then
+            assigned = true
+        elseif c.type ~= 'variable' and c.type ~= 'local' then
+            return false
+        end
+    end
+    return assigned
+end
+
 ---@param value parser.object
 ---@param loc    parser.object
 ---@return boolean
@@ -2870,7 +2898,7 @@ local compilerSwitch = util.switch()
         -- did compiling the value run into a compile (or a tracer walk) that is still open?
         local watch <close> = vm.watchCompileCycles()
         local valueNode = vm.compileNode(source.value)
-        if  isUnresolved(valueNode)
+        if  (isUnresolved(valueNode) or (source.node.bindDocs and keepsDeclaredFunction(locNode, valueNode)))
         and locNode:isTyped()
         and (source.node.bindDocs or referencesLocal(source.value, source.node) or watch.hit) then
             -- a self-referential assignment (`i = i + 1`, `s = s .. x`) is
@@ -2995,6 +3023,12 @@ local compilerSwitch = util.switch()
                 local value = keyType and vm.getClassIndexValue(guide.getUri(source), vm.compileNode(source.node), keyType)
                 if value then
                     setNodeCheckSafe(source, value)
+                else
+                    -- a table whose metatable has an `__index` function: what that function gives
+                    local viaIndex = vm.getIndexMetamethodResult(source.node)
+                    if viaIndex then
+                        setNodeCheckSafe(source, viaIndex)
+                    end
                 end
             end
         end

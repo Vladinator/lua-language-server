@@ -22,7 +22,10 @@ local root = assert(furi.encode(DIR:string()))
 ---@param pluginArgs any
 ---@return any alphaArgs, any betaArgs
 local function receivedBy(pluginArgs)
-    local alpha, beta
+    ---@type any
+    local alpha
+    ---@type any
+    local beta
     ---@async
     lclient():start(function (client)
         client:registerFakers()

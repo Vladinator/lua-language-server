@@ -154,6 +154,30 @@ function vm.linkMetatable(tbl, mt)
     links[#links+1] = mt
 end
 
+---@class parser.object
+---@field package _metatableScanned? boolean
+
+--- `local M = {}` ... `setmetatable(M, meta)` as a statement: nobody compiles the result of that call, so the link is made from the
+--- table when its metamethods are asked for.
+---@param tbl parser.object a table constructor
+local function linkStatementMetatables(tbl)
+    if tbl._metatableScanned then
+        return
+    end
+    tbl._metatableScanned = true
+    local var = tbl.parent
+    if not var or var.type ~= 'local' or var.value ~= tbl then
+        return
+    end
+    for _, ref in ipairs(var.ref or {}) do
+        local args = ref.parent
+        local call = args and args.type == 'callargs' and args.parent
+        if call and call.type == 'call' and call.node and call.node.special == 'setmetatable' and args[1] == ref then
+            vm.compileNode(call)
+        end
+    end
+end
+
 --- The functions the metatables linked to `obj` give to the metamethod `__<name>`: the ones written in the metatable, else the ones its
 --- class declares. (The field also has the type of the standard `metatable` class, `fun(t1, t2): any`, which says nothing about this one.)
 ---@param name string
@@ -162,6 +186,7 @@ end
 function vm.getMetamethodFunctions(name, obj)
     ---@type parser.object[]
     local found = {}
+    linkStatementMetatables(obj)
     local links = metatableLinks[obj]
     if not links then
         return found
@@ -209,6 +234,24 @@ local function runMetamethod(op, obj)
                     result = result or vm.createNode()
                     result:merge(ret)
                 end
+            end
+        end
+    end
+    return result
+end
+
+--- What reading a key the table does not have gives when its metatable's `__index` is a function: that function's first result.
+---@param receiver parser.object
+---@return vm.node?
+function vm.getIndexMetamethodResult(receiver)
+    ---@type vm.node?
+    local result
+    for obj in vm.compileNode(receiver):eachObject() do
+        if obj.type == 'table' then
+            ---@cast obj parser.object
+            local viaIndex = runMetamethod('index', obj)
+            if viaIndex then
+                result = result and result:merge(viaIndex) or viaIndex
             end
         end
     end

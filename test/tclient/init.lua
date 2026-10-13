@@ -25,6 +25,7 @@ require 'tclient.tests.settings-workspace'
 require 'tclient.tests.settings-runtime-meta'
 require 'tclient.tests.settings-plugin-args'
 require 'tclient.tests.settings-third-party'
+require 'tclient.tests.settings-window'
 require 'tclient.tests.editor-hierarchy'
 require 'tclient.tests.library-inside-workspace'
 

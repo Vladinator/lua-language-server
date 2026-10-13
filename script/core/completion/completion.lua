@@ -445,6 +445,7 @@ end
 ---@param source   parser.object a `local`
 ---@param position integer
 ---@return vm.node?
+---@return parser.object? lastAssignment the last assignment before the cursor (its hover is the documentation of the item)
 local function evolvedNodeOf(source, position)
     if source.type ~= 'local' or source.value then
         return nil
@@ -460,13 +461,18 @@ local function evolvedNodeOf(source, position)
     end
     ---@type vm.node?
     local node
+    ---@type parser.object?
+    local last
     for _, ref in ipairs(source.ref or {}) do
         if ref.type == 'setlocal' and ref.value and ref.start < position then
             node = node or vm.createNode()
             node:merge(vm.compileNode(ref))
+            if not last or ref.start > last.start then
+                last = ref
+            end
         end
     end
-    return node
+    return node, last
 end
 
 ---@param state    parser.state
@@ -488,9 +494,13 @@ local function checkLocal(state, word, position, results)
         end
         if vm.getInfer(evolvedNodeOf(source, position) or source):hasFunction(state.uri) then
             local defs = vm.getDefs(source)
-            -- (a local that is given its function later: the assignment stands for the function)
+            -- (a local that is given its function later: the assignment stands for the function, and the documentation is the one
+            -- of that assignment -- the hover of the declaration alone says `unknown`)
+            ---@type table<parser.object, parser.object>
+            local assignedBy = {}
             for i, def in ipairs(defs) do
                 if def.type == 'setlocal' and def.value and def.value.type == 'function' then
+                    assignedBy[def.value] = def
                     defs[i] = def.value
                 end
             end
@@ -524,9 +534,9 @@ local function checkLocal(state, word, position, results)
                         match      = name,
                         insertText = name,
                         kind       = define.CompletionItemKind.Function,
-                        id         = stack(source, function (newSource) ---@async
+                        id         = stack(assignedBy[def] or source, function (newSource) ---@async
                             return {
-                                detail      = buildDetail(newSource, evolvedNodeOf(newSource, position)),
+                                detail      = buildDetail(newSource),
                                 description = buildDesc(newSource),
                             }
                         end),
@@ -538,9 +548,10 @@ local function checkLocal(state, word, position, results)
                 label  = name,
                 kind   = define.CompletionItemKind.Variable,
                 id     = stack(source, function (newSource) ---@async
+                    local evolved, lastAssignment = evolvedNodeOf(newSource, position)
                     return {
-                        detail      = buildDetail(newSource, evolvedNodeOf(newSource, position)),
-                        description = buildDesc(newSource),
+                        detail      = buildDetail(newSource, evolved),
+                        description = buildDesc(lastAssignment or newSource),
                     }
                 end),
             }

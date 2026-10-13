@@ -5637,3 +5637,46 @@ evolve<??>
     end
     assert(item and item.label == 'evolvedDeclared' and item.kind == define.CompletionItemKind.Variable, 'a declared local stays a variable: ' .. tostring(item and item.label))
 end)
+
+-- the documentation of the item is the hover of the assignment too, not `unknown`
+Cared['description'] = true
+TEST [[
+local evolvedDoc
+do
+    ---@param o number
+    function evolvedDoc(o) end
+end
+evolve<??>
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^evolvedDoc') then
+            item = it
+        end
+    end
+    local doc = item and tostring(item.description) or ''
+    assert(doc:find('function evolvedDoc(o: number)', 1, true), 'the documentation names the function: ' .. doc)
+    assert(not doc:find('unknown', 1, true), 'not unknown: ' .. doc)
+end)
+
+TEST [[
+local evolvedDocNumber
+do
+    evolvedDocNumber = 5
+end
+evolve<??>
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^evolvedDocNumber') then
+            item = it
+        end
+    end
+    local doc = item and tostring(item.description) or ''
+    assert(doc:find('integer', 1, true) and not doc:find('unknown', 1, true), 'the documentation has the type: ' .. doc)
+end)
+Cared['description'] = nil

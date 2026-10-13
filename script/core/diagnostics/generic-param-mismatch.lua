@@ -48,7 +48,7 @@ local function directGenerics(signNode)
     local names = {}
     for obj in signNode:eachObject() do
         if obj.type == 'doc.generic.name' then
-            names[#names+1] = obj[1] --[[@as string]]
+            names[#names+1] = obj[1]
         end
     end
     return names
@@ -79,7 +79,7 @@ local function arrayGenerics(signNode)
     local names = {}
     for obj in signNode:eachObject() do
         if obj.type == 'doc.type.array' and obj.node and obj.node.type == 'doc.generic.name' then
-            names[#names+1] = obj.node[1] --[[@as string]]
+            names[#names+1] = obj.node[1]
         end
     end
     return names

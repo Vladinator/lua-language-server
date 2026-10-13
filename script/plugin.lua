@@ -171,7 +171,7 @@ end
 ---@return any
 local function argsFor(args, pluginConfigPath)
     if args and not args[1] then
-        for k, v in pairs(args --[[@as table<any, any>]]) do
+        for k, v in pairs(args) do
             if pluginConfigPath:find(k, 1, true) then
                 return v
             end

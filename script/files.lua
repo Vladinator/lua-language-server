@@ -818,7 +818,7 @@ end
 function m.getAssoc(uri)
     ---@type any[]
     local patt = {}
-    for k, v in pairs(config.get(uri, 'files.associations') --[[@as table<any, any>]]) do
+    for k, v in pairs(config.get(uri, 'files.associations')) do
         if v == 'lua' then
             patt[#patt+1] = k
         end

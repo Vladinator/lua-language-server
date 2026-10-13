@@ -111,7 +111,7 @@ function export.runCLI()
                 mergedResults[k] = entries
                 for _, entry in ipairs(v) do
                     entries[#entries + 1] = entry
-                    count = (count + 1) --[[@as integer]]
+                    count = (count + 1)
                 end
             end
         end

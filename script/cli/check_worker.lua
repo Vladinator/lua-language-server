@@ -133,7 +133,7 @@ local function report_progress(i, max, results)
     local filesWithErrors = 0
     local errors = 0
     for _, diags in pairs(results) do
-        filesWithErrors = filesWithErrors + 1 --[[@as integer]]
+        filesWithErrors = filesWithErrors + 1
         errors = errors + #diags --[[@as integer]]
     end
 

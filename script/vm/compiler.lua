@@ -105,18 +105,14 @@ local function searchFieldByLocalID(source, key, pushResult)
             return
         end
         if source.type == 'variable' then
-            ---@cast source vm.variable
             fields = source:getSets(key)
         else
-            ---@cast source parser.object
             fields = vm.getVariableSets(source, key)
         end
     else
         if source.type == 'variable' then
-            ---@cast source vm.variable
             fields = source:getFields(false)
         else
-            ---@cast source parser.object
             fields = vm.getVariableFields(source, false)
         end
     end
@@ -126,7 +122,6 @@ local function searchFieldByLocalID(source, key, pushResult)
 
     --Exact classes do not allow injected fields
     if source.type ~= 'variable' and source.bindDocs then
-        ---@cast source parser.object
         local uri = guide.getUri(source)
         for _, src in ipairs(fields) do
             if src.type == "setfield" then
@@ -1319,7 +1314,6 @@ local function resolveReturnsProjection(uri, source)
     local resultNode
     for obj in fNode:eachObject() do
         if obj.type == 'function' or obj.type == 'doc.type.function' then
-            ---@cast obj parser.object
             local rtn = vm.getReturnOfFunction(obj, 1)
             if rtn then
                 local rtnNode = vm.compileNode(rtn)
@@ -1430,7 +1424,6 @@ local function getReturnOfSetMetaTable(args)
         if tbl then
             for n in vm.compileNode(tbl):eachObject() do
                 if n.type == 'table' then
-                    ---@cast n parser.object
                     vm.linkMetatable(n, mt)
                 end
             end
@@ -2095,7 +2088,6 @@ local function getReceiverArgumentsOfCallback(func)
     local uri = guide.getUri(func)
     for receiver in vm.compileNode(callee.node):eachObject() do
         if receiver.type == 'doc.type.sign' or (receiver.type == 'global' and receiver.cate == 'type') then
-            ---@cast receiver parser.object|vm.global
             local map = vm.getReceiverGenericMap(uri, receiver)
             if map then
                 return map
@@ -2688,7 +2680,6 @@ local function bindReturnOfFunction(source, mfunc, index, args)
                     if rn.type == 'doc.type.sign' or (rn.type == 'global' and rn.cate == 'type') then
                         -- (`Box<number>`, or a class that inherits from one: the chain gives the arguments of the class that declares the method)
                         do
-                            ---@cast rn parser.object|vm.global
                             local genericMap = vm.getReceiverGenericMap(guide.getUri(source), rn, mfunc)
                             if genericMap and mfunc.bindDocs then
                                 for _, doc in ipairs(mfunc.bindDocs) do
@@ -3365,10 +3356,8 @@ local compilerSwitch = util.switch()
         for nd in funcNode:eachObject() do
             if nd.type == 'function'
             or nd.type == 'doc.type.function' then
-                ---@cast nd parser.object
                 bindReturnOfFunction(source, nd, index, args)
             elseif nd.type == 'global' and nd.cate == 'type' then
-                ---@cast nd vm.global
                 for _, set in ipairs(nd:getSets(guide.getUri(source))) do
                     if set.type == 'doc.class' then
                         for _, overload in ipairs(set.calls) do
@@ -3563,7 +3552,6 @@ local compilerSwitch = util.switch()
                     if field.type == 'generic' then
                         return
                     end
-                    ---@cast field parser.object
                     local key = guide.getKeyName(field)
                     if key and not seen[key] then
                         seen[key] = true

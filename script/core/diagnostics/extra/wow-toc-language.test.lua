@@ -645,7 +645,6 @@ local function disableActionsOf(text, code)
         end
     end
     assert(found, 'no ' .. code)
-    ---@cast found fileKind.diagnostic
     local list = assert(syntax.kind.codeAction)(uri, text, found.range, { { code = found.code, message = found.message, range = found.range } }) or {}
     ---@type table[]
     local only = {}

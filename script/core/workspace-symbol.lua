@@ -131,7 +131,6 @@ local function searchClassField(key, suri, results)
         if field.type == 'generic' then
             return
         end
-        ---@cast field -vm.generic
         local keyName = guide.getKeyName(field)
         if not keyName then
             return

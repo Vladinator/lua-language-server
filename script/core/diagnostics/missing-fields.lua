@@ -49,7 +49,6 @@ local function getRequiredKeys(def, isPartial)
             if not key then
                 local fieldnode = vm.compileNode(field.field)[1]
                 if fieldnode and fieldnode.type == 'doc.type.integer' then
-                    ---@cast fieldnode parser.object
                     key = vm.getKeyName(fieldnode)
                 end
             end

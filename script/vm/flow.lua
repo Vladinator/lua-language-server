@@ -2671,7 +2671,7 @@ function vm.buildFlowBody(main)
                 end
                 for funcObj in calleeNode:eachObject() do
                     if funcObj.type == 'function' then
-                        local cases = functions == 1 and declaredCases(funcObj --[[@as parser.object]])
+                        local cases = functions == 1 and declaredCases(funcObj)
                         if cases then
                             ---@type table<integer, parser.object>
                             local decls = {}
@@ -2697,7 +2697,7 @@ function vm.buildFlowBody(main)
                                 end
                             end
                         end
-                        local returnGroups = getInferredReturnCorrelation(funcObj --[[@as parser.object]])
+                        local returnGroups = getInferredReturnCorrelation(funcObj)
                         if returnGroups then
                             for i, siblingIdxs in pairs(returnGroups) do
                                 local declI = bySindex[i]

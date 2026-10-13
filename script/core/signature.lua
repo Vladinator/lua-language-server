@@ -229,7 +229,6 @@ local function makeSignatures(text, call, pos)
     local mark = {}
     for src in node:eachObject() do
         if src.type == 'function' or src.type == 'doc.type.function' then
-            ---@cast src parser.object
             if src.type == 'doc.type.function' or not vm.isVarargFunctionWithOverloads(src) then
                 if  not mark[src]
                 and not isEventNotMatch(call, src) then
@@ -242,7 +241,6 @@ local function makeSignatures(text, call, pos)
                 end
             end
         elseif src.type == 'global' and src.cate == 'type' then
-            ---@cast src vm.global
             for _, set in ipairs(src:getSets(guide.getUri(call))) do
                 if set.type == 'doc.class' then
                     for _, overload in ipairs(set.calls) do

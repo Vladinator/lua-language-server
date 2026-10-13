@@ -76,7 +76,6 @@ local function getReceiverGenericMap(uri, source, funcNode)
     local method
     for f in funcNode:eachObject() do
         if f.type == 'function' then
-            ---@cast f parser.object
             method = f
             break
         end
@@ -87,7 +86,6 @@ local function getReceiverGenericMap(uri, source, funcNode)
     for rn in receiverNode:eachObject() do
         -- `Box<number>`, or a class that inherits from one (`---@class NumberBox: Box<number>`)
         if rn.type == 'doc.type.sign' or (rn.type == 'global' and rn.cate == 'type') then
-            ---@cast rn parser.object|vm.global
             local map = vm.getReceiverGenericMap(uri, rn, method)
             if map then
                 for name, node in pairs(map) do
@@ -131,7 +129,6 @@ local function getDefNode(funcNode, i, classGenericMap)
     for src in funcNode:eachObject() do
         if src.type == 'function'
         or src.type == 'doc.type.function' then
-            ---@cast src parser.object
             local param = paramAt(src, i)
             if param then
                 local paramNode = vm.compileNode(param)
@@ -160,7 +157,6 @@ local function getDefNode(funcNode, i, classGenericMap)
             end
         elseif src.type == 'table' then
             -- called through the `__call` of its metatable: the table is the first argument
-            ---@cast src parser.object
             for _, func in ipairs(vm.getMetamethodFunctions('call', src)) do
                 local param = paramAt(func, i + 1)
                 if param then
@@ -222,13 +218,11 @@ local function getRawDefNode(funcNode, i)
     for f in funcNode:eachObject() do
         if f.type == 'function'
         or f.type == 'doc.type.function' then
-            ---@cast f parser.object
             local param = paramAt(f, i)
             if param then
                 defNode:merge(vm.compileNode(param))
             end
         elseif f.type == 'table' then
-            ---@cast f parser.object
             for _, func in ipairs(vm.getMetamethodFunctions('call', f)) do
                 local param = paramAt(func, i + 1)
                 if param then

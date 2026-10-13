@@ -96,7 +96,6 @@ function vm.countParamsOfSource(source)
     for nd in vm.compileNode(source):eachObject() do
         if nd.type == 'doc.type.function' and not overloads[nd] then
             hasDocFunction = true
-            ---@cast nd parser.object
             local dmin, dmax, ddef = vm.countParamsOfFunction(nd)
             if dmin > min then
                 min = dmin
@@ -168,7 +167,6 @@ function vm.countParamsOfNode(node)
     for n in node:eachObject() do
         if n.type == 'function'
         or n.type == 'doc.type.function' then
-            ---@cast n parser.object
             local fmin, fmax, fdef = vm.countParamsOfFunction(n)
             if not min or fmin < min then
                 min = fmin
@@ -181,7 +179,6 @@ function vm.countParamsOfNode(node)
             end
         elseif n.type == 'table' then
             -- a table called through the `__call` of its metatable: the function gets the table as its first argument
-            ---@cast n parser.object
             for _, func in ipairs(vm.getMetamethodFunctions('call', n)) do
                 local fmin, fmax, fdef = vm.countParamsOfFunction(func)
                 fmin, fmax, fdef = math.max(fmin - 1, 0), fmax - 1, math.max(fdef - 1, 0)
@@ -559,7 +556,6 @@ function vm.getMatchedFunctions(func, args, mark)
     for n in node:eachObject() do
         if n.type == 'function'
         or n.type == 'doc.type.function' then
-            ---@cast n parser.object
             funcs[#funcs+1] = n
         end
     end
@@ -745,7 +741,6 @@ local function boundByReceiver(uri, call, func, name)
     end
     for receiver in vm.compileNode(callNode.node):eachObject() do
         if receiver.type == 'doc.type.sign' or (receiver.type == 'global' and receiver.cate == 'type') then
-            ---@cast receiver parser.object|vm.global
             local map = vm.getReceiverGenericMap(uri, receiver, func)
             if map and map[name] then
                 return map[name]
@@ -785,7 +780,6 @@ function vm.findParamsProjection(uri, call)
             if target then
                 return nil
             end
-            ---@cast obj parser.object
             target = obj
         end
     end

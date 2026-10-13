@@ -203,10 +203,8 @@ function vm.getMetamethodFunctions(name, obj)
             local declared = {}
             for func in vm.compileNode(src):eachObject() do
                 if func.type == 'function' then
-                    ---@cast func parser.object
                     written[#written+1] = func
                 elseif func.type == 'doc.type.function' then
-                    ---@cast func parser.object
                     declared[#declared+1] = func
                 end
             end
@@ -248,7 +246,6 @@ function vm.getIndexMetamethodResult(receiver)
     local result
     for obj in vm.compileNode(receiver):eachObject() do
         if obj.type == 'table' then
-            ---@cast obj parser.object
             local viaIndex = runMetamethod('index', obj)
             if viaIndex then
                 result = result and result:merge(viaIndex) or viaIndex
@@ -270,7 +267,6 @@ function vm.runOperator(op, exp, value)
     for cVal in node:eachObject() do
         local c = cVal
         if c.type == 'table' then
-            ---@cast c parser.object
             local viaMetatable = runMetamethod(op, c)
             if viaMetatable then
                 result = result and result:merge(viaMetatable) or viaMetatable

@@ -101,7 +101,6 @@ function mt:resolve(uri, args)
             return
         end
         if object.type == 'doc.type' then
-            ---@cast object parser.object
             resolve(vm.compileNode(object), node)
             return
         end
@@ -226,7 +225,6 @@ function mt:resolve(uri, args)
             return
         end
         if object.type == 'doc.type.table' then
-            ---@cast object parser.object
             for _, ufield in ipairs(object.fields) do
                 local ufieldNode = vm.compileNode(ufield.name)
                 local uvalueNode = vm.compileNode(ufield.extends)
@@ -270,7 +268,6 @@ function mt:resolve(uri, args)
                     for n in node:eachObject() do
                         if n.type == 'function'
                         or n.type == 'doc.type.function' then
-                            ---@cast n parser.object
                             local farg = n.args and n.args[i]
                             if farg then
                                 resolve(arg.extends, vm.compileNode(farg))

@@ -343,7 +343,6 @@ local function checkTableShape(parent, child, uri, mark, errs)
             if not key then
                 local fieldnode = vm.compileNode(field.field)[1]
                 if fieldnode and fieldnode.type == 'doc.type.integer' then
-                    ---@cast fieldnode parser.object
                     key = vm.getKeyName(fieldnode)
                 end
             end
@@ -581,7 +580,6 @@ function vm.isSubType(uri, child, parent, mark, errs)
         end
     end
 
-    ---@cast child  vm.node.object
     local childName = vm.getNodeName(child)
     if childName == 'any'
     or childName == 'unknown' then
@@ -639,7 +637,6 @@ function vm.isSubType(uri, child, parent, mark, errs)
         return true
     end
 
-    ---@cast parent vm.node.object
 
     local parentName = vm.getNodeName(parent)
     if parentName == 'any'
@@ -1098,11 +1095,9 @@ function vm.viewTypeErrorMessage(uri, errs)
             elseif value.type == 'table' then
                 lparams[paramName] = 'table'
             elseif value.type == 'generic' then
-                ---@cast value vm.generic
                 lparams[paramName] = vm.getInfer(value):view(uri)
             elseif value.type == 'variable' then
             else
-                ---@cast value -string, -vm.global, -vm.node, -vm.generic, -vm.variable
                 if paramName == 'key' then
                     lparams[paramName] = vm.viewKey(value, uri)
                 else

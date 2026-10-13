@@ -120,7 +120,6 @@ return function (uri, callback)
             funcs = {}
             for obj in vm.compileNode(call.node):eachObject() do
                 if obj.type == 'function' or obj.type == 'doc.type.function' then
-                    ---@cast obj parser.object
                     funcs[#funcs+1] = obj
                 end
             end

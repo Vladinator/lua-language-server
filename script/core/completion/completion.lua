@@ -549,7 +549,6 @@ local function getExpectedArgType(state, position)
             if callee then
                 return nil
             end
-            ---@cast obj parser.object
             callee = obj
         end
     end
@@ -1696,7 +1695,6 @@ local function insertEnum(state, pos, src, enums, isInArray, mark)
     if src.type == 'doc.type.string'
     or src.type == 'doc.type.integer'
     or src.type == 'doc.type.boolean' then
-        ---@cast src parser.object
         enums[#enums+1] = {
             label       = vm.getInfer(src):view(state.uri),
             description = src.comment,
@@ -1709,7 +1707,6 @@ local function insertEnum(state, pos, src, enums, isInArray, mark)
             kind        = define.CompletionItemKind.EnumMember,
         }
     elseif src.type == 'doc.type.function' then
-        ---@cast src parser.object
         local insertText = buildInsertDocFunction(src)
         ---@type string|parser.state.comm|parser.object
         local description
@@ -1731,7 +1728,6 @@ local function insertEnum(state, pos, src, enums, isInArray, mark)
             insertTextFormat = 2,
         }
     elseif src.type == 'doc.enum' then
-        ---@cast src parser.object
         if vm.docHasAttr(src, 'key') then
             insertDocEnumKey(src, enums)
         else
@@ -2131,7 +2127,7 @@ local function keyofArgNode(state, call, argIndex)
     local func
     for obj in vm.compileNode(call.node):eachObject() do
         if obj.type == 'function' then
-            func = obj --[[@as parser.object]]
+            func = obj
         end
     end
     local sign = func and vm.getSign(func)

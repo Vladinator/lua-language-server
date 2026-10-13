@@ -21,7 +21,7 @@ local function receiversOf(uri, call, index)
             if func then
                 return receivers
             end
-            func = obj --[[@as parser.object]]
+            func = obj
         end
     end
     local sign = func and vm.getSign(func)

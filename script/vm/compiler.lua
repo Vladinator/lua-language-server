@@ -3399,7 +3399,7 @@ local compilerSwitch = util.switch()
                 return
             end
             if not node:isTyped() then
-                node = vm.runOperator('call', vararg.node) or node
+                node = vm.runOperator('call', vararg.node, nil, source.sindex) or node
             end
             vm.setNode(source, node)
         end

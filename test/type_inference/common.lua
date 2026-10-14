@@ -7203,6 +7203,42 @@ local counter = setmetatable({}, mt)
 local <?v?> = counter()
 ]]
 
+-- the second and later results of the metamethod come through too
+TEST 'integer' [[
+local counter = setmetatable({}, {
+    __call = function (self)
+        return 'text', 1, true
+    end,
+})
+local a, <?b?> = counter()
+]]
+
+TEST 'boolean' [[
+local counter = setmetatable({}, {
+    __call = function (self)
+        return 'text', 1, true
+    end,
+})
+local a, b, <?c?> = counter()
+]]
+
+-- the first one is still the first
+TEST 'string' [[
+local counter = setmetatable({}, {
+    __call = function (self)
+        return 'text', 1
+    end,
+})
+local <?a?>, b = counter()
+]]
+
+-- a call with a declared result type does not ask the metamethod
+TEST 'number' [[
+---@type fun(): number, number
+local f
+local a, <?b?> = f()
+]]
+
 -- ... also through a function that builds the object
 TEST 'string' [[
 local function new()

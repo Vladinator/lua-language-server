@@ -216,15 +216,16 @@ function vm.getMetamethodFunctions(name, obj)
     return found
 end
 
---- The first result of the metamethod `__<op>` of the metatables linked to `obj`.
----@param op  string
----@param obj parser.object
+--- The first result (or the `index`-th) of the metamethod `__<op>` of the metatables linked to `obj`.
+---@param op     string
+---@param obj    parser.object
+---@param index? integer
 ---@return vm.node?
-local function runMetamethod(op, obj)
+local function runMetamethod(op, obj, index)
     ---@type vm.node?
     local result
     for _, func in ipairs(vm.getMetamethodFunctions(op, obj)) do
-        local rtn = vm.getReturnOfFunction(func, 1)
+        local rtn = vm.getReturnOfFunction(func, index or 1)
         if rtn then
             for ret in vm.compileNode(rtn):eachObject() do
                 -- an `unknown` says nothing about the result (it stands for a return not worked out yet)
@@ -255,11 +256,12 @@ function vm.getIndexMetamethodResult(receiver)
     return result
 end
 
----@param op string
----@param exp parser.object
----@param value? parser.object
+---@param op     string
+---@param exp     parser.object
+---@param value?  parser.object
+---@param index?  integer which result of a metamethod (the second value of `local a, b = obj()`); the first by default
 ---@return vm.node?
-function vm.runOperator(op, exp, value)
+function vm.runOperator(op, exp, value, index)
     local uri = guide.getUri(exp)
     local node = vm.compileNode(exp)
     ---@type vm.node?
@@ -267,7 +269,7 @@ function vm.runOperator(op, exp, value)
     for cVal in node:eachObject() do
         local c = cVal
         if c.type == 'table' then
-            local viaMetatable = runMetamethod(op, c)
+            local viaMetatable = runMetamethod(op, c, index)
             if viaMetatable then
                 result = result and result:merge(viaMetatable) or viaMetatable
             end

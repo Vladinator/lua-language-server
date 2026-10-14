@@ -3,6 +3,8 @@ local guide  = require 'parser.guide'
 local await  = require 'await'
 local conv   = require 'proto.converter'
 local getRef = require 'core.reference'
+local vm     = require 'vm'
+local hierarchy = require 'core.type-hierarchy'
 local lang   = require 'language'
 local client = require 'client'
 
@@ -10,8 +12,9 @@ local client = require 'client'
 ---@field package _codeLens? codeLens
 
 ---@class codeLens.resolving
----@field mode    'reference'
+---@field mode    'reference'|'implementations'|'overrides'
 ---@field source? parser.object
+---@field name?   string the class (implementations) or the class that defines the overridden method (overrides)
 
 ---@class codeLens.result
 ---@field position integer
@@ -61,6 +64,105 @@ function mt:resolve(id)
     if resolving.mode == 'reference' then
         return self:resolveReference(resolving.source)
     end
+    if resolving.mode == 'implementations' then
+        return self:resolveImplementations(resolving.name, resolving.source)
+    end
+    if resolving.mode == 'overrides' then
+        return conv.command(lang.script('COMMAND_OVERRIDES', resolving.name), '', {})
+    end
+end
+
+--- The class that defines the method `key` nearest above `class` in the `---@class A : B` chain, when there is one.
+---@param uri   uri
+---@param class vm.global the class of the method being defined
+---@param key   string
+---@return string?
+local function overriddenClass(uri, class, key)
+    ---@type string?
+    local owner
+    for _, set in ipairs(class:getSets(uri)) do
+        if set.type == 'doc.class' then
+            for _, ext in ipairs(set.extends or {}) do
+                local parent = ext.type == 'doc.extends.name' and vm.getGlobal('type', ext[1])
+                if parent then
+                    vm.getClassFields(uri, parent, key, function (field)
+                        if owner then
+                            return
+                        end
+                        local fieldClass = vm.getParentClass(field --[[@as parser.object]])
+                        owner = fieldClass and fieldClass.name
+                    end)
+                    if owner then
+                        return owner
+                    end
+                end
+            end
+        end
+    end
+    return owner
+end
+
+---@async
+function mt:collectHierarchy()
+    await.delay()
+    assert(self.state)
+    guide.eachSourceType(self.state.ast, 'doc.class', function (doc)
+        self:addResult(doc.start, {
+            mode   = 'implementations',
+            name   = doc.class[1],
+            source = doc,
+        })
+    end)
+    ---@param src parser.object
+    local function check(src)
+        local value = src.value
+        if not value or value.type ~= 'function' then
+            return
+        end
+        local key = guide.getKeyName(src)
+        local class = vm.getParentClass(src)
+        if type(key) ~= 'string' or not class then
+            return
+        end
+        local owner = overriddenClass(self.uri, class, key)
+        if owner then
+            self:addResult(src.start, {
+                mode = 'overrides',
+                name = owner,
+            })
+        end
+    end
+    guide.eachSourceType(self.state.ast, 'setmethod', check)
+    guide.eachSourceType(self.state.ast, 'setfield', check)
+end
+
+---@async
+---@param name   string
+---@param source parser.object the `---@class` line
+---@return proto.command?
+function mt:resolveImplementations(name, source)
+    local subclasses = hierarchy.subtypes(self.uri, name)
+    local count = #subclasses
+    local title = lang.script(count == 1 and 'COMMAND_IMPLEMENTATION_COUNT_ONE' or 'COMMAND_IMPLEMENTATION_COUNT', count)
+    if client.getOption('codeLensViewReferences') and source then
+        ---@type location[]
+        local locations = {}
+        for _, item in ipairs(subclasses) do
+            local state = files.getState(item.uri)
+            if state then
+                locations[#locations+1] = conv.location(
+                    item.uri,
+                    conv.packRange(state, item.nameStart, item.nameFinish)
+                )
+            end
+        end
+        return conv.command(title, 'lua.showReferences', {
+            self.uri,
+            conv.packPosition(self.state, source.start),
+            locations,
+        })
+    end
+    return conv.command(title, '', {})
 end
 
 ---@async
@@ -139,6 +241,7 @@ local function getCodeLens(uri)
     state._codeLens = codeLens
 
     codeLens:collectReferences()
+    codeLens:collectHierarchy()
 
     if #codeLens.results == 0 then
         return nil

@@ -368,6 +368,12 @@ COMMAND_ADD_DICT           =
 'Add Word to dictionary'
 COMMAND_REFERENCE_COUNT    =
 '{} references'
+COMMAND_IMPLEMENTATION_COUNT     =
+'{} implementations'
+COMMAND_IMPLEMENTATION_COUNT_ONE =
+'{} implementation'
+COMMAND_OVERRIDES                =
+'overrides {}'
 
 COMPLETION_IMPORT_FROM           =
 'Import from {}'

@@ -86,6 +86,7 @@ local function testAll()
     test 'linked_editing'
     test 'type_hierarchy'
     test 'call_hierarchy'
+    test 'code_lens'
     test 'inlay_hint'
     test 'rename'
     test 'signature'

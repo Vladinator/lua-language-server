@@ -5680,3 +5680,115 @@ evolve<??>
     assert(doc:find('integer', 1, true) and not doc:find('unknown', 1, true), 'the documentation has the type: ' .. doc)
 end)
 Cared['description'] = nil
+
+-- a local read narrowed earlier in the block shows the narrowed type: the word being typed is not a reference yet
+Cared['detail'] = true
+TEST [[
+---@type string?
+local narrowedA
+if narrowedA then
+    print(narrowedA)
+    narrowed<??>
+end
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^narrowedA') then
+            item = it
+        end
+    end
+    local detail = item and tostring(item.detail) or ''
+    assert(detail == 'string', 'narrowed by the condition and read earlier: ' .. detail)
+end)
+
+-- negative: the block with the narrowing is over
+TEST [[
+---@type string?
+local narrowedB
+if narrowedB then
+    print(narrowedB)
+end
+narrowed<??>
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^narrowedB') then
+            item = it
+        end
+    end
+    local detail = item and tostring(item.detail) or ''
+    assert(detail == 'string?', 'declared type after the block: ' .. detail)
+end)
+
+-- negative: an assignment between the read and the cursor ends the narrowing
+TEST [[
+---@type string?
+local narrowedC
+if narrowedC then
+    print(narrowedC)
+    narrowedC = nil
+    narrowed<??>
+end
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^narrowedC') then
+            item = it
+        end
+    end
+    local detail = item and tostring(item.detail) or ''
+    assert(detail:find('?', 1, true), 'declared type after an assignment: ' .. detail)
+end)
+
+-- negative: a read in another function says nothing about this one
+TEST [[
+---@type string?
+local narrowedD
+if narrowedD then
+    print(narrowedD)
+    local f = function ()
+        narrowed<??>
+    end
+end
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^narrowedD') then
+            item = it
+        end
+    end
+    local detail = item and tostring(item.detail) or ''
+    assert(detail:find('?', 1, true), 'declared type inside a closure: ' .. detail)
+end)
+Cared['detail'] = nil
+
+-- the documentation panel is the hover of that earlier read too (narrowed), not of the declaration
+Cared['description'] = true
+TEST [[
+---@type string?
+local narrowedE
+if narrowedE then
+    print(narrowedE)
+    narrowed<??>
+end
+]]
+(function (result)
+    ---@type any
+    local item
+    for _, it in ipairs(result) do
+        if it.label:find('^narrowedE') then
+            item = it
+        end
+    end
+    local doc = item and tostring(item.description) or ''
+    assert(doc:find('narrowedE: string', 1, true) and not doc:find('string?', 1, true), 'the documentation has the narrowed type: ' .. doc)
+end)
+Cared['description'] = nil

@@ -475,6 +475,48 @@ local function evolvedNodeOf(source, position)
     return node, last
 end
 
+--- The type a local has at the cursor when a use of it earlier in the same block (or one around the cursor) was narrowed: the word being
+--- typed is not a reference yet, so the nearest earlier read stands for it. Nothing in between may assign the local, and the read must be
+--- in the function the cursor is in. A narrowing made after that read (a condition between the two) is not seen: the node is then wider
+--- than the hover will say, never wrong.
+---@param source   parser.object a `local`
+---@param position integer
+---@return vm.node?
+---@return parser.object? read the earlier read (its hover is the documentation of the item)
+local function narrowedNodeOf(source, position)
+    local root = guide.getRoot(source)
+    ---@type parser.object
+    local func = root
+    guide.eachSourceContain(root, position, function (src)
+        if src.type == 'function' then
+            func = src
+        end
+    end)
+    ---@type parser.object?
+    local nearest
+    for _, ref in ipairs(source.ref or {}) do
+        if ref.start > position then
+            goto CONTINUE
+        end
+        if ref.type == 'setlocal' then
+            -- (an assignment between the read and the cursor ends the narrowing: start over after it)
+            nearest = nil
+        elseif ref.type == 'getlocal'
+        and (not nearest or ref.start > nearest.start)
+        and guide.getParentFunction(ref) == func then
+            local block = guide.getBlock(ref)
+            if block and block.start <= position and position <= block.finish then
+                nearest = ref
+            end
+        end
+        ::CONTINUE::
+    end
+    if not nearest then
+        return nil
+    end
+    return vm.compileNode(nearest), nearest
+end
+
 ---@param state    parser.state
 ---@param word     string
 ---@param position integer
@@ -549,9 +591,16 @@ local function checkLocal(state, word, position, results)
                 kind   = define.CompletionItemKind.Variable,
                 id     = stack(source, function (newSource) ---@async
                     local evolved, lastAssignment = evolvedNodeOf(newSource, position)
+                    ---@type vm.node?
+                    local narrowed
+                    ---@type parser.object?
+                    local read
+                    if not evolved then
+                        narrowed, read = narrowedNodeOf(newSource, position)
+                    end
                     return {
-                        detail      = buildDetail(newSource, evolved),
-                        description = buildDesc(lastAssignment or newSource),
+                        detail      = buildDetail(newSource, evolved or narrowed),
+                        description = buildDesc(lastAssignment or read or newSource),
                     }
                 end),
             }

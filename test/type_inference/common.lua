@@ -7203,6 +7203,37 @@ local counter = setmetatable({}, mt)
 local <?v?> = counter()
 ]]
 
+-- a table that is the `__index` of the metatable given by a `setmetatable` statement supplies the fields the table lacks
+TEST 'integer' [[
+local T = {}
+T.x = 1
+setmetatable(T, { __index = { y = 2 } })
+local <?ty?> = T.y
+]]
+
+-- ... the own field wins
+TEST 'string' [[
+local T = {}
+T.y = 'own'
+setmetatable(T, { __index = { y = 2 } })
+local <?ty?> = T.y
+]]
+
+-- ... a name the `__index` table lacks is still unknown, and `__index = self` does not loop
+TEST 'unknown' [[
+local T = {}
+T.__index = T
+setmetatable(T, T)
+local <?tz?> = T.missing
+]]
+
+TEST 'integer' [[
+local base = { y = 2 }
+local T = {}
+setmetatable(T, { __index = base })
+local <?ty?> = T.y
+]]
+
 -- the second and later results of the metamethod come through too
 TEST 'integer' [[
 local counter = setmetatable({}, {

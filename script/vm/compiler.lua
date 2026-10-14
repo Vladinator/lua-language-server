@@ -3018,8 +3018,9 @@ local compilerSwitch = util.switch()
                 if value then
                     setNodeCheckSafe(source, value)
                 else
-                    -- a table whose metatable has an `__index` function: what that function gives
-                    local viaIndex = vm.getIndexMetamethodResult(source.node)
+                    -- a table whose metatable has an `__index` table with the key, or an `__index` function: what that gives
+                    local viaIndex = vm.getIndexTableField(source.node, key)
+                                  or vm.getIndexMetamethodResult(source.node)
                     if viaIndex then
                         setNodeCheckSafe(source, viaIndex)
                     end

@@ -239,6 +239,51 @@ local function runMetamethod(op, obj, index)
     return result
 end
 
+--- The tables the `__index` of the metatables linked to `obj` is.
+---@param obj parser.object a table constructor
+---@return parser.object[]
+local function indexTables(obj)
+    linkStatementMetatables(obj)
+    local links = metatableLinks[obj]
+    ---@type parser.object[]
+    local tables = {}
+    for _, mt in ipairs(links or {}) do
+        vm.compileByParentNodeAll(mt, '__index', function (src)
+            if vm.isMetaFile(guide.getUri(src)) then
+                return
+            end
+            for n in vm.compileNode(src):eachObject() do
+                if n.type == 'table' then
+                    tables[#tables+1] = n
+                end
+            end
+        end)
+    end
+    return tables
+end
+
+--- What reading the key from a table that does not have it gives when the `__index` of its metatable is a table that has it
+--- (`setmetatable(T, { __index = defaults })` as a statement or as an expression). One level: the lookup in that table is a plain field
+--- lookup, so a table that is its own `__index` (`T.__index = T`) cannot loop.
+---@param receiver parser.object
+---@param key      string|integer
+---@return vm.node?
+function vm.getIndexTableField(receiver, key)
+    ---@type vm.node?
+    local result
+    for obj in vm.compileNode(receiver):eachObject() do
+        if obj.type == 'table' then
+            for _, tbl in ipairs(indexTables(obj)) do
+                vm.compileByParentNode(tbl, key, function (field)
+                    result = result or vm.createNode()
+                    result:merge(vm.compileNode(field))
+                end)
+            end
+        end
+    end
+    return result
+end
+
 --- What reading a key the table does not have gives when its metatable's `__index` is a function: that function's first result.
 ---@param receiver parser.object
 ---@return vm.node?

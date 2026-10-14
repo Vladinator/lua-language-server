@@ -32,7 +32,15 @@ end
 
 print('基准诊断目录：', path)
 
-ws.awaitReady(furi.encode(path:string()))
+-- (the client loop does the reloads of the workspace: outside of it, a scope an earlier group left mid-reload never gets ready, and
+-- `awaitReady` outside of a coroutine would yield)
+require 'lclient'():start(function (client) ---@async
+    client:registerFakers()
+    client:initialize {
+        rootUri = furi.encode(path:string()),
+    }
+    ws.awaitReady(furi.encode(path:string()))
+end)
 diag.diagnosticsScope(furi.encode(path:string()))
 
 local clock = os.clock()

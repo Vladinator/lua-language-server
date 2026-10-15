@@ -7322,6 +7322,23 @@ local widgetMT = {
 local <?cwResult?> = CallableWidget2(5)
 ]]
 
+-- ... a local metatable used as the FIRST argument of `setmetatable` is not a subject for its own metamethods
+TEST 'any' [[
+local mt = { __call = function (<?w?>) end }
+setmetatable(mt, {})
+]]
+
+-- an `@operator` of the class still counts when the class has no metamethod field
+TEST 'string' [[
+---@class OpClass
+---@operator add(number): string
+local OpClass = {}
+
+---@type OpClass
+local obj
+local <?sum?> = obj + 1
+]]
+
 -- ... a name the `__index` table lacks is still unknown, and `__index = self` does not loop
 TEST 'unknown' [[
 local T = {}

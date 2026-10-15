@@ -46,6 +46,7 @@ Cared = {
     ['textEdit']            = true,
     ['additionalTextEdits'] = true,
     ['deprecated']          = true,
+    ['preselect']           = true,
 }
 
 IgnoreFunction = false

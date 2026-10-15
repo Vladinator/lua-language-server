@@ -53,6 +53,7 @@ local diagnosticModes = {
 ---@field description? string|table
 ---@field deprecated? boolean
 ---@field sortText? string
+---@field preselect? boolean
 ---@field filterText? string
 ---@field insertText? string
 ---@field insertTextFormat? integer
@@ -753,6 +754,10 @@ local function boostExpectedType(state, position, results, from)
         else
             others[#others+1] = res
         end
+    end
+    -- (the best match is the one the editor selects; when everything fits, or nothing does, the place does not tell the items apart)
+    if #fits > 0 and #others > 0 then
+        fits[1].preselect = true
     end
     local at = from
     for _, res in ipairs(fits) do

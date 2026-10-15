@@ -5691,6 +5691,67 @@ takes(vf<??>)
     assert(indexOfLabel(result, 'vfz') < indexOfName(result, 'vfa'), 'the number variable before the function')
 end)
 
+-- the best match is preselected: the first item that fits, and only when the place tells the items apart
+---@param result table[]
+---@return string[]
+local function preselectedLabels(result)
+    ---@type string[]
+    local labels = {}
+    for _, item in ipairs(result) do
+        if item.preselect then
+            labels[#labels+1] = item.label
+        end
+    end
+    return labels
+end
+
+TEST [[
+---@param s string
+local function takes(s) end
+local vara = 1
+local varb = "x"
+local varc = "y"
+takes(var<??>)
+]]
+(function (result)
+    local labels = preselectedLabels(result)
+    assert(#labels == 1 and labels[1] == 'varb', 'only the first string variable is preselected')
+end)
+
+-- negative: every variable fits, nothing tells them apart
+TEST [[
+---@param s string
+local function takes(s) end
+local vara = "x"
+local varb = "y"
+takes(var<??>)
+]]
+(function (result)
+    assert(#preselectedLabels(result) == 0, 'all fit: no preselect')
+end)
+
+-- negative: something is expected but no variable fits
+TEST [[
+---@param s string
+local function takes(s) end
+local vara = 1
+local varb = 2
+takes(var<??>)
+]]
+(function (result)
+    assert(#preselectedLabels(result) == 0, 'nothing fits: no preselect')
+end)
+
+-- negative: nothing is expected
+TEST [[
+local vara = 1
+local varb = "x"
+local n = var<??>
+]]
+(function (result)
+    assert(#preselectedLabels(result) == 0, 'no expected type: no preselect')
+end)
+
 -- a local declared without a value and given a function later is offered as that function (the declaration alone says `unknown`)
 TEST [[
 local evolvedFn

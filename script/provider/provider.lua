@@ -1004,6 +1004,7 @@ m.register 'textDocument/completion' {
                 detail           = res.detail,
                 deprecated       = res.deprecated,
                 sortText         = res.sortText or ('%04d'):format(i),
+                preselect        = res.preselect,
                 filterText       = res.filterText,
                 insertText       = res.insertText,
                 insertTextFormat = res.insertTextFormat or 1,

@@ -942,6 +942,13 @@ local ft
 local <?r?> = ft()
 ]]
 
+-- ... a slot that is `nil` in every case stays `nil`, not an optional of nothing
+TEST 'nil' [[
+---@type fun(): (number, nil) | (string, nil)
+local ft
+local _, <?r?> = ft()
+]]
+
 -- ... cases of another width are not one: the first case stays what it was
 TEST 'number' [[
 ---@type fun(): (number, boolean) | (nil)

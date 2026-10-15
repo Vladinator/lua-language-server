@@ -339,12 +339,13 @@ local function cloneObject(source, resolved)
         if needsClone then
             ---@type parser.object
             local newSign = {
-                type   = source.type,
-                start  = source.start,
-                finish = source.finish,
-                parent = source.parent,
-                node   = source.node,
-                signs  = {},
+                type        = source.type,
+                start       = source.start,
+                finish      = source.finish,
+                parent      = source.parent,
+                node        = source.node,
+                signs       = {},
+                extraOffset = source.extraOffset,
             }
             for i, sign in ipairs(source.signs) do
                 newSign.signs[i] = cloneObject(sign, resolved) --[[@as parser.object]]

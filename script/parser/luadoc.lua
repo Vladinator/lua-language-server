@@ -176,6 +176,7 @@ Symbol              <-  ({} {
 ---@field visible?          parser.visibleType
 ---@field operators?        parser.object[]
 ---@field calls?            parser.object[]
+---@field extraOffset?      integer -- on a `returns<F, index>` sign made for a later return slot: how many returns of `F` further than `index` it reads
 ---@field cases?            parser.object[][] -- on a tuple-union 'doc.return' (`(A, B) | (C, D)`): each case's per-slot 'doc.type's, detached from the tree
 ---@field generics?         parser.object[]
 ---@field generic?          parser.object

@@ -1362,7 +1362,7 @@ local function resolveReturnsProjection(uri, source)
     -- `returns<F, index>`: start at the `index`-th return of `F` (the number the call gave the parameter `index`; 1 when it is no literal)
     ---@type parser.object?
     local indexSign = signs[2]
-    local offset = indexSign and getPositiveInteger(vm.compileNode(indexSign)) or 1
+    local offset = (indexSign and getPositiveInteger(vm.compileNode(indexSign)) or 1) + (source.extraOffset or 0)
     ---@type vm.node?
     local resultNode
     for obj in fNode:eachObject() do
@@ -3256,6 +3256,34 @@ local compilerSwitch = util.switch()
                 if lastReturn.name and lastReturn.name[1] == '...' then
                     hasMarkDoc = true
                     vm.setNode(source, vm.compileNode(lastReturn))
+                elseif sign and lastReturn.types then
+                    -- `---@return returns<F, index>` passes on every return of `F` from the `index`-th on: the slots after the declared one
+                    -- are the next returns of `F`
+                    for _, unit in ipairs(lastReturn.types) do
+                        if unit.type == 'doc.type.sign' and unit.node and unit.node[1] == 'returns' and unit.signs and unit.signs[2] then
+                            ---@type parser.object
+                            local shifted = {
+                                type        = 'doc.type.sign',
+                                start       = unit.start,
+                                finish      = unit.finish,
+                                node        = unit.node,
+                                signs       = unit.signs,
+                                extraOffset = index - lastReturn.returnIndex,
+                            }
+                            ---@type parser.object
+                            local wrapper = {
+                                type   = 'doc.type',
+                                start  = lastReturn.start,
+                                finish = lastReturn.finish,
+                                parent = lastReturn.parent,
+                                types  = { shifted },
+                            }
+                            shifted.parent = wrapper
+                            hasMarkDoc = true
+                            vm.setNode(source, vm.createGeneric(wrapper, sign, vm.deriveFlags(func)))
+                            break
+                        end
+                    end
                 end
             end
         end

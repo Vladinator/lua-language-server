@@ -521,15 +521,27 @@ local function functionTypeMismatch(uri, child, parent)
         end
     end
     local promised = parent.returns and parent.returns[1]
-    if promised then
+    if promised and not (child.type == 'function' and not child.returns) then
         ---@type (parser.object|vm.generic)?
         local given
         if child.type == 'doc.type.function' then
             given = child.returns and child.returns[1]
         else
+            given = vm.getReturnOfFunction(child, 1)
+            local written = false
             for _, doc in ipairs(child.bindDocs or {}) do
                 if doc.type == 'doc.return' then
-                    given = vm.getReturnOfFunction(child, 1)
+                    written = true
+                end
+            end
+            -- (an inferred return counts only when every part of it is a type that is known)
+            if given and not written then
+                for obj in vm.compileNode(given):eachObject() do
+                    if obj.type == 'global' and obj.cate == 'type' and (obj.name == 'any' or obj.name == 'unknown')
+                    or obj.type == 'doc.generic.name' or obj.type == 'generic' or obj.type == 'variable' or obj.type == 'local' then
+                        given = nil
+                        break
+                    end
                 end
             end
         end
@@ -867,25 +879,12 @@ end
 --- have arguments that are assignable to the ones the parameter names (covariant, as TypeScript's arrays are). Only a clear `false` counts, so
 --- a class with no argument given, `any` and an argument that is a type parameter say nothing; a parent that also allows another class
 --- is not judged by the arguments.
----@param uri    uri
----@param child  vm.node
----@param parent vm.node
----@param errs?  typecheck.err[]
+---@param uri       uri
+---@param childSign parser.object one instance of a generic class
+---@param parent    vm.node
+---@param errs?     typecheck.err[]
 ---@return boolean
-local function typeArgumentsMismatch(uri, child, parent, errs)
-    ---@type parser.object?
-    local childSign
-    for obj in child:eachObject() do
-        if obj.type == 'doc.type.sign' and obj.signs and obj.node then
-            if childSign then
-                return false
-            end
-            childSign = obj --[[@as parser.object]]
-        end
-    end
-    if not childSign then
-        return false
-    end
+local function signMismatch(uri, childSign, parent, errs)
     local chain = vm.getClassGenericChain(uri, childSign)
     ---@type parser.object[]
     local related = {}
@@ -962,6 +961,22 @@ local function typeArgumentsMismatch(uri, child, parent, errs)
         errs[#errs+1] = related[1]
     end
     return true
+end
+
+--- Does any instance of a generic class in `child` (a union of `Box<boolean> | Box<number>` has two) fail to fit `parent`?
+---@param uri    uri
+---@param child  vm.node
+---@param parent vm.node
+---@param errs?  typecheck.err[]
+---@return boolean
+local function typeArgumentsMismatch(uri, child, parent, errs)
+    for obj in child:eachObject() do
+        if obj.type == 'doc.type.sign' and obj.signs and obj.node
+        and signMismatch(uri, obj --[[@as parser.object]], parent, errs) then
+            return true
+        end
+    end
+    return false
 end
 
 ---@param uri uri

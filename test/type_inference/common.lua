@@ -622,6 +622,92 @@ local function multiRet() end
 local <?r?> = mySelect(4, multiRet())
 ]]
 
+-- ... and the slots after the declared one are the next returns of `F`, as in `local a, b = select(2, f())`
+TEST 'number' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@return boolean
+---@return string
+---@diagnostic disable-next-line: missing-return
+local function multiRet() end
+
+local <?a?>, b, c = mySelect(2, multiRet())
+]]
+
+TEST 'boolean' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@return boolean
+---@return string
+---@diagnostic disable-next-line: missing-return
+local function multiRet() end
+
+local a, <?b?>, c = mySelect(2, multiRet())
+]]
+
+TEST 'string' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@return boolean
+---@return string
+---@diagnostic disable-next-line: missing-return
+local function multiRet() end
+
+local a, b, <?c?> = mySelect(2, multiRet())
+]]
+
+TEST 'nil' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@return boolean
+---@return string
+---@diagnostic disable-next-line: missing-return
+local function multiRet() end
+
+local a, b, c, <?d?> = mySelect(3, multiRet())
+]]
+
+TEST 'string' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@return boolean
+---@return string
+---@diagnostic disable-next-line: missing-return
+local function multiRet() end
+
+local a, <?b?> = mySelect(3, multiRet())
+]]
+
 -- ... an index that is no literal gives the first return, a return the function lacks gives nil
 TEST 'string' [[
 ---@generic F

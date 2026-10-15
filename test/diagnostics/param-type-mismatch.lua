@@ -1382,7 +1382,7 @@ takePair(<!badValue!>)
 takePair(<!badKey!>)
 ]]
 
--- ... a parent named without arguments takes any argument, and a child that is a union of two instances is not judged
+-- ... a parent named without arguments takes any argument, and a child that is a union of two instances needs both to fit
 TEST [[
 ---@class TArgBox6<T>
 local TArgBox6 = {}
@@ -1392,6 +1392,9 @@ local function takeBare(c) end
 
 ---@param c TArgBox6<boolean>
 local function takeBool(c) end
+
+---@param c TArgBox6<boolean | number>
+local function takeWide(c) end
 
 ---@param t table
 local function takeTable(t) end
@@ -1403,7 +1406,8 @@ local mixedBox
 
 takeBare(numBox)
 takeTable(numBox)
-takeBool(mixedBox)
+takeBool(<!mixedBox!>)
+takeWide(mixedBox)
 ]]
 
 -- a function given where a `fun(...)` is asked for: it must not need more arguments than the type provides
@@ -1456,7 +1460,7 @@ on(takesEither)
 on(untyped)
 ]]
 
--- ... and the return types the other way: what the function gives has to fit what the type promises
+-- ... and the return types the other way: what the function gives (written, or inferred when known) has to fit what the type promises
 TEST [[
 ---@param cb fun(): number
 local function on(cb) end
@@ -1470,7 +1474,7 @@ local function nothing() end
 
 on(<!gives!>)
 on(giveInteger)
-on(inferred)
+on(<!inferred!>)
 on(nothing)
 ]]
 
@@ -1643,4 +1647,24 @@ local o
 takeAge(key(o, "age"))
 takeName(key(o, "name"))
 takeAge(<!key(o, "name")!>)
+]]
+
+-- ... an inferred return counts when it is known: a string given where a number is promised, not an unknown one, not a `nil` among them
+TEST [[
+---@param cb fun(): number
+local function on(cb) end
+
+local function text() return '' end
+local function mixed(...) if ... then return 1 end return '' end
+local function unknownResult(...) return (...) end
+local function maybeNumber(...) if ... then return 1 end end
+local function numbers() return 1 end
+local function nothing() end
+
+on(<!text!>)
+on(<!mixed!>)
+on(unknownResult)
+on(maybeNumber)
+on(numbers)
+on(nothing)
 ]]

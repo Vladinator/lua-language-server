@@ -979,6 +979,157 @@ local function typeArgumentsMismatch(uri, child, parent, errs)
     return false
 end
 
+--- The kind of key a dictionary type has: `literals` (a union of string literals, `keys` lists them), or the name of its basic type
+--- (`string`, `integer`, `number`); `other` when it is anything else.
+---@param uri  uri
+---@param node vm.node
+---@return string kind
+---@return table<string, true>? keys
+local function dictionaryKeyKind(uri, node)
+    ---@type table<string, true>
+    local keys = {}
+    local count = 0
+    for obj in node:eachObject() do
+        if (obj.type == 'doc.type.string' or obj.type == 'string') and obj[1] ~= nil then
+            keys[tostring(obj[1])] = true
+            count = count + 1
+        else
+            local name = vm.getNodeName(obj)
+            if count == 0 and (name == 'string' or name == 'integer' or name == 'number') and not node:isOptional() then
+                return name, nil
+            end
+            return 'other', nil
+        end
+    end
+    if count > 0 then
+        return 'literals', keys
+    end
+    return 'other', nil
+end
+
+--- The required fields (neither optional nor nullable) a class has, its parents' included, by key.
+---@param uri   uri
+---@param class vm.global
+---@return table<string, vm.node>
+local function getRequiredFieldsOf(uri, class)
+    ---@type table<string, vm.node>
+    local required = {}
+    for _, set in ipairs(class:getSets(uri)) do
+        if set.type == 'doc.class' then
+            for _, field in ipairs(vm.getFields(set) or {}) do
+                if field.type == 'doc.field' and not field.optional then
+                    local node = vm.compileNode(field)
+                    local key = vm.getKeyName(field)
+                    if key and type(key) == 'string' and not node:isNullable() then
+                        required[key] = node
+                    end
+                end
+            end
+        end
+    end
+    return required
+end
+
+--- Does the dictionary `table<K, V>` (`dictionary`, a `doc.type.sign`) fit one member of the parent: an array `E[]` or a class? true: it
+--- does, false: it does not, nil: nothing says (the parent is something else, or the key is not known).
+---@param uri           uri
+---@param dictionary    parser.object
+---@param member        vm.node.object
+---@param childHasArray boolean the child also has an array member (a string-keyed hash next to one is tolerated)
+---@return boolean?
+local function dictionaryFits(uri, dictionary, member, childHasArray)
+    local keyNode   = vm.compileNode(dictionary.signs[1])
+    local valueNode = vm.compileNode(dictionary.signs[2])
+    local kind, keys = dictionaryKeyKind(uri, keyNode)
+    if kind == 'other' then
+        return nil
+    end
+    if member.type == 'doc.type.array' then
+        if kind == 'integer' then
+            return vm.isSubType(uri, valueNode, vm.compileNode(member.node)) ~= false
+        elseif kind == 'string' or kind == 'literals' then
+            return childHasArray
+        end
+        return false
+    end
+    if member.type == 'global' and member.cate == 'type' then
+        ---@cast member vm.global
+        local required = getRequiredFieldsOf(uri, member)
+        if kind ~= 'literals' then
+            return next(required) == nil
+        end
+        for key, fieldNode in pairs(required) do
+            if not (keys and keys[key]) or vm.isSubType(uri, valueNode, fieldNode) == false then
+                return false
+            end
+        end
+        return true
+    end
+    return nil
+end
+
+--- A dictionary `table<K, V>` given where an array or a class is asked for. Judged only when the parent is nothing but arrays and classes
+--- (and `nil`), and only a clear `false` for every member of the parent counts.
+---@param uri    uri
+---@param child  vm.node
+---@param parent vm.node
+---@param errs?  typecheck.err[]
+---@return boolean
+local function dictionaryMismatch(uri, child, parent, errs)
+    ---@type parser.object[]
+    local dictionaries = {}
+    local childHasArray = false
+    for obj in child:eachObject() do
+        if obj.type == 'doc.type.sign' and obj.node and obj.node[1] == 'table' and obj.signs and #obj.signs == 2 then
+            dictionaries[#dictionaries+1] = obj --[[@as parser.object]]
+        elseif obj.type == 'doc.type.array' then
+            childHasArray = true
+        end
+    end
+    if #dictionaries == 0 then
+        return false
+    end
+    ---@type vm.node.object[]
+    local members = {}
+    for obj in parent:eachObject() do
+        if obj.type == 'doc.type.array' then
+            members[#members+1] = obj
+        elseif obj.type == 'global' and obj.cate == 'type' then
+            ---@cast obj vm.global
+            if guide.isBasicType(obj.name) then
+                return false
+            end
+            members[#members+1] = obj
+        elseif obj.type ~= 'local' and obj.type ~= 'variable' and obj.type ~= 'self' then
+            return false
+        end
+    end
+    if #members == 0 then
+        return false
+    end
+    for _, dictionary in ipairs(dictionaries) do
+        local fits = false
+        local unknown = false
+        for _, member in ipairs(members) do
+            local result = dictionaryFits(uri, dictionary, member, childHasArray)
+            if result == true then
+                fits = true
+            elseif result == nil then
+                unknown = true
+            end
+        end
+        if not fits and not unknown then
+            if errs then
+                errs[#errs+1] = 'TYPE_ERROR_DISMATCH'
+                errs[#errs+1] = dictionary
+                errs[#errs+1] = members[1]
+            end
+            return true
+        end
+    end
+    return false
+end
+
 ---@param uri uri
 ---@param child  vm.node|string|vm.node.object
 ---@param parent vm.node|string|vm.node.object
@@ -990,7 +1141,8 @@ function vm.isSubType(uri, child, parent, mark, errs)
     if result == true
     and type(child) == 'table' and type(parent) == 'table'
     and child.type == 'vm.node' and parent.type == 'vm.node'
-    and typeArgumentsMismatch(uri, child --[[@as vm.node]], parent --[[@as vm.node]], errs) then
+    and (typeArgumentsMismatch(uri, child --[[@as vm.node]], parent --[[@as vm.node]], errs)
+      or dictionaryMismatch(uri, child --[[@as vm.node]], parent --[[@as vm.node]], errs)) then
         return false
     end
     return result

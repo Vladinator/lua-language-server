@@ -25,7 +25,7 @@ local function testIfExit(path)
         ---@type integer
         local total
         for i = 1, max do
-            state = TEST(buf) --[[@as table<string, any>]]
+            state = TEST(buf) --[[@as parser.state]]
             local luadocStart = os.clock()
             luadoc(state)
             local luadocPassed = os.clock() - luadocStart

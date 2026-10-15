@@ -1668,3 +1668,137 @@ on(maybeNumber)
 on(numbers)
 on(nothing)
 ]]
+
+-- a dictionary `table<K, V>` is not an array: a hash with string keys, or one with number keys (they overlap the indices), does not fit `E[]`
+TEST [[
+---@class SubEntry
+---@field name string
+
+---@param list SubEntry[]
+local function useArray(list) end
+
+---@type table<string, number>
+local hashOnly
+---@type table<number, string>
+local numKeyed
+---@type SubEntry[]
+local real
+---@type table<integer, SubEntry>
+local integerKeyed
+---@type table
+local plain
+
+useArray(<!hashOnly!>)
+useArray(<!numKeyed!>)
+useArray(real)
+useArray(integerKeyed)
+useArray(plain)
+]]
+
+-- ... a string-keyed hash next to an array member of the union is tolerated (it does not interfere with reading the array), a number-keyed one is
+-- not, and the array member still has to fit
+TEST [[
+---@class SubEntry2
+---@field name string
+---@class SubOther2
+---@field id integer
+
+---@param list SubEntry2[]
+local function useArray(list) end
+
+---@type table<string, number> | SubEntry2[]
+local mixed
+---@type table<string, boolean> | SubEntry2[]
+local unrelatedHash
+---@type table<number, string> | SubEntry2[]
+local numberHash
+---@type table<string, number> | SubOther2[]
+local wrongArray
+
+useArray(mixed)
+useArray(unrelatedHash)
+useArray(<!numberHash!>)
+useArray(<!wrongArray!>)
+]]
+
+-- a dictionary whose keys are string literals is a class when it has every required field with a fitting value; a dictionary with open keys
+-- is not (nothing says which fields it has)
+TEST [[
+---@class SPoint3
+---@field x number
+---@field y number
+
+---@param pt SPoint3
+local function usePoint(pt) end
+
+---@type table<"x"|"y", number>
+local complete
+---@type table<"x", number>
+local missingY
+---@type table<"x"|"y", string>
+local wrongValue
+---@type table<string, number>
+local openKeys
+---@type table<"x"|"y"|"z", number>
+local extraKey
+
+usePoint(complete)
+usePoint(<!missingY!>)
+usePoint(<!wrongValue!>)
+usePoint(<!openKeys!>)
+usePoint(extraKey)
+]]
+
+-- ... an optional field may be absent, an inherited required one may not, a class with no fields takes any dictionary
+TEST [[
+---@class SColorBase
+---@field r number
+---@class SColorChild : SColorBase
+---@field g number
+---@field b number
+---@field a? number
+---@class SEmpty
+
+---@param c SColorChild
+local function useChild(c) end
+---@param e SEmpty
+local function useEmpty(e) end
+
+---@type table<"r"|"g"|"b", number>
+local noAlpha
+---@type table<"g"|"b", number>
+local missingInherited
+---@type table<string, number>
+local openKeys
+
+useChild(noAlpha)
+useChild(<!missingInherited!>)
+useEmpty(openKeys)
+]]
+
+-- ... an integer-keyed dictionary has to hold what the array holds, a key that is not known says nothing, a nullable field may be absent
+TEST [[
+---@class SBox4
+---@field label string
+---@field note string?
+
+---@param list SBox4[]
+local function useList(list) end
+---@param box SBox4
+local function useBox(box) end
+
+---@type table<integer, string>
+local strings
+---@type table<integer, SBox4>
+local boxes
+---@type table<any, number>
+local anyKeys
+---@type table<"label", string>
+local onlyLabel
+
+useList(<!strings!>)
+useList(boxes)
+useList(anyKeys)
+useBox(anyKeys)
+useBox(onlyLabel)
+]]

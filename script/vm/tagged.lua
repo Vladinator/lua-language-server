@@ -106,7 +106,7 @@ function vm.createTaggedIndex(key, isTagged)
     ---@param uri uri
     ---@return table<string, true>
     local function getNames(uri)
-        local cache = vm.getCache(scopeKey)
+        local cache = vm.getCache(scopeKey) --[[@as table<string, table<string, true>>]]
         local name  = scope.getScope(uri):getName()
         local names = cache[name]
         if names then

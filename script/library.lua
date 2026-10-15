@@ -375,7 +375,7 @@ local function loadSingle3rdConfigFromLua(libraryDir)
         cfg[k] = v
     end
 
-    return cfg
+    return cfg --[[@as library.3rdConfig]]
 end
 
 ---@param libraryDir fs.path

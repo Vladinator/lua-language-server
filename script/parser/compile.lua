@@ -5394,8 +5394,8 @@ local function initState(lua, version, options)
     LocalLimited        = false
     Chunk               = {}
     Tokens              = tokens(lua)
-    TokenPos            = Tokens
-    TokenText           = Tokens
+    TokenPos            = Tokens --[[@as integer[] ]]
+    TokenText           = Tokens --[[@as string[] ]]
     Index               = 1
     ---@class parser.state
     ---@field uri uri

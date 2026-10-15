@@ -941,6 +941,42 @@ local UTILITY_TYPE_NAMES = {
 -- (read by type-name completion)
 vm.utilityTypeNames = UTILITY_TYPE_NAMES
 
+---@class vm.typeOperatorDoc
+---@field signature string how it is written
+---@field text      string what it does
+
+--- What the built-in type operators are, for hover and completion (they are not declared anywhere a comment could say it).
+---@type table<string, vm.typeOperatorDoc>
+vm.typeOperatorDocs = {
+    Partial     = { signature = 'Partial<T>',     text = 'Makes every field of `T` optional.' },
+    Required    = { signature = 'Required<T>',    text = 'Makes every optional field of `T` required.' },
+    Pick        = { signature = 'Pick<T, K>',     text = 'Keeps only the fields of `T` that the keys `K` name.' },
+    Omit        = { signature = 'Omit<T, K>',     text = 'Drops the fields of `T` that the keys `K` name.' },
+    Record      = { signature = 'Record<K, V>',   text = 'A table with the keys `K` and the value type `V`.' },
+    NonNullable = { signature = 'NonNullable<T>', text = 'Removes `nil` from `T`.' },
+    Exclude     = { signature = 'Exclude<T, U>',  text = 'Removes from the union `T` the members that fit `U`.' },
+    Extract     = { signature = 'Extract<T, U>',  text = 'Keeps from the union `T` only the members that fit `U`.' },
+    returns     = { signature = 'returns<F>',     text = 'The return type of the function type `F`.' },
+    params      = { signature = 'params<F>',      text = 'The parameters of the function type `F`, spread over the parameters of the function that uses it.' },
+    keyof       = { signature = 'keyof T',        text = 'The union of the key names of `T`.' },
+}
+
+--- What the built-in type operator `name` is, unless the project declares a type of that name (then the name is that type).
+---@param uri  uri
+---@param name string
+---@return vm.typeOperatorDoc?
+function vm.getTypeOperatorDoc(uri, name)
+    local doc = vm.typeOperatorDocs[name]
+    if not doc then
+        return nil
+    end
+    local declared = vm.getGlobal('type', name)
+    if declared and #declared:getSets(uri) > 0 then
+        return nil
+    end
+    return doc
+end
+
 --- Basic type names an intersection (`A & B`) cannot include alongside anything else: nothing but
 --- `never` itself is simultaneously one of these and able to satisfy another type's fields.
 --- `unknown`/`any`/`table` are deliberately not in this set -- see `doc.type.intersection` below.

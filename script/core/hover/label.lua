@@ -45,6 +45,11 @@ local function asDocTypeName(source)
             return '(enum) ' .. (doc.enum[1])
         end
     end
+    -- a built-in type operator (`Partial<T>`) is declared nowhere: say what it is, unless the project declares a type of that name
+    local operator = source.type == 'doc.type.name' and vm.getTypeOperatorDoc(guide.getUri(source), source[1])
+    if operator then
+        return '(type operator) ' .. operator.signature
+    end
 end
 
 --- A type parameter, where it is declared (`---@generic T: table`, `---@class Widget<T: Frame>`) or used (`---@param x T`).

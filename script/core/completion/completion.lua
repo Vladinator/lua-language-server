@@ -2625,9 +2625,12 @@ local function tryluaDocBySource(state, position, source, results)
         for _, name in ipairs(operators) do
             if not used[name] and matchKey(source[1] --[[@as string]], name) then
                 used[name] = true
+                local operator = vm.getTypeOperatorDoc(state.uri, name)
                 results[#results+1] = {
-                    label = name,
-                    kind  = define.CompletionItemKind.Class,
+                    label       = name,
+                    kind        = define.CompletionItemKind.Class,
+                    detail      = operator and operator.signature,
+                    description = operator and operator.text,
                 }
             end
         end

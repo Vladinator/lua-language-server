@@ -639,6 +639,12 @@ return function (source, raw)
     if source.type == 'string' then
         return asString(source)
     end
+    if source.type == 'doc.type.name' then
+        local operator = vm.getTypeOperatorDoc(guide.getUri(source), source[1])
+        if operator then
+            return operator.text
+        end
+    end
     if source.type == 'doc.tailcomment' then
         return source.text
     end

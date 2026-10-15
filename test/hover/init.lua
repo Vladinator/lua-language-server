@@ -2933,3 +2933,47 @@ local C = {}
 ---@type <?HoverSeeClass?>
 local inst
 ]], '~RelatedThing~')
+
+-- the built-in type operators say what they are (nothing declares them)
+TEST [[
+---@class HoverOp.A
+---@param p <?Partial?><HoverOp.A>
+local function f(p) end
+]]
+"(type operator) Partial<T>"
+
+TEST [[
+---@param p <?Record?><string, number>
+local function f(p) end
+]]
+"(type operator) Record<K, V>"
+
+hoverContains([[
+---@param p <?NonNullable?><string?>
+local function f(p) end
+]], 'Removes `nil` from `T`.')
+
+-- a project type of the same name is that type, not the operator
+TEST [[
+---@class Partial
+local P = {}
+
+---@param p <?Partial?>
+local function f(p) end
+]]
+"(class) Partial"
+
+do
+    local script, catched = catch([[
+---@class Partial
+local P = {}
+
+---@param p <?Partial?>
+local function f(p) end
+]], '?')
+    files.setText(TESTURI, script)
+    local hover = core.byUri(TESTURI, catched['?'][1][1], 1)
+    assert(hover, 'no hover')
+    assert(not hover:string():find('optional', 1, true), 'the class is not described as the operator: ' .. hover:string())
+    files.remove(TESTURI)
+end

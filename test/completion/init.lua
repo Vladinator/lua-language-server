@@ -132,3 +132,4 @@ end
 
 require 'completion.common'
 require 'completion.continue'
+require 'completion.type-operators'

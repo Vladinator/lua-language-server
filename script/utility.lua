@@ -930,7 +930,7 @@ function m.switch()
     return obj
 end
 
----@param f async fun()
+---@param f async fun(...)
 ---@param name string
 ---@return any, boolean
 function m.getUpvalue(f, name)

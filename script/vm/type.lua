@@ -460,6 +460,87 @@ local function opaqueAliasesOf(uri, node)
     return found
 end
 
+--- A function (or `fun(...)`) given where `fun(...)` is asked for: it must not need more arguments than the type provides, what the
+--- type provides has to fit the parameters that are declared, and what it gives has to fit what the type promises (TypeScript's
+--- rule). Only what is written counts: an unannotated parameter or return says nothing, and a generic type or function is not judged.
+---@param uri    uri
+---@param child  parser.object
+---@param parent parser.object
+---@return boolean
+local function functionTypeMismatch(uri, child, parent)
+    if parent.type ~= 'doc.type.function'
+    or (child.type ~= 'function' and child.type ~= 'doc.type.function') then
+        return false
+    end
+    if vm.containsGenericName(parent) or vm.containsGenericName(child) or parent.signs
+    or (child.type == 'function' and vm.getSign(child)) then
+        return false
+    end
+    ---@type parser.object[]
+    local provided = parent.args or {}
+    ---@type parser.object[]
+    local taken = child.args or {}
+    local providesAny = false
+    for _, arg in ipairs(provided) do
+        if arg.name and arg.name[1] == '...' then
+            providesAny = true
+        end
+    end
+    if not providesAny then
+        local required = 0
+        for _, arg in ipairs(taken) do
+            if arg.type ~= '...' and not (arg.name and arg.name[1] == '...') and not arg.optional
+            and not (child.type == 'function' and vm.compileNode(arg):isOptional()) then
+                required = required + 1
+            end
+        end
+        if required > #provided then
+            return true
+        end
+    end
+    for i = 1, math.min(#taken, #provided) do
+        if provided[i].name and provided[i].name[1] == '...' then
+            break
+        end
+        local want = provided[i].extends
+        ---@type vm.node?
+        local takes
+        if child.type == 'doc.type.function' then
+            takes = taken[i].extends and vm.compileNode(taken[i].extends)
+        else
+            local argNode = vm.compileNode(taken[i])
+            takes = argNode.hasDefined and argNode or nil
+        end
+        -- (bivariant, as TypeScript's methods: a callback may take a narrower type than the one it is called with, the
+        -- other way round is fine too; only two types that have nothing in common are a mismatch)
+        if want and takes then
+            local wantNode = vm.compileNode(want)
+            if vm.isSubType(uri, wantNode, takes) == false and vm.isSubType(uri, takes, wantNode) == false then
+                return true
+            end
+        end
+    end
+    local promised = parent.returns and parent.returns[1]
+    if promised then
+        ---@type (parser.object|vm.generic)?
+        local given
+        if child.type == 'doc.type.function' then
+            given = child.returns and child.returns[1]
+        else
+            for _, doc in ipairs(child.bindDocs or {}) do
+                if doc.type == 'doc.return' then
+                    given = vm.getReturnOfFunction(child, 1)
+                end
+            end
+        end
+        -- (a `nil` among what it gives is not what makes it unfit: a function that gives nothing when it fails fits)
+        if given and vm.isSubType(uri, vm.compileNode(given):copy():removeOptional():remove 'nil', vm.compileNode(promised)) == false then
+            return true
+        end
+    end
+    return false
+end
+
 ---@param uri uri
 ---@param child  vm.node|string|vm.node.object
 ---@param parent vm.node|string|vm.node.object
@@ -656,6 +737,15 @@ local function isSubTypeOfNames(uri, child, parent, mark, errs)
 
     if childName == parentName then
         if not checkValue(parent, child, mark, errs) then
+            return false
+        end
+        if parentName == 'function'
+        and functionTypeMismatch(uri, child --[[@as parser.object]], parent --[[@as parser.object]]) then
+            if errs then
+                errs[#errs+1] = 'TYPE_ERROR_DISMATCH'
+                errs[#errs+1] = child
+                errs[#errs+1] = parent
+            end
             return false
         end
         return true

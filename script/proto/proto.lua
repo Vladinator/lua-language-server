@@ -38,7 +38,7 @@ end
 ---@field client any
 local m = {}
 
----@type table<string, async fun()>
+---@type table<string, async fun(params: any): any>
 m.ability = {}
 ---@type table<any, any>
 m.waiting = {}
@@ -59,7 +59,7 @@ function m.getMethodName(proto)
 end
 
 ---@param method string
----@param callback async fun()
+---@param callback async fun(params: any): any
 function m.on(method, callback)
     m.ability[method] = callback
 end

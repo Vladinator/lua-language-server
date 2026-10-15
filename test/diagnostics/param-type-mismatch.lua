@@ -1405,3 +1405,162 @@ takeBare(numBox)
 takeTable(numBox)
 takeBool(mixedBox)
 ]]
+
+-- a function given where a `fun(...)` is asked for: it must not need more arguments than the type provides
+TEST [[
+---@param cb fun(x: number)
+local function on(cb) end
+
+local function none() end
+local function one(a) end
+local function two(a, b) end
+---@param a number
+---@param b? number
+local function optional(a, b) end
+local function rest(...) end
+
+on(none)
+on(one)
+on(<!two!>)
+on(optional)
+on(rest)
+on(function (a) end)
+on(<!function (a, b) end!>)
+]]
+
+-- ... a `...` in the type provides any number of them
+TEST [[
+---@param cb fun(...: number)
+local function on(cb) end
+
+local function three(a, b, c) end
+on(three)
+]]
+
+-- ... the parameter types: what the type provides has to fit what the function takes
+TEST [[
+---@param cb fun(name: string)
+local function on(cb) end
+
+---@param n number
+local function takesNumber(n) end
+---@param s string
+local function takesString(s) end
+---@param s string|number
+local function takesEither(s) end
+local function untyped(s) end
+
+on(<!takesNumber!>)
+on(takesString)
+on(takesEither)
+on(untyped)
+]]
+
+-- ... and the return types the other way: what the function gives has to fit what the type promises
+TEST [[
+---@param cb fun(): number
+local function on(cb) end
+
+---@return string
+local function gives() return '' end
+---@return integer
+local function giveInteger() return 1 end
+local function inferred() return '' end
+local function nothing() end
+
+on(<!gives!>)
+on(giveInteger)
+on(inferred)
+on(nothing)
+]]
+
+-- ... a generic type or function is not judged, nor is a plain `function`
+TEST [[
+---@generic T
+---@param cb fun(x: T)
+local function on(cb) end
+
+---@param cb function
+local function plain(cb) end
+
+local function two(a, b) end
+on(two)
+plain(two)
+]]
+
+-- ... a callback may take a narrower or a wider type than it is called with (bivariant, as TypeScript's methods)
+TEST [[
+---@class FnBase
+---@class FnDerived : FnBase
+
+---@param cb fun(x: FnBase)
+local function onBase(cb) end
+---@param cb fun(x: FnDerived)
+local function onDerived(cb) end
+
+---@param x FnDerived
+local function narrower(x) end
+---@param x FnBase
+local function wider(x) end
+
+onBase(narrower)
+onBase(wider)
+onDerived(narrower)
+onDerived(wider)
+]]
+
+-- ... a `nil` among the returns is not what makes it unfit, another type is
+TEST [[
+---@param cb fun(): string
+local function on(cb) end
+
+---@return string?
+local function maybe() return nil end
+---@return number?
+local function maybeNumber() return nil end
+
+on(maybe)
+on(<!maybeNumber!>)
+]]
+
+-- ... a value typed `fun(...)` is compared like a function
+TEST [[
+---@param cb fun(a: number)
+local function on(cb) end
+
+---@type fun(a: number, b: number)
+local two
+---@type fun(a: number)
+local one
+---@type fun(a: string)
+local other
+
+on(<!two!>)
+on(one)
+on(<!other!>)
+]]
+
+-- ... a function with a `...` of its own needs no argument for it, a generic function is not judged, and a `...` of the type is not
+-- compared with the parameters of the function
+TEST [[
+---@param cb fun()
+local function onNone(cb) end
+---@param cb fun(x: number)
+local function onOne(cb) end
+---@param cb fun(...: number)
+local function onNumbers(cb) end
+
+local function rest(...) end
+local function firstAndRest(a, ...) end
+---@generic T
+---@param a T
+---@param b T
+local function generic(a, b) end
+---@param a string
+local function takesString(a) end
+
+onNone(rest)
+onNone(<!firstAndRest!>)
+onOne(generic)
+onNumbers(takesString)
+]]

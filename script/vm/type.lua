@@ -466,7 +466,7 @@ end
 ---@param mark?  table<string, boolean>
 ---@param errs? typecheck.err[]
 ---@return boolean|nil
-function vm.isSubType(uri, child, parent, mark, errs)
+local function isSubTypeOfNames(uri, child, parent, mark, errs)
     mark = mark or {}
 
     if type(child) == 'string' then
@@ -771,6 +771,124 @@ function vm.isSubType(uri, child, parent, mark, errs)
         errs[#errs+1] = parent
     end
     return false
+end
+
+--- `Box<number>` for `Box<boolean>`: the type arguments of a generic class. The class of the child, or one it inherits from, has to
+--- have arguments that are assignable to the ones the parameter names (covariant, as TypeScript's arrays are). Only a clear `false` counts, so
+--- a class with no argument given, `any` and an argument that is a type parameter say nothing; a parent that also allows another class
+--- is not judged by the arguments.
+---@param uri    uri
+---@param child  vm.node
+---@param parent vm.node
+---@param errs?  typecheck.err[]
+---@return boolean
+local function typeArgumentsMismatch(uri, child, parent, errs)
+    ---@type parser.object?
+    local childSign
+    for obj in child:eachObject() do
+        if obj.type == 'doc.type.sign' and obj.signs and obj.node then
+            if childSign then
+                return false
+            end
+            childSign = obj --[[@as parser.object]]
+        end
+    end
+    if not childSign then
+        return false
+    end
+    local chain = vm.getClassGenericChain(uri, childSign)
+    ---@type parser.object[]
+    local related = {}
+    ---@type string[]
+    local classNames = {}
+    for obj in parent:eachObject() do
+        if obj.type == 'doc.type.sign' and obj.signs and obj.node then
+            local found = false
+            for _, entry in ipairs(chain) do
+                if entry.class == obj.node[1] and entry.arguments then
+                    found = true
+                end
+            end
+            if not found then
+                return false
+            end
+            related[#related+1] = obj --[[@as parser.object]]
+        elseif obj.type == 'global' and obj.cate == 'type' then
+            ---@cast obj vm.global
+            if not guide.isBasicType(obj.name) then
+                classNames[#classNames+1] = obj.name
+            end
+        end
+    end
+    if #related == 0 then
+        return false
+    end
+    -- (the class of a sign is part of the node too: only another class makes the parent wider)
+    for _, other in ipairs(classNames) do
+        local named = false
+        for _, sign in ipairs(related) do
+            if sign.node[1] == other then
+                named = true
+            end
+        end
+        if not named then
+            return false
+        end
+    end
+    for _, parentSign in ipairs(related) do
+        local parentName = parentSign.node[1] --[[@as string]]
+        local parentClass = vm.getGlobal('type', parentName)
+        ---@type table<string, vm.node>?
+        local arguments
+        for _, entry in ipairs(chain) do
+            if entry.class == parentName then
+                arguments = entry.arguments
+            end
+        end
+        if not parentClass or not arguments then
+            return false
+        end
+        local mismatch = false
+        for _, set in ipairs(parentClass:getSets(uri)) do
+            if set.type == 'doc.class' and set.signs then
+                for i, signName in ipairs(set.signs) do
+                    local childArgument  = arguments[signName[1] --[[@as string]]]
+                    local parentArgument = parentSign.signs[i]
+                    if childArgument and parentArgument
+                    and vm.isSubType(uri, childArgument, vm.compileNode(parentArgument)) == false then
+                        mismatch = true
+                    end
+                end
+                break
+            end
+        end
+        if not mismatch then
+            return false
+        end
+    end
+    if errs then
+        errs[#errs+1] = 'TYPE_ERROR_DISMATCH'
+        errs[#errs+1] = childSign
+        errs[#errs+1] = related[1]
+    end
+    return true
+end
+
+---@param uri uri
+---@param child  vm.node|string|vm.node.object
+---@param parent vm.node|string|vm.node.object
+---@param mark?  table<string, boolean>
+---@param errs? typecheck.err[]
+---@return boolean|nil
+function vm.isSubType(uri, child, parent, mark, errs)
+    local result = isSubTypeOfNames(uri, child, parent, mark, errs)
+    if result == true
+    and type(child) == 'table' and type(parent) == 'table'
+    and child.type == 'vm.node' and parent.type == 'vm.node'
+    and typeArgumentsMismatch(uri, child --[[@as vm.node]], parent --[[@as vm.node]], errs) then
+        return false
+    end
+    return result
 end
 
 ---@param node string|vm.node|vm.object

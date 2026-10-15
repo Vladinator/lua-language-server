@@ -1252,3 +1252,156 @@ local function changed(bid)
 end
 reassigned("a") otherKey("a", "b") changed("a")
 ]]
+
+-- the type arguments of a generic class are compared (covariantly, as the argument of the parameter must be assignable to the one
+-- the parameter names): `Container<number>` is not a `Container<boolean>`
+TEST [[
+---@class TArgBox<T>
+local TArgBox = {}
+
+---@param c TArgBox<boolean>
+local function takeBool(c) end
+
+---@type TArgBox<number>
+local numBox
+---@type TArgBox<boolean>
+local boolBox
+---@type TArgBox<boolean | number>
+local unionBox
+
+takeBool(<!numBox!>)
+takeBool(boolBox)
+takeBool(<!unionBox!>)
+]]
+
+-- ... a narrower argument is fine where a wider one is asked for, a wider one with a member that does not fit is not
+TEST [[
+---@class TArgBox2<T>
+local TArgBox2 = {}
+
+---@param c TArgBox2<string | number>
+local function takeBoth(c) end
+
+---@type TArgBox2<number>
+local numBox
+---@type TArgBox2<number | false>
+local falseBox
+
+takeBoth(numBox)
+takeBoth(<!falseBox!>)
+]]
+
+-- ... a class with no argument given, `any`, and an argument that is a type parameter say nothing
+TEST [[
+---@class TArgBox3<T>
+local TArgBox3 = {}
+
+---@param c TArgBox3<boolean>
+local function takeBool(c) end
+
+---@type TArgBox3
+local bare
+---@type TArgBox3<any>
+local anyBox
+
+takeBool(bare)
+takeBool(anyBox)
+
+---@generic T
+---@param box TArgBox3<T>
+local function forward(box)
+    takeBool(box)
+end
+]]
+
+-- ... the arguments of a class that inherits are read through its parent: a forwarded parameter and a fixed parent
+TEST [[
+---@class TArgBox4<T>
+local TArgBox4 = {}
+
+---@class TArgSub<T> : TArgBox4<T>
+
+---@class TArgFixed<T> : TArgBox4<string>
+
+---@param c TArgBox4<boolean>
+local function takeBool(c) end
+
+---@type TArgSub<number>
+local subNum
+---@type TArgSub<boolean>
+local subBool
+---@type TArgFixed<number>
+local fixedNum
+
+takeBool(<!subNum!>)
+takeBool(subBool)
+takeBool(<!fixedNum!>)
+]]
+
+-- ... a parent that also allows another class is not judged by the arguments, an optional parent still is
+TEST [[
+---@class TArgBox5<T>
+local TArgBox5 = {}
+
+---@class TArgOther
+
+---@param c TArgBox5<boolean> | TArgOther
+local function takeEither(c) end
+
+---@param c TArgBox5<boolean>?
+local function takeOptional(c) end
+
+---@type TArgBox5<number>
+local numBox
+---@type TArgBox5<boolean>
+local boolBox
+
+takeEither(numBox)
+takeOptional(<!numBox!>)
+takeOptional(boolBox)
+takeOptional(nil)
+]]
+
+-- ... a class with two type parameters: either argument can be the one that does not fit
+TEST [[
+---@class TArgPair<K, V>
+local TArgPair = {}
+
+---@param p TArgPair<string, number>
+local function takePair(p) end
+
+---@type TArgPair<string, number>
+local good
+---@type TArgPair<string, boolean>
+local badValue
+---@type TArgPair<integer, number>
+local badKey
+
+takePair(good)
+takePair(<!badValue!>)
+takePair(<!badKey!>)
+]]
+
+-- ... a parent named without arguments takes any argument, and a child that is a union of two instances is not judged
+TEST [[
+---@class TArgBox6<T>
+local TArgBox6 = {}
+
+---@param c TArgBox6
+local function takeBare(c) end
+
+---@param c TArgBox6<boolean>
+local function takeBool(c) end
+
+---@param t table
+local function takeTable(t) end
+
+---@type TArgBox6<number>
+local numBox
+---@type TArgBox6<boolean> | TArgBox6<number>
+local mixedBox
+
+takeBare(numBox)
+takeTable(numBox)
+takeBool(mixedBox)
+]]

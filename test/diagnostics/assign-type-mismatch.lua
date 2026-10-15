@@ -635,3 +635,18 @@ local a8 = strs
 ---@type string[]?
 local <!a9!> = nums
 ]]
+
+-- the type arguments of a generic class are compared here too
+TEST [[
+---@class TArgAssign<T>
+local TArgAssign = {}
+
+---@type TArgAssign<number>
+local numBox
+
+---@type TArgAssign<boolean>
+local <!boolBox!> = numBox
+
+---@type TArgAssign<number | string>
+local wideBox = numBox
+]]

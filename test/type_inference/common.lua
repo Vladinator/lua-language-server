@@ -976,6 +976,37 @@ local ft
 local _, <?r?> = ft()
 ]]
 
+-- `a and b`: what `a` adds is its falsy part, whatever kind of type it has
+TEST 'integer?' [[
+---@type table<string, number>?
+local t
+local <?x?> = t and 1
+]]
+
+TEST 'string?' [[
+---@type number[]?
+local t
+local <?x?> = t and 'x'
+]]
+
+TEST 'integer?' [[
+---@type fun()?
+local t
+local <?x?> = t and 1
+]]
+
+TEST 'integer?' [[
+---@type {a: number}?
+local t
+local <?x?> = t and 1
+]]
+
+TEST '(integer|false)?' [[
+---@type boolean?
+local t
+local <?x?> = t and 1
+]]
+
 -- `?T` prefix (wowlua-ls interop): the same as `T?`
 TEST 'string?' [[
 ---@type ?string

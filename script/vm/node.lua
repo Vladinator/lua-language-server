@@ -329,6 +329,13 @@ function mt:setFalsy()
             self[c] = nil
             goto CONTINUE
         end
+        -- a written table, array, function, literal or generic class instance is never falsy (`t and 1` with `t: table<K, V>?` is `integer?`)
+        if c.type == 'doc.type.sign' or c.type == 'doc.type.table' or c.type == 'doc.type.array' or c.type == 'doc.type.function'
+        or c.type == 'doc.type.string' or c.type == 'doc.type.integer' then
+            table.remove(self, index)
+            self[c] = nil
+            goto CONTINUE
+        end
         ::CONTINUE::
     end
     if hasBoolean then

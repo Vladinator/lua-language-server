@@ -1001,6 +1001,18 @@ local t
 local <?x?> = t and 1
 ]]
 
+TEST 'integer?' [[
+---@type "a"|"b"?
+local t
+local <?x?> = t and 1
+]]
+
+TEST 'integer?' [[
+---@type (1|2)?
+local t
+local <?x?> = t and 'x' and 1
+]]
+
 TEST '(integer|false)?' [[
 ---@type boolean?
 local t

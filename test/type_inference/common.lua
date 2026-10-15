@@ -7219,6 +7219,109 @@ setmetatable(T, { __index = { y = 2 } })
 local <?ty?> = T.y
 ]]
 
+-- ... also when the table is assigned to an existing local (`T = {}`), not only declared with it
+TEST 'integer' [[
+local T
+T = {}
+setmetatable(T, { __index = { y = 2 } })
+local <?ty?> = T.y
+]]
+
+-- ... but the metatable of another local is not this table's
+TEST 'unknown' [[
+local T, U
+T = {}
+U = {}
+setmetatable(U, { __index = { y = 2 } })
+local <?ty?> = T.y
+]]
+
+-- ... and the first table keeps its own after the local is given a second one
+TEST 'integer' [[
+local T
+T = {}
+setmetatable(T, { __index = { y = 2 } })
+local <?ty?> = T.y
+T = {}
+]]
+
+-- the operator of a class: the metamethod is a field of the class table
+TEST 'number' [[
+---@class Vec2
+---@field x number
+local Vec2 = {}
+Vec2.__index = Vec2
+
+---@param a Vec2
+---@param b Vec2
+---@return Vec2
+Vec2.__add = function (a, b) return setmetatable({ x = a.x + b.x }, Vec2) end
+
+---@type Vec2
+local v1
+---@type Vec2
+local v2
+local v3 = v1 + v2
+local <?v3x?> = v3.x
+]]
+
+TEST 'number' [[
+---@class Vec3
+---@field x number
+local Vec3 = {}
+
+---@param v Vec3
+---@return Vec3
+function Vec3.__unm(v) return v end
+
+---@type Vec3
+local v1
+local v4 = -v1
+local <?v4x?> = v4.x
+]]
+
+-- ... a class without the metamethod gives nothing: the result stays what it was before
+TEST 'unknown' [[
+---@class Vec4
+local Vec4 = {}
+
+---@type Vec4
+local v1
+local <?sum?> = v1 + 1
+]]
+
+-- the metatable is a local: its first parameter is still the table `setmetatable` was given
+TEST 'number' [[
+---@class CallableWidget
+---@field value number
+local CallableWidget = {}
+
+local widgetMT = {
+    ---@param a number
+    __call = function(widget, a)
+        return widget.value + a
+    end
+}
+
+local cw = setmetatable(CallableWidget, widgetMT)
+local <?cwResult?> = cw(5)
+]]
+
+-- ... and a metatable no `setmetatable` call hands out does not type it
+TEST 'unknown' [[
+---@class CallableWidget2
+---@field value number
+local CallableWidget2 = {}
+
+local widgetMT = {
+    __call = function(widget, a)
+        return widget.value
+    end
+}
+
+local <?cwResult?> = CallableWidget2(5)
+]]
+
 -- ... a name the `__index` table lacks is still unknown, and `__index = self` does not loop
 TEST 'unknown' [[
 local T = {}

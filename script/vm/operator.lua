@@ -166,7 +166,13 @@ local function linkStatementMetatables(tbl)
     end
     tbl._metatableScanned = true
     local var = tbl.parent
-    if not var or var.type ~= 'local' or var.value ~= tbl then
+    if var and var.type == 'setlocal' and var.value == tbl then
+        -- (`T = {}` of an existing local)
+        var = var.node
+    elseif not var or var.type ~= 'local' or var.value ~= tbl then
+        return
+    end
+    if not var then
         return
     end
     for _, ref in ipairs(var.ref or {}) do
@@ -176,6 +182,33 @@ local function linkStatementMetatables(tbl)
             vm.compileNode(call)
         end
     end
+end
+
+--- The functions that `holder` (a metatable, or a class) has in its field `__<name>`, added to `found`: the ones written, else the ones declared.
+---@param holder parser.object
+---@param name   string
+---@param found  parser.object[]
+local function collectMetamethodFunctions(holder, name, found)
+    vm.compileByParentNodeAll(holder, '__' .. name, function (src)
+        -- the declaration of the standard `metatable` class (`__len: fun(t): integer`) is not what this metatable does
+        if vm.isMetaFile(guide.getUri(src)) then
+            return
+        end
+        ---@type parser.object[]
+        local written = {}
+        ---@type parser.object[]
+        local declared = {}
+        for func in vm.compileNode(src):eachObject() do
+            if func.type == 'function' then
+                written[#written+1] = func
+            elseif func.type == 'doc.type.function' then
+                declared[#declared+1] = func
+            end
+        end
+        for _, func in ipairs(#written > 0 and written or declared) do
+            found[#found+1] = func
+        end
+    end)
 end
 
 --- The functions the metatables linked to `obj` give to the metamethod `__<name>`: the ones written in the metatable, else the ones its
@@ -192,39 +225,19 @@ function vm.getMetamethodFunctions(name, obj)
         return found
     end
     for _, mt in ipairs(links) do
-        vm.compileByParentNodeAll(mt, '__' .. name, function (src)
-            -- the declaration of the standard `metatable` class (`__len: fun(t): integer`) is not what this metatable does
-            if vm.isMetaFile(guide.getUri(src)) then
-                return
-            end
-            ---@type parser.object[]
-            local written = {}
-            ---@type parser.object[]
-            local declared = {}
-            for func in vm.compileNode(src):eachObject() do
-                if func.type == 'function' then
-                    written[#written+1] = func
-                elseif func.type == 'doc.type.function' then
-                    declared[#declared+1] = func
-                end
-            end
-            for _, func in ipairs(#written > 0 and written or declared) do
-                found[#found+1] = func
-            end
-        end)
+        collectMetamethodFunctions(mt, name, found)
     end
     return found
 end
 
---- The first result (or the `index`-th) of the metamethod `__<op>` of the metatables linked to `obj`.
----@param op     string
----@param obj    parser.object
+--- The first result (or the `index`-th) of the functions.
+---@param funcs  parser.object[]
 ---@param index? integer
 ---@return vm.node?
-local function runMetamethod(op, obj, index)
+local function resultOfFunctions(funcs, index)
     ---@type vm.node?
     local result
-    for _, func in ipairs(vm.getMetamethodFunctions(op, obj)) do
+    for _, func in ipairs(funcs) do
         local rtn = vm.getReturnOfFunction(func, index or 1)
         if rtn then
             for ret in vm.compileNode(rtn):eachObject() do
@@ -237,6 +250,15 @@ local function runMetamethod(op, obj, index)
         end
     end
     return result
+end
+
+--- The first result (or the `index`-th) of the metamethod `__<op>` of the metatables linked to `obj`.
+---@param op     string
+---@param obj    parser.object
+---@param index? integer
+---@return vm.node?
+local function runMetamethod(op, obj, index)
+    return resultOfFunctions(vm.getMetamethodFunctions(op, obj), index)
 end
 
 --- The tables the `__index` of the metatables linked to `obj` is.
@@ -327,6 +349,18 @@ function vm.runOperator(op, exp, value, index)
             for _, set in ipairs(c:getSets(uri)) do
                 if set.operators and #set.operators > 0 then
                     result = checkOperators(set.operators, op, value, result)
+                end
+            end
+            -- a class whose table has the metamethod as a field (`Vec2.__add = function ... end`)
+            -- (asked through one of its declarations: the lookup walks the whole class)
+            local declaration = c:getSets(uri)[1]
+            if declaration then
+                ---@type parser.object[]
+                local funcs = {}
+                collectMetamethodFunctions(declaration, op, funcs)
+                local viaClass = resultOfFunctions(funcs, index)
+                if viaClass then
+                    result = result and result:merge(viaClass) or viaClass
                 end
             end
         end

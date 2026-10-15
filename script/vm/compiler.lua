@@ -1399,16 +1399,26 @@ local function getMetatableSubject(func)
     if type(key) ~= 'string' or not SELF_METAMETHODS[key] then
         return nil
     end
-    local mt   = field.parent
+    local mt = field.parent
     local args = mt and mt.parent
     local call = args and args.parent
-    if not call or call.type ~= 'call' or not call.node or call.node.special ~= 'setmetatable' then
+    if call and call.type == 'call' and call.node and call.node.special == 'setmetatable' then
+        return args[2] == mt and args[1] or nil
+    end
+    -- the metatable is a local (`local mt = { __call = function (self) end }`) that a `setmetatable(t, mt)` call hands out
+    local var = mt and mt.parent
+    if not var or var.type ~= 'local' or var.value ~= mt then
         return nil
     end
-    if args[2] ~= mt then
-        return nil
+    for _, ref in ipairs(var.ref or {}) do
+        local refArgs = ref.parent
+        local refCall = refArgs and refArgs.type == 'callargs' and refArgs.parent
+        if refCall and refCall.type == 'call' and refCall.node and refCall.node.special == 'setmetatable'
+        and refArgs[2] == ref then
+            return refArgs[1]
+        end
     end
-    return args[1]
+    return nil
 end
 
 ---@param args parser.object[]

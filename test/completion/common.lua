@@ -5976,6 +5976,173 @@ end
 end)
 Cared['detail'] = nil
 
+-- the same for a field of a local: `if shape.sides then print(shape.<here>)`
+---@param result table[]
+---@param label string
+---@return string
+local function detailOf(result, label)
+    for _, it in ipairs(result) do
+        if it.label == label then
+            return tostring(it.detail)
+        end
+    end
+    return 'no such item'
+end
+
+Cared['detail'] = true
+TEST [[
+---@class NarrowShape
+---@field sides number?
+local shape
+
+if shape.sides then
+    print(shape.sides)
+    shape.si<??>
+end
+]]
+(function (result)
+    assert(detailOf(result, 'sides'):find('number', 1, true), 'narrowed field: ' .. detailOf(result, 'sides'))
+    assert(not detailOf(result, 'sides'):find('?', 1, true), 'narrowed field: ' .. detailOf(result, 'sides'))
+end)
+
+-- ... narrowed by the condition alone, with no read in the body
+TEST [[
+---@class NarrowShape1b
+---@field sides number?
+local shape
+
+if shape.sides then
+    shape.si<??>
+end
+]]
+(function (result)
+    assert(not detailOf(result, 'sides'):find('?', 1, true), 'by the condition: ' .. detailOf(result, 'sides'))
+end)
+
+TEST [[
+---@class NarrowShape1d
+---@field sides number?
+local shape
+
+while shape.sides do
+    shape.si<??>
+end
+]]
+(function (result)
+    assert(not detailOf(result, 'sides'):find('?', 1, true), 'by a while condition: ' .. detailOf(result, 'sides'))
+end)
+
+-- negative: the else branch of that condition is not narrowed
+TEST [[
+---@class NarrowShape1c
+---@field sides number?
+local shape
+
+if shape.sides then
+    print(1)
+else
+    shape.si<??>
+end
+]]
+(function (result)
+    assert(detailOf(result, 'sides'):find('?', 1, true), 'in the else branch: ' .. detailOf(result, 'sides'))
+end)
+
+-- ... a call between does not end it (the flow engine keeps field paths across calls)
+TEST [[
+---@class NarrowShape2
+---@field sides number?
+local shape
+
+if shape.sides then
+    print(shape.sides)
+    print('call')
+    shape.si<??>
+end
+]]
+(function (result)
+    assert(not detailOf(result, 'sides'):find('?', 1, true), 'after a call: ' .. detailOf(result, 'sides'))
+end)
+
+-- negative: the block with the narrowing is over
+TEST [[
+---@class NarrowShape3
+---@field sides number?
+local shape
+
+if shape.sides then
+    print(shape.sides)
+end
+shape.si<??>
+]]
+(function (result)
+    assert(detailOf(result, 'sides'):find('?', 1, true), 'declared type after the block: ' .. detailOf(result, 'sides'))
+end)
+
+-- negative: an assignment to the field, or to the local, ends it
+TEST [[
+---@class NarrowShape4
+---@field sides number?
+local shape
+
+if shape.sides then
+    print(shape.sides)
+    shape.sides = nil
+    shape.si<??>
+end
+]]
+(function (result)
+    assert(detailOf(result, 'sides'):find('?', 1, true), 'after assigning the field: ' .. detailOf(result, 'sides'))
+end)
+
+TEST [[
+---@class NarrowShape5
+---@field sides number?
+local shape
+
+if shape.sides then
+    print(shape.sides)
+    shape = {}
+    shape.si<??>
+end
+]]
+(function (result)
+    assert(detailOf(result, 'sides'):find('?', 1, true), 'after assigning the local: ' .. detailOf(result, 'sides'))
+end)
+
+-- negative: a read of another field, or in another function, says nothing
+TEST [[
+---@class NarrowShape6
+---@field sides number?
+---@field name string?
+local shape
+
+if shape.name then
+    print(shape.name)
+    shape.si<??>
+end
+]]
+(function (result)
+    assert(detailOf(result, 'sides'):find('?', 1, true), 'another field: ' .. detailOf(result, 'sides'))
+end)
+
+TEST [[
+---@class NarrowShape7
+---@field sides number?
+local shape
+
+if shape.sides then
+    print(shape.sides)
+    local f = function ()
+        shape.si<??>
+    end
+end
+]]
+(function (result)
+    assert(detailOf(result, 'sides'):find('?', 1, true), 'inside a closure: ' .. detailOf(result, 'sides'))
+end)
+Cared['detail'] = nil
+
 -- the documentation panel is the hover of that earlier read too (narrowed), not of the declaration
 Cared['description'] = true
 TEST [[

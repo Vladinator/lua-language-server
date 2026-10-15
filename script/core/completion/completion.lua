@@ -523,6 +523,61 @@ local function narrowedNodeOf(source, position)
     return vm.compileNode(nearest), nearest
 end
 
+--- The type a field has at the cursor when a read of it (`shape.sides`) earlier in the same block, or one around the cursor, was narrowed
+--- (`if shape.sides then print(shape.<??>)`): the same earlier-read stand-in as `narrowedNodeOf`, for a field of a local. A call does not
+--- end a narrowed field (the flow engine keeps field paths across calls); an assignment to the field or the local does.
+---@param receiver parser.object the object before the dot, as completion found it
+---@param name     string
+---@param position integer
+---@return vm.node?
+---@return parser.object? read the earlier read of the field
+local function narrowedFieldNodeOf(receiver, name, position)
+    local source = receiver.type == 'getlocal' and receiver.node
+    if not source then
+        return nil
+    end
+    local root = guide.getRoot(source)
+    ---@type parser.object
+    local func = root
+    guide.eachSourceContain(root, position, function (src)
+        if src.type == 'function' then
+            func = src
+        end
+    end)
+    ---@type parser.object?
+    local nearest
+    for _, ref in ipairs(source.ref or {}) do
+        if ref.start > position then
+            goto CONTINUE
+        end
+        if ref.type == 'setlocal' then
+            nearest = nil
+        elseif ref.type == 'getlocal' and ref.next and ref.next.field and ref.next.field[1] == name
+        and guide.getParentFunction(ref) == func then
+            local field = ref.next
+            if field.type == 'setfield' then
+                nearest = nil
+            elseif field.type == 'getfield' and field.finish < position and (not nearest or field.start > nearest.start) then
+                local block = guide.getBlock(field)
+                if block and block.start <= position and position <= block.finish then
+                    nearest = field
+                end
+            end
+        end
+        ::CONTINUE::
+    end
+    if not nearest then
+        return nil
+    end
+    local node = vm.compileNode(nearest)
+    -- (the condition itself, `if shape.sides then <here>` / `while shape.sides do <here>`: the body is what its truth gives)
+    local parent = nearest.parent
+    if parent and parent.filter == nearest then
+        node = node:copy():setTruthy()
+    end
+    return node, nearest
+end
+
 ---@param state    parser.state
 ---@param word     string
 ---@param position integer
@@ -940,9 +995,10 @@ local function checkFieldThen(state, name, src, word, position, parent, oop, res
         deprecated = vm.getDeprecated(src) and true or nil,
         textEdit   = textEdit,
         id         = stack(src, function (newSrc) ---@async
+            local narrowed, read = narrowedFieldNodeOf(parent, name, position)
             return {
-                detail      = buildDetail(newSrc),
-                description = buildDesc(newSrc),
+                detail      = buildDetail(newSrc, narrowed),
+                description = buildDesc(read or newSrc),
             }
         end),
 

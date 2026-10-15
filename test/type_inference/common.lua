@@ -553,6 +553,154 @@ local wrapped = wrapKeyed(original)
 local <?r?> = wrapped("x")
 ]]
 
+-- `returns<F, index>` (wowlua-ls interop): start at the `index`-th return of the function whose results the vararg passes on
+TEST 'string' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@return boolean
+---@return string
+---@diagnostic disable-next-line: missing-return
+local function multiRet() end
+
+local <?r?> = mySelect(1, multiRet())
+]]
+
+TEST 'number' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@return boolean
+---@return string
+---@diagnostic disable-next-line: missing-return
+local function multiRet() end
+
+local <?r?> = mySelect(2, multiRet())
+]]
+
+TEST 'boolean' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@return boolean
+---@return string
+---@diagnostic disable-next-line: missing-return
+local function multiRet() end
+
+local <?r?> = mySelect(3, multiRet())
+]]
+
+TEST 'string' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@return boolean
+---@return string
+---@diagnostic disable-next-line: missing-return
+local function multiRet() end
+
+local <?r?> = mySelect(4, multiRet())
+]]
+
+-- ... an index that is no literal gives the first return, a return the function lacks gives nil
+TEST 'string' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@diagnostic disable-next-line: missing-return
+local function two() end
+
+local n = 2
+local <?r?> = mySelect(n, two())
+]]
+
+TEST 'nil' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+---@return number
+---@diagnostic disable-next-line: missing-return
+local function two() end
+
+local <?r?> = mySelect(3, two())
+]]
+
+-- ... a function passed itself (no call) does not stand for the results it would give: `F` stays unbound, and the projection of an
+-- unbound `F` keeps its spelling
+TEST 'returns<F, integer>' [[
+---@generic F
+---@param index integer
+---@param ... returns<F>
+---@return returns<F, index>
+local function mySelect(index, ...) end
+
+---@return string
+local function one() end
+
+local <?r?> = mySelect(1, one)
+]]
+
+-- ... and an `F` an earlier parameter bound stays what it was
+TEST 'number' [[
+---@generic F
+---@param f F
+---@param ... returns<F>
+---@return returns<F>
+local function pick(f, ...) end
+
+---@return number
+local function num() end
+
+---@return string
+local function str() end
+
+local <?r?> = pick(num, str())
+]]
+
+-- ... and the plain `returns<F>` of a vararg slot still gives the first return
+TEST 'string' [[
+---@generic F
+---@param ... returns<F>
+---@return returns<F>
+local function first(...) end
+
+---@return string
+---@return number
+---@diagnostic disable-next-line: missing-return
+local function two() end
+
+local <?r?> = first(two())
+]]
+
 -- `?T` prefix (wowlua-ls interop): the same as `T?`
 TEST 'string?' [[
 ---@type ?string

@@ -1319,6 +1319,19 @@ local function resolveUtilityType(uri, source)
     return true
 end
 
+--- The positive whole number a node holds as a literal.
+---@param node vm.node
+---@return integer?
+local function getPositiveInteger(node)
+    for obj in node:eachObject() do
+        local value = (obj.type == 'integer' or obj.type == 'number') and obj[1]
+        if math.type(value) == 'integer' and value >= 1 then
+            return value
+        end
+    end
+    return nil
+end
+
 --- `returns<F>` (wowlua-ls interop): `F`'s own return type, read from inside another function's
 --- signature (a generic bound to a `fun(...)`-shaped value, usually from an earlier `@param`).
 --- Parsed as ordinary `doc.type.sign` generic-instantiation syntax, same as the utility types
@@ -1346,11 +1359,15 @@ local function resolveReturnsProjection(uri, source)
         return true
     end
     local fNode = vm.compileNode(fSign)
+    -- `returns<F, index>`: start at the `index`-th return of `F` (the number the call gave the parameter `index`; 1 when it is no literal)
+    ---@type parser.object?
+    local indexSign = signs[2]
+    local offset = indexSign and getPositiveInteger(vm.compileNode(indexSign)) or 1
     ---@type vm.node?
     local resultNode
     for obj in fNode:eachObject() do
         if obj.type == 'function' or obj.type == 'doc.type.function' then
-            local rtn = vm.getReturnOfFunction(obj, 1)
+            local rtn = vm.getReturnOfFunction(obj, offset)
             if rtn then
                 local rtnNode = vm.compileNode(rtn)
                 resultNode = resultNode and resultNode:copy():merge(rtnNode) or rtnNode:copy()

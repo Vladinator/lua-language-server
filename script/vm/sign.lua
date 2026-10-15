@@ -54,6 +54,7 @@ end
 ---@field parent    parser.object
 ---@field signList  vm.node[]
 ---@field docGeneric parser.object[]
+---@field paramNames table<integer, string>? the names of the parameters of a function, by position (`returns<F, index>` reads the argument of `index`)
 local mt = {}
 mt.__index = mt
 mt.type = 'sign'
@@ -444,11 +445,37 @@ function mt:resolve(uri, args)
         return false
     end
 
+    --- `---@param ... returns<F>`: `F` is the function whose results the argument passes on (`select(2, f())`: `f`)
+    ---@param sign vm.node
+    ---@param arg  parser.object
+    local function bindReturnsOfCallee(sign, arg)
+        if arg.type ~= 'call' or not arg.node then
+            return
+        end
+        for obj in sign:eachObject() do
+            local key = obj.type == 'doc.type.sign' and obj.node and obj.node[1] == 'returns' and obj.signs
+                and vm.getSignName(obj.signs[1])
+            if key and not resolved[key] then
+                for callee in vm.compileNode(arg.node):eachObject() do
+                    if callee.type == 'function' or callee.type == 'doc.type.function' then
+                        resolved[key] = resolved[key] and resolved[key]:merge(callee) or vm.createNode(callee)
+                    end
+                end
+            end
+        end
+    end
+
     for i, arg in ipairs(args or {}) do
         local sign = self.signList[i]
         if not sign then
             break
         end
+        -- the literal numbers handed to named parameters, for `returns<F, index>`
+        local paramName = self.paramNames and self.paramNames[i]
+        if paramName and (arg.type == 'integer' or arg.type == 'number') then
+            resolved['#' .. paramName] = vm.compileNode(arg)
+        end
+        bindReturnsOfCallee(sign, arg)
         local argNode = vm.compileNode(arg)
         boundParam = sign
         local knownTypes, genericNames = getSignInfo(sign)
@@ -548,6 +575,8 @@ function vm.getSign(source)
                     argNode:addOptional()
                 end
                 sign:addSign(argNode)
+                sign.paramNames = sign.paramNames or {}
+                sign.paramNames[#sign.signList] = arg.type == 'local' and arg[1] or nil
             end
         end
     end

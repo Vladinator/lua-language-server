@@ -15,6 +15,19 @@ local mt = {}
 mt.__index = mt
 mt.type = 'generic'
 
+--- The name a sign of `Name<A, B>` is (`F`, `index`): the sign is the name itself or a type holding only that name.
+---@param sign parser.object?
+---@return string?
+function vm.getSignName(sign)
+    if sign and sign.type == 'doc.type' and sign.types and #sign.types == 1 then
+        sign = sign.types[1]
+    end
+    if sign and (sign.type == 'doc.generic.name' or sign.type == 'doc.type.name') then
+        return sign[1]
+    end
+    return nil
+end
+
 ---@param source    vm.node.object?
 ---@param resolved? table<string, vm.node>
 ---@return vm.node.object?
@@ -204,6 +217,14 @@ local function cloneObject(source, resolved)
             end
             return false
         end
+        -- `returns<F, index>`: the literal argument of the parameter `index` (recorded as `#index` by `sign:resolve`)
+        local isReturns = source.node and source.node[1] == 'returns'
+        ---@type parser.object?
+        local indexSign = isReturns and source.signs[2] or nil
+        local indexName = vm.getSignName(indexSign)
+        if indexName and resolved['#' .. indexName] then
+            needsClone = true
+        end
         for _, sign in ipairs(source.signs) do
             guide.eachSourceType(sign, 'doc.type.name', function (src)
                 if hasConcreteResolution(src[1]) then
@@ -231,6 +252,20 @@ local function cloneObject(source, resolved)
             }
             for i, sign in ipairs(source.signs) do
                 newSign.signs[i] = cloneObject(sign, resolved) --[[@as parser.object]]
+            end
+            if indexName and indexSign and resolved['#' .. indexName] then
+                -- (the name of a parameter, not a type: it stands for the number the call gave it)
+                ---@type parser.object
+                local newIndex = {
+                    type   = 'doc.generic.name',
+                    start  = indexSign.start,
+                    finish = indexSign.finish,
+                    parent = newSign,
+                    [1]    = indexName,
+                }
+                vm.setNode(newIndex, resolved['#' .. indexName], true)
+                newIndex._resolved = resolved['#' .. indexName]
+                newSign.signs[2] = newIndex
             end
             return newSign
         end

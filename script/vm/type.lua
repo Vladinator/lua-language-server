@@ -979,8 +979,9 @@ local function typeArgumentsMismatch(uri, child, parent, errs)
     return false
 end
 
---- The kind of key a dictionary type has: `literals` (a union of string literals, `keys` lists them), or the name of its basic type
---- (`string`, `integer`, `number`); `other` when it is anything else.
+--- The kind of key a dictionary type has: `literals` (a union of string literals, `keys` lists them), `string`, `integer` (`integer` and
+--- `number` keys: the table can be an array), `mixed` (a union of kinds: `table<string|integer, V>` is a table that is both an array and a
+--- dictionary, nothing can be said about it) or `other`.
 ---@param uri  uri
 ---@param node vm.node
 ---@return string kind
@@ -989,22 +990,37 @@ local function dictionaryKeyKind(uri, node)
     ---@type table<string, true>
     local keys = {}
     local count = 0
+    ---@type table<string, true>
+    local kinds = {}
     for obj in node:eachObject() do
         if (obj.type == 'doc.type.string' or obj.type == 'string') and obj[1] ~= nil then
             keys[tostring(obj[1])] = true
             count = count + 1
+            kinds.literals = true
         else
             local name = vm.getNodeName(obj)
-            if count == 0 and (name == 'string' or name == 'integer' or name == 'number') and not node:isOptional() then
-                return name, nil
+            if name == 'string' then
+                kinds.string = true
+            elseif name == 'integer' or name == 'number' then
+                kinds.integer = true
+            elseif obj.type ~= 'local' and obj.type ~= 'variable' then
+                return 'other', nil
             end
-            return 'other', nil
         end
     end
-    if count > 0 then
-        return 'literals', keys
+    if node:isOptional() or next(kinds) == nil then
+        return 'other', nil
     end
-    return 'other', nil
+    ---@type string
+    local kind = next(kinds) --[[@as string]]
+    if next(kinds, kind) then
+        -- (a string-keyed hash and its string literals are one kind of key)
+        if kinds.literals and kinds.string and not kinds.integer then
+            return 'string', nil
+        end
+        return 'mixed', nil
+    end
+    return kind, kind == 'literals' and keys or nil
 end
 
 --- The required fields (neither optional nor nullable) a class has, its parents' included, by key.
@@ -1041,7 +1057,7 @@ local function dictionaryFits(uri, dictionary, member, childHasArray)
     local keyNode   = vm.compileNode(dictionary.signs[1])
     local valueNode = vm.compileNode(dictionary.signs[2])
     local kind, keys = dictionaryKeyKind(uri, keyNode)
-    if kind == 'other' then
+    if kind == 'other' or kind == 'mixed' then
         return nil
     end
     if member.type == 'doc.type.array' then

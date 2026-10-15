@@ -1802,3 +1802,55 @@ useList(anyKeys)
 useBox(anyKeys)
 useBox(onlyLabel)
 ]]
+
+-- a table can be an array and a dictionary at once (`{ [1] = "a", a = 1, [2] = "b" }`): a union of key types, or number keys, is not judged as a hash
+TEST [[
+---@class MixBox
+---@field name string
+
+---@param list string[]
+local function useStrings(list) end
+---@param list MixBox[]
+local function useBoxes(list) end
+---@param box MixBox
+local function useBox(box) end
+---@param list number[]
+local function useNumbers(list) end
+
+---@type table<string|integer, string>
+local mixed = { [1] = "a", a = "x", [2] = "b", b = "y" }
+---@type table<number, string>
+local numbers = { "a", "b" }
+---@type table<string|integer, MixBox>
+local mixedBoxes
+---@type table<number|string, string|number>
+local wide
+
+useStrings(mixed)
+useStrings(numbers)
+useBoxes(mixedBoxes)
+useBox(mixedBoxes)
+useNumbers(wide)
+]]
+
+-- ... but what the number-keyed table holds still has to be what the array holds
+TEST [[
+---@param list string[]
+local function useStrings(list) end
+
+---@type table<number, boolean>
+local flags
+
+useStrings(<!flags!>)
+]]
+
+-- ... string literals next to `string` are still a string-keyed hash
+TEST [[
+---@param list string[]
+local function useStrings(list) end
+
+---@type table<"a"|string, string>
+local hash
+
+useStrings(<!hash!>)
+]]

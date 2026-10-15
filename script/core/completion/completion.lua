@@ -375,6 +375,7 @@ end
 ---@param data    vm.completion.result
 local function buildFunction(results, source, value, oop, data)
     local snipType = config.get(guide.getUri(source), 'Lua.completion.callSnippet')
+    local first = #results + 1
     if snipType == 'Disable' or snipType == 'Both' then
         results[#results+1] = data
     end
@@ -398,6 +399,10 @@ local function buildFunction(results, source, value, oop, data)
         end)
 
         results[#results+1] = snipData
+    end
+    -- (a function is ranked by the type the place asks for like any other variable)
+    for i = first, #results do
+        resultSources[results[i]] = source
     end
 end
 
@@ -660,20 +665,34 @@ local function getExpectedArgType(state, position)
     return expected
 end
 
---- The declared type of the value the word is: `local x ---@type T = <??>` and `return <??>` in a function with `---@return T`.
+--- The declared type of the value the word is: `local x ---@type T = <??>`, `return <??>` in a function with `---@return T`, `x = <??>` of a
+--- variable with a declared type, `obj.field = <??>` and `{ field = <??> }` of a declared field.
 ---@param state    parser.state
 ---@param position integer start of the word being typed
 ---@return vm.node?
 local function getExpectedValueType(state, position)
     ---@type parser.object?
     local declared
+    ---@type vm.node?
+    local target
     guide.eachSourceContain(state.ast, position, function (src)
         -- (the word is the whole value: the parent of the name that starts at the cursor)
         local parent = src.start == position and src.parent
         if not parent then
             return
         end
-        if parent.type == 'local' and parent.value == src then
+        if parent.type == 'setlocal' and parent.value == src then
+            -- `x = <??>` of a variable with a declared type (`---@type`, `---@param`)
+            local locNode = vm.compileNode(parent.node)
+            if locNode.hasDefined then
+                target = locNode
+            end
+        elseif (parent.type == 'setfield' or parent.type == 'setglobal' or parent.type == 'setindex'
+            or parent.type == 'tablefield' or parent.type == 'tableindex')
+        and parent.value == src then
+            -- `obj.field = <??>` and `{ field = <??> }`: the declared type of the field (a `---@field`, a `---@type` table)
+            target = vm.compileNode(parent)
+        elseif parent.type == 'local' and parent.value == src then
             for _, doc in ipairs(parent.bindDocs or {}) do
                 if doc.type == 'doc.type' then
                     declared = doc
@@ -699,10 +718,13 @@ local function getExpectedValueType(state, position)
             end
         end
     end)
-    if not declared then
-        return nil
+    local expected = target
+    if not expected then
+        if not declared then
+            return nil
+        end
+        expected = vm.compileNode(declared)
     end
-    local expected = vm.compileNode(declared)
     if expected:isEmpty() then
         return nil
     end

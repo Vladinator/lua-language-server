@@ -5268,6 +5268,19 @@ local function indexOfLabel(result, label)
     return math.huge
 end
 
+-- a function is listed as `name(params)`: find it by its name
+---@param result table[]
+---@param name string
+---@return number
+local function indexOfName(result, name)
+    for i, item in ipairs(result) do
+        if item.label == name or item.label:sub(1, #name + 1) == name .. '(' then
+            return i
+        end
+    end
+    return math.huge
+end
+
 TEST [[
 ---@param s string
 local function takes(s) end
@@ -5544,6 +5557,138 @@ local x = t.v<??>
 ]]
 (function (result)
     assert(indexOfLabel(result, 'va') < indexOfLabel(result, 'vz'), 'no call: order unchanged')
+end)
+
+-- `x = <here>` of a variable with a declared type: the variables that fit it come first
+TEST [[
+local vara = "x"
+local varz = 1
+---@type number
+local n
+n = var<??>
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varz') < indexOfLabel(result, 'vara'), 'assignment to a declared local: the number variable first')
+end)
+
+-- negative: the target has no declared type, nothing is ranked
+TEST [[
+local vara = "x"
+local varz = 1
+local n
+n = var<??>
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varz'), 'undeclared target: order unchanged')
+end)
+
+-- a local whose first value fixes its type is a declared target too (what `assign-type-mismatch` checks against)
+TEST [[
+local vara = "x"
+local varz = 1
+local n = 0
+n = var<??>
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varz') < indexOfLabel(result, 'vara'), 'target typed by its value: the number variable first')
+end)
+
+-- a field of a class: `obj.field = <here>`
+TEST [[
+---@class RankAssign
+---@field count number
+local obj = {}
+local vara = "x"
+local varz = 1
+obj.count = var<??>
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varz') < indexOfLabel(result, 'vara'), 'assignment to a declared field: the number variable first')
+end)
+
+-- negative: a field nobody declared
+TEST [[
+local obj = {}
+local vara = "x"
+local varz = 1
+obj.count = var<??>
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varz'), 'undeclared field: order unchanged')
+end)
+
+-- a table field value: `{ key = <here> }` of a table with a declared type
+TEST [[
+---@class RankCfg
+---@field name string
+---@field size number
+local vara = 1
+local varz = "x"
+---@type RankCfg
+local cfg = { name = var<??> }
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varz') < indexOfLabel(result, 'vara'), 'table field: the string variable first')
+end)
+
+TEST [[
+---@class RankCfg2
+---@field name string
+---@field size number
+local vara = "x"
+local varz = 1
+---@type RankCfg2
+local cfg = { size = var<??> }
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varz') < indexOfLabel(result, 'vara'), 'the other field: the number variable first')
+end)
+
+-- negative: a table with no declared type
+TEST [[
+local vara = "x"
+local varz = 1
+local cfg = { size = var<??> }
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vara') < indexOfLabel(result, 'varz'), 'plain table: order unchanged')
+end)
+
+-- functions are ranked too: a function fits a callback parameter, a number does not
+TEST [[
+---@param cb fun(n: number): string
+local function takes(cb) end
+local vara = 1
+---@param n number
+---@return string
+local function vfn(n) return "x" end
+takes(v<??>)
+]]
+(function (result)
+    assert(indexOfName(result, 'vfn') < indexOfLabel(result, 'vara'), 'the function before the number variable')
+end)
+
+-- a function that is a field is ranked too
+TEST [[
+---@param cb fun(n: number): string
+local function takes(cb) end
+local t = { va = 1, vfn = function (n) return "x" end }
+takes(t.v<??>)
+]]
+(function (result)
+    assert(indexOfName(result, 'vfn') < indexOfLabel(result, 'va'), 'the function field before the number field')
+end)
+
+-- negative: a number parameter, the function does not fit and stays behind the variable that does
+TEST [[
+---@param n number
+local function takes(n) end
+local function vfa() end
+local vfz = 1
+takes(vf<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'vfz') < indexOfName(result, 'vfa'), 'the number variable before the function')
 end)
 
 -- a local declared without a value and given a function later is offered as that function (the declaration alone says `unknown`)

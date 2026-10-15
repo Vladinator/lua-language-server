@@ -1582,3 +1582,65 @@ take(<!numBox!>)
 take(boolBox)
 take('text')
 ]]
+
+-- `params<F>` inside an inline `fun()`: the wrapper takes the parameters of the function it wraps
+TEST [[
+---@generic F
+---@param func F
+---@return fun(...: params<F>): string
+local function wrapToString(func) end
+
+---@param a number
+---@param b string
+---@return boolean
+local function original(a, b) return true end
+
+local wrapped = wrapToString(original)
+wrapped(1, 'x')
+wrapped(<!'x'!>, 'y')
+wrapped(1, <!2!>)
+]]
+
+-- ... a function with no parameter typed, one with an optional one, and a `...` that stays one
+TEST [[
+---@generic F
+---@param func F
+---@return fun(...: params<F>): string
+local function wrap(func) end
+
+local function untyped(a, b) end
+---@param a number
+---@param b? string
+local function optional(a, b) end
+local function rest(...) end
+
+local w1 = wrap(untyped)
+w1(1, 2)
+local w2 = wrap(optional)
+w2(1)
+w2(1, 'x')
+w2(<!'x'!>)
+local w3 = wrap(rest)
+w3(1, 2, 3)
+]]
+
+-- `K` bound to a literal key keeps the literal (`local r = key(o, "age")` is a `string` like `local r = "age"` is, the call itself is "age")
+TEST [[
+---@generic T, K: keyof T
+---@param t T
+---@param k K
+---@return K
+local function key(t, k) return k end
+
+---@param name "age"
+local function takeAge(name) end
+---@param name "name"
+local function takeName(name) end
+
+---@type {name: string, age: number}
+local o
+
+takeAge(key(o, "age"))
+takeName(key(o, "name"))
+takeAge(<!key(o, "name")!>)
+]]

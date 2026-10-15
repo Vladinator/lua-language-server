@@ -16,7 +16,7 @@ function TEST(script)
                 local newExpect, catched2 = catch(expect[i], '!')
                 local arg = hover.params[hover.index]
 
-                assert(newExpect == hover.label)
+                assert(newExpect == hover.label, newExpect .. '   |   ' .. hover.label)
                 if arg then
                     assert(catched2['!'][1] ~= nil)
                     assert(catched2['!'][1][1] == arg.label[1])
@@ -527,3 +527,19 @@ bar(1<??>)
 ]], 'function bar(a: number)')
 
 config.set(nil, "Lua.type.inferParamType", false)
+
+-- the parameters of a wrapper made with `params<F>` are the ones of the function it wraps
+TEST [[
+---@generic F
+---@param func F
+---@return fun(...: params<F>): string
+local function wrapToString(func) end
+
+---@param a number
+---@param b string
+local function original(a, b) end
+
+local wrapped = wrapToString(original)
+wrapped(1, <??>
+]]
+{'function (a: number, <!b: string!>)'}

@@ -624,6 +624,61 @@ local function parseDots(tp, parent)
     return dots
 end
 
+--- The slots of a tuple union (`(A, B) | (C, D)`) from its cases: each slot's type is the union of that slot across the cases. A
+--- `nil` among them is the `.optional` flag, as `string?` is written everywhere else in the engine; a slot that is only ever `nil`
+--- stays a plain `nil` type.
+---@param cases  parser.object[][] each case's per-slot `doc.type`s, all of the same width
+---@param parent parser.object
+---@return parser.object[]
+local function mergeTupleCases(cases, parent)
+    ---@type parser.object[]
+    local slots = {}
+    for i = 1, #cases[1] do
+        ---@type parser.object
+        local union = {
+            type   = 'doc.type',
+            parent = parent,
+            types  = {},
+            start  = cases[1][i].start,
+            finish = cases[#cases][i].finish,
+        }
+        ---@type parser.object[]
+        local nilUnits = {}
+        for k = 1, #cases do
+            local caseSlot = cases[k][i]
+            for _, unit in ipairs(caseSlot.types) do
+                unit.parent = union
+                if unit.type == 'doc.type.name' and unit[1] == 'nil' then
+                    nilUnits[#nilUnits+1] = unit
+                else
+                    union.types[#union.types+1] = unit
+                end
+            end
+            if caseSlot.optional then
+                union.optional = true
+            end
+        end
+        if #nilUnits > 0 then
+            if #union.types > 0 then
+                union.optional = true
+            else
+                union.types[1] = nilUnits[1]
+            end
+        end
+        for k = 1, #cases do
+            local label = cases[k][i].name
+            if label then
+                label.parent = union
+                union.name = label
+                break
+            end
+        end
+        union.firstFinish = union.finish
+        slots[i] = union
+    end
+    return slots
+end
+
 ---@param parent parser.object
 ---@return parser.object?
 local function  parseTypeUnitFunction(parent)
@@ -739,6 +794,41 @@ local function  parseTypeUnitFunction(parent)
         end
         if needCloseParen then
             nextSymbolOrError ')'
+            -- a tuple union (`fun(): (number, boolean) | (nil, string)`): every case of the same width, read like the one of `---@return`
+            local firstCase = typeUnit.returns
+            if firstCase and #firstCase > 1 and checkToken('symbol', '|', 1) then
+                try(function ()
+                    ---@type parser.object[][]
+                    local cases = { firstCase }
+                    while checkToken('symbol', '|', 1) do
+                        nextToken()
+                        if not checkToken('symbol', '(', 1) then
+                            return false
+                        end
+                        nextToken()
+                        ---@type parser.object[]
+                        local caseTypes = {}
+                        while true do
+                            local docType = parseType(typeUnit)
+                            if not docType then
+                                return false
+                            end
+                            caseTypes[#caseTypes+1] = docType
+                            if not checkToken('symbol', ',', 1) then
+                                break
+                            end
+                            nextToken()
+                        end
+                        if not checkToken('symbol', ')', 1) or #caseTypes ~= #cases[1] then
+                            return false
+                        end
+                        nextToken()
+                        cases[#cases+1] = caseTypes
+                    end
+                    typeUnit.returns = mergeTupleCases(cases, typeUnit)
+                    return true
+                end)
+            end
         end
     end
     typeUnit.finish = getFinish()
@@ -1701,55 +1791,7 @@ local docSwitch = util.switch()
                         return false
                     end
                 end
-                ---@type parser.object[]
-                local slots = {}
-                for i = 1, width do
-                    ---@type parser.object
-                    local union = {
-                        type   = 'doc.type',
-                        parent = result,
-                        types  = {},
-                        start  = cases[1][i].start,
-                        finish = cases[#cases][i].finish,
-                    }
-                    ---@type parser.object[]
-                    local nilUnits = {}
-                    for k = 1, #cases do
-                        local caseSlot = cases[k][i]
-                        for _, unit in ipairs(caseSlot.types) do
-                            unit.parent = union
-                            if unit.type == 'doc.type.name' and unit[1] == 'nil' then
-                                nilUnits[#nilUnits+1] = unit
-                            else
-                                union.types[#union.types+1] = unit
-                            end
-                        end
-                        if caseSlot.optional then
-                            union.optional = true
-                        end
-                    end
-                    -- `string | nil` is `string?` everywhere else in the engine (the `.optional`
-                    -- flag, not a `nil` member): normalize to that, so a tuple-union slot types and
-                    -- narrows exactly like the plain `---@return string?` it is equivalent to. A
-                    -- slot that is only ever `nil` stays a plain `nil` type.
-                    if #nilUnits > 0 then
-                        if #union.types > 0 then
-                            union.optional = true
-                        else
-                            union.types[1] = nilUnits[1]
-                        end
-                    end
-                    for k = 1, #cases do
-                        local label = cases[k][i].name
-                        if label then
-                            label.parent = union
-                            union.name = label
-                            break
-                        end
-                    end
-                    union.firstFinish = union.finish
-                    slots[i] = union
-                end
+                local slots = mergeTupleCases(cases, result)
                 result.start   = slots[1].start
                 result.returns = slots
                 result.cases   = cases

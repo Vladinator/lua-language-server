@@ -117,7 +117,7 @@ local cases = {
     { 'nilable array argument', L('---@generic T', '---@param l T[]?', '---@return T?', 'local function first(l) return l and l[1] end', 'local r = first(nil)'), 'r', 'unknown?', '' },
     { 'tuple result',       L('---@generic A, B', '---@param a A', '---@param b B', '---@return [A, B]', 'local function t(a, b) return {a, b} end', 'local r = t(1, "s")'), 'r', '[integer, string]', 'a tuple is viewed as a table with indices', '{ [1]: integer, [2]: string }' },
     { 'pcall result',       L('local function f() return 1 end', 'local ok, r = pcall(f)'), 'r', 'integer', '' },
-    { 'K itself',            L('---@generic T, K: keyof T', '---@param t T', '---@param k K', '---@return K', 'local function key(t, k) return k end', '---@type {name: string, age: number}', 'local o', 'local r = key(o, "age")'), 'r', '"age"', 'TS: K is the literal "age"', 'string' },
+    { 'K itself',            L('---@generic T, K: keyof T', '---@param t T', '---@param k K', '---@return K', 'local function key(t, k) return k end', '---@type {name: string, age: number}', 'local o', 'local r = key(o, "age")'), 'r', 'string', 'the call is the literal "age" (test/diagnostics/param-type-mismatch.lua); a local widens it like `local r = "age"` does (TS: a const keeps it)' },
     -- INSIDE the body of a generic function (TypeScript keeps `T` as `T` there, an opaque type parameter; the engine prints it `<T>`)
     { 'body: param copy',    L('---@generic T', '---@param x T', 'local function f(x)', '    local y = x', 'end'), 'y', '<T>', '' },
     { 'body: @type T',       L('---@generic T', '---@param x T', 'local function f(x)', '    ---@type T', '    local z = x', 'end'), 'z', '<T>', 'T is in scope in the whole body, as in TS' },

@@ -655,8 +655,8 @@ local <?r?> = mySelect(3, two())
 ]]
 
 -- ... a function passed itself (no call) does not stand for the results it would give: `F` stays unbound, and the projection of an
--- unbound `F` keeps its spelling
-TEST 'returns<F, integer>' [[
+-- unbound `F` says nothing (not its own spelling)
+TEST 'unknown' [[
 ---@generic F
 ---@param index integer
 ---@param ... returns<F>
@@ -686,6 +686,16 @@ local function str() end
 local <?r?> = pick(num, str())
 ]]
 
+-- ... the same for the plain projection
+TEST 'unknown' [[
+---@generic F
+---@param ... returns<F>
+---@return returns<F>
+local function first(...) end
+
+local <?r?> = first(1)
+]]
+
 -- ... and the plain `returns<F>` of a vararg slot still gives the first return
 TEST 'string' [[
 ---@generic F
@@ -699,6 +709,178 @@ local function first(...) end
 local function two() end
 
 local <?r?> = first(two())
+]]
+
+-- `params<F>` inside an inline `fun()`: the parameters of the function `F` is bound to take its place
+TEST 'fun(a: number, b: string):string' [[
+---@generic F
+---@param func F
+---@return fun(...: params<F>): string
+local function wrapToString(func) end
+
+---@param a number
+---@param b string
+---@return boolean
+local function original(a, b) return true end
+
+local <?wrapped?> = wrapToString(original)
+]]
+
+-- ... with an extra parameter of its own before it
+TEST 'fun(ctx: string, x: number, y: number):number' [[
+---@generic F
+---@param func F
+---@return fun(ctx: string, ...: params<F>): number
+local function wrapWithCtx(func) end
+
+---@param x number
+---@param y number
+---@return number
+local function add(x, y) return x + y end
+
+local <?wrapped?> = wrapWithCtx(add)
+]]
+
+-- ... F can be a `fun(...)` value, a function with an optional parameter, one with a `...`; a `...` that is no projection stays
+TEST 'fun(x: number, y?: string):string' [[
+---@generic F
+---@param func F
+---@return fun(...: params<F>): string
+local function wrap(func) end
+
+---@type fun(x: number, y?: string)
+local typed
+local <?w?> = wrap(typed)
+]]
+
+TEST 'fun(a: number, b?: string):string' [[
+---@generic F
+---@param func F
+---@return fun(...: params<F>): string
+local function wrap(func) end
+
+---@param a number
+---@param b? string
+local function optional(a, b) end
+local <?w?> = wrap(optional)
+]]
+
+TEST 'fun(a: any, ...any):string' [[
+---@generic F
+---@param func F
+---@return fun(...: params<F>): string
+local function wrap(func) end
+
+local function rest(a, ...) end
+local <?w?> = wrap(rest)
+]]
+
+TEST 'fun(...number):string' [[
+---@generic F
+---@param func F
+---@return fun(...: number): string
+local function plain(func) end
+
+local function original(a, b) end
+local <?w?> = plain(original)
+]]
+
+TEST 'fun(...any):string' [[
+---@generic F
+---@param func F
+---@return fun(...: params<F>): string
+local function wrap(func) end
+
+local <?w?> = wrap(1)
+]]
+
+-- ... only a `...` takes the parameters, only `params` does, and only a type parameter that is bound
+TEST 'fun(x: any):string' [[
+---@generic F
+---@param func F
+---@return fun(x: params<F>): string
+local function wrap(func) end
+
+local function original(a, b) end
+local <?w?> = wrap(original)
+]]
+
+TEST 'fun(...boolean):string' [[
+---@generic F
+---@param func F
+---@return fun(...: returns<F>): string
+local function wrap(func) end
+
+---@return boolean
+local function original(a, b) end
+local <?w?> = wrap(original)
+]]
+
+TEST 'fun(...any):string' [[
+---@generic F
+---@param func F
+---@return fun(...: params<Unbound>): string
+local function wrap(func) end
+
+local function original(a, b) end
+local <?w?> = wrap(original)
+]]
+
+TEST 'number?' [[
+---@type fun(): (number, boolean) | (nil, string)
+local ft
+local <?r?> = ft()
+]]
+
+TEST 'number?' [[
+---@generic F
+---@param f F
+---@return returns<F>
+local function ret(f) end
+
+---@type fun(): (number, boolean) | (nil, string)
+local ft
+local <?r?> = ret(ft)
+]]
+
+-- a tuple union inside an inline `fun()` type: every slot is the union of that slot across the cases
+TEST 'boolean|string' [[
+---@type fun(): (number, boolean) | (nil, string)
+local ft
+local _, <?r?> = ft()
+]]
+
+TEST '(string|number)?' [[
+---@type fun(): (number, boolean?) | (string, nil) | (nil, nil)
+local ft
+local <?r?> = ft()
+]]
+
+-- ... cases of another width are not one: the first case stays what it was
+TEST 'number' [[
+---@type fun(): (number, boolean) | (nil)
+local ft
+local <?r?> = ft()
+]]
+
+-- ... a `?` on a slot of a later case counts
+TEST 'string?' [[
+---@type fun(): (number, string) | (nil, string?)
+local ft
+local _, <?r?> = ft()
+]]
+
+-- ... a `|` after the parenthesized returns that does not start another case is a union with the function type, as before
+TEST 'string|fun():number, boolean' [[
+---@type fun(): (number, boolean) | string
+local <?x?>
+]]
+
+-- ... and the usual forms are untouched
+TEST 'boolean' [[
+---@type fun(): number, boolean
+local ft
+local _, <?r?> = ft()
 ]]
 
 -- `?T` prefix (wowlua-ls interop): the same as `T?`

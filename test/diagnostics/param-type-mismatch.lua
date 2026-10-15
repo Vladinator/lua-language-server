@@ -1564,3 +1564,21 @@ onNone(<!firstAndRest!>)
 onOne(generic)
 onNumbers(takesString)
 ]]
+
+-- ... a basic type next to the generic class in the parent does not hide the arguments
+TEST [[
+---@class TArgBox7<T>
+local TArgBox7 = {}
+
+---@param c TArgBox7<boolean> | string
+local function take(c) end
+
+---@type TArgBox7<number>
+local numBox
+---@type TArgBox7<boolean>
+local boolBox
+
+take(<!numBox!>)
+take(boolBox)
+take('text')
+]]

@@ -11,9 +11,9 @@ protoDiagnostic.register {
     'incompatible-override',
 } {
     group    = 'type-check',
-    severity = 'Warning',
+    severity = 'Information',
     status   = 'Opened',
-    description = 'Enable diagnostics for a class that overrides a member of a class it inherits from with something that does not fit it (TypeScript\'s "class incorrectly extends"): a method that needs more arguments, takes or gives other types, or a field redeclared with a type that is not assignable to the parent\'s. A narrower type is an override; a wider or unrelated one is a collision.',
+    description = 'Enable diagnostics for a class that overrides a member of a class it inherits from with something that does not fit it (TypeScript\'s "class incorrectly extends"): a method that needs more arguments, takes or gives other types, or a field redeclared with a type that is not assignable to the parent\'s. A narrower type is an override; a wider or unrelated one is a collision. Only parents the user owns are judged: a member declared in a library outside the workspace (third-party annotations, which a polyfill class may re-annotate on purpose) is left alone.',
 }
 
 --- The classes `className` inherits from, nearest first.
@@ -44,20 +44,26 @@ end
 ---@param key    string
 ---@return vm.node? node
 ---@return vm.global? class the parent that declares it
+---@return boolean? inLibrary the member is declared in a library file (annotations the user does not own)
 local function baseMemberOf(uri, parents, key)
     for _, parent in ipairs(parents) do
         ---@type vm.node?
         local found
+        ---@type boolean?
+        local inLibrary
         vm.getClassFields(uri, parent, key, function (src)
             -- (a parent's own parents come through the same call: nothing to add)
             found = found or vm.createNode()
             found:merge(vm.compileNode(src))
+            if src.type ~= 'generic' and files.isLibrary(guide.getUri(src), true) then
+                inLibrary = true
+            end
         end)
         if found and not found:isEmpty() then
-            return found, parent
+            return found, parent, inLibrary
         end
     end
-    return nil, nil
+    return nil, nil, nil
 end
 
 --- The function or `fun(...)` a node holds, when it holds exactly one.
@@ -102,9 +108,9 @@ return function (uri, callback)
         if not childClass then
             return
         end
-        local base, baseClass = baseMemberOf(uri, parentsOf(uri, childClass.name), key)
+        local base, baseClass, inLibrary = baseMemberOf(uri, parentsOf(uri, childClass.name), key)
         local baseFunction = base and singleFunction(base)
-        if not baseFunction or not baseClass then
+        if not baseFunction or not baseClass or inLibrary then
             return
         end
         -- a method written with a colon takes `self` first, a function with a dot does not: only like with like is compared
@@ -138,8 +144,8 @@ return function (uri, callback)
             return
         end
         await.delay()
-        local base, baseClass = baseMemberOf(uri, parentsOf(uri, className), key)
-        if not base or not baseClass then
+        local base, baseClass, inLibrary = baseMemberOf(uri, parentsOf(uri, className), key)
+        if not base or not baseClass or inLibrary then
             return
         end
         local mine = vm.compileNode(field)

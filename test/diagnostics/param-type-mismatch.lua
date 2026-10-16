@@ -2013,3 +2013,14 @@ newMap("string", "number")
 newMap("string", "number", nil)
 newMap("string", "number", <!numberLookup!>)
 ]]
+
+-- ... a callback parameter that is not optional does not take `nil`
+TEST [[
+---@generic K, V
+---@param keyType `K`
+---@param valType `V`
+---@param lookup fun(key: K): V
+local function newRequired(keyType, valType, lookup) end
+
+newRequired("string", "number", <!nil!>)
+]]

@@ -110,6 +110,7 @@ require 'core.diagnostics.redundant-condition'
 require 'core.diagnostics.implicit-nil-return'
 require 'core.diagnostics.grouped-return-mismatch'
 require 'core.diagnostics.incompatible-override'
+require 'core.diagnostics.possible-field-typo'
 -- unnecessary-assert.lua is NOT required here: it's disabled upstream
 -- (09900e7daf) and its own protoDiagnostic.register call is commented
 -- out, so requiring it would have nothing to trigger.

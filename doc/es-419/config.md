@@ -449,6 +449,7 @@ Array<string>
 * ``"not-yieldable"``: Habilita el diagnóstico para llamadas a `coroutine.yield()` cuando no esté permitido.
 * ``"param-constraint-mismatch"``: Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The receiver may also inherit the method from a parent class (`---@class Numbers: Widget<number>`). The wowlua-ls diagnostic of the same name.
 * ``"param-type-mismatch"``: Habilita el diagnóstico para llamadas a funciones donde el tipo de un parámetro provisto no calza con el tipo de la definición anotado de la función.
+* ``"possible-field-typo"``: Enable diagnostics for a field a method of a `---@class` declares by assigning it (`self.totl = 1`) whose name is one edit (a letter added, dropped (not a plural `s`) or changed, two swapped, or another case) away from a field the class declares.
 * ``"redefined-label"``: Etiqueta redefinida
 * ``"redefined-local"``: Habilita el diagnóstico de variables locals redefinidas.
 * ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
@@ -772,6 +773,7 @@ object<string, string>
     * nil-index
     * param-constraint-mismatch
     * param-type-mismatch
+    * possible-field-typo
     * return-type-mismatch
     * unchecked-array-index
     * undefined-field
@@ -970,6 +972,7 @@ object<string, string>
     * nil-index
     * param-constraint-mismatch
     * param-type-mismatch
+    * possible-field-typo
     * return-type-mismatch
     * unchecked-array-index
     * undefined-field
@@ -1314,6 +1317,10 @@ object<string, string>
     Habilita el diagnóstico para llamadas a funciones donde el tipo de un parámetro provisto no calza con el tipo de la definición anotado de la función.
     */
     "param-type-mismatch": "Opened",
+    /*
+    Enable diagnostics for a field a method of a `---@class` declares by assigning it (`self.totl = 1`) whose name is one edit (a letter added, dropped (not a plural `s`) or changed, two swapped, or another case) away from a field the class declares.
+    */
+    "possible-field-typo": "Opened",
     /*
     Habilita el diagnóstico de variables locals redefinidas.
     */
@@ -1849,6 +1856,10 @@ object<string, string>
     Habilita el diagnóstico para llamadas a funciones donde el tipo de un parámetro provisto no calza con el tipo de la definición anotado de la función.
     */
     "param-type-mismatch": "Warning",
+    /*
+    Enable diagnostics for a field a method of a `---@class` declares by assigning it (`self.totl = 1`) whose name is one edit (a letter added, dropped (not a plural `s`) or changed, two swapped, or another case) away from a field the class declares.
+    */
+    "possible-field-typo": "Information",
     /*
     Habilita el diagnóstico de variables locals redefinidas.
     */

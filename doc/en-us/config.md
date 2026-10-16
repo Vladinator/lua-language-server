@@ -488,6 +488,7 @@ Array<string>
 * ``"not-yieldable"``: Enable diagnostics for calls to `coroutine.yield()` when it is not permitted.
 * ``"param-constraint-mismatch"``: Enable diagnostics for calls of a method marked `---@requires T: Constraint` on a receiver whose class type argument for `T` does not satisfy the constraint (`Widget<number>` where the method requires `T: Frame`). The receiver may also inherit the method from a parent class (`---@class Numbers: Widget<number>`). The wowlua-ls diagnostic of the same name.
 * ``"param-type-mismatch"``: Enable diagnostics for function calls where the type of a provided parameter does not match the type of the annotated function definition.
+* ``"possible-field-typo"``: Enable diagnostics for a field a method of a `---@class` declares by assigning it (`self.totl = 1`) whose name is one edit (a letter added, dropped (not a plural `s`) or changed, two swapped, or another case) away from a field the class declares.
 * ``"redefined-label"``: Redefined label
 * ``"redefined-local"``: Enable redefined local variable diagnostics.
 * ``"redundant-and"``: Enable diagnostics for `a and b` where `a` is always falsy (`b` is never evaluated) or always truthy (the `and` changes nothing).
@@ -819,6 +820,7 @@ object<string, string>
     * nil-index
     * param-constraint-mismatch
     * param-type-mismatch
+    * possible-field-typo
     * return-type-mismatch
     * unchecked-array-index
     * undefined-field
@@ -1017,6 +1019,7 @@ object<string, string>
     * nil-index
     * param-constraint-mismatch
     * param-type-mismatch
+    * possible-field-typo
     * return-type-mismatch
     * unchecked-array-index
     * undefined-field
@@ -1369,6 +1372,10 @@ object<string, string>
     Enable diagnostics for function calls where the type of a provided parameter does not match the type of the annotated function definition.
     */
     "param-type-mismatch": "Opened",
+    /*
+    Enable diagnostics for a field a method of a `---@class` declares by assigning it (`self.totl = 1`) whose name is one edit (a letter added, dropped (not a plural `s`) or changed, two swapped, or another case) away from a field the class declares.
+    */
+    "possible-field-typo": "Opened",
     /*
     Enable redefined local variable diagnostics.
     */
@@ -1913,6 +1920,10 @@ object<string, string>
     Enable diagnostics for function calls where the type of a provided parameter does not match the type of the annotated function definition.
     */
     "param-type-mismatch": "Warning",
+    /*
+    Enable diagnostics for a field a method of a `---@class` declares by assigning it (`self.totl = 1`) whose name is one edit (a letter added, dropped (not a plural `s`) or changed, two swapped, or another case) away from a field the class declares.
+    */
+    "possible-field-typo": "Information",
     /*
     Enable redefined local variable diagnostics.
     */

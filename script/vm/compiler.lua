@@ -1908,7 +1908,8 @@ end
 ---@return boolean
 local function isValidCallArgNode(source, node)
     if source.type == 'function' then
-        return node.type == 'doc.type.function'
+        -- (`Events[K]`: the function type of a class entry, once the call has told what `K` is: see `dealFunction`)
+        return node.type == 'doc.type.function' or node.type == 'doc.type.indexed'
     end
     if source.type == 'table' then
         return node.type == 'doc.type.table' or node.type == 'doc.type.array'
@@ -2021,7 +2022,11 @@ local function compileCallArgNode(arg, call, callNode, fixIndex, myIndex)
         if farg then
             for fn in vm.compileNode(farg):eachObject() do
                 if isValidCallArgNode(arg, fn) then
-                    if fn.type == 'doc.type.function' then
+                    -- (`Events[K]`: the callback type is read off the class once `K` is known from the event name)
+                    if fn.type == 'doc.type.indexed' and not sign then
+                        goto CONTINUE
+                    end
+                    if fn.type == 'doc.type.function' or fn.type == 'doc.type.indexed' then
                         ---@cast fn parser.object
                         if sign then
                             local generic = vm.createGeneric(fn, sign)
@@ -2932,7 +2937,14 @@ local compilerSwitch = util.switch()
     : call(function (source)
         vm.setNode(source, source)
 
-        local parent = source.parent
+        -- (`cond and function (x) end or nil`, `(function (x) end)`: the place the whole expression sits in says what the function is)
+        local holder = source
+        while holder.parent
+        and (holder.parent.type == 'paren'
+            or (holder.parent.type == 'binary' and (holder.parent.op.type == 'and' or holder.parent.op.type == 'or'))) do
+            holder = holder.parent
+        end
+        local parent = holder.parent
 
         if source.bindDocs then
             for _, doc in ipairs(source.bindDocs) do
@@ -2945,13 +2957,13 @@ local compilerSwitch = util.switch()
         -- table.sort(string[], function (<?x?>) end)
         if parent.type == 'callargs' then
             local call = parent.parent
-            vm.compileCallArg(source, call)
+            vm.compileCallArg(source, call, util.arrayIndexOf(parent, holder))
         end
 
         -- function f() return function (<?x?>) end end
         if parent.type == 'return' then
             for i, ret in ipairs(parent) do
-                if ret == source then
+                if ret == holder then
                     local func = guide.getParentFunction(parent)
                     if func then
                         local returnObj = vm.getReturnOfFunction(func, i)
@@ -2966,8 +2978,35 @@ local compilerSwitch = util.switch()
 
         -- { f = function (<?x?>) end }
         if  guide.isAssign(parent)
-        and parent.value == source then
-            vm.setNode(source, vm.compileNode(parent))
+        and parent.value == holder then
+            if holder == source then
+                vm.setNode(source, vm.compileNode(parent))
+            else
+                -- (`known or function (x) end`: what the other operands are says nothing about this function)
+                ---@type table<vm.node.object, true>
+                local others = {}
+                local function collect(exp)
+                    if exp == source then
+                        return
+                    end
+                    if exp.type == 'paren' and exp.exp then
+                        collect(exp.exp)
+                    elseif exp.type == 'binary' and (exp.op.type == 'and' or exp.op.type == 'or') then
+                        collect(exp[1])
+                        collect(exp[2])
+                    elseif exp.type ~= 'function' then
+                        for obj in vm.compileNode(exp):eachObject() do
+                            others[obj] = true
+                        end
+                    end
+                end
+                collect(holder)
+                for obj in vm.compileNode(parent):eachObject() do
+                    if not others[obj] then
+                        vm.setNode(source, obj)
+                    end
+                end
+            end
         end
     end)
     : case 'paren'

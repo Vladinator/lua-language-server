@@ -9105,3 +9105,60 @@ local function f(x)
     end
 end
 ]]
+
+-- a callback whose type is read off a class by the event name (`Events[K]`): its parameters are what that event says
+TEST 'string' [[
+---@class CtxEvents
+---@field a fun(x: integer)
+---@field b fun(y: string)
+
+---@generic K: keyof CtxEvents
+---@param name K
+---@param cb CtxEvents[K]
+local function on(name, cb) end
+on('b', function(<?y?>) end)
+]]
+
+-- ... an event that is not in the class gives nothing to read
+TEST 'any' [[
+---@class CtxEvents2
+---@field a fun(x: integer)
+
+---@generic K: keyof CtxEvents2
+---@param name K
+---@param cb CtxEvents2[K]
+local function on(name, cb) end
+on('zzz', function(<?y?>) end)
+]]
+
+-- a function written as one side of `and` / `or`, or in parentheses, takes the type of the place the expression sits in
+TEST 'number' [[
+---@type fun(a: number)
+local f = true and function(<?a?>) end or nil
+]]
+
+TEST 'number' [[
+---@param cb fun(a: number)
+local function take(cb) end
+take((function(<?a?>) end))
+]]
+
+TEST 'number' [[
+---@param cb fun(a: number)?
+local function take(cb) end
+take(cb or function(<?a?>) end)
+]]
+
+-- ... and a function that is not alone in its place (an operand of `==`) is left alone
+TEST 'any' [[
+---@type fun(a: number)
+local f = 1 == function(<?a?>) end
+]]
+
+-- ... but what the other side of `or` is says nothing about the function: only the place's own declared type counts
+TEST 'any' [[
+---@type fun(a: string)
+local known
+local holder = {}
+holder.f = known or function(<?a?>) end
+]]

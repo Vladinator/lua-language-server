@@ -9219,3 +9219,44 @@ reg(function(...)
     local <?a?> = ...
 end)
 ]]
+
+-- a documented generic function: a callback for a parameter of the type parameter takes `T` from the earlier arguments
+TEST 'number' [[
+---@generic T
+---@param list T[]
+---@param value T
+local function push(list, value) end
+
+---@type (fun(a: number))[]
+local hooks = {}
+push(hooks, function(<?a?>) end)
+]]
+
+-- ... but one that is not a function type says nothing
+TEST 'any' [[
+---@generic T
+---@param list T[]
+---@param value T
+local function push(list, value) end
+
+---@type string[]
+local names = {}
+push(names, function(<?a?>) end)
+]]
+
+-- a function returned at the place of a returned value takes that value's declared type, not the first one's
+TEST 'integer' [[
+---@class CtxMulti
+---@field make fun(): string, fun(n: integer)
+---@type CtxMulti
+local fac = {}
+fac.make = function() return "a", function(<?n?>) end end
+]]
+
+TEST 'string' [[
+---@class CtxMulti2
+---@field make fun(): fun(s: string), fun(n: integer)
+---@type CtxMulti2
+local fac = {}
+fac.make = function() return function(<?s?>) end, function(n) end end
+]]

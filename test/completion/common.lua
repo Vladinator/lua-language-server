@@ -6409,3 +6409,13 @@ TEST [[
 local function plain(p) end
 ]]
 (nil)
+
+-- other generic types do not offer the keys of their first argument
+TEST [[
+---@class PickPoint6
+---@field px number
+
+---@param t table<PickPoint6, "<??>">
+local function other(t) end
+]]
+(nil)

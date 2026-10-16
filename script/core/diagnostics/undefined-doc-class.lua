@@ -32,7 +32,10 @@ return function (uri, callback)
                 goto CONTINUE
             end
             for _, ext in ipairs(doc.extends) do
-                local name = ext.type == 'doc.extends.name' and ext[1]
+                -- (a parent given with arguments, `Parent<string>`, is a sign holding the name one level down)
+                local nameNode = (ext.type == 'doc.extends.name' and ext)
+                    or (ext.type == 'doc.type.sign' and ext.node and ext.node.type == 'doc.extends.name' and ext.node)
+                local name = nameNode and nameNode[1]
                 if name then
                     local docs = vm.getDocSets(uri, name)
                     if cache[name] == nil then

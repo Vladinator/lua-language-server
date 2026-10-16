@@ -2012,7 +2012,6 @@ local function compileCallArgNode(arg, call, callNode, fixIndex, myIndex)
                     if fn.type == 'doc.generic.name' then
                         -- (`fun<T>(list: T[], value: T)`: `T` is what the arguments before this one say, and only a function type is of use)
                         if docSign then
-                            ---@cast fn parser.object
                             ---@type parser.object[]
                             local previous = {}
                             for i = fixIndex + 1, myIndex - 1 do
@@ -2999,7 +2998,6 @@ local compilerSwitch = util.switch()
                         -- (the function itself is typed by its place -- a field, a parameter -- `fun(): fun(n: integer)`: what that says it returns)
                         for contextual in vm.compileNode(func):eachObject() do
                             if contextual.type == 'doc.type.function' then
-                                ---@cast contextual parser.object
                                 local declared = vm.getReturnOfFunction(contextual, i)
                                 if declared then
                                     for rn in vm.compileNode(declared):eachObject() do

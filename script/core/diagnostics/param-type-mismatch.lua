@@ -148,7 +148,7 @@ local function withBoundCallbacks(uri, call, func, paramNode)
         if open then
             resolved = resolved or sign:resolve(uri, call.args)
             local cloned = vm.cloneObject(obj, resolved)
-            result:merge(cloned and vm.compileNode(cloned --[[@as parser.object]]) or obj)
+            result:merge(cloned and vm.compileNode(cloned) or obj)
         else
             result:merge(obj)
         end

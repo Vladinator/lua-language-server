@@ -71,7 +71,7 @@ local function singleFunction(node)
             if found then
                 return nil
             end
-            found = obj --[[@as parser.object]]
+            found = obj
         elseif obj.type ~= 'local' and obj.type ~= 'variable' and obj.type ~= 'self' then
             return nil
         end

@@ -17,9 +17,9 @@ local function findDocJson()
     ---@type fs.path
     local doc_json_path
     if type(DOC_UPDATE) == 'string' then
-        doc_json_path = fs.canonical(fs.path(DOC_UPDATE)) .. '/doc.json' --[[@as fs.path]]
+        doc_json_path = fs.canonical(fs.path(DOC_UPDATE)) .. '/doc.json'
     else
-        doc_json_path = fs.current_path() .. '/doc.json' --[[@as fs.path]]
+        doc_json_path = fs.current_path() .. '/doc.json'
     end
     if fs.exists(doc_json_path) then
         return doc_json_path

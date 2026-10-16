@@ -112,7 +112,7 @@ end
 
 ---@return encoder.encoding
 local function getEncoding()
-    return (client.getOffsetEncoding():lower():gsub('%-', '')) --[[@as encoder.encoding]]
+    return (client.getOffsetEncoding():lower():gsub('%-', ''))
 end
 
 --- The character (in the client's encoding) of a byte offset in a line: `byteOffset` is 0-based, the number of bytes before the place.

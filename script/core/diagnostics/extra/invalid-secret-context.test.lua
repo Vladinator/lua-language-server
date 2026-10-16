@@ -548,7 +548,7 @@ do
     ---@return table<string, string> tokens text -> token type name
     local function tokensOf(line)
         files.setText(TESTURI, line .. newline .. 'local function f(unit, other) end' .. newline)
-        local data = semantic(TESTURI, 0, math.huge) --[[@as integer[] ]]
+        local data = semantic(TESTURI, 0, math.huge)
         ---@type table<integer, string>
         local names = {}
         for name, id in pairs(define.TokenTypes) do

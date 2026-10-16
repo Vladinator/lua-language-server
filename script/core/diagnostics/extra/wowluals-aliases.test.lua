@@ -136,7 +136,7 @@ assert(reports(script), 'enabled again')
 local severity = config.get(nil, 'Lua.diagnostics.severity')
 ---@type table<string, string>
 local newSeverity = {}
-for k, v in pairs(severity --[[@as table<string, string>]]) do
+for k, v in pairs(severity) do
     newSeverity[k] = v
 end
 newSeverity['type-mismatch'] = 'Hint!'
@@ -158,7 +158,7 @@ assert(level == 4, 'Hint, not the default: ' .. tostring(level))
 local statuses = config.get(nil, 'Lua.diagnostics.neededFileStatus')
 ---@type table<string, string>
 local newStatuses = {}
-for k, v in pairs(statuses --[[@as table<string, string>]]) do
+for k, v in pairs(statuses) do
     newStatuses[k] = v
 end
 -- (the suite forces every status to `Any!`, which would win over an alias: put the default back)
@@ -168,7 +168,7 @@ config.set(nil, 'Lua.diagnostics.neededFileStatus', newStatuses)
 assert(not reports(script), 'status None by the alias')
 ---@type table<string, string>
 local otherStatuses = {}
-for k, v in pairs(statuses --[[@as table<string, string>]]) do
+for k, v in pairs(statuses) do
     otherStatuses[k] = v
 end
 otherStatuses['param-type-mismatch'] = 'Opened'

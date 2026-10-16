@@ -2661,7 +2661,7 @@ local function tryluaDocBySource(state, position, source, results)
         ---@type table<string, boolean>
         local used = {}
         for name, description in docTags.eachTypeKeyword() do
-            if matchKey(source[1] --[[@as string]], name) then
+            if matchKey(source[1], name) then
                 used[name] = true
                 results[#results+1] = {
                     label       = name,

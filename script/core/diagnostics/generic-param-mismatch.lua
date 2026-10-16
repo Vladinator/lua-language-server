@@ -115,7 +115,7 @@ local function callbackGenerics(uri, signNode, argNode)
                         end
                         local candidate = declared and candidateOf(uri, declared)
                         if candidate then
-                            found[#found+1] = { name = unit[1] --[[@as string]], node = candidate }
+                            found[#found+1] = { name = unit[1], node = candidate }
                         end
                     end
                 end

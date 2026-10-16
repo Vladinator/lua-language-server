@@ -491,7 +491,8 @@ function m.doDiagnostic(uri, isScopeDiag, ignoreFileState, only)
     local suc = xpcall(core, log.error, uri, isScopeDiag, function (result)
         diags[#diags+1] = buildDiagnostic(uri, result)
 
-        if not isScopeDiag and time.time() - lastPushClock >= 500 then
+        -- (a file the user has open shows what is found so far while the rest runs, also when the workspace pass reaches it first)
+        if (not isScopeDiag or files.isOpen(uri)) and time.time() - lastPushClock >= 500 then
             lastPushClock = time.time()
             pushResult()
         end

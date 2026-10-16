@@ -1909,7 +1909,8 @@ end
 local function isValidCallArgNode(source, node)
     if source.type == 'function' then
         -- (`Events[K]`: the function type of a class entry, once the call has told what `K` is: see `dealFunction`)
-        return node.type == 'doc.type.function' or node.type == 'doc.type.indexed'
+        -- (a type parameter: `table.insert(fns, function (a) end)` takes `T` from the array)
+        return node.type == 'doc.type.function' or node.type == 'doc.type.indexed' or node.type == 'doc.generic.name'
     end
     if source.type == 'table' then
         return node.type == 'doc.type.table' or node.type == 'doc.type.array'
@@ -2006,8 +2007,24 @@ local function compileCallArgNode(arg, call, callNode, fixIndex, myIndex)
         or eventMap[myEvent[1]] then
             local farg = getFuncArg(n, myIndex)
             if farg then
+                local docSign = vm.getSign(n)
                 for fn in vm.compileNode(farg):eachObject() do
-                    if isValidCallArgNode(arg, fn) then
+                    if fn.type == 'doc.generic.name' then
+                        -- (`fun<T>(list: T[], value: T)`: `T` is what the arguments before this one say, and only a function type is of use)
+                        if docSign then
+                            ---@cast fn parser.object
+                            ---@type parser.object[]
+                            local previous = {}
+                            for i = fixIndex + 1, myIndex - 1 do
+                                previous[#previous+1] = call.args[i]
+                            end
+                            for resolvedObj in vm.createGeneric(fn, docSign):resolve(guide.getUri(call), previous):eachObject() do
+                                if resolvedObj.type == 'doc.type.function' then
+                                    vm.setNode(arg, resolvedObj)
+                                end
+                            end
+                        end
+                    elseif isValidCallArgNode(arg, fn) then
                         vm.setNode(arg, fn)
                     end
                 end
@@ -2023,10 +2040,10 @@ local function compileCallArgNode(arg, call, callNode, fixIndex, myIndex)
             for fn in vm.compileNode(farg):eachObject() do
                 if isValidCallArgNode(arg, fn) then
                     -- (`Events[K]`: the callback type is read off the class once `K` is known from the event name)
-                    if fn.type == 'doc.type.indexed' and not sign then
+                    if (fn.type == 'doc.type.indexed' or fn.type == 'doc.generic.name') and not sign then
                         goto CONTINUE
                     end
-                    if fn.type == 'doc.type.function' or fn.type == 'doc.type.indexed' then
+                    if fn.type == 'doc.type.function' or fn.type == 'doc.type.indexed' or fn.type == 'doc.generic.name' then
                         ---@cast fn parser.object
                         if sign then
                             local generic = vm.createGeneric(fn, sign)
@@ -2036,7 +2053,16 @@ local function compileCallArgNode(arg, call, callNode, fixIndex, myIndex)
                                 args[#args+1] = call.args[i]
                             end
                             local resolvedNode = generic:resolve(guide.getUri(call), args)
-                            vm.setNode(arg, resolvedNode)
+                            if fn.type == 'doc.generic.name' then
+                                -- (what `T` stands for is only of use when it is a function type)
+                                for resolvedObj in resolvedNode:eachObject() do
+                                    if resolvedObj.type == 'doc.type.function' then
+                                        vm.setNode(arg, resolvedObj)
+                                    end
+                                end
+                            else
+                                vm.setNode(arg, resolvedNode)
+                            end
                             goto CONTINUE
                         end
                     end
@@ -2969,6 +2995,20 @@ local compilerSwitch = util.switch()
                         local returnObj = vm.getReturnOfFunction(func, i)
                         if returnObj then
                             vm.setNode(source, vm.compileNode(returnObj))
+                        end
+                        -- (the function itself is typed by its place -- a field, a parameter -- `fun(): fun(n: integer)`: what that says it returns)
+                        for contextual in vm.compileNode(func):eachObject() do
+                            if contextual.type == 'doc.type.function' then
+                                ---@cast contextual parser.object
+                                local declared = vm.getReturnOfFunction(contextual, i)
+                                if declared then
+                                    for rn in vm.compileNode(declared):eachObject() do
+                                        if rn.type == 'doc.type.function' then
+                                            vm.setNode(source, rn)
+                                        end
+                                    end
+                                end
+                            end
                         end
                     end
                     break

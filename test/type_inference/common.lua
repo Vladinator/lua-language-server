@@ -9162,3 +9162,35 @@ local known
 local holder = {}
 holder.f = known or function(<?a?>) end
 ]]
+
+-- a function written as the value argument of `table.insert` takes the element type of the array
+TEST 'number' [[
+---@type (fun(a: number))[]
+local hooks = {}
+table.insert(hooks, function(<?a?>) end)
+]]
+
+-- ... an array of anything else says nothing about a function
+TEST 'any' [[
+---@type string[]
+local names = {}
+table.insert(names, function(<?a?>) end)
+]]
+
+-- a function returned by a function that its place types (`fun(): fun(n: integer)`) takes the returned function type
+TEST 'integer' [[
+---@class CtxFactory
+---@field make fun(): fun(n: integer)
+---@type CtxFactory
+local fac = {}
+fac.make = function() return function(<?n?>) end end
+]]
+
+-- ... and one returned where that type says something else is left alone
+TEST 'any' [[
+---@class CtxFactory2
+---@field make fun(): string
+---@type CtxFactory2
+local fac = {}
+fac.make = function() return function(<?n?>) end end
+]]

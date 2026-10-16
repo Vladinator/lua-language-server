@@ -13,6 +13,14 @@ vm.ANYDOC = {'<VM.ANYDOC>'}
 
 ---@alias typecheck.err vm.node.object|string|vm.node
 
+--- A doc or source node, not a global type, a variable or a generic: the `.type` of a `vm.node.object` does not narrow it by itself.
+---@guard obj is parser.object
+---@param obj vm.node.object
+---@return boolean
+local function isNode(obj)
+    return obj.type ~= 'global' and obj.type ~= 'variable' and obj.type ~= 'generic'
+end
+
 ---@param object vm.node.object
 ---@return string?
 function vm.getNodeName(object)
@@ -847,7 +855,8 @@ local function isSubTypeOfNames(uri, child, parent, mark, errs)
             return false
         end
         if parentName == 'function'
-        and functionTypeMismatch(uri, child --[[@as parser.object]], parent --[[@as parser.object]]) then
+        and isNode(child) and isNode(parent)
+        and functionTypeMismatch(uri, child, parent) then
             if errs then
                 errs[#errs+1] = 'TYPE_ERROR_DISMATCH'
                 errs[#errs+1] = child
@@ -897,8 +906,8 @@ local function isSubTypeOfNames(uri, child, parent, mark, errs)
 
     if parentName == 'table' and not guide.isBasicType(childName) then
         -- (a class given where an inline shape is asked for: it has to have the fields of the shape)
-        if parent.type == 'doc.type.table' and child.type == 'global' and child.cate == 'type'
-        and not classFitsShape(uri, child --[[@as vm.global]], parent --[[@as parser.object]]) then
+        if isNode(parent) and parent.type == 'doc.type.table' and child.type == 'global' and child.cate == 'type'
+        and not classFitsShape(uri, child --[[@as vm.global]], parent) then
             if errs then
                 errs[#errs+1] = 'TYPE_ERROR_DISMATCH'
                 errs[#errs+1] = child
@@ -996,7 +1005,7 @@ local function signMismatch(uri, childSign, parent, errs)
     ---@type string[]
     local classNames = {}
     for obj in parent:eachObject() do
-        if obj.type == 'doc.type.sign' and obj.signs and obj.node then
+        if isNode(obj) and obj.type == 'doc.type.sign' and obj.signs and obj.node then
             local found = false
             for _, entry in ipairs(chain) do
                 if entry.class == obj.node[1] and entry.arguments then
@@ -1006,7 +1015,7 @@ local function signMismatch(uri, childSign, parent, errs)
             if not found then
                 return false
             end
-            related[#related+1] = obj --[[@as parser.object]]
+            related[#related+1] = obj
         elseif obj.type == 'global' and obj.cate == 'type' then
             ---@cast obj vm.global
             if not guide.isBasicType(obj.name) then
@@ -1076,8 +1085,8 @@ end
 ---@return boolean
 local function typeArgumentsMismatch(uri, child, parent, errs)
     for obj in child:eachObject() do
-        if obj.type == 'doc.type.sign' and obj.signs and obj.node
-        and signMismatch(uri, obj --[[@as parser.object]], parent, errs) then
+        if isNode(obj) and obj.type == 'doc.type.sign' and obj.signs and obj.node
+        and signMismatch(uri, obj, parent, errs) then
             return true
         end
     end
@@ -1201,8 +1210,8 @@ local function dictionaryMismatch(uri, child, parent, errs)
     local dictionaries = {}
     local childHasArray = false
     for obj in child:eachObject() do
-        if obj.type == 'doc.type.sign' and obj.node and obj.node[1] == 'table' and obj.signs and #obj.signs == 2 then
-            dictionaries[#dictionaries+1] = obj --[[@as parser.object]]
+        if isNode(obj) and obj.type == 'doc.type.sign' and obj.node and obj.node[1] == 'table' and obj.signs and #obj.signs == 2 then
+            dictionaries[#dictionaries+1] = obj
         elseif obj.type == 'doc.type.array' then
             childHasArray = true
         end
@@ -1307,8 +1316,8 @@ local function collectClassTables(uri, tnode)
                     elseif ext.type == 'doc.type.sign' and ext.node and ext.node[1] == 'table' then
                         -- `table<K, V>`: the meta class of `table` resolves it to the table type `{ [K]: V }`
                         for obj in vm.compileNode(ext):eachObject() do
-                            if obj.type == 'doc.type.table' then
-                                found[#found+1] = obj --[[@as parser.object]]
+                            if isNode(obj) and obj.type == 'doc.type.table' then
+                                found[#found+1] = obj
                             end
                         end
                     elseif ext.type == 'doc.extends.name' then

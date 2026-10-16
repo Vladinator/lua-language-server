@@ -2977,3 +2977,26 @@ local function f(p) end
     assert(not hover:string():find('optional', 1, true), 'the class is not described as the operator: ' .. hover:string())
     files.remove(TESTURI)
 end
+
+-- the parent of `---@class Child: Parent` hovers like every other place a class is named
+TEST [[
+---@class HvParent
+---@field x number
+
+---@class HvChild: <?HvParent?>
+local Child = {}
+]]
+[[
+(class) HvParent
+]]
+
+TEST [[
+---@class HvParentA
+---@class HvParentB
+
+---@class HvChild2 : HvParentA, <?HvParentB?>
+local Child2 = {}
+]]
+[[
+(class) HvParentB
+]]

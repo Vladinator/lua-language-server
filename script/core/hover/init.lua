@@ -232,6 +232,7 @@ local accept = {
     ['number']         = true,
     ['integer']        = true,
     ['doc.type.name']  = true,
+    ['doc.extends.name'] = true,
     ['doc.param.name'] = true,
     ['doc.field.name'] = true,
     ['doc.alias.name'] = true,

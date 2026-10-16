@@ -287,6 +287,7 @@ return function (source, oop, level)
     or     source.type == 'integer' then
         return asNumber(source)
     elseif source.type == 'doc.type.name'
+    or     source.type == 'doc.extends.name'
     or     source.type == 'doc.enum.name'
     or     source.type == 'doc.class.name'
     or     source.type == 'doc.alias.name' then

@@ -472,8 +472,17 @@ local function functionTypeMismatch(uri, child, parent)
     or (child.type ~= 'function' and child.type ~= 'doc.type.function') then
         return false
     end
-    if vm.containsGenericName(parent) or vm.containsGenericName(child) or parent.signs
-    or (child.type == 'function' and vm.getSign(child)) then
+    -- (a type parameter a call has bound is its type now; one still open says nothing)
+    ---@type boolean?
+    local open
+    for _, side in ipairs { parent, child } do
+        guide.eachSourceType(side, 'doc.generic.name', function (src)
+            if not src._resolved then
+                open = true
+            end
+        end)
+    end
+    if open or parent.signs or (child.type == 'function' and vm.getSign(child)) then
         return false
     end
     ---@type parser.object[]
@@ -551,6 +560,38 @@ local function functionTypeMismatch(uri, child, parent)
         end
     end
     return false
+end
+
+--- Does the class have the fields of the inline shape (`{a: number, b?: string}`, or the shape an intersection `A & B` makes)? A field it lacks
+--- must be nullable in the shape, one it has must fit. A class with a string index (`[string]: V`) can have any field: it fits.
+---@param uri   uri
+---@param class vm.global
+---@param shape parser.object a `doc.type.table`
+---@return boolean
+local function classFitsShape(uri, class, shape)
+    if vm.getClassIndexValue(uri, vm.createNode(class), 'string') then
+        return true
+    end
+    for _, field in ipairs(shape.fields or {}) do
+        local key = vm.getKeyName(field)
+        if type(key) == 'string' then
+            local wanted = vm.compileNode(field)
+            ---@type vm.node?
+            local found
+            vm.getClassFields(uri, class, key, function (src)
+                found = found or vm.createNode()
+                found:merge(vm.compileNode(src))
+            end)
+            if not found then
+                if not wanted:isNullable() then
+                    return false
+                end
+            elseif vm.isSubType(uri, found, wanted) == false then
+                return false
+            end
+        end
+    end
+    return true
 end
 
 ---@param uri uri
@@ -801,6 +842,16 @@ local function isSubTypeOfNames(uri, child, parent, mark, errs)
     end
 
     if parentName == 'table' and not guide.isBasicType(childName) then
+        -- (a class given where an inline shape is asked for: it has to have the fields of the shape)
+        if parent.type == 'doc.type.table' and child.type == 'global' and child.cate == 'type'
+        and not classFitsShape(uri, child --[[@as vm.global]], parent --[[@as parser.object]]) then
+            if errs then
+                errs[#errs+1] = 'TYPE_ERROR_DISMATCH'
+                errs[#errs+1] = child
+                errs[#errs+1] = parent
+            end
+            return false
+        end
         return true
     end
     if childName == 'table' and not guide.isBasicType(parentName) then

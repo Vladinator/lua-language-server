@@ -85,6 +85,46 @@ local function arrayGenerics(signNode)
     return names
 end
 
+--- The type parameters a callback parameter names (`---@param map fun(value: number, arg: A)`), with what the function given there declares for
+--- that parameter: a function that takes `y: number` there binds `A` to `number`. Only declared types bind (an unannotated parameter says nothing).
+---@param uri     uri
+---@param signNode vm.node
+---@param argNode  vm.node
+---@return { name: string, node: vm.node }[]
+local function callbackGenerics(uri, signNode, argNode)
+    ---@type { name: string, node: vm.node }[]
+    local found = {}
+    for obj in signNode:eachObject() do
+        if obj.type == 'doc.type.function' then
+            for position, param in ipairs(obj.args or {}) do
+                local unit = param.extends
+                if unit and unit.type == 'doc.type' and unit.types and #unit.types == 1 then
+                    unit = unit.types[1]
+                end
+                if unit and unit.type == 'doc.generic.name' and not param.optional then
+                    for f in argNode:eachObject() do
+                        ---@type vm.node?
+                        local declared
+                        if f.type == 'doc.type.function' then
+                            local given = f.args and f.args[position]
+                            declared = given and given.extends and vm.compileNode(given.extends)
+                        elseif f.type == 'function' then
+                            local given = f.args and f.args[position]
+                            local node = given and vm.compileNode(given)
+                            declared = node and node.hasDefined and node or nil
+                        end
+                        local candidate = declared and candidateOf(uri, declared)
+                        if candidate then
+                            found[#found+1] = { name = unit[1] --[[@as string]], node = candidate }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return found
+end
+
 --- The name of the i-th parameter of a function or of a `fun(...)` type, else its position.
 ---@param func parser.object
 ---@param i    integer
@@ -144,6 +184,13 @@ return function (uri, callback)
             local names = directGenerics(signNode)
             ---@type vm.node?
             local argNode
+            -- a function given for `fun(value: number, arg: A)`: what it declares for `arg` binds `A`
+            for _, entry in ipairs(callbackGenerics(uri, signNode, vm.compileNode(arg))) do
+                local first = bound[entry.name]
+                if not first then
+                    bound[entry.name] = { node = entry.node, index = i }
+                end
+            end
             if #names == 0 then
                 -- `T[]`: the element type the argument declares binds `T`
                 names = arrayGenerics(signNode)

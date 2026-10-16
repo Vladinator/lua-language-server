@@ -278,3 +278,57 @@ local inferred = {}
 table.insert(inferred, 1)
 table.insert(inferred, 'x')
 ]]
+
+-- a type parameter a callback binds: the function given for `fun(value: number, arg: A)` declares `y: number` there, so `A` is `number`
+TEST [[
+---@param x number
+---@param y number
+---@return number
+local function mathRound(x, y) return x end
+local function unannotated(x, y) return x end
+
+---@generic A
+---@param map (fun(value: number, arg: A): any)|string|number|table
+---@param arg? A
+---@return string
+local function apply(map, arg) return "" end
+
+apply(mathRound, 42)
+apply(mathRound, <!"oops"!>)
+apply(mathRound)
+apply(unannotated, "anything")
+apply("name", "anything")
+]]
+
+-- ... a `fun(...)` value binds it too, the first binding stays, and an optional callback parameter does not bind
+TEST [[
+---@generic A
+---@param map fun(value: number, arg: A)
+---@param arg A
+local function applyTyped(map, arg) end
+
+---@generic A
+---@param map fun(first: A, second: A)
+---@param arg A
+local function applyTwice(map, arg) end
+
+---@generic A
+---@param map fun(value: number, arg?: A)
+---@param arg A
+local function applyOptional(map, arg) end
+
+---@type fun(value: number, arg: string)
+local typed
+---@param first number
+---@param second string
+local function mixed(first, second) end
+---@param x number
+---@param y number
+local function numbers(x, y) end
+
+applyTyped(typed, "text")
+applyTyped(typed, <!1!>)
+applyTwice(mixed, 1)
+applyTwice(mixed, <!"text"!>)
+applyOptional(numbers, "anything")
+]]

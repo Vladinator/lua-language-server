@@ -120,18 +120,59 @@ local function paramAt(func, i)
     return nil
 end
 
+--- A callback type the generic function names as a parameter (`fun(key: K): V`), with the type parameters the call bound put in: what the
+--- argument given for it is compared with. The other parts of the parameter type are left alone.
+---@param uri      uri
+---@param call     parser.object
+---@param func     parser.object the function the call resolves to
+---@param paramNode vm.node
+---@return vm.node
+local function withBoundCallbacks(uri, call, func, paramNode)
+    local sign = func.type == 'function' and vm.getSign(func)
+    if not sign then
+        return paramNode
+    end
+    ---@type table<string, vm.node>?
+    local resolved
+    local result = vm.createNode()
+    for obj in paramNode:eachObject() do
+        ---@type boolean?
+        local open
+        if obj.type == 'doc.type.function' then
+            guide.eachSourceType(obj, 'doc.generic.name', function (src)
+                if not src._resolved then
+                    open = true
+                end
+            end)
+        end
+        if open then
+            resolved = resolved or sign:resolve(uri, call.args)
+            local cloned = vm.cloneObject(obj, resolved)
+            result:merge(cloned and vm.compileNode(cloned --[[@as parser.object]]) or obj)
+        else
+            result:merge(obj)
+        end
+    end
+    if paramNode:isOptional() then
+        result:addOptional()
+    end
+    return result
+end
+
+---@param uri      uri
+---@param call     parser.object
 ---@param funcNode vm.node
 ---@param i integer
 ---@param classGenericMap table<string, vm.node>?
 ---@return vm.node?
-local function getDefNode(funcNode, i, classGenericMap)
+local function getDefNode(uri, call, funcNode, i, classGenericMap)
     local defNode = vm.createNode()
     for src in funcNode:eachObject() do
         if src.type == 'function'
         or src.type == 'doc.type.function' then
             local param = paramAt(src, i)
             if param then
-                local paramNode = vm.compileNode(param)
+                local paramNode = withBoundCallbacks(uri, call, src, vm.compileNode(param))
                 -- Check for global type references that match class generic params
                 if classGenericMap then
                     local newNode = vm.createNode()
@@ -257,7 +298,7 @@ return function (uri, callback)
             if not refNode then
                 goto CONTINUE
             end
-            local defNode = getDefNode(funcNode, i, classGenericMap)
+            local defNode = getDefNode(uri, source, funcNode, i, classGenericMap)
             if not defNode then
                 goto CONTINUE
             end

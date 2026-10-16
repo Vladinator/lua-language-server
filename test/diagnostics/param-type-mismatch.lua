@@ -1478,7 +1478,7 @@ on(<!inferred!>)
 on(nothing)
 ]]
 
--- ... a generic type or function is not judged, nor is a plain `function`
+-- ... a plain `function` takes any; a generic callback type is judged by what does not depend on its type parameters (how many arguments it gives)
 TEST [[
 ---@generic T
 ---@param cb fun(x: T)
@@ -1487,8 +1487,10 @@ local function on(cb) end
 ---@param cb function
 local function plain(cb) end
 
+local function one(a) end
 local function two(a, b) end
-on(two)
+on(one)
+on(<!two!>)
 plain(two)
 ]]
 
@@ -1886,4 +1888,128 @@ useList(mixed)
 for i = 1, #t do
     local v = t[i]
 end
+]]
+
+-- a class given where an inline shape (or an intersection, which is one) is asked for has to have its fields
+TEST [[
+---@class FacetA
+---@field a number
+---@class FacetB
+---@field b number
+---@class FacetAB : FacetA
+---@field b number
+---@class FacetWrong
+---@field a string
+---@field b number
+---@class FacetOpen
+---@field a number
+---@field [string] any
+
+---@param p FacetA & FacetB
+local function needsBoth(p) end
+---@param p {a: number, b: number}
+local function needsShape(p) end
+---@param p {a: number, b?: number}
+local function optionalShape(p) end
+
+---@type FacetA
+local onlyA
+---@type FacetAB
+local inherited
+---@type FacetWrong
+local wrong
+---@type FacetOpen
+local open
+---@type FacetA & FacetB
+local both
+
+needsBoth(<!onlyA!>)
+needsBoth(inherited)
+needsBoth(<!wrong!>)
+needsBoth(both)
+needsShape(<!onlyA!>)
+needsShape(inherited)
+needsShape(<!wrong!>)
+needsShape(open)
+optionalShape(onlyA)
+optionalShape(<!wrong!>)
+]]
+
+-- ... methods are fields too, a shape asking for one is met by the class that has it
+TEST [[
+---@class HasMethod
+local HasMethod = {}
+function HasMethod:run() end
+
+---@class LacksMethod
+local LacksMethod = {}
+
+---@param p { run: fun(self: any) }
+local function needsRun(p) end
+
+---@type HasMethod
+local has
+---@type LacksMethod
+local lacks
+
+needsRun(has)
+needsRun(<!lacks!>)
+]]
+
+-- ... an index in the shape (`{[string]: number}`) is not a field the class has to have
+TEST [[
+---@class IndexedShapeClass
+---@field a number
+
+---@param p {[string]: number, a: number}
+local function needsIndexed(p) end
+
+---@type IndexedShapeClass
+local c
+
+needsIndexed(c)
+]]
+
+-- a callback for a generic function is compared with its type parameters bound by the call (backtick names bind to what the string names)
+TEST [[
+---@class BoundMap<K, V>
+local BoundMap = {}
+
+---@generic K, V
+---@param keyType `K`
+---@param valType `V`
+---@param lookup fun(key: K): V
+---@return BoundMap<K, V>
+local function newMap(keyType, valType, lookup) return {} end
+
+---@param n number
+---@return number
+local function numberLookup(n) return n end
+---@param s string
+---@return number
+local function stringLookup(s) return 1 end
+---@param s string
+---@return string
+local function wrongResult(s) return s end
+
+newMap("string", "number", <!numberLookup!>)
+newMap("string", "number", stringLookup)
+newMap("string", "number", <!wrongResult!>)
+]]
+
+-- ... an optional callback parameter stays optional
+TEST [[
+---@generic K, V
+---@param keyType `K`
+---@param valType `V`
+---@param lookup? fun(key: K): V
+local function newMap(keyType, valType, lookup) end
+
+---@param n number
+---@return number
+local function numberLookup(n) return n end
+
+newMap("string", "number")
+newMap("string", "number", nil)
+newMap("string", "number", <!numberLookup!>)
 ]]

@@ -2674,6 +2674,20 @@ local function tryluaDocBySource(state, position, source, results)
         -- anywhere, so the resolvers' own name list is offered as type names
         ---@type string[]
         local operators = { 'keyof', 'returns', 'params' }
+        -- `---@return self`: the object the method was called on
+        ---@type parser.object?
+        local doc = source
+        while doc and doc.type ~= 'doc.return' do
+            doc = doc.parent
+        end
+        if doc and matchKey(source[1] --[[@as string]], 'self') and not used['self'] then
+            used['self'] = true
+            results[#results+1] = {
+                label       = 'self',
+                kind        = define.CompletionItemKind.Keyword,
+                description = 'The object the method was called on.',
+            }
+        end
         for name in pairs(vm.utilityTypeNames) do
             operators[#operators+1] = name
         end

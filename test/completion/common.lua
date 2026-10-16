@@ -6263,3 +6263,49 @@ end
     end
     assert(labels.pubP and labels.pubS and labels.protS and labels.secretS, 'every field from inside the second member')
 end)
+
+-- a member whose name starts with a keyword, typed up to the keyword
+TEST [[
+local kw = {}
+function kw:doAction() end
+function kw:doOther() end
+kw:do<??>
+]]
+{
+    { label = 'doAction()', kind = define.CompletionItemKind.Method },
+    { label = 'doOther()', kind = define.CompletionItemKind.Method },
+}
+
+TEST [[
+local kw = { endpoint = 1, inner = 2, ifTrue = 3 }
+kw.en<??>
+]]
+{
+    { label = 'endpoint', kind = define.CompletionItemKind.Enum },
+}
+
+TEST [[
+local kw = { endpoint = 1, inner = 2, ifTrue = 3 }
+kw.end<??>
+]]
+{
+    { label = 'endpoint', kind = define.CompletionItemKind.Enum },
+}
+
+-- `self` is offered as a return type, and nowhere else among the types
+TEST [[
+---@return sel<??>
+]]
+{
+    { label = 'self', kind = define.CompletionItemKind.Keyword },
+}
+
+TEST [[
+---@param x sel<??>
+]]
+(nil)
+
+TEST [[
+---@type sel<??>
+]]
+(nil)

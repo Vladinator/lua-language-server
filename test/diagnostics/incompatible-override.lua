@@ -220,3 +220,39 @@ TEST [[
 ---@class LooseChild : LooseBase
 ---@field handler fun(self: LooseChild, a: number, b: number)
 ]]
+
+-- ... two functions written with a dot are compared
+TEST [[
+---@class OvBase7
+local OvBase7 = {}
+---@param n number
+function OvBase7.make(n) end
+
+---@class OvChild7 : OvBase7
+local OvChild7 = {}
+---@param n string
+function OvChild7.<!make!>(n) end
+]]
+
+-- ... a field redeclared as `fun(self: T, ...)` over a dot function keeps its `self` as a parameter
+TEST [[
+---@class OvBase8
+local OvBase8 = {}
+---@param n number
+function OvBase8.run(n) end
+
+---@class OvChild8 : OvBase8
+---@field <!run!> fun(self: OvChild8, n: number)
+]]
+
+-- ... a member set to something that is not a function is not compared as one
+TEST [[
+---@class OvBase9
+local OvBase9 = {}
+---@param n number
+function OvBase9:go(n) end
+
+---@class OvChild9 : OvBase9
+local OvChild9 = {}
+OvChild9.go = 1
+]]

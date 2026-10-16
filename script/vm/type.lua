@@ -468,9 +468,21 @@ end
 ---@param parent parser.object
 ---@return boolean
 local function functionTypeMismatch(uri, child, parent)
-    if parent.type ~= 'doc.type.function'
+    -- (the parent is a `fun(...)` type, or a function with its annotations: a method a class declares, that another one overrides)
+    if (parent.type ~= 'doc.type.function' and parent.type ~= 'function')
     or (child.type ~= 'function' and child.type ~= 'doc.type.function') then
         return false
+    end
+    local parentIsFunction = parent.type == 'function'
+    if parentIsFunction then
+        if vm.getSign(parent) then
+            return false
+        end
+        for _, doc in ipairs(parent.bindDocs or {}) do
+            if doc.type == 'doc.overload' then
+                return false
+            end
+        end
     end
     -- (a type parameter a call has bound is its type now; one still open says nothing)
     ---@type boolean?
@@ -486,12 +498,36 @@ local function functionTypeMismatch(uri, child, parent)
         return false
     end
     ---@type parser.object[]
-    local provided = parent.args or {}
+    local provided = {}
+    for _, arg in ipairs(parent.args or {}) do
+        -- (two methods both have the implicit `self` first: it is not a parameter to compare; against a `fun(self: T, ...)` it is the
+        -- parameter the type names)
+        if not (parentIsFunction and arg.type == 'self') then
+            provided[#provided+1] = arg
+        end
+    end
     ---@type parser.object[]
-    local taken = child.args or {}
+    local taken = {}
+    for _, arg in ipairs(child.args or {}) do
+        if not (parentIsFunction and arg.type == 'self') then
+            taken[#taken+1] = arg
+        end
+    end
+    -- (a `fun(self: T, ...)` field that redeclares a method: its `self` is the implicit one of the method)
+    if parentIsFunction and child.type == 'doc.type.function' and taken[1] and taken[1].name and taken[1].name[1] == 'self' then
+        local parentHasSelf = false
+        for _, arg in ipairs(parent.args or {}) do
+            if arg.type == 'self' then
+                parentHasSelf = true
+            end
+        end
+        if parentHasSelf then
+            table.remove(taken, 1)
+        end
+    end
     local providesAny = false
     for _, arg in ipairs(provided) do
-        if arg.name and arg.name[1] == '...' then
+        if arg.type == '...' or (arg.name and arg.name[1] == '...') then
             providesAny = true
         end
     end
@@ -508,10 +544,17 @@ local function functionTypeMismatch(uri, child, parent)
         end
     end
     for i = 1, math.min(#taken, #provided) do
-        if provided[i].name and provided[i].name[1] == '...' then
+        if provided[i].type == '...' or (provided[i].name and provided[i].name[1] == '...') then
             break
         end
-        local want = provided[i].extends
+        ---@type vm.node?
+        local wantNode
+        if parentIsFunction then
+            local providedNode = vm.compileNode(provided[i])
+            wantNode = providedNode.hasDefined and providedNode or nil
+        else
+            wantNode = provided[i].extends and vm.compileNode(provided[i].extends)
+        end
         ---@type vm.node?
         local takes
         if child.type == 'doc.type.function' then
@@ -522,14 +565,23 @@ local function functionTypeMismatch(uri, child, parent)
         end
         -- (bivariant, as TypeScript's methods: a callback may take a narrower type than the one it is called with, the
         -- other way round is fine too; only two types that have nothing in common are a mismatch)
-        if want and takes then
-            local wantNode = vm.compileNode(want)
+        if wantNode and takes then
             if vm.isSubType(uri, wantNode, takes) == false and vm.isSubType(uri, takes, wantNode) == false then
                 return true
             end
         end
     end
-    local promised = parent.returns and parent.returns[1]
+    ---@type (parser.object|vm.generic)?
+    local promised
+    if parentIsFunction then
+        for _, doc in ipairs(parent.bindDocs or {}) do
+            if doc.type == 'doc.return' then
+                promised = vm.getReturnOfFunction(parent, 1)
+            end
+        end
+    else
+        promised = parent.returns and parent.returns[1]
+    end
     if promised and not (child.type == 'function' and not child.returns) then
         ---@type (parser.object|vm.generic)?
         local given
@@ -561,6 +613,8 @@ local function functionTypeMismatch(uri, child, parent)
     end
     return false
 end
+
+vm.functionTypeMismatch = functionTypeMismatch
 
 --- Does the class have the fields of the inline shape (`{a: number, b?: string}`, or the shape an intersection `A & B` makes)? A field it lacks
 --- must be nullable in the shape, one it has must fit. A class with a string index (`[string]: V`) can have any field: it fits.

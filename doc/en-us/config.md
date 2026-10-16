@@ -411,6 +411,7 @@ Array<string>
 * ``"global-in-nil-env"``: Enable cannot use global variables （ `_ENV` is set to `nil`） diagnostics.
 * ``"grouped-return-mismatch"``: Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
 * ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
+* ``"incompatible-override"``: Enable diagnostics for a class that overrides a member of a class it inherits from with something that does not fit it (TypeScript's "class incorrectly extends"): a method that needs more arguments, takes or gives other types, or a field redeclared with a type that is not assignable to the parent's. A narrower type is an override; a wider or unrelated one is a collision.
 * ``"incomplete-signature-doc"``: Incomplete @param or @return annotations for functions.
 * ``"index-in-func-name"``: Index in a function name
 * ``"inject-field"``: Injecting a field into an object
@@ -809,6 +810,7 @@ object<string, string>
     * generic-constraint-mismatch
     * generic-param-mismatch
     * grouped-return-mismatch
+    * incompatible-override
     * inject-field
     * invalid-class-parent
     * mixed-enum-values
@@ -1006,6 +1008,7 @@ object<string, string>
     * generic-constraint-mismatch
     * generic-param-mismatch
     * grouped-return-mismatch
+    * incompatible-override
     * inject-field
     * invalid-class-parent
     * mixed-enum-values
@@ -1242,6 +1245,10 @@ object<string, string>
     Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
     */
     "implicit-nil-return": "None",
+    /*
+    Enable diagnostics for a class that overrides a member of a class it inherits from with something that does not fit it (TypeScript's "class incorrectly extends"): a method that needs more arguments, takes or gives other types, or a field redeclared with a type that is not assignable to the parent's. A narrower type is an override; a wider or unrelated one is a collision.
+    */
+    "incompatible-override": "Opened",
     /*
     Incomplete @param or @return annotations for functions.
     */
@@ -1782,6 +1789,10 @@ object<string, string>
     Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
     */
     "implicit-nil-return": "Hint",
+    /*
+    Enable diagnostics for a class that overrides a member of a class it inherits from with something that does not fit it (TypeScript's "class incorrectly extends"): a method that needs more arguments, takes or gives other types, or a field redeclared with a type that is not assignable to the parent's. A narrower type is an override; a wider or unrelated one is a collision.
+    */
+    "incompatible-override": "Warning",
     /*
     Incomplete @param or @return annotations for functions.
     */

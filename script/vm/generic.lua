@@ -54,7 +54,7 @@ local function expandParamsProjection(arg, resolved)
     local target
     for f in fNode:eachObject() do
         if f.type == 'function' or f.type == 'doc.type.function' then
-            target = f --[[@as parser.object]]
+            target = f
             break
         end
     end

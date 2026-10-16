@@ -6309,3 +6309,103 @@ TEST [[
 ---@type sel<??>
 ]]
 (nil)
+
+-- the keys of `T` in a type position: the second argument of `Pick` / `Omit`, and `T["..."]`
+TEST [[
+---@class PickPoint
+---@field px number
+---@field py number
+
+---@param p Pick<PickPoint, "<??>">
+local function pick(p) end
+]]
+{
+    include = true,
+    {
+        label    = '"px"',
+        kind     = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 40028, finish = 40030, newText = '"px"' },
+    },
+    {
+        label    = '"py"',
+        kind     = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 40028, finish = 40030, newText = '"py"' },
+    },
+}
+
+TEST [[
+---@class PickPoint2
+---@field px number
+---@field py number
+
+---@param p Omit<PickPoint2, "<??>">
+local function omit(p) end
+]]
+{
+    include = true,
+    {
+        label    = '"px"',
+        kind     = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 40029, finish = 40031, newText = '"px"' },
+    },
+    {
+        label    = '"py"',
+        kind     = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 40029, finish = 40031, newText = '"py"' },
+    },
+}
+
+TEST [[
+---@class PickPoint3
+---@field px number
+---@field py number
+
+---@param v PickPoint3["<??>"]
+local function indexed(v) end
+]]
+{
+    include = true,
+    {
+        label    = '"px"',
+        kind     = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 40023, finish = 40025, newText = '"px"' },
+    },
+    {
+        label    = '"py"',
+        kind     = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 40023, finish = 40025, newText = '"py"' },
+    },
+}
+
+-- a part of the key narrows the list
+TEST [[
+---@class PickPoint4
+---@field px number
+---@field qy number
+
+---@param p Pick<PickPoint4, "q<??>">
+local function narrowed(p) end
+]]
+{
+    {
+        label    = '"qy"',
+        kind     = define.CompletionItemKind.EnumMember,
+        textEdit = { start = 40029, finish = 40032, newText = '"qy"' },
+    },
+}
+
+-- the first argument of `Pick` and a string in any other type position offer no keys
+TEST [[
+---@class PickPoint5
+---@field px number
+
+---@param p Pick<"<??>", "px">
+local function first(p) end
+]]
+(nil)
+
+TEST [[
+---@param p "<??>"
+local function plain(p) end
+]]
+(nil)

@@ -2626,6 +2626,34 @@ local visibilityKeywords = {
     { 'package',   'Visible only in the file that declares the class.' },
 }
 
+--- The type whose keys a string inside a type position names: `T` of `Pick<T, "...">` / `Omit<T, "...">` (in the second argument) and of
+--- `T["..."]`.
+---@param source parser.object a `doc.type.string`
+---@return parser.object?
+local function stringKeyBase(source)
+    local holder = source.parent
+    while holder and holder.type == 'doc.type' do
+        holder = holder.parent
+    end
+    if not holder then
+        return nil
+    end
+    ---@param part parser.object?
+    ---@return boolean
+    local function within(part)
+        return part ~= nil and source.start >= part.start and source.finish <= part.finish
+    end
+    if holder.type == 'doc.type.sign' and holder.node and holder.signs then
+        local name = holder.node[1]
+        if (name == 'Pick' or name == 'Omit') and within(holder.signs[2]) then
+            return holder.signs[1]
+        end
+    elseif holder.type == 'doc.type.indexed' and holder.node and within(holder.key) then
+        return holder.node
+    end
+    return nil
+end
+
 ---@async
 ---@param state    parser.state
 ---@param position integer
@@ -2633,7 +2661,36 @@ local visibilityKeywords = {
 ---@param results completion.results
 ---@return boolean?
 local function tryluaDocBySource(state, position, source, results)
-    if     source.type == 'doc.extends.name' then
+    if     source.type == 'doc.type.string' then
+        -- the key of `Pick<T, "...">` / `Omit<T, "...">` or of `T["..."]`: the keys of `T`
+        local base = stringKeyBase(source)
+        if not base then
+            return false
+        end
+        ---@type parser.object
+        local keyOf = {
+            type   = 'doc.type.keyof',
+            start  = source.start,
+            finish = source.finish,
+            parent = source.parent,
+            node   = base,
+        }
+        for key in vm.compileNode(keyOf):eachObject() do
+            if key.type == 'doc.type.string' and matchKey(source[1] --[[@as string]], key[1] --[[@as string]]) then
+                local label = vm.getInfer(key):view(state.uri)
+                results[#results+1] = {
+                    label    = label,
+                    kind     = define.CompletionItemKind.EnumMember,
+                    textEdit = {
+                        start   = source.start,
+                        finish  = source.finish,
+                        newText = label,
+                    },
+                }
+            end
+        end
+        return #results > 0
+    elseif source.type == 'doc.extends.name' then
         if source.parent and source.parent.type == 'doc.class' then
             ---@type table<string, boolean>
             local used = {}

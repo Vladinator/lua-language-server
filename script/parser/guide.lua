@@ -63,6 +63,8 @@ local type         = type
 ---@field kind?                  string -- a param-kind tag (`doc.secret-guard`): the word after the parameter name; a kind-params tag (`doc.secret-args`): the first word
 ---@field kwStart?               integer -- a keyword the syntax of this node contains (`keyof`, `extends`, a type keyword such as `secret`): where it starts
 ---@field kwFinish?              integer -- ... and ends
+---@field notStart?              integer -- `doc.guard` / `doc.asserts`: where the word `not` of `x is not T` starts
+---@field notFinish?             integer -- ... and ends
 ---@field kindStart?             integer -- a param-kind / kind-params tag: where the kind word starts
 ---@field kindFinish?            integer -- ... and ends
 ---@field overload              parser.object

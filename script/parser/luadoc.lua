@@ -2690,16 +2690,23 @@ local function convertTokens(doc)
                 local param = parseName(docType .. '.name', result)
                 if param and checkToken('name', 'is', 1) then
                     nextToken()
+                    -- (where the words `is` and `not` stand: they are drawn as keywords)
+                    local kwStart, kwFinish = getStart(), getFinish()
                     local negated = false
+                    ---@type integer?, integer?
+                    local notStart, notFinish
                     if checkToken('name', 'not', 1) then
                         nextToken()
                         negated = true
+                        notStart, notFinish = getStart(), getFinish()
                     end
                     local extends = parseType(result)
                     if extends then
-                        result.param   = param
-                        result.negated = negated or nil
-                        result.extends = extends
+                        result.param    = param
+                        result.negated  = negated or nil
+                        result.kwStart, result.kwFinish = kwStart, kwFinish
+                        result.notStart, result.notFinish = notStart, notFinish
+                        result.extends  = extends
                         result.finish  = getFinish()
                     else
                         Ci = savePoint

@@ -1091,6 +1091,13 @@ return function (uri, start, finish)
                 type   = define.TokenTypes.keyword,
             }
         end
+        if source.notStart and source.notFinish and options.annotation then
+            results[#results+1] = {
+                start  = source.notStart,
+                finish = source.notFinish,
+                type   = define.TokenTypes.keyword,
+            }
+        end
         if source.kindStart and source.kindFinish and options.annotation then
             results[#results+1] = {
                 start  = source.kindStart,

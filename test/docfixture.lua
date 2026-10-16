@@ -18,6 +18,8 @@ docTags.registerKindParamsTag('fixture-kind-params', 'doc.fixture-kind-params', 
     'A tag with a kind and parameter names, registered by the tests.')
 docTags.registerNameTypeTag('fixture-nametype', 'doc.fixture-nametype',
     'A tag with a name and a type, registered by the tests.')
+docTags.registerGuardTag('fixture-isguard', 'doc.fixture-isguard',
+    'A tag that says `x is T` / `x is not T`, registered by the tests.')
 docTags.registerMarkerTag('fixture-tail', 'doc.fixture-tail',
     'A marker tag whose text is read by whoever registered it, registered by the tests.')
 docTags.registerBindRule('doc.fixture-tail', function (_doc, source, _isParam)

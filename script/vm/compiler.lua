@@ -2571,6 +2571,38 @@ local function compileLocal(source)
     myNode.hasDefined = hasMarkDoc or hasMarkParam or hasMarkValue
 end
 
+--- The type a function declares for its `index`-th return (`---@return T`), when that is a plain type: nothing for a generic one.
+---@param func  parser.object?
+---@param index integer
+---@return vm.node?
+local function getDeclaredReturn(func, index)
+    if not func or not func.bindDocs then
+        return nil
+    end
+    for _, doc in ipairs(func.bindDocs) do
+        if doc.type == 'doc.return' then
+            for _, rtn in ipairs(doc.returns) do
+                if rtn.returnIndex == index then
+                    ---@type boolean?
+                    local hasGeneric
+                    guide.eachSourceType(rtn, 'doc.generic.name', function ()
+                        hasGeneric = true
+                    end)
+                    if hasGeneric then
+                        return nil
+                    end
+                    local node = vm.compileNode(rtn)
+                    if node:isEmpty() then
+                        return nil
+                    end
+                    return node
+                end
+            end
+        end
+    end
+    return nil
+end
+
 ---@param source parser.object
 ---@param mfunc  parser.object
 ---@param index  integer
@@ -2852,6 +2884,13 @@ local compilerSwitch = util.switch()
         if source.parent.type == 'return' then
             local myIndex = util.arrayIndexOf(source.parent, source)
             ---@cast myIndex -?
+            -- (what the function says it returns at that place: a table written there is that class, array or shape, as an argument is
+            -- the type of its parameter; a generic return is not known yet)
+            local declared = getDeclaredReturn(guide.getParentFunction(source.parent), myIndex)
+            if declared then
+                vm.setNode(source, declared)
+                return
+            end
             local parentNode = vm.selectNode(source.parent, myIndex)
             if not parentNode:isEmpty() then
                 vm.setNode(source, parentNode)

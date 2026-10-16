@@ -663,3 +663,42 @@ TEST [[
 ---@type A
 local a = <!{ x = 1 }!>
 ]]
+
+-- a table written in a `return` is checked against the class the function declares
+TEST [[
+---@class RetFields
+---@field name string
+---@field count integer
+
+---@return RetFields
+local function complete()
+    return { name = "x", count = 1 }
+end
+
+---@return RetFields
+local function partial()
+    return <!{ name = "x" }!>
+end
+
+---@return RetFields, RetFields
+local function second()
+    return { name = "x", count = 1 }, <!{ name = "y" }!>
+end
+
+---@return string, RetFields
+local function otherSlot()
+    return "a", <!{ name = "x" }!>
+end
+
+---@return RetFields?
+local function maybe()
+    return nil
+end
+
+---@generic T
+---@param v T
+---@return T
+local function id(v)
+    return {}
+end
+]]

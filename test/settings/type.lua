@@ -325,9 +325,10 @@ n = u
 ]] },
 })
 
--- `checkTableShape`: a table held in a variable (or returned) is checked against the class it is given to,
--- field by field; off, any table is accepted. A table literal written at the call is checked field by field
--- either way, so it is not what this setting decides.
+-- `checkTableShape`: a table held in a variable is checked against the class it is given to, field by field;
+-- off, any table is accepted. A table literal written at the call, or in a `return` of a function that declares
+-- what it returns, is checked field by field either way (the literal is all there is to see), so it is not what
+-- this setting decides.
 run('type.checkTableShape', {
     { name = 'a table variable with a wrong field type', off = 0, on = 1, script = [[
 ---@class TableShape.A
@@ -345,7 +346,7 @@ local function f(s) end
 local t = {}
 f(t)
 ]] },
-    { name = 'a returned table literal with a wrong field type', off = 0, on = 1, script = [[
+    { name = 'a returned table literal with a wrong field type', off = 1, on = 1, script = [[
 ---@class TableShape.C
 ---@field a number
 ---@return TableShape.C

@@ -650,3 +650,34 @@ local <!boolBox!> = numBox
 ---@type TArgAssign<number | string>
 local wideBox = numBox
 ]]
+
+-- the values of a table written in a `return` are checked against the fields of the declared type, array and shape included
+TEST [[
+---@class RetValues
+---@field name string
+
+---@return RetValues
+local function wrongField()
+    return { <!name!> = 5 }
+end
+
+---@return string[]
+local function wrongElements()
+    return { "a", <!2!> }
+end
+
+---@return {[1]: string, [2]: number}
+local function wrongPair()
+    return { "hello", <!"world"!> }
+end
+
+---@return string[]
+local function fine()
+    return { "a", "b" }
+end
+
+---@return RetValues
+local function alsoFine()
+    return { name = "x" }
+end
+]]

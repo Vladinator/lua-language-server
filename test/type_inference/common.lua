@@ -1019,6 +1019,34 @@ local t
 local <?x?> = t and 1
 ]]
 
+-- a table written in a `return` is the type the function declares for that place, as an argument is the type of its parameter
+TEST 'RetBuilder' [[
+---@class RetBuilder
+---@field name string
+
+---@return RetBuilder
+local function create()
+    return <?{ name = 5 }?>
+end
+]]
+
+TEST 'string' [[
+---@return string, number
+local function two()
+    return 'a', 1
+end
+local <?a?> = two()
+]]
+
+TEST 'table' [[
+---@generic T
+---@param v T
+---@return T
+local function id(v)
+    return <?{}?>
+end
+]]
+
 -- `?T` prefix (wowlua-ls interop): the same as `T?`
 TEST 'string?' [[
 ---@type ?string

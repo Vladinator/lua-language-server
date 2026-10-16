@@ -33,7 +33,7 @@ return function(uri, options)
         {
             start = state.ast.start,
             finish = state.ast.finish,
-            text = formattedText,
+            text = formattedText --[[@as string]], -- (a format that went well gave its text)
         }
     }
 end

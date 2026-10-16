@@ -267,7 +267,7 @@ end
 TEST [[
 ---@class HiddenSource
 ---@field open number
----@field private secret number
+---@field private hidden number
 ---@field protected guarded number
 
 ---@class OtherPart
@@ -279,9 +279,9 @@ local partial
 local both
 
 local _a = partial.open
-local _b = partial.<!secret!>
+local _b = partial.<!hidden!>
 local _c = partial.<!guarded!>
 local _d = both.open
 local _e = both.extra
-local _f = both.<!secret!>
+local _f = both.<!hidden!>
 ]]

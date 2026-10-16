@@ -25,6 +25,18 @@ end
 TypoTransposed.<!valeu!> = 0
 ]]
 
+-- ... a letter too many and a letter missing
+TEST [[
+---@class TypoLength
+---@field total integer
+local TypoLength = {}
+
+function TypoLength:set()
+    self.<!totall!> = 1
+    self.<!tota!> = 1
+end
+]]
+
 -- ... a name that is far from every declared field, one that is declared, one that is short, and a method written for the name are not typos
 TEST [[
 ---@class TypoFar

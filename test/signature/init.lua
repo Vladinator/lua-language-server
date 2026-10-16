@@ -543,3 +543,30 @@ local wrapped = wrapToString(original)
 wrapped(1, <??>
 ]]
 {'function (a: number, <!b: string!>)'}
+
+-- a call with no arguments written yet, the cursor between the parentheses
+TEST [[
+---@class SigBtn
+local SigBtn = {}
+---@return string
+function SigBtn:GetText() end
+
+---@type SigBtn
+local btn
+btn:GetText(<??>)
+]]
+{'(method) SigBtn:GetText()'}
+
+TEST [[
+---@return string
+local function plain() end
+plain(<??>)
+]]
+{'function plain()'}
+
+TEST [[
+---@type fun(name: string): string
+local greeter
+greeter(<??>)
+]]
+{'function greeter(<!name: string!>)'}

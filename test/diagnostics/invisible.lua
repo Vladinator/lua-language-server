@@ -262,3 +262,26 @@ function Secondary:Method()
     print(both.protS)
 end
 ]]
+
+-- a field a utility type or an intersection took from a class is as visible as it was there
+TEST [[
+---@class HiddenSource
+---@field open number
+---@field private secret number
+---@field protected guarded number
+
+---@class OtherPart
+---@field extra string
+
+---@type Partial<HiddenSource>
+local partial
+---@type HiddenSource & OtherPart
+local both
+
+local _a = partial.open
+local _b = partial.<!secret!>
+local _c = partial.<!guarded!>
+local _d = both.open
+local _e = both.extra
+local _f = both.<!secret!>
+]]

@@ -1135,19 +1135,26 @@ end
 ---@return parser.object
 local function buildUtilityField(tableObj, key, node, origin)
     ---@type parser.object
+    -- (no place of its own in the text: the one of the type that made it, so what reads a range (completion, references) has one)
     local field = {
         type          = 'doc.type.field',
         parent        = tableObj,
         utilityOrigin = origin,
+        start         = tableObj.start,
+        finish        = tableObj.finish,
     }
     field.name = {
         type   = 'doc.field.name',
         parent = field,
+        start  = tableObj.start,
+        finish = tableObj.finish,
         [1]    = key,
     }
     field.extends = {
         type   = 'doc.type.precomputed',
         parent = field,
+        start  = tableObj.start,
+        finish = tableObj.finish,
     }
     vm.setNode(field.extends, node, true)
     vm.setNode(field, node, true)

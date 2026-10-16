@@ -106,6 +106,10 @@ end
 ---@param source parser.object
 ---@return parser.visibleType
 function vm.getVisibleType(source)
+    -- (a field a utility type or an intersection built is as visible as the field it was made from)
+    while source.utilityOrigin do
+        source = source.utilityOrigin
+    end
     local node = vm.compileNode(source)
     if node._visibleType then
         return node._visibleType
@@ -204,6 +208,14 @@ function vm.isVisible(parent, field)
         return guide.getUri(parent) == guide.getUri(field)
     end
     local class = vm.getParentClass(field)
+    if not class and field.utilityOrigin then
+        -- (a field a utility type or an intersection built: the class is the one of the field it was made from)
+        local origin = field
+        while origin.utilityOrigin do
+            origin = origin.utilityOrigin
+        end
+        class = vm.getParentClass(origin)
+    end
     if not class then
         return true
     end

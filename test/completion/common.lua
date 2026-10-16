@@ -6165,3 +6165,101 @@ end
     assert(doc:find('narrowedE: string', 1, true) and not doc:find('string?', 1, true), 'the documentation has the narrowed type: ' .. doc)
 end)
 Cared['description'] = nil
+
+-- the fields of every member of an intersection are offered
+TEST [[
+---@class IsectCompA
+---@field aa number
+---@class IsectCompB
+---@field bb string
+
+---@type IsectCompA & IsectCompB
+local both
+both.<??>
+]]
+{
+    { label = 'aa', kind = define.CompletionItemKind.Field },
+    { label = 'bb', kind = define.CompletionItemKind.Field },
+}
+
+-- ... and those of a utility type (it built them, they have no place in the text)
+TEST [[
+---@class UtilCompA
+---@field aa number
+---@field ab string
+
+---@type Partial<UtilCompA>
+local p
+p.<??>
+]]
+{
+    { label = 'aa', kind = define.CompletionItemKind.Field },
+    { label = 'ab', kind = define.CompletionItemKind.Field },
+}
+
+TEST [[
+---@class UtilCompB
+---@field aa number
+---@field ab string
+
+---@type Pick<UtilCompB, "aa">
+local p
+p.<??>
+]]
+{
+    { label = 'aa', kind = define.CompletionItemKind.Field },
+}
+
+-- a private or protected field of the second member of an intersection is judged against that member
+TEST [[
+---@class IsectPrimary
+---@field pubP number
+local IsectPrimary = {}
+
+---@class IsectSecondary
+---@field pubS number
+---@field private secretS number
+---@field protected protS number
+local IsectSecondary = {}
+
+function IsectPrimary:Method()
+    ---@type IsectPrimary & IsectSecondary
+    local both
+    local _p = both.<??>
+end
+]]
+(function (result)
+    ---@type table<string, boolean>
+    local labels = {}
+    for _, item in ipairs(result) do
+        labels[item.label] = true
+    end
+    assert(labels.pubP and labels.pubS, 'the public fields of both members')
+    assert(not labels.secretS and not labels.protS, 'not the hidden ones of the other member')
+end)
+
+TEST [[
+---@class IsectPrimary2
+---@field pubP number
+local IsectPrimary2 = {}
+
+---@class IsectSecondary2
+---@field pubS number
+---@field private secretS number
+---@field protected protS number
+local IsectSecondary2 = {}
+
+function IsectSecondary2:Method()
+    ---@type IsectPrimary2 & IsectSecondary2
+    local both
+    local _s = both.<??>
+end
+]]
+(function (result)
+    ---@type table<string, boolean>
+    local labels = {}
+    for _, item in ipairs(result) do
+        labels[item.label] = true
+    end
+    assert(labels.pubP and labels.pubS and labels.protS and labels.secretS, 'every field from inside the second member')
+end)

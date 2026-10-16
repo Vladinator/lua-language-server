@@ -9194,3 +9194,28 @@ TEST 'any' [[
 local fac = {}
 fac.make = function() return function(<?n?>) end end
 ]]
+
+-- a function written where `fun(...: T)` is expected: its varargs are that type
+TEST 'integer' [[
+---@param cb fun(...: integer)
+local function reg(cb) end
+reg(function(...)
+    local <?a?> = ...
+end)
+]]
+
+TEST 'integer' [[
+---@type fun(name: string, ...: integer)
+local f = function(name, ...)
+    local <?a?> = ...
+end
+]]
+
+-- ... and where the function type has no varargs they stay unknown
+TEST 'unknown' [[
+---@param cb fun(a: integer)
+local function reg(cb) end
+reg(function(...)
+    local <?a?> = ...
+end)
+]]

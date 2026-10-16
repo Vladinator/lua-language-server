@@ -4069,6 +4069,20 @@ local compilerSwitch = util.switch()
     : case '...'
     ---@param source parser.object
     : call(function (source)
+        -- (`function (...) end` written where `fun(...: integer)` is expected: the type the function type says for its varargs)
+        local func = guide.getParentFunction(source)
+        if func and func.type == 'function' then
+            for contextual in vm.compileNode(func):eachObject() do
+                if contextual.type == 'doc.type.function' then
+                    ---@cast contextual parser.object
+                    for _, arg in ipairs(contextual.args) do
+                        if arg.name and arg.name[1] == '...' and arg.extends then
+                            vm.setNode(source, vm.compileNode(arg.extends))
+                        end
+                    end
+                end
+            end
+        end
         if not source.bindDocs then
             return
         end

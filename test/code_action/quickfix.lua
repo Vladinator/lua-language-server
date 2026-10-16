@@ -317,3 +317,30 @@ do
         lang.script('ACTION_NIL_ASSERT', 't'))
         == '---@type table?' .. NL .. 'local t' .. NL .. 'assert(t)' .. NL .. 'local x = t.a' .. NL)
 end
+
+-- possible-field-typo: the diagnostic carries the declared name it suggests; the fix writes it over the typo
+do
+    local guide = require 'parser.guide'
+    local NL = string.char(10)
+    local results, state = actions('local t = {}' .. NL .. 't.<!totl!> = 1' .. NL, 'possible-field-typo', { data = 'total' })
+    local fix = assert(find(results, lang.script('ACTION_FIELD_TYPO', 'total')))
+    local edit = onlyEdit(fix)
+    assert(edit.newText == 'total', edit.newText)
+    assert(fix.kind == 'quickfix', 'a quick fix')
+    -- the edit covers exactly the misspelt name
+    local text = assert(state.lua)
+    local first = guide.positionToOffset(state, edit.start + 1) or 1
+    local last  = guide.positionToOffset(state, edit.finish)
+    assert(text:sub(first, last) == 'totl', 'the range is the name: ' .. tostring(text:sub(first, last)))
+    assert(text:sub(1, first - 1) .. edit.newText .. text:sub(last + 1) == 'local t = {}' .. NL .. 't.total = 1' .. NL, 'applied')
+    -- the disable actions stay
+    assert(find(results, lang.script('ACTION_DISABLE_DIAG', 'possible-field-typo')), 'the disable action is still offered')
+
+    -- no suggestion in the diagnostic (an older client): only the generic actions
+    results = actions('local t = {}' .. NL .. 't.<!totl!> = 1' .. NL, 'possible-field-typo')
+    assert(not find(results, lang.script('ACTION_FIELD_TYPO', 'total')), 'nothing without a suggestion')
+    for _, result in ipairs(results) do
+        assert(result.title:sub(1, 9) ~= 'Change to', 'no rename action without a suggestion: ' .. result.title)
+    end
+    assert(find(results, lang.script('ACTION_DISABLE_DIAG', 'possible-field-typo')), 'the disable action is offered')
+end

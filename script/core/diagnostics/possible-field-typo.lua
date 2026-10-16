@@ -120,6 +120,7 @@ return function (uri, callback)
                 start   = field and field.start or source.start,
                 finish  = field and field.finish or source.finish,
                 message = MESSAGE:format(key, class.name, best, best),
+                data    = best,
             }
         end
     end)

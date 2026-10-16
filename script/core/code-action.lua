@@ -637,6 +637,33 @@ local function solveSpell(uri, diag, results)
 
 end
 
+--- `possible-field-typo`: the diagnostic carries the declared name it suggests; the fix writes it over the name.
+---@param uri uri
+---@param diag core.code-action.diag
+---@param results core.code-action.results
+local function solveFieldTypo(uri, diag, results)
+    local state = files.getState(uri)
+    local name = diag.data
+    if not state or type(name) ~= 'string' then
+        return
+    end
+    results[#results+1] = {
+        title = lang.script('ACTION_FIELD_TYPO', name),
+        kind  = 'quickfix',
+        edit  = {
+            changes = {
+                [uri] = {
+                    {
+                        start   = converter.unpackPosition(state, diag.range.start),
+                        finish  = converter.unpackPosition(state, diag.range["end"]),
+                        newText = name,
+                    }
+                }
+            }
+        }
+    }
+end
+
 ---@param uri uri
 ---@param diag core.code-action.diag
 ---@param start integer
@@ -665,6 +692,8 @@ local function solveDiagnostic(uri, diag, start, results)
         solveNeedCheckNil(uri, diag, results)
     elseif diag.code == 'spell-check' then
         solveSpell(uri, diag, results)
+    elseif diag.code == 'possible-field-typo' then
+        solveFieldTypo(uri, diag, results)
     end
     disableDiagnostic(uri, diag.code, start, results)
 end

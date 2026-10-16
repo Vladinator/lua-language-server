@@ -1854,3 +1854,36 @@ local hash
 
 useStrings(<!hash!>)
 ]]
+
+-- a class made of positions (`---@field [1] string`) is an array and a record at once: the dictionary rule does not make it required keys
+TEST [[
+---@class PositionalTest
+---@field public [1] string
+---@field public [2] number
+---@field public [3] string
+---@field public [4] number
+
+---@param t PositionalTest
+local function useTest(t) end
+---@param list (string|number)[]
+local function useList(list) end
+
+---@type PositionalTest
+local t = { "a", 1, "b", 2 }
+---@type table<integer, string|number>
+local arr
+---@type table<"x", number>
+local named
+---@type table<string|integer, string|number>
+local mixed
+
+useTest(t)
+useList(t)
+useTest(arr)
+useTest(named)
+useTest(mixed)
+useList(mixed)
+for i = 1, #t do
+    local v = t[i]
+end
+]]

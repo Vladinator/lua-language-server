@@ -2,6 +2,10 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `FIX` Completion of a field of `A & B` or `Partial<A>` shows its type in the list, like the field of a plain class.
+* `FIX` Completion ranks by the expected type without counting a value of an unknown type (`_ENV`) as a fit for every parameter, and does not preselect it.
+* `CHG` The message of `incompatible-override` ends with the parent's and the override's signature to compare at a glance.
+* `FIX` The quick fix of `excess-field` offers nothing for a key that cannot be written inside a bracketed string key (a quote, a backslash, a control character).
 * `NEW` Quick fix for `excess-field`: "Declare the field `key` (type) in `Class`" adds `---@field key type` after the last field of the class, in the file that declares it (the type is read off the value; a class of a library is left alone).
 * `NEW` Quick fix for `possible-field-typo`: "Change to `total`" writes the declared name over the misspelt one.
 * `NEW` `incompatible-override` (Information, open files only): a method or `---@field` of a class that does not fit the one of the parent it inherits (more parameters, other parameter or return types, a wider or unrelated field type; a narrower type is an override). Only parents the user owns are judged: a member declared in a library outside the workspace is left alone. Raise the severity with `Lua.diagnostics.severity`.

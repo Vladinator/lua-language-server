@@ -678,6 +678,10 @@ local function solveExcessField(uri, diag, results)
     if type(className) ~= 'string' or type(key) ~= 'string' or type(typeName) ~= 'string' then
         return
     end
+    -- (a key with a quote, a backslash or a control character cannot be written as `["key"]` in an annotation: no fix)
+    if key:find('[%c"' .. string.char(92) .. ']') then
+        return
+    end
     local global = vm.getGlobal('type', className)
     if not global then
         return

@@ -396,6 +396,12 @@ do
         == '---@class ExcessFix' .. NL .. '---@field ["a b"] table' .. NL .. 'local x = {}' .. NL .. '---@type ExcessFix' .. NL .. 'local v = { b = 2 }' .. NL,
         'a key that is not a name')
 
+    -- a key that cannot be written inside `["..."]` gets no fix (the annotation line would be broken)
+    for _, bad in ipairs { 'a"b', 'a' .. string.char(92) .. 'b', 'a' .. string.char(9) .. 'b' } do
+        assert(declared('---@class ExcessFix' .. NL .. 'local x = {}' .. NL .. '---@type ExcessFix' .. NL .. 'local v = { <!b!> = 2 }' .. NL,
+            { class = 'ExcessFix', key = bad, type = 'table' }) == nil, 'a key with a quote, a backslash or a control character, no fix')
+    end
+
     -- nothing without the data, with data of the wrong shape, or for a class that does not exist
     local script = '---@class ExcessFix' .. NL .. 'local x = {}' .. NL .. '---@type ExcessFix' .. NL .. 'local v = { <!b!> = 2 }' .. NL
     assert(declared(script, nil) == nil, 'no data, no fix')

@@ -33,6 +33,11 @@ local OlpOwnBase = {}
 function OlpOwnBase:go(n) end
 ]])
 
+util.saveFile(rootPath .. '/plain.lua', [[
+---@class OlpPlainBase
+---@field known integer
+]])
+
 util.saveFile(rootPath .. '/child.lua', [[
 ---@class OlpLibChild : OlpLibBase
 ---@field level string
@@ -81,4 +86,30 @@ lclient():start(function (client)
 
     assert(#messages == 1, 'exactly one report (the owned parent): ' .. #messages)
     assert(messages[1]:find('OlpOwnBase', 1, true), 'it is the one against the owned parent, not a library one: ' .. messages[1])
+
+    -- the quick fix of `excess-field` declares the field in the file of the class, even from another file, and never for a class of a
+    -- library (the diagnostic does not report those either: the same rule, so a fix is offered only where the diagnostic can fire)
+    local actions = require 'core.code-action'
+    local function declareActions(className)
+        local diag = {
+            code  = 'excess-field',
+            range = { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 1 } },
+            data  = { class = className, key = 'extra', type = 'integer' },
+        }
+        ---@type core.code-action.result[]
+        local found = {}
+        for _, result in ipairs(actions(uri, 0, 1, { diag }) or {}) do
+            if result.title:sub(1, 11) == 'Declare the' then
+                found[#found+1] = result
+            end
+        end
+        return found
+    end
+    local plain = declareActions('OlpPlainBase')
+    assert(#plain == 1, 'a fix for a class of the workspace: ' .. #plain)
+    local plainUri = furi.encode(rootPath .. '/plain.lua')
+    local changes = assert(plain[1].edit).changes
+    assert(changes[plainUri] and #changes[plainUri] == 1 and not changes[uri], 'the field is declared in the file of the class, not in the file with the typo')
+    assert(#declareActions('OlpLibBase') == 0, 'no fix for a class of a library outside the workspace')
+    assert(#declareActions('OlpOwnBase') == 0, 'no fix for a class of a folder the project lists as a library')
 end)

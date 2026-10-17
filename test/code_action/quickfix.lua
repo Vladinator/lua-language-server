@@ -344,3 +344,66 @@ do
     end
     assert(find(results, lang.script('ACTION_DISABLE_DIAG', 'possible-field-typo')), 'the disable action is offered')
 end
+
+-- excess-field: the field is declared after the last `---@field` of the class (or after the class line when it has none), with the
+-- indentation of the class, and a key that is not a name is written as `["key"]`
+do
+    local guide = require 'parser.guide'
+    local NL = string.char(10)
+    ---@param results core.code-action.results
+    ---@return core.code-action.result?
+    local function declareFix(results)
+        for _, result in ipairs(results) do
+            if result.title:sub(1, 11) == 'Declare the' then
+                return result
+            end
+        end
+        return nil
+    end
+    ---@param script string
+    ---@param data   any the `data` of the diagnostic (a table of the shape the fix reads, or something it must ignore)
+    ---@return string? applied the text with the fix applied, nil when no fix is offered
+    local function declared(script, data)
+        local results, state = actions(script, 'excess-field', { data = data })
+        local fix = declareFix(results)
+        if not fix then
+            return nil
+        end
+        local edit = onlyEdit(fix)
+        local text = assert(state.lua)
+        local at = assert(guide.positionToOffset(state, edit.start + 1))
+        assert(edit.start == edit.finish, 'an insertion')
+        return text:sub(1, at - 1) .. edit.newText .. text:sub(at)
+    end
+    local data = { class = 'ExcessFix', key = 'b', type = 'integer' }
+
+    assert(declared('---@class ExcessFix' .. NL .. '---@field a number' .. NL .. '---@field c string' .. NL .. 'local x = {}' .. NL
+        .. '---@type ExcessFix' .. NL .. 'local v = { a = 1, <!b!> = 2 }' .. NL, data)
+        == '---@class ExcessFix' .. NL .. '---@field a number' .. NL .. '---@field c string' .. NL .. '---@field b integer' .. NL .. 'local x = {}' .. NL
+        .. '---@type ExcessFix' .. NL .. 'local v = { a = 1, b = 2 }' .. NL, 'after the last field')
+
+    assert(declared('---@class ExcessFix' .. NL .. 'local x = {}' .. NL .. '---@type ExcessFix' .. NL .. 'local v = { <!b!> = 2 }' .. NL, data)
+        == '---@class ExcessFix' .. NL .. '---@field b integer' .. NL .. 'local x = {}' .. NL .. '---@type ExcessFix' .. NL .. 'local v = { b = 2 }' .. NL,
+        'after the class line when it has no field')
+
+    assert(declared('do' .. NL .. '    ---@class ExcessFix' .. NL .. '    ---@field a number' .. NL .. '    local x = {}' .. NL .. 'end' .. NL
+        .. '---@type ExcessFix' .. NL .. 'local v = { <!b!> = 2 }' .. NL, data)
+        == 'do' .. NL .. '    ---@class ExcessFix' .. NL .. '    ---@field a number' .. NL .. '    ---@field b integer' .. NL .. '    local x = {}' .. NL .. 'end' .. NL
+        .. '---@type ExcessFix' .. NL .. 'local v = { b = 2 }' .. NL, 'the indentation of the class')
+
+    assert(declared('---@class ExcessFix' .. NL .. 'local x = {}' .. NL .. '---@type ExcessFix' .. NL .. 'local v = { <!b!> = 2 }' .. NL,
+        { class = 'ExcessFix', key = 'a b', type = 'table' })
+        == '---@class ExcessFix' .. NL .. '---@field ["a b"] table' .. NL .. 'local x = {}' .. NL .. '---@type ExcessFix' .. NL .. 'local v = { b = 2 }' .. NL,
+        'a key that is not a name')
+
+    -- nothing without the data, with data of the wrong shape, or for a class that does not exist
+    local script = '---@class ExcessFix' .. NL .. 'local x = {}' .. NL .. '---@type ExcessFix' .. NL .. 'local v = { <!b!> = 2 }' .. NL
+    assert(declared(script, nil) == nil, 'no data, no fix')
+    assert(declared(script, { class = 'ExcessFix', key = 'b' }) == nil, 'no type, no fix')
+    assert(declared(script, { class = 'ExcessFix', key = 1, type = 'integer' }) == nil, 'a key that is not a string, no fix')
+    assert(declared(script, { class = 'NoSuchClass', key = 'b', type = 'integer' }) == nil, 'unknown class, no fix')
+    assert(declared(script, 'text') == nil, 'data that is not a table, no fix')
+    -- a class on the last line, without a line break after it: there is no line to put the field on, nothing is offered
+    assert(declared('---@type ExcessFix' .. NL .. 'local v = { <!b!> = 2 }' .. NL .. '---@class ExcessFix', data) == nil,
+        'the class is on the last line without a line break, no fix')
+end

@@ -664,6 +664,77 @@ local function solveFieldTypo(uri, diag, results)
     }
 end
 
+--- `excess-field`: the diagnostic carries the class, the key and a short type; the fix declares the field after the last `---@field` of the
+--- class, in the file that declares it (a class of a library is not touched).
+---@param uri uri
+---@param diag core.code-action.diag
+---@param results core.code-action.results
+local function solveExcessField(uri, diag, results)
+    local data = diag.data --[[@as table<string, any>?]]
+    if type(data) ~= 'table' then
+        return
+    end
+    local className, key, typeName = data.class, data.key, data.type
+    if type(className) ~= 'string' or type(key) ~= 'string' or type(typeName) ~= 'string' then
+        return
+    end
+    local global = vm.getGlobal('type', className)
+    if not global then
+        return
+    end
+    ---@type parser.object?
+    local class
+    for _, set in ipairs(global:getSets(uri)) do
+        if set.type == 'doc.class' then
+            local setUri = guide.getUri(set)
+            if not files.isLibrary(setUri) and not vm.isMetaFile(setUri) then
+                class = set
+                break
+            end
+        end
+    end
+    if not class then
+        return
+    end
+    local classUri   = guide.getUri(class)
+    local classState = files.getState(classUri)
+    local text       = classState and classState.lua
+    if not classState or not text then
+        return
+    end
+    local classRow = guide.rowColOf(class.start)
+    local lastRow  = classRow
+    for _, field in ipairs(class.fields or {}) do
+        local row = guide.rowColOf(field.start)
+        if row > lastRow then
+            lastRow = row
+        end
+    end
+    -- the line after the last one of the class (it has to exist: a class on the last line without a line break is left alone)
+    if not classState.lines[lastRow + 1] then
+        return
+    end
+    local pos = guide.positionOf(lastRow + 1, 0)
+    local classLine = guide.positionToOffset(classState, guide.positionOf(classRow, 0) + 1)
+    local space = classLine and text:match('[ \t]*', classLine) or ''
+    local name = key:match('^[%a_][%w_]*$') and key or ('["%s"]'):format(key)
+    results[#results+1] = {
+        title = lang.script('ACTION_FIELD_DECLARE', key, typeName, className),
+        kind  = 'quickfix',
+        edit  = {
+            changes = {
+                [classUri] = {
+                    {
+                        start   = pos,
+                        finish  = pos,
+                        newText = ('%s---@field %s %s\n'):format(space, name, typeName),
+                    }
+                }
+            }
+        }
+    }
+end
+
 ---@param uri uri
 ---@param diag core.code-action.diag
 ---@param start integer
@@ -694,6 +765,8 @@ local function solveDiagnostic(uri, diag, start, results)
         solveSpell(uri, diag, results)
     elseif diag.code == 'possible-field-typo' then
         solveFieldTypo(uri, diag, results)
+    elseif diag.code == 'excess-field' then
+        solveExcessField(uri, diag, results)
     end
     disableDiagnostic(uri, diag.code, start, results)
 end

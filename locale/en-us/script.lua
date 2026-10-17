@@ -343,6 +343,8 @@ ACTION_ADD_DICT         =
 'Add \'{}\' to workspace dict'
 ACTION_FIELD_TYPO       =
 'Change to `{}`'
+ACTION_FIELD_DECLARE    =
+'Declare the field `{}` ({}) in `{}`.'
 ACTION_FIX_ADD_PAREN    =
 'Add parentheses.'
 ACTION_AUTOREQUIRE      =

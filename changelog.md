@@ -2,6 +2,8 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `NEW` Quick fix for `excess-field`: "Declare the field `key` (type) in `Class`" adds `---@field key type` after the last field of the class, in the file that declares it (the type is read off the value; a class of a library is left alone).
+* `NEW` Quick fix for `possible-field-typo`: "Change to `total`" writes the declared name over the misspelt one.
 * `NEW` `incompatible-override` (Information, open files only): a method or `---@field` of a class that does not fit the one of the parent it inherits (more parameters, other parameter or return types, a wider or unrelated field type; a narrower type is an override). Only parents the user owns are judged: a member declared in a library outside the workspace is left alone. Raise the severity with `Lua.diagnostics.severity`.
 * `NEW` `possible-field-typo` (Information, open files only): `self.totl = 1` in a method of a `---@class` that declares `total` is reported with "did you mean `total`?" (one letter added, dropped or changed, two swapped, or another case; not a plural, not `x` next to `_x`).
 * `NEW` A function literal takes its parameter types from where it stands: a callback of `Events[K]` (`K: keyof Events`), an operand of `and` / `or` or parentheses, the value of `table.insert(fns, function ...)`, a function returned by a function whose place types it, and `fun(...: T)` varargs.

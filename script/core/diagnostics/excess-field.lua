@@ -69,6 +69,24 @@ local function hasUnknownAncestor(uri, class, seen)
     return false
 end
 
+--- The type a quick fix writes for a field the value of which is `value`: what the value is, kept short (a table is `table`, nothing known is `any`).
+---@param uri   uri
+---@param value parser.object?
+---@return string
+local function typeOfValue(uri, value)
+    if not value then
+        return 'any'
+    end
+    if value.type == 'table' then
+        return 'table'
+    end
+    local view = vm.getInfer(vm.compileNode(value)):view(uri)
+    if view == '' or view == 'unknown' or view == 'nil' or #view > 60 or view:find('[\r\n]') then
+        return 'any'
+    end
+    return view
+end
+
 --- `return { ... }` in a function with `---@return Class`: the declared type of that return value.
 ---@param src parser.object a table constructor
 ---@return parser.object?
@@ -181,6 +199,12 @@ return function (uri, callback)
                             start   = keyNode.start,
                             finish  = keyNode.finish,
                             message = MESSAGE:format(key, name),
+                            -- what the quick fix needs to declare the field (one class only: for a union there is no single place)
+                            data    = #classes == 1 and {
+                                class = classes[1].class[1],
+                                key   = key,
+                                type  = typeOfValue(uri, field.value),
+                            } or nil,
                         }
                     end
                 end

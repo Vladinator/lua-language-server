@@ -6419,3 +6419,57 @@ TEST [[
 local function other(t) end
 ]]
 (nil)
+
+-- the fields of an intersection or a utility type show their type in the list, as the fields of a plain class do
+Cared['detail'] = true
+for _, case in ipairs {
+    { receiver = 'DetA & DetB', label = 'xx', detail = 'integer' },
+    { receiver = 'DetA & DetB', label = 'yy', detail = 'string' },
+    { receiver = 'Partial<DetA>', label = 'xx', detail = 'integer?' },
+    { receiver = 'DetA', label = 'xx', detail = 'integer' },
+} do
+    TEST ([[
+---@class DetA
+---@field xx integer
+---@class DetB
+---@field yy string
+---@type ]] .. case.receiver .. [[
+
+local recv
+recv.<??>
+]])
+    (function (result)
+        ---@type table[]
+        local list = result
+        ---@type any
+        local item
+        for _, it in ipairs(list) do
+            if it.label == case.label then
+                item = it
+            end
+        end
+        assert(item and item.detail == case.detail, case.receiver .. ' . ' .. case.label .. ': ' .. tostring(item and item.detail))
+    end)
+end
+Cared['detail'] = nil
+
+-- a value of an unknown type fits every parameter: it is not ranked above the one that really fits, nor preselected
+TEST [[
+---@param n integer
+local function takes(n) end
+local varaunk = undefinedcall()
+local varbnum = 1
+takes(var<??>)
+]]
+(function (result)
+    assert(indexOfLabel(result, 'varbnum') < indexOfLabel(result, 'varaunk'), 'the integer variable is before the unknown one')
+    ---@type any
+    local first
+    for _, it in ipairs(result) do
+        if it.preselect then
+            first = it
+            break
+        end
+    end
+    assert(first and first.label == 'varbnum', 'the integer variable is preselected: ' .. tostring(first and first.label))
+end)

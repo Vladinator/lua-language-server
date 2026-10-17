@@ -36,6 +36,9 @@ function OlpOwnBase:go(n) end
 util.saveFile(rootPath .. '/plain.lua', [[
 ---@class OlpPlainBase
 ---@field known integer
+
+---@class OlpFnBase
+---@field callback fun(n: number): boolean
 ]])
 
 util.saveFile(rootPath .. '/child.lua', [[
@@ -52,6 +55,9 @@ function OlpLibChild:go(n) end
 local OlpOwnChild = {}
 ---@param n string
 function OlpOwnChild:go(n) end
+
+---@class OlpFnChild : OlpFnBase
+---@field callback fun(n: string): boolean
 ]])
 
 ---@async
@@ -84,8 +90,15 @@ lclient():start(function (client)
         end
     end, nil, true, { ['incompatible-override'] = true })
 
-    assert(#messages == 1, 'exactly one report (the owned parent): ' .. #messages)
-    assert(messages[1]:find('OlpOwnBase', 1, true), 'it is the one against the owned parent, not a library one: ' .. messages[1])
+    assert(#messages == 2, 'two reports (the owned parent, a method and a function field): ' .. #messages)
+    table.sort(messages)
+    -- (the message shows both signatures to compare at a glance: the method as written, the field as a fun type)
+    assert(messages[1]:find('OlpFnBase', 1, true), 'the field against its owned parent: ' .. messages[1])
+    assert(messages[1]:find('(n: number) -> boolean', 1, true) and messages[1]:find('(n: string) -> boolean', 1, true),
+        'both signatures of the field: ' .. messages[1])
+    assert(messages[2]:find('OlpOwnBase', 1, true), 'it is the one against the owned parent, not a library one: ' .. messages[2])
+    assert(messages[2]:find('OlpOwnBase: `(n: number)`', 1, true) and messages[2]:find('OlpOwnChild: `(n: string)`', 1, true),
+        'both signatures of the method, without the self: ' .. messages[2])
 
     -- the quick fix of `excess-field` declares the field in the file of the class, even from another file, and never for a class of a
     -- library (the diagnostic does not report those either: the same rule, so a fix is offered only where the diagnostic can fire)

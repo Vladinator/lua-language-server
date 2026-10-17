@@ -94,6 +94,10 @@ local function stack(oldSource, callback)
             return
         end
         local newSource = findSource(state, pos, { [tp] = true })
+        if not newSource and oldSource.synthetic then
+            -- (a field of `A & B` or `Partial<A>` has no text of its own to find again: it is the source itself)
+            newSource = oldSource
+        end
         if not newSource then
             return
         end
@@ -787,6 +791,15 @@ local function getExpectedValueType(state, position)
     return expected
 end
 
+--- Is the node nothing but `unknown` or `any` (or empty)? Such a value is accepted everywhere and tells nothing about the place.
+---@param uri  uri
+---@param node vm.node
+---@return boolean
+local function isUnknownNode(uri, node)
+    local view = vm.getInfer(node):view(uri)
+    return view == 'unknown' or view == 'any'
+end
+
 --- Variables whose type fits what the place asks for come first, the rest keep their order (TypeScript preselects by the expected type).
 ---@param state    parser.state
 ---@param position integer
@@ -804,7 +817,9 @@ local function boostExpectedType(state, position, results, from)
     for i = from, #results do
         local res = results[i]
         local source = resultSources[res]
-        if source and vm.isSubType(state.uri, vm.compileNode(source), expected) == true then
+        -- (a value of an unknown type fits every place; that says nothing, so it is not ranked as a fit)
+        if source and not isUnknownNode(state.uri, vm.compileNode(source))
+        and vm.isSubType(state.uri, vm.compileNode(source), expected) == true then
             fits[#fits+1] = res
         else
             others[#others+1] = res

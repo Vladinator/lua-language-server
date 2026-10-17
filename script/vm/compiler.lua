@@ -18,6 +18,7 @@ local plugin     = require 'plugin'
 ---@field hideView              boolean
 ---@field safe?                 boolean # LuaJIT 安全导航 ?. 标记
 ---@field utilityOrigin?        parser.object # the field a utility type's synthetic field was made from (go-to-definition, visibility)
+---@field synthetic?            boolean # a field a utility type or an intersection made: it has no text of its own
 ---@field package _returns?     parser.object[]
 ---@field package _callReturns? parser.object[]
 ---@field package _asCache?     parser.object[]
@@ -1140,6 +1141,7 @@ local function buildUtilityField(tableObj, key, node, origin)
         type          = 'doc.type.field',
         parent        = tableObj,
         utilityOrigin = origin,
+        synthetic     = true,
         start         = tableObj.start,
         finish        = tableObj.finish,
     }

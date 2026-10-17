@@ -2,6 +2,7 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `NEW` The four tables `Lua.diagnostics.neededFileStatus`, `groupFileStatus`, `severity` and `groupSeverity` accept the key `*`: the value for every diagnostic the table does not list. `{ "*": "Any" }` checks every file of the workspace with the diagnostics that are on (the ones that are off by default stay off), `{ "*": "Hint" }` in the severity tables quietens everything; a listed name, a name with `!` and a group keep their own value.
 * `FIX` Completion of a field of `A & B` or `Partial<A>` shows its type in the list, like the field of a plain class.
 * `FIX` Completion ranks by the expected type without counting a value of an unknown type (`_ENV`) as a fit for every parameter, and does not preselect it.
 * `CHG` The message of `incompatible-override` ends with the parent's and the override's signature to compare at a glance.

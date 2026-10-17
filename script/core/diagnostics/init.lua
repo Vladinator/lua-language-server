@@ -229,6 +229,24 @@ local function getSeverity(uri, name)
         end
     end
     if groupLevel == 999 then
+        -- (`"*"`: the severity of every diagnostic that no group speaks for, in `groupSeverity`, or in `severity` for the names it does not list)
+        ---@type string?
+        local everything = groupSeverity['*']
+        if not everything or everything == 'Fallback' then
+            local listed = severities[name] ~= nil
+            for _, alias in ipairs(diagd.aliasesOf(name)) do
+                listed = listed or severities[alias] ~= nil
+            end
+            everything = not listed and severities['*'] or nil
+        end
+        if everything and everything ~= 'Fallback' then
+            if everything:sub(-1) == '!' then
+                everything = everything:sub(1, -2)
+            end
+            groupLevel = define.DiagnosticSeverity[everything] or 999
+        end
+    end
+    if groupLevel == 999 then
         return severity
     end
     for severityName, level in pairs(define.DiagnosticSeverity) do
@@ -256,6 +274,24 @@ local function getStatus(uri, name)
         local gstatus = groupStatus[groupName]
         if gstatus and gstatus ~= 'Fallback' then
             groupLevel = math.max(groupLevel, define.DiagnosticFileStatus[gstatus])
+        end
+    end
+    if groupLevel == 0 then
+        -- (`"*"` stands for every diagnostic that no group setting speaks for: `{ "*": "Any" }` runs all of them on every file)
+        -- (also accepted in `neededFileStatus`, there for the names that table does not list: the table holds only what the user wrote)
+        ---@type string?
+        local everything = groupStatus['*']
+        if not everything or everything == 'Fallback' then
+            local listed = statuses[name] ~= nil
+            for _, alias in ipairs(diagd.aliasesOf(name)) do
+                listed = listed or statuses[alias] ~= nil
+            end
+            everything = not listed and statuses['*'] or nil
+        end
+        -- (`Any` / `Opened` widen what runs: a diagnostic that is off by its own entry or by default (codestyle, spell-check, no-unknown ...)
+        -- stays off; `None` turns everything off)
+        if everything and everything ~= 'Fallback' and (everything == 'None' or status ~= 'None') then
+            groupLevel = define.DiagnosticFileStatus[everything] or 0
         end
     end
     if groupLevel == 0 then

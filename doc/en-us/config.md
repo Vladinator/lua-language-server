@@ -661,6 +661,8 @@ Change the file status (`Opened`, `Any`, `None`) of a whole group of diagnostics
 
 `Fallback` leaves each diagnostic to `Lua.diagnostics.neededFileStatus`. A group value overrides the single settings, except the ones that end with `!`.
 
+The name `*` stands for every diagnostic that no group setting speaks for: `{ "*": "Any" }` checks every file of the workspace with the diagnostics that are on, not only the open files (the ones that are off by default stay off, and a group set to something else still wins for its own diagnostics).
+
 
 ## type
 
@@ -858,6 +860,8 @@ object<string, string>
 Change the severity of a whole group of diagnostics (`ambiguity`, `await`, `codestyle`, `conventions`, `duplicate`, `global`, `luadoc`, `redefined`, `redundant`, `secret`, `strict`, `strong`, `type-check`, `unbalanced`, `unused`).
 
 `Fallback` leaves each diagnostic to `Lua.diagnostics.severity`. A group value overrides the single settings, except the ones that end with `!`.
+
+The name `*` stands for every diagnostic that no group setting speaks for: `{ "*": "Hint" }` makes all of them hints, and a group set to something else keeps its own value.
 
 
 ## type
@@ -1111,6 +1115,8 @@ Which files a diagnostic runs on, by code.
 * `None`: the diagnostic is off
 
 A trailing `!` on the value makes it win over the group setting `Lua.diagnostics.groupFileStatus`.
+
+The name `*` is the value for every diagnostic this table does not list: `{ "*": "Any" }` checks every file of the workspace with the diagnostics that are on, not only the open files (the ones that are off by default stay off), and `{ "*": "Any", "unused-local": "Opened" }` leaves `unused-local` alone. `{ "*": "None" }` turns every unlisted diagnostic off. A group set in `Lua.diagnostics.groupFileStatus` still wins for its own diagnostics.
 
 
 ## type
@@ -1653,6 +1659,8 @@ string
 Change how serious a diagnostic is, by code: `Error`, `Warning`, `Information` or `Hint`.
 
 A trailing `!` on the value makes it win over the group setting `Lua.diagnostics.groupSeverity`.
+
+The name `*` is the severity of every diagnostic this table does not list: `{ "*": "Hint" }` quietens everything, `{ "*": "Warning", "unused-local": "Hint" }` raises all but `unused-local`. A group set in `Lua.diagnostics.groupSeverity` still wins for its own diagnostics.
 
 ```json
 "Lua.diagnostics.severity": { "unused-local": "Warning", "undefined-field!": "Error" }

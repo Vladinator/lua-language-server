@@ -2821,7 +2821,7 @@ global <?*?>
 ]]
 config.set(nil, 'Lua.runtime.version', nil)
 
--- TypeScript-parity types in a parameter's hover: the resolved type, not the spelling
+-- TypeScript-parity types in a parameter's hover: the name as written, the resolved fields below it
 TEST [[
 ---@class HoverTS.A
 ---@field x number
@@ -2830,7 +2830,7 @@ TEST [[
 local function f(<?p?>) end
 ]]
 [[
-(parameter) p: { x: number?, y: string? } {
+(parameter) p: Partial<HoverTS.A> {
     x?: number,
     y?: string,
 }
@@ -2851,7 +2851,7 @@ TEST [[
 local function f(<?p?>) end
 ]]
 [[
-(parameter) p: { x: number } {
+(parameter) p: Pick<{ x: number, y: string }, 'x'> {
     x: number,
 }
 ]]
@@ -3000,3 +3000,5 @@ local Child2 = {}
 [[
 (class) HvParentB
 ]]
+
+require 'hover.utility-names'

@@ -680,12 +680,80 @@ function mt:view(uri, default)
     return view
 end
 
---- `view`, with the registered flags of the node written around it (`secret<number>`): what a hover shows. Diagnostics keep the plain `view`.
+--- The utility type a synthetic table was made from, as it was written (`Partial<Cfg>`), or nil for any other object.
+---@param uri    uri
+---@param object parser.object
+---@return string?
+local function writtenUtilityName(uri, object)
+    local sign = object.parent
+    if not sign or sign.type ~= 'doc.type.sign' or not sign.node or not vm.utilityTypeNames[sign.node[1]] then
+        return nil
+    end
+    ---@type string[]
+    local args = {}
+    for i, arg in ipairs(sign.signs or {}) do
+        local view = vm.getInfer(arg):viewNamed(uri)
+        if view and view:sub(1, 1) == '<' and view:sub(-1) == '>' then
+            view = view:sub(2, -2)
+        end
+        args[i] = view
+    end
+    return ('%s<%s>'):format(sign.node[1], table.concat(args, ', '))
+end
+
+--- The utility types inside `node`, outermost first, as the text they resolve to and the name they were written with: the node's own
+--- objects, the element of an array and the parameters and returns of a function type.
+---@param uri   uri
+---@param node  vm.node
+---@param depth integer
+---@param found { expanded: string, name: string }[]
+local function collectWrittenNames(uri, node, depth, found)
+    if depth > 4 then
+        return
+    end
+    for object in node:eachObject() do
+        local name = object.type == 'doc.type.table' and writtenUtilityName(uri, object)
+        if name and object.type == 'doc.type.table' then
+            found[#found+1] = { expanded = vm.getInfer(object):view(uri), name = name }
+        elseif object.type == 'doc.type.array' and object.node then
+            collectWrittenNames(uri, vm.compileNode(object.node), depth + 1, found)
+        elseif object.type == 'doc.type.function' then
+            for _, arg in ipairs(object.args or {}) do
+                collectWrittenNames(uri, vm.compileNode(arg), depth + 1, found)
+            end
+            for _, ret in ipairs(object.returns or {}) do
+                collectWrittenNames(uri, vm.compileNode(ret), depth + 1, found)
+            end
+        end
+    end
+end
+
+--- `view`, with a utility type written by its name (`Partial<Cfg>` instead of the `{ host: string?, ... }` it resolves to). The names are
+--- put in afterwards, on the text, so the cached views (and with them the messages of the diagnostics) stay as they are.
+---@param uri uri
+---@param default? string
+---@return string
+function mt:viewNamed(uri, default)
+    local view = self:view(uri, default)
+    ---@type { expanded: string, name: string }[]
+    local found = {}
+    collectWrittenNames(uri, self.node, 1, found)
+    for _, item in ipairs(found) do
+        local at, to = view:find(item.expanded, 1, true)
+        if at and to then
+            view = view:sub(1, at - 1) .. item.name .. view:sub(to + 1)
+        end
+    end
+    return view
+end
+
+--- `view`, with the registered flags of the node written around it (`secret<number>`) and the utility types by name: what a hover shows.
+--- Diagnostics keep the plain `view`.
 ---@param uri uri
 ---@param default? string
 ---@return string
 function mt:viewFlagged(uri, default)
-    return vm.viewWithFlags(self.node, self:view(uri, default))
+    return vm.viewWithFlags(self.node, self:viewNamed(uri, default))
 end
 
 ---@param uri uri

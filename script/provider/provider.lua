@@ -43,13 +43,46 @@ local m = {}
 ---@type table<string, provider.handler>
 m.attributes = {}
 
+--- A setting table as the log shows it: a list of more than 20 items (the globals of a WoW project are thousands) or a table of more than
+--- 400 entries is written as its size. `inspect` of the whole client configuration took about a second of every start, to fill one line
+--- of the log.
+---@param value any
+---@param depth? integer
+---@return any
+function m.briefConfig(value, depth)
+    depth = depth or 6
+    if type(value) ~= 'table' then
+        return value
+    end
+    ---@cast value table<any, any>
+    if depth <= 0 then
+        return '<table>'
+    end
+    local count = 0
+    for _ in pairs(value) do
+        count = count + 1
+    end
+    if #value == count and count > 20 then
+        return ('<list of %d items>'):format(count)
+    end
+    if count > 400 then
+        return ('<table of %d entries>'):format(count)
+    end
+    ---@type table<any, any>
+    local copy = {}
+    for k, v in pairs(value) do
+        copy[k] = m.briefConfig(v, depth - 1)
+    end
+    return copy
+end
+
 ---@async
 function m.updateConfig(uri)
     config.addNullSymbol(json.null)
     local specified = cfgLoader.loadLocalConfig(uri, CONFIGPATH)
     if specified then
         log.info('Load config from specified', CONFIGPATH)
-        log.info(inspect(specified))
+        log.info(inspect(m.briefConfig(specified)))
         -- watch directory
         filewatch.watch(workspace.getAbsolutePath(uri, CONFIGPATH):gsub('[^/\\]+$', ''), false)
         config.update(scope.override, specified)
@@ -62,14 +95,14 @@ function m.updateConfig(uri)
         end
         if clientConfig then
             log.info('Load config from client', folder.uri)
-            log.info(inspect(clientConfig))
+            log.info(inspect(m.briefConfig(clientConfig)))
         end
 
         local rc = cfgLoader.loadRCConfig(folder.uri, '.luarc.json')
                 or cfgLoader.loadRCConfig(folder.uri, '.luarc.jsonc')
         if rc then
             log.info('Load config from .luarc.json/.luarc.jsonc', folder.uri)
-            log.info(inspect(rc))
+            log.info(inspect(m.briefConfig(rc)))
         end
 
         config.update(folder, clientConfig, rc)
@@ -78,7 +111,7 @@ function m.updateConfig(uri)
     if client.getAbility('workspace.configuration') then
         local globalConfig = cfgLoader.loadClientConfig()
         log.info('Load config from client', 'fallback')
-        log.info(inspect(globalConfig))
+        log.info(inspect(m.briefConfig(globalConfig)))
         config.update(scope.fallback, globalConfig)
     end
 end

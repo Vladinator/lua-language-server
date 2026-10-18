@@ -3,6 +3,7 @@
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
 * `NEW` The four tables `Lua.diagnostics.neededFileStatus`, `groupFileStatus`, `severity` and `groupSeverity` accept the key `*`: the value for every diagnostic the table does not list. `{ "*": "Any" }` checks every file of the workspace with the diagnostics that are on (the ones that are off by default stay off), `{ "*": "Hint" }` in the severity tables quietens everything; a listed name, a name with `!` and a group keep their own value.
+* `FIX` The hover of a function writes the flags of its parameters (`function a(v: secret<string>)`), like the hover of the parameter itself.
 * `FIX` Completion where a type is written (`---@type `, `---@param x `, `---@return `, after a `|`, ...) offers the same names with and without a word typed: the type keywords, `Partial`/`keyof`/..., `self` in a return, and the classes, aliases and enums. Before, the empty word missed the operators and keywords, and nothing was offered after a trailing `|` (which is now a `luadoc-miss-type-name` warning). The names are ordered: declared in this file, declared elsewhere, type keywords and `self`, then the built-in operators.
 * `FIX` Completion of a field of `A & B` or `Partial<A>` shows its type in the list, like the field of a plain class.
 * `FIX` Completion ranks by the expected type without counting a value of an unknown type (`_ENV`) as a fit for every parameter, and does not preselect it.

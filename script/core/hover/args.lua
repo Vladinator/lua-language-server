@@ -13,7 +13,7 @@ local function asFunction(source)
         methodDef = true
     end
     if methodDef then
-        args[#args+1] = ('self: %s'):format(vm.getInfer(parent.node):view(guide.getUri(source), 'any'))
+        args[#args+1] = ('self: %s'):format(vm.getInfer(parent.node):viewFlagged(guide.getUri(source), 'any'))
     end
     if source.args then
         for i = 1, #source.args do
@@ -28,12 +28,12 @@ local function asFunction(source)
                     args[#args+1] = ('%s%s: %s'):format(
                         '...',
                         varargName,
-                        vm.getInfer(arg):view(guide.getUri(source), 'any')
+                        vm.getInfer(arg):viewFlagged(guide.getUri(source), 'any')
                     )
                 else
                     args[#args+1] = ('%s%s'):format(
                         '...',
-                        vm.getInfer(arg):view(guide.getUri(source), 'any')
+                        vm.getInfer(arg):viewFlagged(guide.getUri(source), 'any')
                     )
                 end
             else
@@ -50,10 +50,10 @@ local function asFunction(source)
                     args[#args+1] = ('%s%s: %s'):format(
                         name,
                         optional and '?' or '',
-                        vm.getInfer(argNode):view(guide.getUri(source), 'any')
+                        vm.getInfer(argNode):viewFlagged(guide.getUri(source), 'any')
                     )
                 else
-                    args[#args+1] = ('%s'):format(vm.getInfer(arg):view(guide.getUri(source), 'any'))
+                    args[#args+1] = ('%s'):format(vm.getInfer(arg):viewFlagged(guide.getUri(source), 'any'))
                 end
             end
             ::CONTINUE::
@@ -76,7 +76,7 @@ local function asDocFunction(source)
         args[i] = ('%s%s: %s'):format(
             name,
             arg.optional and '?' or '',
-            arg.extends and vm.getInfer(arg.extends):view(guide.getUri(source), 'any') or 'any'
+            arg.extends and vm.getInfer(arg.extends):viewFlagged(guide.getUri(source), 'any') or 'any'
         )
     end
     return args

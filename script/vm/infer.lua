@@ -701,6 +701,19 @@ local function writtenUtilityName(uri, object)
     return ('%s<%s>'):format(sign.node[1], table.concat(args, ', '))
 end
 
+--- `text` with the first plain occurrence of `old` replaced by `new`.
+---@param text string
+---@param old  string
+---@param new  string
+---@return string
+local function replaceFirst(text, old, new)
+    local at, to = text:find(old, 1, true)
+    if not at or not to then
+        return text
+    end
+    return text:sub(1, at - 1) .. new .. text:sub(to + 1)
+end
+
 --- The utility types inside `node`, outermost first, as the text they resolve to and the name they were written with: the node's own
 --- objects, the element of an array and the parameters and returns of a function type.
 ---@param uri   uri
@@ -718,11 +731,32 @@ local function collectWrittenNames(uri, node, depth, found)
         elseif object.type == 'doc.type.array' and object.node then
             collectWrittenNames(uri, vm.compileNode(object.node), depth + 1, found)
         elseif object.type == 'doc.type.function' then
+            -- the parameters and the return written with their flags and utility names, inside the text of the function type
+            local plain = vm.getInfer(object):view(uri)
+            local text  = plain
             for _, arg in ipairs(object.args or {}) do
-                collectWrittenNames(uri, vm.compileNode(arg), depth + 1, found)
+                local argNode  = vm.compileNode(arg)
+                local optional = argNode:isOptional()
+                if optional then
+                    argNode = argNode:copy()
+                    argNode:removeOptional()
+                end
+                local ifr    = vm.getInfer(argNode)
+                ---@type string
+                local argName = arg.name[1]
+                local prefix  = argName .. (optional and '?' or '') .. (argName == '...' and '' or ': ')
+                text = replaceFirst(text, prefix .. ifr:view(uri), prefix .. ifr:viewFlagged(uri))
             end
-            for _, ret in ipairs(object.returns or {}) do
-                collectWrittenNames(uri, vm.compileNode(ret), depth + 1, found)
+            local returns = object.returns or {}
+            if #returns == 1 and not returns[1].name then
+                local ifr = vm.getInfer(returns[1])
+                local old = '):' .. ifr:view(uri)
+                if text:sub(-#old) == old then
+                    text = text:sub(1, -#old - 1) .. '):' .. ifr:viewFlagged(uri)
+                end
+            end
+            if text ~= plain then
+                found[#found+1] = { expanded = plain, name = text }
             end
         end
     end

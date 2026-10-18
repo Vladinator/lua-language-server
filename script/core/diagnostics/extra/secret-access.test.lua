@@ -1474,6 +1474,9 @@ do
         { '---@param v secret<string>\nlocal function <?f?>(v) end\n', 'function f(v: secret<string>)' },
         { '---@param v secret<string>?\nlocal function <?f?>(v) end\n', 'function f(v?: secret<string>)' },
         { '---@param v string\nlocal function <?f?>(v) end\n', 'function f(v: string)' },
+        { '---@param f fun(a: secret<number>)\nlocal function <?g?>(f) end\n', 'function g(f: fun(a: secret<number>))' },
+        { '---@param f fun(a: secret<number>?, b: number): secret<string>\nlocal function <?g?>(f) end\n', 'function g(f: fun(a?: secret<number>, b: number):secret<string>)' },
+        { '---@param f fun(a: number): string\nlocal function <?g?>(f) end\n', 'function g(f: fun(a: number):string)' },
     } do
         local probeText, probeCatched = catch(probe[1], '?')
         files.setText(TESTURI, probeText)

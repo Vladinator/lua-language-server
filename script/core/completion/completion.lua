@@ -2685,27 +2685,36 @@ end
 ---@param options   completion.typeNamesOptions
 ---@param results   completion.results
 local function addTypeNames(state, word, start, position, options, results)
+    -- THE order (as TypeScript lists a type position: what the project declares before the language's own words):
+    -- 1 declared in this file, 2 declared elsewhere, 3 type keywords and `self`, 4 built-in type operators.
+    -- Inside a tier the order is the order of the list (operators alphabetical).
+    ---@param tier number
+    ---@param item vm.completion.result
+    local function push(tier, item)
+        item.sortText = ('%d%04d'):format(tier, #results)
+        results[#results+1] = item
+    end
     ---@type table<string, boolean>
     local used = {}
     if not options.classesOnly then
         for name, description in docTags.eachTypeKeyword() do
             if matchKey(word, name) then
                 used[name] = true
-                results[#results+1] = {
+                push(3, {
                     label       = name,
                     kind        = define.CompletionItemKind.Keyword,
                     description = description,
-                }
+                })
             end
         end
         -- `---@return self`: the object the method was called on
         if options.inReturn and matchKey(word, 'self') and not used['self'] then
             used['self'] = true
-            results[#results+1] = {
+            push(3, {
                 label       = 'self',
                 kind        = define.CompletionItemKind.Keyword,
                 description = 'The object the method was called on.',
-            }
+            })
         end
         -- the built-in type operators (`Partial<T>`, `keyof T`, `returns<F>`, ...) are not declared
         -- anywhere, so the resolvers' own name list is offered as type names
@@ -2719,12 +2728,12 @@ local function addTypeNames(state, word, start, position, options, results)
             if not used[name] and matchKey(word, name) then
                 used[name] = true
                 local operator = vm.getTypeOperatorDoc(state.uri, name)
-                results[#results+1] = {
+                push(4, {
                     label       = name,
                     kind        = define.CompletionItemKind.Class,
                     detail      = operator and operator.signature,
                     description = operator and operator.text,
-                }
+                })
             end
         end
     end
@@ -2737,7 +2746,7 @@ local function addTypeNames(state, word, start, position, options, results)
         and not used[name]
         and matchKey(word, name) then
             used[name] = true
-            results[#results+1] = {
+            push(guide.getUri(doc) == state.uri and 1 or 2, {
                 label       = name,
                 kind        = doc.type == 'doc.enum' and define.CompletionItemKind.Enum or define.CompletionItemKind.Class,
                 textEdit    = name:find '[^%w_]' and {
@@ -2745,7 +2754,7 @@ local function addTypeNames(state, word, start, position, options, results)
                     finish  = position,
                     newText = name,
                 },
-            }
+            })
         end
     end
 end

@@ -121,3 +121,25 @@ for _, word in ipairs { '', 'Tn' } do
         assert(not items[keyword], 'no keyword ' .. keyword .. ' (' .. word .. ')')
     end
 end
+
+-- the order: declared in this file, declared elsewhere (the built-in `string`), type keywords, built-in type operators
+do
+    ---@param items table<string, vm.completion.result>
+    ---@param label string
+    ---@return string
+    local function sortOf(items, label)
+        local item = items[label]
+        assert(item, label .. ' is offered')
+        return assert(item.sortText, label .. ' has a sort key')
+    end
+    local items = itemsOf('---@type <??>')
+    local here, elsewhere, operator = sortOf(items, 'TnClass'), sortOf(items, 'string'), sortOf(items, 'Partial')
+    assert(here < elsewhere, 'this file before other files')
+    if keywords[1] then
+        local keyword = sortOf(items, keywords[1])
+        assert(elsewhere < keyword, 'declared types before keywords')
+        assert(keyword < operator, 'keywords before operators')
+    end
+    assert(elsewhere < operator, 'declared types before operators')
+    assert(sortOf(itemsOf('---@return <??>'), 'self') > elsewhere, 'self after declared types')
+end

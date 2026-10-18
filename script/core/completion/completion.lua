@@ -2669,6 +2669,87 @@ local function stringKeyBase(source)
     return nil
 end
 
+---@class completion.typeNamesOptions
+---@field inReturn?    boolean the type is in a `---@return` (`self` is offered)
+---@field classesOnly? boolean only classes (the parent of `---@class A : <here>`): no keywords, operators, aliases or enums
+---@field exclude?     string a class that is not offered (the class that is being declared)
+
+--- The names a type can be written with, for the word typed so far (`''` right after `---@type `): the type keywords (`secret`, `nosecret`, ...),
+--- `self` in a `---@return`, the built-in type operators (`Partial`, `keyof`, `returns`, ...) and the classes, aliases and enums of the project.
+--- THE one place that decides what is offered where a type is written and in which order, for the position with a word and the one without
+--- (the client keeps filtering the first list it got while the word is typed, so a name missing from the list of the empty word never shows up).
+---@param state     parser.state
+---@param word      string
+---@param start     integer where the name starts (a name with a character that is no word character replaces the text from here)
+---@param position  integer
+---@param options   completion.typeNamesOptions
+---@param results   completion.results
+local function addTypeNames(state, word, start, position, options, results)
+    ---@type table<string, boolean>
+    local used = {}
+    if not options.classesOnly then
+        for name, description in docTags.eachTypeKeyword() do
+            if matchKey(word, name) then
+                used[name] = true
+                results[#results+1] = {
+                    label       = name,
+                    kind        = define.CompletionItemKind.Keyword,
+                    description = description,
+                }
+            end
+        end
+        -- `---@return self`: the object the method was called on
+        if options.inReturn and matchKey(word, 'self') and not used['self'] then
+            used['self'] = true
+            results[#results+1] = {
+                label       = 'self',
+                kind        = define.CompletionItemKind.Keyword,
+                description = 'The object the method was called on.',
+            }
+        end
+        -- the built-in type operators (`Partial<T>`, `keyof T`, `returns<F>`, ...) are not declared
+        -- anywhere, so the resolvers' own name list is offered as type names
+        ---@type string[]
+        local operators = { 'keyof', 'returns', 'params' }
+        for name in pairs(vm.utilityTypeNames) do
+            operators[#operators+1] = name
+        end
+        table.sort(operators)
+        for _, name in ipairs(operators) do
+            if not used[name] and matchKey(word, name) then
+                used[name] = true
+                local operator = vm.getTypeOperatorDoc(state.uri, name)
+                results[#results+1] = {
+                    label       = name,
+                    kind        = define.CompletionItemKind.Class,
+                    detail      = operator and operator.signature,
+                    description = operator and operator.text,
+                }
+            end
+        end
+    end
+    for _, doc in ipairs(vm.getDocSets(state.uri)) do
+        local name = ((doc.type == 'doc.class' and doc.class[1])
+                or   (not options.classesOnly and doc.type == 'doc.alias' and doc.alias[1])
+                or   (not options.classesOnly and doc.type == 'doc.enum'  and doc.enum[1])) --[[@as string?]]
+        if  name
+        and name ~= options.exclude
+        and not used[name]
+        and matchKey(word, name) then
+            used[name] = true
+            results[#results+1] = {
+                label       = name,
+                kind        = doc.type == 'doc.enum' and define.CompletionItemKind.Enum or define.CompletionItemKind.Class,
+                textEdit    = name:find '[^%w_]' and {
+                    start   = start,
+                    finish  = position,
+                    newText = name,
+                },
+            }
+        end
+    end
+end
+
 ---@async
 ---@param state    parser.state
 ---@param position integer
@@ -2707,94 +2788,17 @@ local function tryluaDocBySource(state, position, source, results)
         return #results > 0
     elseif source.type == 'doc.extends.name' then
         if source.parent and source.parent.type == 'doc.class' then
-            ---@type table<string, boolean>
-            local used = {}
-            for _, doc in ipairs(vm.getDocSets(state.uri)) do
-                local name = doc.type == 'doc.class' and doc.class[1] --[[@as string?]]
-                if  name
-                and name ~= source.parent.class[1] --[[@as string]]
-                and not used[name]
-                and matchKey(source[1] --[[@as string]], name) then
-                    used[name] = true
-                    results[#results+1] = {
-                        label       = name,
-                        kind        = define.CompletionItemKind.Class,
-                        textEdit    = name:find '[^%w_]' and {
-                            start   = source.start,
-                            finish  = position,
-                            newText = name,
-                        },
-                    }
-                end
-            end
+            addTypeNames(state, source[1] --[[@as string]], source.start, position,
+                { classesOnly = true, exclude = source.parent.class[1] --[[@as string]] }, results)
         end
         return true
     elseif source.type == 'doc.type.name' then
-        ---@type table<string, boolean>
-        local used = {}
-        for name, description in docTags.eachTypeKeyword() do
-            if matchKey(source[1], name) then
-                used[name] = true
-                results[#results+1] = {
-                    label       = name,
-                    kind        = define.CompletionItemKind.Keyword,
-                    description = description,
-                }
-            end
-        end
-        -- the built-in type operators (`Partial<T>`, `keyof T`, `returns<F>`, ...) are not declared
-        -- anywhere, so the resolvers' own name list is offered as type names
-        ---@type string[]
-        local operators = { 'keyof', 'returns', 'params' }
-        -- `---@return self`: the object the method was called on
         ---@type parser.object?
         local doc = source
         while doc and doc.type ~= 'doc.return' do
             doc = doc.parent
         end
-        if doc and matchKey(source[1] --[[@as string]], 'self') and not used['self'] then
-            used['self'] = true
-            results[#results+1] = {
-                label       = 'self',
-                kind        = define.CompletionItemKind.Keyword,
-                description = 'The object the method was called on.',
-            }
-        end
-        for name in pairs(vm.utilityTypeNames) do
-            operators[#operators+1] = name
-        end
-        table.sort(operators)
-        for _, name in ipairs(operators) do
-            if not used[name] and matchKey(source[1] --[[@as string]], name) then
-                used[name] = true
-                local operator = vm.getTypeOperatorDoc(state.uri, name)
-                results[#results+1] = {
-                    label       = name,
-                    kind        = define.CompletionItemKind.Class,
-                    detail      = operator and operator.signature,
-                    description = operator and operator.text,
-                }
-            end
-        end
-        for _, doc in ipairs(vm.getDocSets(state.uri)) do
-            local name = ((doc.type == 'doc.class' and doc.class[1])
-                    or   (doc.type == 'doc.alias' and doc.alias[1])
-                    or   (doc.type == 'doc.enum'  and doc.enum[1])) --[[@as string?]]
-            if  name
-            and not used[name]
-            and matchKey(source[1] --[[@as string]], name) then
-                used[name] = true
-                results[#results+1] = {
-                    label       = name,
-                    kind        = define.CompletionItemKind.Class,
-                    textEdit    = name:find '[^%w_]' and {
-                        start   = source.start,
-                        finish  = position,
-                        newText = name,
-                    },
-                }
-            end
-        end
+        addTypeNames(state, source[1] --[[@as string]], source.start, position, { inReturn = doc ~= nil }, results)
         return true
     elseif source.type == 'doc.param.name' then
         ---@type parser.object[]
@@ -2997,6 +3001,15 @@ local function tryluaDocBySource(state, position, source, results)
     return false
 end
 
+--- Is the cursor on a line that starts a `---@return` tag? (A tag that is still being written has no node yet to ask.)
+---@param state    parser.state
+---@param position integer
+---@return boolean
+local function isInReturnTag(state, position)
+    local before = (state.lua or ''):sub(1, position):match('([^\r\n]*)$')
+    return before ~= nil and before:find('^%s*%-%-+%s*@return%s') ~= nil
+end
+
 ---@async
 ---@param state    parser.state
 ---@param position integer
@@ -3005,52 +3018,13 @@ end
 ---@param results completion.results
 local function tryluaDocByErr(state, position, err, docState, results)
     if     err.type == 'LUADOC_MISS_CLASS_EXTENDS_NAME' then
-        ---@type table<string, boolean>
-        local used = {}
-        for _, doc in ipairs(vm.getDocSets(state.uri)) do
-            local className = doc.type == 'doc.class' and doc.class[1] --[[@as string?]]
-            if  className
-            and not used[className]
-            and docState and className ~= docState.class[1] then
-                used[className] = true
-                results[#results+1] = {
-                    label       = className,
-                    kind        = define.CompletionItemKind.Class,
-                }
-            end
+        -- (a class is needed, and there is no class being declared when the tag is broken off before its name)
+        if docState then
+            addTypeNames(state, '', position, position, { classesOnly = true, exclude = docState.class[1] --[[@as string]] }, results)
         end
     elseif err.type == 'LUADOC_MISS_TYPE_NAME' then
-        ---@type table<string, boolean>
-        local used = {}
-        for _, doc in ipairs(vm.getDocSets(state.uri)) do
-            local className = doc.type == 'doc.class' and doc.class[1] --[[@as string?]]
-            if  className
-            and not used[className] then
-                used[className] = true
-                results[#results+1] = {
-                    label       = className,
-                    kind        = define.CompletionItemKind.Class,
-                }
-            end
-            local aliasName = doc.type == 'doc.alias' and doc.alias[1] --[[@as string?]]
-            if  aliasName
-            and not used[aliasName] then
-                used[aliasName] = true
-                results[#results+1] = {
-                    label       = aliasName,
-                    kind        = define.CompletionItemKind.Class,
-                }
-            end
-            local enumName = doc.type == 'doc.enum' and doc.enum[1] --[[@as string?]]
-            if  enumName
-            and not used[enumName] then
-                used[enumName] = true
-                results[#results+1] = {
-                    label       = enumName,
-                    kind        = define.CompletionItemKind.Enum,
-                }
-            end
-        end
+        -- (no word yet: everything a type can be written with, as with a word)
+        addTypeNames(state, '', position, position, { inReturn = isInReturnTag(state, position) }, results)
     elseif err.type == 'LUADOC_MISS_PARAM_NAME' then
         ---@type parser.object[]
         local funcs = {}

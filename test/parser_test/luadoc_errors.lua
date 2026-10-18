@@ -22,6 +22,11 @@ local samples = {
     ['---@type keyof']                  = { 'LUADOC_MISS_TYPE_NAME' },
     ['---@type ?']                      = { 'LUADOC_MISS_TYPE_NAME' },
     ['---@type A &']                    = { 'LUADOC_MISS_TYPE_NAME' },
+    ['---@type string |']               = { 'LUADOC_MISS_TYPE_NAME' },
+    ['---@type string | number |']      = { 'LUADOC_MISS_TYPE_NAME' },
+    ['---@type fun(a: string |)']       = { 'LUADOC_MISS_TYPE_NAME' },
+    ['---@type string | number']        = {},
+    ['---@type string|nil']             = {},
     ['---@type (A extends B ? C)']      = { 'LUADOC_MISS_SYMBOL' },
     -- the tags that name something
     ['---@param']                      = { 'LUADOC_MISS_PARAM_NAME' },

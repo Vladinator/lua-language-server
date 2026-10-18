@@ -1432,9 +1432,18 @@ function parseType(parent)
         end
     end
     result.kwStart, result.kwFinish = keywordStart, keywordFinish
+    local afterBar = false
     while true do
         local typeUnit = parseTypeIntersection(result)
         if not typeUnit then
+            if afterBar then
+                -- `A |` with nothing after the bar: a type is missing (and completion offers the names there)
+                pushWarning {
+                    type   = 'LUADOC_MISS_TYPE_NAME',
+                    start  = getFinish(),
+                    finish = getFinish(),
+                }
+            end
             break
         end
 
@@ -1447,6 +1456,7 @@ function parseType(parent)
             break
         end
         nextToken()
+        afterBar = true
     end
     -- A plugin type keyword wrapped as a one-argument generic instead of a bare prefix
     -- (`secret<string>` for `secret string`) is pure sugar: unwrap it into the same shape the

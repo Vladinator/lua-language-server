@@ -1489,6 +1489,86 @@ do
         files.remove(TESTURI)
     end
 
+    -- the flags are written wherever a type is shown, not only in the hover of a variable: the detail of a completion item, the
+    -- label of a function item, the fields of a table hover, a `(return)` line and the inlay hint of a local
+    do
+        --- The completion item with this label at the `<??>`.
+        ---@param script string
+        ---@param label  string
+        ---@return vm.completion.result?
+        local function itemOf(script, label)
+            local itemText, itemCatched = catch(script, '?')
+            files.setText(TESTURI, itemText)
+            ---@type vm.completion.result?
+            local found
+            for _, item in ipairs(completion.completion(TESTURI, itemCatched['?'][1][2], nil) or {}) do
+                if item.label == label or (item.label or ''):find('^' .. label .. '%(') then
+                    found = item
+                    local resolved = item.id and completion.resolve(item.id)
+                    if resolved and resolved.detail then item.detail = resolved.detail end
+                    break
+                end
+            end
+            files.remove(TESTURI)
+            return found
+        end
+        local secretItem = itemOf('---@type secret<number>\nlocal sec = 1\nse<??>\n', 'sec')
+        assert(secretItem and secretItem.detail and secretItem.detail:find('secret<number>', 1, true), 'the detail of a secret variable')
+        local plainItem = itemOf('---@type number\nlocal pla = 1\npl<??>\n', 'pla')
+        assert(plainItem and plainItem.detail and not plainItem.detail:find('secret', 1, true), 'the detail of a plain variable')
+        local function descriptionOf(script, label)
+            local descText, descCatched = catch(script, '?')
+            files.setText(TESTURI, descText)
+            local text = ''
+            for _, item in ipairs(completion.completion(TESTURI, descCatched['?'][1][2], nil) or {}) do
+                if (item.label or ''):find('^' .. label .. '%(') and item.id then
+                    local resolved = completion.resolve(item.id)
+                    text = tostring(resolved and resolved.description or '') .. tostring(resolved and resolved.detail or '')
+                end
+            end
+            files.remove(TESTURI)
+            return text
+        end
+        assert(descriptionOf('---@param v secret<string>\nlocal function fnx(v) end\nfn<??>\n', 'fnx'):find('v: secret<string>', 1, true),
+            'the description of a function item')
+        assert(not descriptionOf('---@param v string\nlocal function fny(v) end\nfn<??>\n', 'fny'):find('secret', 1, true),
+            'the description of a plain function item')
+
+        local tableText, tableCatched = catch('---@type { a: secret<number>, b: number }\nlocal <?t?> = {}\n', '?')
+        files.setText(TESTURI, tableText)
+        local tableShown = assert(hover.byUri(TESTURI, tableCatched['?'][1][1], 1)):string()
+        files.remove(TESTURI)
+        assert(tableShown:find('a: secret<number>', 1, true) and tableShown:find('b: number', 1, true), 'the fields of a table hover: ' .. tableShown)
+
+        local returnText, returnCatched = catch('---@return secret<string> <?result?>\nlocal function rf() end\n', '?')
+        files.setText(TESTURI, returnText)
+        local returnShown = assert(hover.byUri(TESTURI, returnCatched['?'][1][1], 1)):string()
+        files.remove(TESTURI)
+        assert(returnShown:find('(return) result: secret<string>', 1, true), 'the (return) line: ' .. returnShown)
+
+        local hintCore = require 'core.hint'
+        local config   = require 'config'
+        local oldEnable, oldSetType = config.get(nil, 'Lua.hint.enable'), config.get(nil, 'Lua.hint.setType')
+        config.set(nil, 'Lua.hint.enable', true)
+        config.set(nil, 'Lua.hint.setType', true)
+        for _, probe in ipairs {
+            { '---@return secret<number>\nlocal function mk() end\nlocal x = mk()\n', ': secret<number>' },
+            { '---@return number\nlocal function mk() end\nlocal x = mk()\n', ': number' },
+        } do
+            files.setText(TESTURI, probe[1])
+            files.compileState(TESTURI)
+            ---@type string[]
+            local seen = {}
+            for _, hint in ipairs(hintCore(TESTURI, 0, math.huge --[[@as integer]])) do
+                seen[#seen+1] = hint.text
+            end
+            files.remove(TESTURI)
+            assert(seen[#seen] == probe[2], probe[1] .. ' -> ' .. table.concat(seen, ' | '))
+        end
+        config.set(nil, 'Lua.hint.enable', oldEnable)
+        config.set(nil, 'Lua.hint.setType', oldSetType)
+    end
+
     -- hover on `@secret-guard` / `@secret-args`: the tag word and the arguments after it show the tag's help
     for _, probe in ipairs {
         { '---@<?secret-guard?> value is-secret\nlocal function g(value) end\n', 'secret-guard' },

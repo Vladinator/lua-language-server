@@ -20,7 +20,7 @@ local function buildAsHash(uri, keys, nodeMap, reachMax)
             node:removeOptional()
         end
         local ifr         = vm.getInfer(node)
-        local typeView    = ifr:view(uri, 'unknown')
+        local typeView    = ifr:viewFlagged(uri, 'unknown')
         local literalView = ifr:viewLiterals()
         if literalView then
             lines[#lines+1] = ('    %s%s: %s = %s,'):format(

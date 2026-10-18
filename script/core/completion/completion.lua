@@ -319,7 +319,7 @@ end
 ---@return string
 local function buildDetail(source, node)
     local infer = vm.getInfer(node or source)
-    local types = infer:view(guide.getUri(source))
+    local types = infer:viewFlagged(guide.getUri(source))
     local literals = infer:viewLiterals()
     if literals then
         return types .. ' = ' .. literals

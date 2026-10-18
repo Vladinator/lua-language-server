@@ -72,7 +72,7 @@ local function typeHint(uri, results, start, finish)
         end
         mark[src] = true
         results[#results+1] = {
-            text   = ': ' .. view,
+            text   = ': ' .. vm.getInfer(source):viewFlagged(uri),
             offset = src.finish,
             kind   = define.InlayHintKind.Type,
             where  = 'right',

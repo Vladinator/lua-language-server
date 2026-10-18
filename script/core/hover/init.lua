@@ -114,7 +114,7 @@ local function getHover(source, level)
         -- `---@return string result`: the name of the returned value, with its type
         local valueType = source.parent
         if valueType then
-            md:add('lua', ('(return) %s: %s'):format(source[1], vm.getInfer(valueType):view(guide.getUri(source))))
+            md:add('lua', ('(return) %s: %s'):format(source[1], vm.getInfer(valueType):viewFlagged(guide.getUri(source))))
         end
         return md, 0
     end

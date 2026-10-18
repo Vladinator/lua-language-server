@@ -9364,3 +9364,59 @@ local CallIter2 = {}
 local iter
 local a, <?b?> = iter()
 ]]
+
+-- a parameter `fun(): T?` binds `T` to what the argument returns without its nil (TypeScript infers `T` from `T | undefined`)
+TEST 'number' [[
+---@return number?
+local function maybeNumber() return 1 end
+---@generic T
+---@param factory fun(): T?
+---@return T
+local function make(factory) end
+local <?v?> = make(maybeNumber)
+]]
+
+TEST 'string' [[
+---@return string
+local function alwaysString() return "" end
+---@generic T
+---@param factory fun(): T?
+---@return T
+local function make(factory) end
+local <?v?> = make(alwaysString)
+]]
+
+-- ... a parameter `fun(): T` keeps the nil: T is the whole return
+TEST 'number?' [[
+---@return number?
+local function maybeNumber() return 1 end
+---@generic T
+---@param factory fun(): T
+---@return T
+local function make(factory) end
+local <?v?> = make(maybeNumber)
+]]
+
+-- ... through a generic class
+TEST 'number' [[
+---@return number?
+local function maybeNumber() return 1 end
+---@class OptCreate<T>
+local OptCreate = {}
+---@generic T
+---@param factory fun(): T?
+---@return OptCreate<T>
+function OptCreate.new(factory) end
+---@param handler fun(value: T)
+function OptCreate:handle(handler) end
+OptCreate.new(maybeNumber):handle(function (<?value?>) end)
+]]
+
+-- `tonumber(s, base)` is nil when the string is not a number in that base (`tonumber("GG", 16)`)
+TEST 'integer?' [[
+local <?v?> = tonumber("FF", 16)
+]]
+
+TEST 'number?' [[
+local <?v?> = tonumber("42")
+]]

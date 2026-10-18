@@ -382,7 +382,8 @@ end
 ---@param s string
 ---@return string
 local function decode_unicode_escape(s)
-    return utf8_char(tonumber(s, 16))
+    -- (`s` is the four hex digits the pattern `\u(%x%x%x%x)` captured: `tonumber` cannot give nil)
+    return utf8_char(tonumber(s, 16) --[[@as integer]])
 end
 
 ---@return string

@@ -284,7 +284,12 @@ function mt:resolve(uri, args)
                         ---@cast n parser.object
                         local fret = vm.getReturnOfFunction(n, i)
                         if fret then
-                            resolve(ret, vm.compileNode(fret))
+                            local retNode = vm.compileNode(fret)
+                            -- `fun(): T?` given `fun(): number?`: `T` is `number` (the `?` of the parameter takes the nil; TypeScript's `T | undefined`)
+                            if ret.optional and retNode:hasFalsy() then
+                                retNode = retNode:copy():removeOptional():remove 'nil'
+                            end
+                            resolve(ret, retNode)
                         end
                     end
                 end

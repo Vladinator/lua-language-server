@@ -100,7 +100,8 @@ Symbol              <-  ({} {
         return string.char(char)
     end,
     Char16 = function (char)
-        return string.char(tonumber(char, 16))
+        -- (`char` is the two hex digits the grammar captured: `tonumber` cannot give nil)
+        return string.char(tonumber(char, 16) --[[@as integer]])
     end,
     CharUtf8 = function (char)
         if #char == 0 then

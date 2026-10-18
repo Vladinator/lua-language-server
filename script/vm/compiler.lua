@@ -1344,9 +1344,8 @@ end
 --- `returns<F>` (wowlua-ls interop): `F`'s own return type, read from inside another function's
 --- signature (a generic bound to a `fun(...)`-shaped value, usually from an earlier `@param`).
 --- Parsed as ordinary `doc.type.sign` generic-instantiation syntax, same as the utility types
---- above -- no new grammar. Only the first return position (wowlua-ls's own examples are all
---- single-return); a multi-return `F` would need a design decision this fork hasn't been asked to
---- make yet.
+--- above -- no new grammar. As the last declared return it passes on every return of `F` from the
+--- `index`-th (the first by default) on, see `spreadReturnsProjection`.
 ---@param uri    uri
 ---@param source parser.object a `doc.type.sign` whose name is `returns`
 ---@return boolean handled
@@ -1400,6 +1399,39 @@ local function resolveParamsProjection(source)
     return true
 end
 
+--- A last return that is a `returns<F>` / `returns<F, index>` projection passes on every return of `F` from there on: the slots after the
+--- declared one read the next returns of `F`. This makes the doc type that stands for such a later slot.
+---@param lastReturn parser.object the last declared return (a `doc.type`)
+---@param position   integer the slot number of `lastReturn`
+---@param index      integer the slot that is asked for
+---@return parser.object? wrapper nil when `lastReturn` is no such projection
+local function spreadReturnsProjection(lastReturn, position, index)
+    for _, unit in ipairs(lastReturn.types or {}) do
+        if unit.type == 'doc.type.sign' and unit.node and unit.node[1] == 'returns' and unit.signs and unit.signs[1] then
+            ---@type parser.object
+            local shifted = {
+                type        = 'doc.type.sign',
+                start       = unit.start,
+                finish      = unit.finish,
+                node        = unit.node,
+                signs       = unit.signs,
+                extraOffset = index - position,
+            }
+            ---@type parser.object
+            local wrapper = {
+                type   = 'doc.type',
+                start  = lastReturn.start,
+                finish = lastReturn.finish,
+                parent = lastReturn.parent,
+                types  = { shifted },
+            }
+            shifted.parent = wrapper
+            return wrapper
+        end
+    end
+    return nil
+end
+
 ---@param func  parser.object
 ---@param index integer
 ---@return (parser.object|vm.generic)?
@@ -1431,7 +1463,12 @@ function vm.getReturnOfFunction(func, index)
             if lastReturn and lastReturn.name and lastReturn.name[1] == '...' then
                 rtn = lastReturn
             else
-                return nil
+                -- (`fun(): returns<F>`: the slots after the declared one are the next returns of `F`)
+                local spread = lastReturn and spreadReturnsProjection(lastReturn, #func.returns, index)
+                if not spread then
+                    return nil
+                end
+                rtn = spread
             end
         end
         local sign = vm.getSign(func)
@@ -2646,7 +2683,8 @@ end
 ---@param mfunc  parser.object
 ---@param index  integer
 ---@param args   parser.object[]
-local function bindReturnOfFunction(source, mfunc, index, args)
+---@param classMap? table<string, vm.node> what the type parameters of the class stand for, when `mfunc` is a call overload of a class
+local function bindReturnOfFunction(source, mfunc, index, args, classMap)
     local returnObject = vm.getReturnOfFunction(mfunc, index)
     if not returnObject then
         return
@@ -2684,6 +2722,17 @@ local function bindReturnOfFunction(source, mfunc, index, args)
     end
 
     local returnNode = vm.compileNode(returnObject)
+
+    -- the `@overload` that makes a class callable, called on an instance typed `Box<integer>`: the type parameters of the class are what
+    -- the instance says (a method call gets them further down, from its receiver)
+    if classMap and mfunc.type == 'doc.type.function' then
+        for rnode in returnNode:eachObject() do
+            if rnode.type == 'generic' then
+                returnNode = rnode:resolve(guide.getUri(source), args, classMap)
+                break
+            end
+        end
+    end
 
     ---@type table<string, vm.node>?
     local selfGenericResolved = nil
@@ -3382,32 +3431,12 @@ local compilerSwitch = util.switch()
                     hasMarkDoc = true
                     vm.setNode(source, vm.compileNode(lastReturn))
                 elseif sign and lastReturn.types then
-                    -- `---@return returns<F, index>` passes on every return of `F` from the `index`-th on: the slots after the declared one
-                    -- are the next returns of `F`
-                    for _, unit in ipairs(lastReturn.types) do
-                        if unit.type == 'doc.type.sign' and unit.node and unit.node[1] == 'returns' and unit.signs and unit.signs[2] then
-                            ---@type parser.object
-                            local shifted = {
-                                type        = 'doc.type.sign',
-                                start       = unit.start,
-                                finish      = unit.finish,
-                                node        = unit.node,
-                                signs       = unit.signs,
-                                extraOffset = index - lastReturn.returnIndex,
-                            }
-                            ---@type parser.object
-                            local wrapper = {
-                                type   = 'doc.type',
-                                start  = lastReturn.start,
-                                finish = lastReturn.finish,
-                                parent = lastReturn.parent,
-                                types  = { shifted },
-                            }
-                            shifted.parent = wrapper
-                            hasMarkDoc = true
-                            vm.setNode(source, vm.createGeneric(wrapper, sign, vm.deriveFlags(func)))
-                            break
-                        end
+                    -- `---@return returns<F>` / `returns<F, index>` passes on every return of `F` from there on: the slots after the
+                    -- declared one are the next returns of `F`
+                    local wrapper = spreadReturnsProjection(lastReturn, lastReturn.returnIndex, index)
+                    if wrapper then
+                        hasMarkDoc = true
+                        vm.setNode(source, vm.createGeneric(wrapper, sign, vm.deriveFlags(func)))
                     end
                 end
             end
@@ -3579,6 +3608,19 @@ local compilerSwitch = util.switch()
                     if set.type == 'doc.class' then
                         for _, overload in ipairs(set.calls) do
                             bindReturnOfFunction(source, overload.overload, index, args)
+                        end
+                    end
+                end
+            elseif nd.type == 'doc.type.sign' and nd.node and nd.signs then
+                -- an instance typed with type arguments (`Box<integer>`): its class's call overloads, with the arguments bound
+                local classGlobal = vm.getGlobal('type', nd.node[1])
+                local classMap = classGlobal and vm.getReceiverGenericMap(guide.getUri(source), nd)
+                if classGlobal then
+                    for _, set in ipairs(classGlobal:getSets(guide.getUri(source))) do
+                        if set.type == 'doc.class' then
+                            for _, overload in ipairs(set.calls) do
+                                bindReturnOfFunction(source, overload.overload, index, args, classMap)
+                            end
                         end
                     end
                 end

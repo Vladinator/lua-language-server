@@ -384,9 +384,19 @@ end
 
 ---@param uri uri
 ---@param args parser.object
+---@param preset? table<string, vm.node> type parameters that are already known (the ones of a class)
 ---@return vm.node
-function mt:resolve(uri, args)
+function mt:resolve(uri, args, preset)
     local resolved  = self.sign:resolve(uri, args)
+    -- what the type parameters of the class this function belongs to stand for (`Box<integer>` called through its `@overload fun(): T`)
+    if preset then
+        resolved = resolved or {}
+        for name, node in pairs(preset) do
+            if resolved[name] == nil then
+                resolved[name] = node
+            end
+        end
+    end
     local protoNode = vm.compileNode(self.proto)
     local result = vm.createNode()
     for nd in protoNode:eachObject() do

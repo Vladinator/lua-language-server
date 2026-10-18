@@ -9260,3 +9260,107 @@ TEST 'string' [[
 local fac = {}
 fac.make = function() return function(<?s?>) end, function(n) end end
 ]]
+
+-- a class made callable by an `@overload`, called on an instance typed with type arguments: the type parameters are what the instance says
+TEST 'integer' [[
+---@class CallBox<T>
+---@overload fun(): T
+local CallBox = {}
+---@type CallBox<integer>
+local box
+local <?v?> = box()
+]]
+
+TEST 'string' [[
+---@class CallPair<A, B>
+---@overload fun(): A, B
+local CallPair = {}
+---@type CallPair<number, string>
+local pair
+local first, <?second?> = pair()
+]]
+
+-- ... the same class without arguments, and an argument that is another type, stay what they were
+TEST 'boolean' [[
+---@class CallFlag
+---@overload fun(): boolean
+local CallFlag = {}
+---@type CallFlag
+local flag
+local <?v?> = flag()
+]]
+
+TEST 'string' [[
+---@class CallBox2<T>
+---@overload fun(): T
+local CallBox2 = {}
+---@type CallBox2<integer>
+local boxInt
+---@type CallBox2<string>
+local boxStr
+local _ = boxInt()
+local <?v?> = boxStr()
+]]
+
+-- ... a parameter of the overload that is not a class parameter keeps its own binding (a method-level generic)
+TEST 'integer' [[
+---@class CallMap<T>
+---@overload fun<U>(x: U): U
+local CallMap = {}
+---@type CallMap<string>
+local map
+local <?v?> = map(1)
+]]
+
+-- `returns<F>` as the last return passes on every return of `F`, not the first one only
+TEST 'string' [[
+---@generic F
+---@param f F
+---@return returns<F>
+local function wrap(f) end
+---@return number
+---@return string
+local function two() return 1, "" end
+local a, <?b?> = wrap(two)
+]]
+
+TEST 'number' [[
+---@generic F
+---@param f F
+---@return returns<F>
+local function wrap(f) end
+---@return number
+---@return string
+local function two() return 1, "" end
+local <?a?>, b = wrap(two)
+]]
+
+-- ... a function with one return gives nothing for the second slot
+TEST 'nil' [[
+---@generic F
+---@param f F
+---@return returns<F>
+local function wrap(f) end
+---@return number
+local function one() return 1 end
+local a, <?b?> = wrap(one)
+]]
+
+-- ... a callable class with a `returns<F>` overload (an iterator): the class parameter is what the instance says
+TEST 'number' [[
+---@class CallIter<F>
+---@overload fun(): returns<F>
+local CallIter = {}
+---@type CallIter<fun(): number, string>
+local iter
+local <?a?>, b = iter()
+]]
+
+TEST 'string' [[
+---@class CallIter2<F>
+---@overload fun(): returns<F>
+local CallIter2 = {}
+---@type CallIter2<fun(): number, string>
+local iter
+local a, <?b?> = iter()
+]]

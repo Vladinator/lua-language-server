@@ -9420,3 +9420,81 @@ local <?v?> = tonumber("FF", 16)
 TEST 'number?' [[
 local <?v?> = tonumber("42")
 ]]
+
+-- `---@return self` called with a colon returns the receiver itself (TypeScript's `this` type), not the class that declares the method
+TEST 'SelfChild' [[
+---@class SelfBase
+local SelfBase = {}
+---@return self
+function SelfBase:Set() return self end
+---@class SelfChild : SelfBase
+local SelfChild = {}
+---@type SelfChild
+local child
+local <?v?> = child:Set()
+]]
+
+TEST 'integer' [[
+---@class SelfBase2
+local SelfBase2 = {}
+---@return self
+function SelfBase2:Set() return self end
+---@class SelfChild2 : SelfBase2
+local SelfChild2 = {}
+---@return integer
+function SelfChild2:Extra() return 1 end
+---@type SelfChild2
+local child
+local <?v?> = child:Set():Set():Extra()
+]]
+
+-- ... a generic class keeps its type arguments down the chain
+TEST 'string' [[
+---@class SelfChain<T>
+local SelfChain = {}
+---@return self
+function SelfChain:Filter() return self end
+---@return T
+function SelfChain:First() end
+---@type SelfChain<string>
+local chain
+local <?v?> = chain:Filter():Filter():First()
+]]
+
+TEST 'string' [[
+---@class SelfChain2<T>
+local SelfChain2 = {}
+---@param fn fun(v: T)
+---@return self
+function SelfChain2:Each(fn) return self end
+---@return self
+function SelfChain2:Filter() return self end
+---@type SelfChain2<string>
+local chain
+chain:Filter():Each(function (<?v?>) end)
+]]
+
+-- ... negatives: a declared class is what it says, a dot call has no receiver to return, a receiver that says nothing keeps the class
+TEST 'SelfBase3' [[
+---@class SelfBase3
+local SelfBase3 = {}
+---@return SelfBase3
+function SelfBase3:Set() return self end
+---@class SelfChild3 : SelfBase3
+local SelfChild3 = {}
+---@type SelfChild3
+local child
+local <?v?> = child:Set()
+]]
+
+TEST 'SelfBase4' [[
+---@class SelfBase4
+local SelfBase4 = {}
+---@return self
+function SelfBase4.Set(this) return this end
+---@class SelfChild4 : SelfBase4
+local SelfChild4 = {}
+---@type SelfChild4
+local child
+local <?v?> = child.Set(child)
+]]

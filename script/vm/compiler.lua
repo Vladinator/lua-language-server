@@ -2679,6 +2679,27 @@ local function getDeclaredReturn(func, index)
     return nil
 end
 
+--- Is the `index`-th return of the function written `---@return self`?
+---@param mfunc parser.object
+---@param index integer
+---@return boolean
+local function returnsSelf(mfunc, index)
+    if mfunc.type ~= 'function' then
+        return false
+    end
+    for _, doc in ipairs(mfunc.bindDocs or {}) do
+        if doc.type == 'doc.return' then
+            for _, rtn in ipairs(doc.returns) do
+                if rtn.returnIndex == index then
+                    local only = rtn.types and #rtn.types == 1 and rtn.types[1]
+                    return only and only.type == 'doc.type.name' and only[1] == 'self' or false
+                end
+            end
+        end
+    end
+    return false
+end
+
 ---@param source parser.object
 ---@param mfunc  parser.object
 ---@param index  integer
@@ -2688,6 +2709,25 @@ local function bindReturnOfFunction(source, mfunc, index, args, classMap)
     local returnObject = vm.getReturnOfFunction(mfunc, index)
     if not returnObject then
         return
+    end
+
+    -- `---@return self` called with a colon: what comes back is the receiver itself (TypeScript's `this` type), not the class that declares
+    -- the method. A subclass keeps its own methods down a chain (`child:Set():Extra()`), and a generic class keeps its type arguments
+    -- (`Chain<string>:Filter():First()`). A receiver that says nothing keeps the declared class.
+    if source.func and source.func.type == 'getmethod' and source.func.node and returnsSelf(mfunc, index) then
+        local receiverNode = vm.compileNode(source.func.node)
+        ---@type vm.node?
+        local selfNode
+        for obj in receiverNode:eachObject() do
+            if obj.type == 'doc.type.sign' or (obj.type == 'global' and obj.cate == 'type') then
+                selfNode = selfNode or vm.createNode()
+                selfNode:merge(obj)
+            end
+        end
+        if selfNode then
+            vm.setNode(source, selfNode)
+            return
+        end
     end
 
     -- A return type that is *itself* one generic name already resolved to another, still-open

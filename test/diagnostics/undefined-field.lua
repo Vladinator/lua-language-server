@@ -339,3 +339,20 @@ local rec = {}
 rec.alpha = 1
 print(rec.alpha, rec.<!alfa!>)
 ]]
+
+-- `---@return self` is the receiver: a method of the subclass is found down a chain
+TEST [[
+---@class UfSelfBase
+local UfSelfBase = {}
+---@return self
+function UfSelfBase:Set() return self end
+
+---@class UfSelfChild : UfSelfBase
+local UfSelfChild = {}
+function UfSelfChild:Extra() end
+
+---@type UfSelfChild
+local child
+child:Set():Extra()
+child:Set():<!Missing!>()
+]]

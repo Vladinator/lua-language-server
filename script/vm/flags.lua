@@ -59,6 +59,30 @@ function vm.registerFlagView(flag, keyword)
     flagViews[flag] = keyword
 end
 
+---@type (fun(param: parser.object, value: vm.node): boolean)[]
+local slotRefusals = {}
+
+--- A plugin's rule that a parameter refuses a value (a slot that cannot take it, for example a value with a flag the slot is declared
+--- without). Only the editor asks, to rank the values that would be reported last in the completion of an argument; the diagnostics keep
+--- their own checks. `rule(param, value)`: `param` is the parameter (`local` of a function or `doc.type.arg` of a `fun(...)` type).
+---@param rule fun(param: parser.object, value: vm.node): boolean
+function vm.registerSlotRefusal(rule)
+    slotRefusals[#slotRefusals+1] = rule
+end
+
+--- Does a registered rule say that `param` refuses `value`?
+---@param param parser.object
+---@param value vm.node
+---@return boolean
+function vm.slotRefuses(param, value)
+    for _, rule in ipairs(slotRefusals) do
+        if rule(param, value) then
+            return true
+        end
+    end
+    return false
+end
+
 --- `view` (the text of a type) with the flags of `node` written around it (`secret<number>`, `secret<number>?`).
 ---@param node vm.node
 ---@param view string

@@ -76,6 +76,11 @@ local function getNoSecretName(param)
     return nil
 end
 
+-- the completion of an argument ranks a secret value last at a `nosecret` parameter (the call would be reported)
+vm.registerSlotRefusal(function (param, value)
+    return getNoSecretName(param) ~= nil and value:hasFlag('secret')
+end)
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)

@@ -680,7 +680,8 @@ end
 --- (an overloaded callee has no single expectation). A parameter that takes anything fits every variable, so nothing moves.
 ---@param state    parser.state
 ---@param position integer start of the word being typed
----@return vm.node?
+---@return vm.node? expected
+---@return parser.object? param the parameter (plugins may say it refuses a value, see `vm.registerSlotRefusal`)
 local function getExpectedArgType(state, position)
     ---@type parser.object?
     local call
@@ -722,7 +723,7 @@ local function getExpectedArgType(state, position)
     if expected:isEmpty() then
         return nil
     end
-    return expected
+    return expected, param
 end
 
 --- The declared type of the value the word is: `local x ---@type T = <??>`, `return <??>` in a function with `---@return T`, `x = <??>` of a
@@ -806,7 +807,8 @@ end
 ---@param results  completion.results
 ---@param from     integer the first result to rank
 local function boostExpectedType(state, position, results, from)
-    local expected = getExpectedArgType(state, position) or getExpectedValueType(state, position)
+    local expected, param = getExpectedArgType(state, position)
+    expected = expected or getExpectedValueType(state, position)
     if not expected then
         return
     end
@@ -814,11 +816,16 @@ local function boostExpectedType(state, position, results, from)
     local fits = {}
     ---@type vm.completion.result[]
     local others = {}
+    ---@type vm.completion.result[]
+    local refused = {}
     for i = from, #results do
         local res = results[i]
         local source = resultSources[res]
         -- (a value of an unknown type fits every place; that says nothing, so it is not ranked as a fit)
-        if source and not isUnknownNode(state.uri, vm.compileNode(source))
+        if source and param and vm.slotRefuses(param, vm.compileNode(source)) then
+            -- (the call would be reported: last, after the ones that merely do not fit)
+            refused[#refused+1] = res
+        elseif source and not isUnknownNode(state.uri, vm.compileNode(source))
         and vm.isSubType(state.uri, vm.compileNode(source), expected) == true then
             fits[#fits+1] = res
         else
@@ -826,7 +833,7 @@ local function boostExpectedType(state, position, results, from)
         end
     end
     -- (the best match is the one the editor selects; when everything fits, or nothing does, the place does not tell the items apart)
-    if #fits > 0 and #others > 0 then
+    if #fits > 0 and #others + #refused > 0 then
         fits[1].preselect = true
     end
     local at = from
@@ -835,6 +842,10 @@ local function boostExpectedType(state, position, results, from)
         at = at + 1
     end
     for _, res in ipairs(others) do
+        results[at] = res
+        at = at + 1
+    end
+    for _, res in ipairs(refused) do
         results[at] = res
         at = at + 1
     end

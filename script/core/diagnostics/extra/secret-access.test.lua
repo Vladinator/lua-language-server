@@ -1546,6 +1546,34 @@ do
         files.remove(TESTURI)
         assert(returnShown:find('(return) result: secret<string>', 1, true), 'the (return) line: ' .. returnShown)
 
+        -- the completion of an argument ranks a secret value last at a `nosecret` parameter (the call would be reported), nothing is hidden
+        local function orderAt(script)
+            local orderText, orderCatched = catch(script, '?')
+            files.setText(TESTURI, orderText)
+            ---@type string[]
+            local order = {}
+            for _, item in ipairs(completion.completion(TESTURI, orderCatched['?'][1][1], nil) or {}) do
+                order[#order+1] = item.label
+            end
+            files.remove(TESTURI)
+            return order
+        end
+        local function at(order, label)
+            for i, name in ipairs(order) do
+                if name == label then return i end
+            end
+            return math.huge
+        end
+        local declarations = '---@type secret<string>\nlocal tsec = "a"\n---@type string\nlocal tstr = "b"\n---@type number\nlocal tnum = 1\n'
+        local nosecretOrder = orderAt(declarations .. '---@param v nosecret<string>\nlocal function takes(v) end\ntakes(t<??>)\n')
+        assert(at(nosecretOrder, 'tstr') < at(nosecretOrder, 'tnum') and at(nosecretOrder, 'tnum') < at(nosecretOrder, 'tsec'),
+            'secret last at a nosecret parameter: ' .. table.concat(nosecretOrder, ' '))
+        assert(at(nosecretOrder, 'tsec') ~= math.huge, 'the secret value is still offered')
+        local plainOrder = orderAt(declarations .. '---@param v string\nlocal function takes(v) end\ntakes(t<??>)\n')
+        assert(at(plainOrder, 'tsec') < at(plainOrder, 'tnum'), 'a plain parameter takes a secret: no demotion: ' .. table.concat(plainOrder, ' '))
+        local secretOrder = orderAt(declarations .. '---@param v secret<string>\nlocal function takes(v) end\ntakes(t<??>)\n')
+        assert(at(secretOrder, 'tsec') < at(secretOrder, 'tnum'), 'a secret parameter takes a secret: ' .. table.concat(secretOrder, ' '))
+
         local hintCore = require 'core.hint'
         local config   = require 'config'
         local oldEnable, oldSetType = config.get(nil, 'Lua.hint.enable'), config.get(nil, 'Lua.hint.setType')

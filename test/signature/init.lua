@@ -570,3 +570,25 @@ local greeter
 greeter(<??>)
 ]]
 {'function greeter(<!name: string!>)'}
+
+-- a utility type is written by its name, not by the shape it resolves to
+TEST [[
+---@class SigCfg
+---@field host string
+---@field port integer
+---@param cfg Partial<SigCfg>
+---@param n number
+local function useCfg(cfg, n) end
+useCfg(<??>)
+]]
+{'function useCfg(<!cfg: Partial<SigCfg>!>, n: number)'}
+
+-- negative: a plain class and a plain parameter are written as before
+TEST [[
+---@class SigCfg2
+---@param cfg SigCfg2
+---@param n number
+local function useCfg2(cfg, n) end
+useCfg2(<??>)
+]]
+{'function useCfg2(<!cfg: SigCfg2!>, n: number)'}

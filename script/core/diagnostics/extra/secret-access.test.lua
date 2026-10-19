@@ -1577,6 +1577,15 @@ do
         local secretOrder = orderAt(declarations .. '---@param v secret<string>\nlocal function takes(v) end\ntakes(t<??>)\n')
         assert(at(secretOrder, 'tsec') < at(secretOrder, 'tnum'), 'a secret parameter takes a secret: ' .. table.concat(secretOrder, ' '))
 
+        -- signature help writes the flags of the parameters, the one being typed included
+        local signatureCore = require 'core.signature'
+        local sigText, sigCatched = catch('---@param v secret<string>\n---@param w number\nlocal function sf(v, w) end\nsf(<??>)\n', '?')
+        files.setText(TESTURI, sigText)
+        local signatures = signatureCore(TESTURI, sigCatched['?'][1][1])
+        files.remove(TESTURI)
+        assert(signatures and signatures[1] and signatures[1].label == 'function sf(v: secret<string>, w: number)',
+            'signature help: ' .. tostring(signatures and signatures[1] and signatures[1].label))
+
         local hintCore = require 'core.hint'
         local config   = require 'config'
         local oldEnable, oldSetType = config.get(nil, 'Lua.hint.enable'), config.get(nil, 'Lua.hint.setType')

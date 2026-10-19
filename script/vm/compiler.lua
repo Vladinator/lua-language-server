@@ -1,5 +1,6 @@
 local workspace  = require 'workspace'
 local guide      = require 'parser.guide'
+local stats      = require 'vm.flow-stats'
 local util       = require 'utility'
 local config     = require 'config'
 local rpath      = require 'workspace.require-path'
@@ -4716,5 +4717,9 @@ function vm.compileNode(source)
         end
     end
 
+    if stats.enabled then
+        stats.add('fresh compiles')
+        if vm.flowEvaluating then stats.add('fresh compiles in scratch') end
+    end
     return compileFresh(source, 1)
 end

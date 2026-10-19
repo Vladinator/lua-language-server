@@ -2,6 +2,7 @@
 require 'other.view-string'
 require 'other.configuration'
 require 'other.defaults'
+require 'other.flow-stats'
 require 'other.file-kind-damage'
 require 'other.compile-order'
 require 'other.retention'

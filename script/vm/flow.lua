@@ -3,6 +3,7 @@ local vm      = require 'vm.vm'
 local guide   = require 'parser.guide'
 local docTags = require 'parser.docTags'
 local scope   = require 'workspace.scope'
+local stats   = require 'vm.flow-stats'
 
 --- Phase 3 of the tracer redesign (see `TRACER-REDESIGN.md`): a real, reusable, multi-variable
 --- flow analysis built on `vm.buildCFG` (Phase 1) and `vm.runDataflow` (Phase 2). Still standalone:
@@ -399,6 +400,7 @@ end
 ---@param b vm.flow.state
 ---@return vm.flow.state
 local function stateJoin(a, b)
+    if stats.enabled then stats.add('stateJoin calls') end
     if not a then
         return b
     end
@@ -433,6 +435,7 @@ end
 ---@param state table<vm.flow.key, vm.node>
 ---@return table<vm.flow.key, vm.node>
 local function copyState(state)
+    if stats.enabled then stats.add('copyState calls') end
     ---@type table<vm.flow.key, vm.node>
     local out = {}
     for decl, node in pairs(state) do
@@ -582,6 +585,7 @@ end
 ---@return vm.node
 local function evalMemoized(source, seeds, scope)
     checkBudget()
+    if stats.enabled then stats.add('evalMemoized calls') end
     local memo = evalMemo and evalMemo[source]
     if memo then
         local same = true
@@ -601,10 +605,18 @@ local function evalMemoized(source, seeds, scope)
             end
         end
         if same then
+            if stats.enabled then stats.add('evalMemoized hits') end
             return memo.result
         end
+        if stats.enabled then stats.add('evalMemoized: had an entry, other seeds') end
     end
+    local evalClock = stats.enabled and os.clock() or 0
+    local scratchBefore = stats.enabled and stats.get('fresh compiles in scratch') or 0
     local result = dedupe(vm.evalInState(source, seeds, scope))
+    if stats.enabled then
+        stats.time('evalInState (scratch compile of a statement)', os.clock() - evalClock)
+        stats.sample('scratch compiles per evalInState', stats.get('fresh compiles in scratch') - scratchBefore)
+    end
     if evalMemo then
         evalMemo[source] = { seeds = seeds, result = result }
     end
@@ -1894,6 +1906,7 @@ end
 ---@return vm.flow.state trueState
 ---@return vm.flow.state falseState
 local function evalCondition(state, expr)
+    if stats.enabled then stats.add('evalCondition calls') end
     if not state then
         return false, false
     end
@@ -2199,6 +2212,18 @@ end
 ---@type table<parser.object, true>
 local building = setmetatable({}, { __mode = 'k' })
 
+--- How many keys the flow being built tracks (set at its dataflow run, only when `vm.flow-stats` is on; nil while the build has not got there).
+---@type integer?
+local lastTracked
+
+--- The functions whose flow tracks at least one key (only filled when `vm.flow-stats` is on).
+---@type table<parser.object, true>
+local flowTracks = setmetatable({}, { __mode = 'k' })
+
+--- The functions whose flow answered a read (only filled when `vm.flow-stats` is on).
+---@type table<parser.object, true>
+local flowRead = setmetatable({}, { __mode = 'k' })
+
 --- A read of `main`'s own function, asked for again from inside the build of its own flow (the
 --- read that triggered the build needs its own static type to seed the flow, which means
 --- compiling it, which reaches this same build again -- `building` above answers that nested
@@ -2284,8 +2309,13 @@ local function prebuildOne(func)
         return
     end
     prebuilding = true
+    local prebuildClock = stats.enabled and os.clock() or 0
     local ok, flow = pcall(vm.getFlow, func)
     prebuilding = false
+    if stats.enabled then
+        stats.time('prebuildOne (build, nested compiles included)', os.clock() - prebuildClock)
+        stats.add(ok and (flow and 'prebuild: flow built' or 'prebuild: soft miss, no flow') or (flow == CYCLE and 'prebuild: compile cycle' or 'prebuild: error'))
+    end
     ---@type boolean
     local soft = false
     if not ok then
@@ -2372,6 +2402,7 @@ end
 ---@param source parser.object
 ---@return vm.node?
 function vm.traceNodeByFlow(source)
+    if stats.enabled then stats.add('traceNodeByFlow calls') end
     if source.type ~= 'getlocal' and refKey(source) == nil then
         return nil
     end
@@ -2435,7 +2466,19 @@ function vm.traceNodeByFlow(source)
     end
     -- (an answer with no type in it is a half-built input, not a result: the old walk decides)
     if not result or not hasTypes(result) then
+        if stats.enabled then stats.add('traceNodeByFlow: no usable answer (old tracer decides)') end
         return nil
+    end
+    if stats.enabled then
+        stats.add('traceNodeByFlow: answered by the flow')
+        local home = guide.getParentFunction(source) or guide.getRoot(source)
+        if home and not flowRead[home] then
+            flowRead[home] = true
+            stats.add('flows read at least once')
+            if flowTracks[home] then
+                stats.add('flows that track something and were read')
+            end
+        end
     end
     return result:copy()
 end
@@ -2472,7 +2515,21 @@ function vm.buildFlowUnguarded(main)
     local savedMemo, savedSteps = evalMemo, stepsLeft
     evalMemo = {}
     stepsLeft = stepsLeft or BUDGET_STEPS
+    local bodyClock, bodyCompiles = 0, 0
+    if stats.enabled then
+        bodyClock, bodyCompiles = os.clock(), stats.get('fresh compiles')
+        stats.sample('function size (lines)', (main.finish - main.start) // 10000)
+    end
+    lastTracked = nil
     local ok, result = pcall(vm.buildFlowBody, main)
+    if stats.enabled then
+        local took, compiles = os.clock() - bodyClock, stats.get('fresh compiles') - bodyCompiles
+        stats.time('buildFlowBody (nested compiles included)', took)
+        stats.add('fresh compiles during a flow build', compiles)
+        local kind = lastTracked == nil and 'build ended early' or (lastTracked == 0 and 'nothing tracked' or 'something tracked')
+        stats.time('buildFlowBody [' .. kind .. ']', took)
+        stats.add('fresh compiles during a flow build [' .. kind .. ']', compiles)
+    end
     evalMemo = savedMemo
     stepsLeft = savedSteps
     if not ok then
@@ -2511,7 +2568,11 @@ end
 ---@param main parser.object
 ---@return vm.flow
 function vm.buildFlowBody(main)
+    local cfgClock = stats.enabled and os.clock() or 0
     local cfg = vm.buildCFG(main)
+    if stats.enabled then
+        stats.time('buildCFG', os.clock() - cfgClock)
+    end
 
     if workspaceHasCorrelatedFields(guide.getUri(main)) then
         -- Field correlation's class is only known at narrowing time, not at this static scan (see
@@ -3062,6 +3123,7 @@ function vm.buildFlowBody(main)
                 return false, { ['true'] = false, ['false'] = false }
             end
             checkBudget()
+            if stats.enabled then stats.add('transfer calls') end
             local savedCasts = activeCasts
             local savedBoolCond = activeBoolCond
             local savedCorrelated = activeCorrelated
@@ -3107,7 +3169,28 @@ function vm.buildFlowBody(main)
         end,
     }
 
+    local flowClock, flowCompiles = 0, 0
+    if stats.enabled then
+        flowClock, flowCompiles = os.clock(), stats.get('fresh compiles')
+        stats.sample('blocks per flow', #cfg.blocks)
+        local tracked = 0
+        for _ in pairs(ctx.interesting) do
+            tracked = tracked + 1
+        end
+        stats.sample('tracked keys per flow', tracked)
+        lastTracked = tracked
+        if tracked == 0 then
+            stats.add('flows with nothing tracked')
+        else
+            flowTracks[main] = true
+            stats.add('flows that track something')
+        end
+    end
     local result = vm.runDataflow(cfg, spec)
+    if stats.enabled then
+        stats.time('runDataflow', os.clock() - flowClock)
+        stats.add('fresh compiles during runDataflow', stats.get('fresh compiles') - flowCompiles)
+    end
 
     -- The state before each statement and at the end of each block, from the settled block inputs,
     -- so a query does not re-run a block's statements (each one is an evaluation).

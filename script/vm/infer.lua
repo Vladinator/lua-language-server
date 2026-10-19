@@ -747,12 +747,29 @@ local function collectWrittenNames(uri, node, depth, found)
                 local prefix  = argName .. (optional and '?' or '') .. (argName == '...' and '' or ': ')
                 text = replaceFirst(text, prefix .. ifr:view(uri), prefix .. ifr:viewFlagged(uri))
             end
-            local returns = object.returns or {}
-            if #returns == 1 and not returns[1].name then
-                local ifr = vm.getInfer(returns[1])
-                local old = '):' .. ifr:view(uri)
-                if text:sub(-#old) == old then
-                    text = text:sub(1, -#old - 1) .. '):' .. ifr:viewFlagged(uri)
+            -- the returns are the tail of the text, `:T`, `:T, U` or `:(name: T, ...)`: rebuilt the way the view writes them
+            ---@type string[]
+            local plainRets = {}
+            ---@type string[]
+            local flaggedRets = {}
+            local needParen = false
+            for i, ret in ipairs(object.returns or {}) do
+                local ifr    = vm.getInfer(ret)
+                local prefix = ''
+                if ret.name then
+                    ---@type string
+                    local retName = ret.name[1]
+                    prefix = retName == '...' and retName or (retName .. ': ')
+                    needParen = needParen or retName ~= '...'
+                end
+                plainRets[i]   = prefix .. ifr:view(uri)
+                flaggedRets[i] = prefix .. ifr:viewFlagged(uri)
+            end
+            if #plainRets > 0 then
+                local open, close = needParen and ':(' or ':', needParen and ')' or ''
+                local oldTail = open .. table.concat(plainRets, ', ') .. close
+                if text:sub(-#oldTail) == oldTail then
+                    text = text:sub(1, -#oldTail - 1) .. open .. table.concat(flaggedRets, ', ') .. close
                 end
             end
             if text ~= plain then

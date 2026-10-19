@@ -351,6 +351,14 @@ local function describeGame(game)
     else
         facts[#facts+1] = '**Interface numbers:** no range is known for it.'
     end
+    if game.upcoming then
+        if game.interface then
+            facts[#facts+1] = ('**Upcoming:** `%d` is the newest test / beta number; the released `%d` stays the one to declare.'):format(
+                game.upcoming, game.interface.minimum)
+        else
+            facts[#facts+1] = ('**Not released yet:** its newest test / beta number is `%d`.'):format(game.upcoming)
+        end
+    end
     return card('game type  ' .. game.id, game.display .. '.' .. (game.note and (' ' .. game.note) or ''), facts)
 end
 
@@ -425,7 +433,7 @@ end
 ---@param cursor wowToc.cursor
 ---@return string
 local function loadScope(uri, cursor)
-    local fileScope, suffix = syntax.fileScope(uri)
+    local fileScope, suffix, base = syntax.fileScope(uri)
     local scope = syntax.lineScope(fileScope, cursor.lines, cursor.line)
     local everything = true
     for _, id in ipairs(syntax.gameOrder) do
@@ -444,6 +452,18 @@ local function loadScope(uri, cursor)
     local facts = {}
     if suffix then
         facts[#facts+1] = ('**File name suffix:** `_%s` restricts the whole file.'):format(suffix)
+    else
+        -- a file without a suffix is the fallback of its folder: any game type without a file of its own reads it, one that comes later included
+        facts[#facts+1] = ('**Fallback file:** read by every game type that has no `%s_<Suffix>.toc` next to it, a game type added later included.')
+            :format(base)
+        ---@type string[]
+        local taken = {}
+        for _, sibling in ipairs(syntax.siblingFiles(uri)) do
+            taken[#taken+1] = ('`%s` (%s)'):format(sibling.file, syntax.describeGames(sibling.games))
+        end
+        if #taken > 0 then
+            facts[#facts+1] = '**Taken by the files next to it:** ' .. table.concat(taken, '; ') .. '.'
+        end
     end
     return card(cursor.line.path or 'file', summary, facts)
 end
@@ -590,6 +610,11 @@ local function hover(uri, text, position)
                             local game = syntax.gameById[id]
                             if game.interface and number >= game.interface.first and number <= game.interface.last then
                                 facts[#facts+1] = ('**Game:** %s. The lowest number worth declaring today is `%d`.'):format(game.display, game.interface.minimum)
+                            end
+                            -- (the number the game is about to move to: a test / beta number ahead of the release, also for a game with no range)
+                            if game.upcoming == number then
+                                facts[#facts+1] = ('**Upcoming:** the newest test / beta number of %s%s.'):format(game.display,
+                                    game.interface and (' (released: `%d`)'):format(game.interface.minimum) or ' (not released yet)')
                             end
                         end
                         if #facts == 0 then
@@ -743,12 +768,23 @@ local function valueItems(cursor, first, valueKind, values, done)
     elseif valueKind == 'interface' then
         for _, id in ipairs(syntax.gameOrder) do
             local game = syntax.gameById[id]
+            -- (the released number first, then the one the game is about to move to; a game with no release has only the second)
+            local anchor = game.interface and game.interface.minimum or game.upcoming or 0
             if game.interface then
                 local number = tostring(game.interface.minimum)
                 if not (done and done[number]) then
                     items[#items+1] = item(number, CompletionItemKind.Value, cursor, first, {
                         detail = ('%s, %s'):format(game.display, readInterface(game.interface.minimum)),
-                        sortText = ('%08d'):format(1000000 - game.interface.minimum),
+                        sortText = ('%08d0'):format(1000000 - anchor),
+                    })
+                end
+            end
+            if game.upcoming then
+                local number = tostring(game.upcoming)
+                if not (done and done[number]) then
+                    items[#items+1] = item(number, CompletionItemKind.Value, cursor, first, {
+                        detail = ('%s, %s, upcoming'):format(game.display, readInterface(game.upcoming)),
+                        sortText = ('%08d1'):format(1000000 - anchor),
                     })
                 end
             end

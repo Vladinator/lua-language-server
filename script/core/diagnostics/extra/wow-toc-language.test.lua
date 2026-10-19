@@ -53,7 +53,7 @@ local function codes(list)
     return result
 end
 
-local HEADER = '## Interface: 120100' .. nl
+local HEADER = '## Interface: 120105' .. nl
 
 ---@type string[]
 local failures = {}
@@ -100,13 +100,13 @@ end
 -- 1. Lexical rules ---------------------------------------------------------------------------------------------------------------------------
 
 case('a header and a title are fine', HEADER .. '## Title: My Addon' .. nl, {})
-case('line endings: CRLF', '## Interface: 120100' .. string.char(13) .. nl .. '## Title: x' .. string.char(13) .. nl, {})
+case('line endings: CRLF', '## Interface: 120105' .. string.char(13) .. nl .. '## Title: x' .. string.char(13) .. nl, {})
 case('an empty file only lacks an Interface', '', { 'toc-missing-interface' })
 case('only blank lines', nl .. nl, { 'toc-missing-interface' })
 case('# is a comment', HEADER .. '# Title: not a header' .. nl, {})
 case('## without a colon is not a directive', HEADER .. '## just some words' .. nl, {})
-case('whitespace around the value is trimmed', '##   Interface  :   120100   ' .. nl, {})
-case('no space after ##', '##Interface:120100' .. nl, {})
+case('whitespace around the value is trimmed', '##   Interface  :   120105   ' .. nl, {})
+case('no space after ##', '##Interface:120105' .. nl, {})
 case('leading whitespace before # makes a file name', HEADER .. '  # not.lua' .. nl, { 'toc-nonexistent-file' })
 case('a leading space before ## is a file name too', HEADER .. ' ## Title: x' .. nl, { 'toc-nonexistent-file' })
 case('a line over 1024 characters', HEADER .. '## Notes: ' .. string.rep('x', 1100) .. nl, { 'toc-line-too-long' })
@@ -121,7 +121,7 @@ do
     -- non-ASCII text: columns are characters, not bytes
     line, start, finish = where(HEADER .. '## Title-deDE: Übersicht ' .. nl .. '## Bogus: x' .. nl, 'toc-unknown-header')
     assert(line == 2 and start == 3 and finish == 8, 'the key of an ASCII line')
-    line, start, finish = where('## Interface: 120100' .. nl .. '## Title: Übersicht [Bogus]' .. nl, 'toc-invalid-value')
+    line, start, finish = where('## Interface: 120105' .. nl .. '## Title: Übersicht [Bogus]' .. nl, 'toc-invalid-value')
     assert(line == 1 and start == 21 and finish == 26, 'characters, not bytes, after an Ü: ' .. tostring(start) .. '-' .. tostring(finish))
 end
 
@@ -137,7 +137,7 @@ end
 case('names are case-insensitive', HEADER .. '## TITLE: x' .. nl .. '## notes: y' .. nl, {})
 case('X-* custom keys are never unknown', HEADER .. '## X-Website: https://example.com' .. nl .. '## X-Curse-Project-ID: 1' .. nl, {})
 case('an unknown key', HEADER .. '## Titel: x' .. nl, { 'toc-unknown-header' })
-case('an unknown key is a hint with a suggestion', HEADER .. '## Interfaces: 120100' .. nl, { 'toc-unknown-header' })
+case('an unknown key is a hint with a suggestion', HEADER .. '## Interfaces: 120105' .. nl, { 'toc-unknown-header' })
 case('RequiredDeps is Dependencies', HEADER .. '## RequiredDeps: Ace3' .. nl, {})
 case('any key that starts with Dep is Dependencies', HEADER .. '## Dep1: Ace3' .. nl .. '## Dep2: LibStub' .. nl, {})
 case('Dependencies appends', HEADER .. '## Dependencies: A' .. nl .. '## Dependencies: B' .. nl, {})
@@ -146,11 +146,11 @@ case('LoadWith appends', HEADER .. '## LoadWith: A' .. nl .. '## LoadWith: B' ..
 case('LoadManagers appends', HEADER .. '## LoadManagers: A' .. nl .. '## LoadManagers: B' .. nl, {})
 case('SavedVariables appends', HEADER .. '## SavedVariables: A' .. nl .. '## SavedVariables: B' .. nl, {})
 case('SavedVariablesPerCharacter appends', HEADER .. '## SavedVariablesPerCharacter: A' .. nl .. '## SavedVariablesPerCharacter: B' .. nl, {})
-case('AllowLoadGameType appends', '## Interface: 120100, 40402' .. nl .. '## AllowLoadGameType: mainline' .. nl .. '## AllowLoadGameType: cata' .. nl, {})
-case('ExcludeLoadGameType appends', '## Interface: 120100, 50504, 40402, 30405' .. nl .. '## ExcludeLoadGameType: vanilla' .. nl .. '## ExcludeLoadGameType: tbc' .. nl, {})
+case('AllowLoadGameType appends', '## Interface: 120105, 40402' .. nl .. '## AllowLoadGameType: mainline' .. nl .. '## AllowLoadGameType: cata' .. nl, {})
+case('ExcludeLoadGameType appends', '## Interface: 120105, 50504, 40402, 30405' .. nl .. '## ExcludeLoadGameType: vanilla' .. nl .. '## ExcludeLoadGameType: tbc' .. nl, {})
 case('a repeated Title: the last wins', HEADER .. '## Title: A' .. nl .. '## Title: B' .. nl, { 'toc-duplicate-header' })
 case('a repeated Notes', HEADER .. '## Notes: A' .. nl .. '## Notes: B' .. nl, { 'toc-duplicate-header' })
-case('a repeated Interface', HEADER .. '## Interface: 120100' .. nl, { 'toc-duplicate-header' })
+case('a repeated Interface', HEADER .. '## Interface: 120105' .. nl, { 'toc-duplicate-header' })
 case('AllowAddOnTableAccess: only the first counts', HEADER .. '## AllowAddOnTableAccess: 1' .. nl .. '## AllowAddOnTableAccess: 0' .. nl, { 'toc-duplicate-header' })
 case('a single AllowAddOnTableAccess', HEADER .. '## AllowAddOnTableAccess: 1' .. nl, {})
 case('a localized variant is its own key', HEADER .. '## Title: A' .. nl .. '## Title-frFR: B' .. nl .. '## Title-deDE: C' .. nl, {})
@@ -266,7 +266,7 @@ case('the name does not match', HEADER, { 'toc-file-name' }, { toc = 'Other.toc'
 case('the folder name is compared case-insensitively', HEADER, {}, { toc = 'myaddon.toc' })
 for _, game in ipairs(games.games) do
     for _, suffix in ipairs(game.suffixes) do
-        case('suffix _' .. suffix .. ' selects ' .. game.id, '## Interface: ' .. (game.interface and game.interface.minimum or 120100) .. nl, {}, { toc = 'MyAddon_' .. suffix .. '.toc' })
+        case('suffix _' .. suffix .. ' selects ' .. game.id, '## Interface: ' .. (game.interface and game.interface.minimum or 120105) .. nl, {}, { toc = 'MyAddon_' .. suffix .. '.toc' })
     end
 end
 for _, family in ipairs(games.families) do
@@ -275,12 +275,12 @@ end
 case('suffixes are case-insensitive', HEADER, {}, { toc = 'MyAddon_mainline.toc' })
 case('an unknown suffix is part of the name', HEADER, { 'toc-file-name' }, { toc = 'MyAddon_Bogus.toc' })
 case('a game suffix with its own number', '## Interface: 11509' .. nl, {}, { toc = 'MyAddon_Vanilla.toc' })
-case('a game suffix with the number of another game', '## Interface: 120100' .. nl, { 'toc-interface-never-matches', 'toc-interface-missing-game' }, { toc = 'MyAddon_Vanilla.toc' })
+case('a game suffix with the number of another game', '## Interface: 120105' .. nl, { 'toc-interface-never-matches', 'toc-interface-missing-game' }, { toc = 'MyAddon_Vanilla.toc' })
 case('_Classic with numbers for every classic game', '## Interface: 11509, 20506, 30405, 40402, 50504' .. nl, {}, { toc = 'MyAddon_Classic.toc' })
-case('_Classic with a number that is not classic', '## Interface: 11509, 20506, 30405, 40402, 50504, 120100' .. nl, { 'toc-interface-mismatch' }, { toc = 'MyAddon_Classic.toc' })
+case('_Classic with a number that is not classic', '## Interface: 11509, 20506, 30405, 40402, 50504, 120105' .. nl, { 'toc-interface-mismatch' }, { toc = 'MyAddon_Classic.toc' })
 case('_Classic with one number only', '## Interface: 11509' .. nl, { 'toc-interface-missing-game' }, { toc = 'MyAddon_Classic.toc' })
 case('a line that cannot load in a game suffix file', 'File.lua [AllowLoadGameType standard]' .. nl, { 'toc-unreachable-line', 'toc-missing-interface' }, { toc = 'MyAddon_Vanilla.toc', files = { 'File.lua' } })
-case('a condition the suffix already implies', '## Interface: 120100' .. nl .. 'File.lua [AllowLoadGameType standard]' .. nl, { 'toc-redundant-condition' }, { toc = 'MyAddon_Standard.toc', files = { 'File.lua' } })
+case('a condition the suffix already implies', '## Interface: 120105' .. nl .. 'File.lua [AllowLoadGameType standard]' .. nl, { 'toc-redundant-condition' }, { toc = 'MyAddon_Standard.toc', files = { 'File.lua' } })
 case('a line allowed on a game of the suffix family', '## Interface: 11509, 20506, 30405, 40402, 50504' .. nl .. 'File.lua [AllowLoadGameType vanilla]' .. nl, {}, { toc = 'MyAddon_Classic.toc', files = { 'File.lua' } })
 case('a header Exclude removes games for the lines', HEADER .. '## ExcludeLoadGameType: standard' .. nl .. 'File.lua [AllowLoadGameType standard]' .. nl, { 'toc-unreachable-line', 'toc-interface-missing-game' }, { files = { 'File.lua' } })
 case('Allow then Exclude', HEADER .. '## AllowLoadGameType: mainline' .. nl .. '## ExcludeLoadGameType: forever' .. nl .. 'File.lua [AllowLoadGameType forever]' .. nl, { 'toc-unreachable-line' }, { files = { 'File.lua' } })
@@ -296,13 +296,16 @@ case('zero', '## Interface: 0' .. nl, { 'toc-invalid-interface' })
 case('not a number', '## Interface: abc' .. nl, { 'toc-invalid-interface' })
 case('a dotted version', '## Interface: 12.1.0' .. nl, { 'toc-invalid-interface' })
 case('negative', '## Interface: -5' .. nl, { 'toc-invalid-interface' })
-case('a comma list', '## Interface: 120100, 50504, 11509' .. nl, {})
-case('a comma list without spaces', '## Interface: 120100,50504,11509' .. nl, {})
-case('one bad item of a list', '## Interface: 120100, nope' .. nl, { 'toc-invalid-interface' })
+case('a comma list', '## Interface: 120105, 50504, 11509' .. nl, {})
+case('a comma list without spaces', '## Interface: 120105,50504,11509' .. nl, {})
+case('one bad item of a list', '## Interface: 120105, nope' .. nl, { 'toc-invalid-interface' })
 case('an empty Interface', '## Interface:' .. nl, { 'toc-invalid-value' })
 case('a number below the minimum of its game', '## Interface: 110200' .. nl, { 'toc-interface-too-low' })
-case('the minimum itself', '## Interface: 120100' .. nl, {})
-case('above the minimum', '## Interface: 120105' .. nl, {})
+case('the minimum itself', '## Interface: 120105' .. nl, {})
+case('above the minimum', '## Interface: 120106' .. nl, {})
+case('the previous release is below the minimum now', '## Interface: 120100' .. nl, { 'toc-interface-too-low' })
+case('the upcoming number is fine', '## Interface: 120107' .. nl, {})
+case('the released and the upcoming number together', '## Interface: 120105, 120107' .. nl, {})
 case('every game minimum of the data is accepted', (function ()
     ---@type string[]
     local out = {}
@@ -315,19 +318,19 @@ case('every game minimum of the data is accepted', (function ()
 end)(), {})
 case('a number nobody knows the game of', '## Interface: 900000' .. nl, {})
 case('Interface numbers imply the game: mainline only', HEADER .. '## AllowLoadGameType: mainline' .. nl, {})
-case('Interface for a game the allow list excludes', '## Interface: 120100, 11509' .. nl .. '## AllowLoadGameType: standard' .. nl, { 'toc-interface-mismatch' })
+case('Interface for a game the allow list excludes', '## Interface: 120105, 11509' .. nl .. '## AllowLoadGameType: standard' .. nl, { 'toc-interface-mismatch' })
 case('a game of the allow list without a number', HEADER .. '## AllowLoadGameType: mainline, cata' .. nl, { 'toc-interface-missing-game' })
-case('two numbers of one game are fine', '## Interface: 120100, 120105' .. nl .. '## AllowLoadGameType: mainline' .. nl, {})
-case('older numbers next to a current one keep older clients working', '## Interface: 120100, 100000, 110000' .. nl, {})
+case('two numbers of one game are fine', '## Interface: 120105, 120107' .. nl .. '## AllowLoadGameType: mainline' .. nl, {})
+case('older numbers next to a current one keep older clients working', '## Interface: 120105, 100000, 110000' .. nl, {})
 case('only old numbers: one report, at the newest', '## Interface: 120000, 100000, 110000' .. nl, { 'toc-interface-too-low' })
-case('no narrowing: a single number is fine', '## Interface: 120100' .. nl, {})
-case('Interface on several lines counts together', '## Interface: 120100' .. nl .. '## Interface: 11509' .. nl, { 'toc-duplicate-header' })
+case('no narrowing: a single number is fine', '## Interface: 120105' .. nl, {})
+case('Interface on several lines counts together', '## Interface: 120105' .. nl .. '## Interface: 11509' .. nl, { 'toc-duplicate-header' })
 case('a missing Interface', '## Title: x' .. nl, { 'toc-missing-interface' })
 
 -- 6. The wiki examples, verbatim: no finding --------------------------------------------------------------------------------------------------------------
 
 case('wiki example: a complete toc', table.concat({
-    '## Interface: 120100',
+    '## Interface: 120105',
     '## Title: My Addon',
     '## Title-frFR: Mon addon',
     '## Notes: Does useful things',
@@ -375,6 +378,11 @@ do
         if game.interface then
             assert(game.interface.first <= game.interface.minimum and game.interface.minimum <= game.interface.last,
                 game.id .. ': the minimum is inside the range')
+        end
+        if game.upcoming then
+            -- (the newest test / beta number is AHEAD of the release, and inside its range when the game has one)
+            assert(not game.interface or game.upcoming > game.interface.minimum, game.id .. ': upcoming is ahead of the released minimum')
+            assert(not game.interface or game.upcoming <= game.interface.last, game.id .. ': upcoming is inside the range')
         end
     end
     -- the ranges of the games do not overlap
@@ -431,9 +439,9 @@ case('a typo is not a retired directive', HEADER .. '## GuardedAdOn2: 1' .. nl, 
 case('the wiki example: a repeated Title with an inline condition', HEADER .. '## Title: My Cool AddOn' .. nl .. '## Title: My Cool AddOn in Classic [AllowLoadGameType classic]' .. nl, {})
 case('a repeated Title where the first has the condition', HEADER .. '## Title: A [AllowLoadGameType classic]' .. nl .. '## Title: B' .. nl, {})
 case('a repeated Title without a condition is still reported', HEADER .. '## Title: A' .. nl .. '## Title: B' .. nl, { 'toc-duplicate-header' })
-case('a repeated Interface with a condition', '## Interface: 120100' .. nl .. '## Interface: 50504 [AllowLoadGameType classic]' .. nl, {})
-case('every Interface line counts when one has a condition', '## Interface: 120100' .. nl .. '## Interface: 11509 [AllowLoadGameType classic]' .. nl .. '## AllowLoadGameType: standard' .. nl, { 'toc-interface-mismatch', 'toc-unreachable-line' })
-case('without a condition only the last Interface line counts', '## Interface: 120100' .. nl .. '## Interface: 11509' .. nl .. '## AllowLoadGameType: standard' .. nl, { 'toc-duplicate-header', 'toc-interface-never-matches', 'toc-interface-missing-game' })
+case('a repeated Interface with a condition', '## Interface: 120105' .. nl .. '## Interface: 50504 [AllowLoadGameType classic]' .. nl, {})
+case('every Interface line counts when one has a condition', '## Interface: 120105' .. nl .. '## Interface: 11509 [AllowLoadGameType classic]' .. nl .. '## AllowLoadGameType: standard' .. nl, { 'toc-interface-mismatch', 'toc-unreachable-line' })
+case('without a condition only the last Interface line counts', '## Interface: 120105' .. nl .. '## Interface: 11509' .. nl .. '## AllowLoadGameType: standard' .. nl, { 'toc-duplicate-header', 'toc-interface-never-matches', 'toc-interface-missing-game' })
 do
     ---@type table<string, true>
     local current = {}
@@ -472,7 +480,7 @@ touch({ 'MyAddon_Cata.toc', 'MyAddon_Mists.toc' })
 case('a plain file next to _Cata: Cata is not its', HEADER .. 'File.lua [AllowLoadGameType cata]' .. nl, { 'toc-unreachable-line' }, { files = { 'File.lua' } })
 case('a plain file next to _Cata: Vanilla still is', HEADER .. 'File.lua [AllowLoadGameType vanilla]' .. nl, {}, { files = { 'File.lua' } })
 case('a plain file next to _Cata: a retail number fits', HEADER, {})
-case('a plain file next to _Mists and _Cata declares no restriction: no Interface hints', '## Interface: 120100, 11509' .. nl, {})
+case('a plain file next to _Mists and _Cata declares no restriction: no Interface hints', '## Interface: 120105, 11509' .. nl, {})
 untouch({ 'MyAddon_Cata.toc', 'MyAddon_Mists.toc' })
 case('a plain file with no other files loads everywhere', HEADER .. 'File.lua [AllowLoadGameType cata]' .. nl, {}, { files = { 'File.lua' } })
 touch({ 'MyAddon_Classic.toc' })
@@ -622,7 +630,7 @@ case('expect-next-line met', HEADER .. '# @diagnostic expect-next-line: toc-unkn
 case('expect-next-line unmet', HEADER .. '# @diagnostic expect-next-line: toc-unknown-header' .. nl .. '## Title: x' .. nl, { 'toc-unfulfilled-expect' })
 case('expect-next-line for another code leaves the real one and is unmet', HEADER .. '# @diagnostic expect-next-line: toc-duplicate-header' .. nl .. '## Bogus: 1' .. nl, { 'toc-unfulfilled-expect', 'toc-unknown-header' })
 case('expect-next-line with two codes, one met', HEADER .. '# @diagnostic expect-next-line: toc-unknown-header, toc-duplicate-header' .. nl .. '## Bogus: 1' .. nl, { 'toc-unfulfilled-expect' })
-case('expect-next-line with two codes, one of them on a later line', HEADER .. '## Bogus: 1' .. nl .. '# @diagnostic expect-next-line: toc-unknown-header, toc-duplicate-header' .. nl .. '## Interface: 120100' .. nl, { 'toc-unknown-header', 'toc-unfulfilled-expect' })
+case('expect-next-line with two codes, one of them on a later line', HEADER .. '## Bogus: 1' .. nl .. '# @diagnostic expect-next-line: toc-unknown-header, toc-duplicate-header' .. nl .. '## Interface: 120105' .. nl, { 'toc-unknown-header', 'toc-unfulfilled-expect' })
 case('expect-next-line without codes: anything met', HEADER .. '# @diagnostic expect-next-line:' .. nl .. '## Bogus: 1' .. nl, {})
 case('expect-next-line without codes: nothing to expect', HEADER .. '# @diagnostic expect-next-line:' .. nl .. '## Title: x' .. nl, { 'toc-unfulfilled-expect' })
 case('expect-next-line only reaches the next line', HEADER .. '# @diagnostic expect-next-line: toc-unknown-header' .. nl .. '## Bogus: 1' .. nl .. '## Bogus2: 1' .. nl, { 'toc-unknown-header' })
@@ -818,8 +826,16 @@ offers('no files in a comment', '#H|', {}, { '#Hidden.lua' })
 offers('locale tags after a localizable key', '## Title-|', { 'deDE', 'frFR', 'zhTW' }, { 'Title' })
 offers('locale tags while typing', '## Notes-de|', { 'deDE' })
 offers('no locale tags for a key without them', '## Interface-|', {}, { 'deDE' })
-offers('Interface numbers', '## Interface: |', { '120100', '50504', '11509' }, { 'standard' })
-offers('Interface numbers are not repeated', '## Interface: 120100, |', { '50504' }, { '120100' })
+offers('Interface numbers', '## Interface: |', { '120105', '50504', '11509' }, { 'standard' })
+offers('Interface numbers include the upcoming ones', '## Interface: |', { '120107', '16001' })
+offers('Interface numbers are not repeated', '## Interface: 120105, |', { '50504', '120107' }, { '120105' })
+offers('an upcoming number is not repeated', '## Interface: 120107, |', { '120105' }, { '120107' })
+do
+    -- the released number comes before the one the game is about to move to; a game with no release has only the second
+    local items = labels(completionOf('## Interface: |'))
+    assert(items['120105'].sortText < items['120107'].sortText, 'the released number is listed first')
+    assert(items['16001'].detail:find('upcoming', 1, true) and not items['120105'].detail:find('upcoming', 1, true), 'only the upcoming number says so')
+end
 offers('categories', '## Category: |', { 'Combat', 'Dungeons & Raids', 'Action Bars', 'Libraries' }, { 'Kampf' })
 offers('categories while typing', '## Category: Dun|', { 'Dungeons & Raids' })
 offers('translations of the locale', '## Category: Combat' .. nl .. '## Category-deDE: |', { 'Kampf', 'Aktionsleisten' }, { 'Combat', 'Barres d' })
@@ -840,7 +856,7 @@ local function makeAddon(name, title)
     local dir = TESTROOT .. name
     fs.create_directories(fs.path(dir))
     local file = assert(io.open(dir .. '/' .. name .. '.toc', 'w'))
-    file:write('## Interface: 120100' .. nl .. (title and ('## Title: ' .. title .. nl) or ''))
+    file:write('## Interface: 120105' .. nl .. (title and ('## Title: ' .. title .. nl) or ''))
     file:close()
 end
 makeAddon('ZzDepOne', 'First Dependency')
@@ -938,8 +954,8 @@ local function hovers(name, marked, contains, tocName)
     end
 end
 
-hovers('a key', '## Inter|face: 120100', { '## Interface: <number>', 'whole numbers above 0' })
-hovers('a key, the last letter', '## Interfac|e: 120100', { '## Interface: <number>' })
+hovers('a key', '## Inter|face: 120105', { '## Interface: <number>', 'whole numbers above 0' })
+hovers('a key, the last letter', '## Interfac|e: 120105', { '## Interface: <number>' })
 hovers('a restricted key', '## Sec|ure: 1', { '**Not available** to third-party addons' })
 hovers('an appending key', '## Dep|endencies: A', { 'adds to the list', 'RequiredDeps' })
 hovers('a prefix key', '## Dep|Foo: A', { '## DepFoo: <AddonName>' })
@@ -967,6 +983,31 @@ hovers('an Interface number', '## Interface: 12|0100', { '12.1.0', 'Retail (Midn
 hovers('an old Interface number', '## Interface: 11|509', { '1.15.9', 'Classic Era' })
 hovers('a number nobody owns', '## Interface: 9|9', { '0.0.99' })
 hovers('a game type', '## AllowLoadGameType: cat|a', { 'Cataclysm Classic', '`_Cata`', '40402' })
+---@param name   string
+---@param marked string
+---@param absent string[]  parts the hover must not contain (a hover that is there)
+---@param tocName? string
+local function hoverLacks(name, marked, absent, tocName)
+    local uri, text, position = place(marked, tocName)
+    local result = assert(syntax.kind.hover)(uri, text, position)
+    if not result then
+        failures[#failures+1] = ('hover `%s`: no hover'):format(name)
+        return
+    end
+    for _, part in ipairs(absent) do
+        if result.value:find(part, 1, true) then
+            failures[#failures+1] = ('hover `%s`: `%s` must not be in: %s'):format(name, part, result.value)
+        end
+    end
+end
+
+hovers('a game type with an upcoming number', '## AllowLoadGameType: stand|ard', { '**Upcoming:**', '`120107`', '`120105`' })
+hovers('a game type that is not released yet', '## ExcludeLoadGameType: for|ever', { '**Not released yet:**', '`16001`' })
+hovers('the upcoming number', '## Interface: 12|0107', { '**Upcoming:**', 'Retail (Midnight)', '`120105`' })
+hovers('the upcoming number of a game with no release', '## Interface: 16|001', { '**Upcoming:**', 'Forever', 'not released yet' })
+hoverLacks('the released number is not called upcoming', '## Interface: 12|0105', { 'Upcoming' })
+hoverLacks('a game with nothing ahead of its release', '## AllowLoadGameType: ca|ta', { 'Upcoming', 'Not released' })
+hoverLacks('a game with an upcoming number says nothing of an unreleased one', '## AllowLoadGameType: stand|ard', { 'Not released' })
 hovers('a family', '## AllowLoadGameType: main|line', { 'game family  mainline', 'Retail (Midnight)', 'Plunderstorm' })
 hovers('an alias', '## ExcludeLoadGameType: camel|ot', { 'Forever' })
 hovers('an inline directive', 'File.lua [AllowLoad|GameType cata]', { '[AllowLoadGameType <game type>' })
@@ -976,6 +1017,25 @@ hovers('a bracket word nobody knows', 'File.lua [AllowLoadGameType no|nsense]', 
 hovers('a file line says where it loads', 'Co|re.lua', { 'Loads on every game type' })
 hovers('a restricted file line', 'Co|re.lua [AllowLoadGameType cata]', { 'Loads on: Cataclysm Classic.' })
 hovers('a file line of a suffix file', 'Co|re.lua', { 'Loads on: The Burning Crusade Classic.', '`_TBC`' }, 'MyAddon_TBC.toc')
+-- a file without a suffix is the fallback of its folder; the files next to it that take game types away are named
+hovers('a file without a suffix is the fallback', 'Co|re.lua', { '**Fallback file:**', '`MyAddon_<Suffix>.toc`', 'a game type added later' })
+hoverLacks('no sibling, nothing taken', 'Co|re.lua', { 'Taken by' })
+touch({ 'MyAddon_Classic.toc' })
+hovers('a family file takes its games', 'Co|re.lua', { '**Taken by the files next to it:**', '`MyAddon_Classic.toc`', 'Cataclysm Classic' })
+untouch({ 'MyAddon_Classic.toc' })
+touch({ 'MyAddon_Vanilla.toc', 'MyAddon_Forever.toc' })
+hovers('game files take their games', 'Co|re.lua', { '`MyAddon_Vanilla.toc`', 'Classic Era', '`MyAddon_Forever.toc`', 'Forever' })
+hoverLacks('a game file does not take another game', 'Co|re.lua', { '`MyAddon_Vanilla.toc` (Forever' })
+untouch({ 'MyAddon_Vanilla.toc', 'MyAddon_Forever.toc' })
+touch({ 'Other_Classic.toc', 'MyAddon_Nonsense.toc' })
+hoverLacks('another addon and an unknown suffix take nothing', 'Co|re.lua', { 'Other_Classic', 'MyAddon_Nonsense', 'Taken by' })
+untouch({ 'Other_Classic.toc', 'MyAddon_Nonsense.toc' })
+-- (an unknown suffix that sorts before a real sibling must not hide it)
+touch({ 'MyAddon_Aardvark.toc', 'MyAddon_Classic.toc' })
+hovers('a real sibling after an unknown suffix is still named', 'Co|re.lua', { '`MyAddon_Classic.toc`' })
+hoverLacks('the unknown suffix is not named', 'Co|re.lua', { 'Aardvark' })
+untouch({ 'MyAddon_Aardvark.toc', 'MyAddon_Classic.toc' })
+hoverLacks('a file with a suffix is no fallback', 'Co|re.lua', { 'Fallback file', 'Taken by' }, 'MyAddon_TBC.toc')
 hovers('a comment', '# Co|re', {})
 hovers('a blank line', '|', {})
 

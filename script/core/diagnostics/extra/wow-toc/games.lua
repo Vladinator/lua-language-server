@@ -10,11 +10,15 @@
 --   suffixes    the suffixes of `Name_<Suffix>.toc` that select exactly this game (case-insensitive)
 --   variable    what `[Game]` expands to
 --   interface   OPTIONAL: `first`..`last` is the range of Interface numbers that mean this game (110200 and 120100 are both retail), `minimum`
---               the lowest number worth declaring for it today (a hint, not a validity rule: any whole number above 0 is valid); omitted
---               for a game nothing is known about (Forever has no range: its beta numbers overlap Classic Era's)
+--               the RELEASED number of today, the lowest one worth declaring (a hint, not a validity rule: any whole number above 0 is valid);
+--               omitted for a game nothing is known about (Forever has no range: its beta numbers overlap Classic Era's)
+--   upcoming    OPTIONAL: the newest test / beta number that is AHEAD of the release (an addon can adopt the next version early; the number is
+--               suggested too). The released `minimum` stays the anchor. A game with no release yet (Forever) has an `upcoming` and no
+--               `interface`. tools/toc_wiki_check.py (docs repo) compares both with the wiki table of game types.
 --   note        OPTIONAL: one line for hover
 --
--- Last revised 2026-10-10; the Interface minimums are the "live" values of the wiki table of that day.
+-- Last revised 2026-10-19; `minimum` and `upcoming` are the released and the newest test / beta values of the wiki table of that day
+-- (https://warcraft.wiki.gg/wiki/Template:LatestPatchInfo, read with tools/toc_wiki_check.py).
 
 ---@class wowToc.game
 ---@field id        string
@@ -24,6 +28,7 @@
 ---@field suffixes  string[]
 ---@field variable  string
 ---@field interface? { first: integer, last: integer, minimum: integer }
+---@field upcoming? integer  the newest test / beta number ahead of the release
 ---@field note?     string
 
 ---@class wowToc.family
@@ -47,13 +52,13 @@ return {
     games = {
         {
             id = 'standard', display = 'Retail (Midnight)', aliases = { 'retail', 'midnight' }, families = { 'mainline' },
-            suffixes = { 'Standard' }, variable = 'Standard', interface = { first = 60000, last = 199999, minimum = 120100 },
-            note = 'Channels (wiki, 2026-10-10): Standard 120100, Standard Test 120105, Standard Beta 120001.',
+            suffixes = { 'Standard' }, variable = 'Standard', interface = { first = 60000, last = 199999, minimum = 120105 }, upcoming = 120107,
+            note = 'Channels (wiki, 2026-10-19): Standard 120105 (released), Standard Test 120107 (upcoming), Standard Beta 120001.',
         },
         {
             id = 'forever', display = 'Forever', aliases = { 'camelot' }, families = { 'mainline' },
-            suffixes = { 'Forever', 'Camelot' }, variable = 'Camelot',
-            note = 'The wiki says the Camelot name may change to Forever. Forever Beta uses 16001 (inside the Classic Era range), so no range is kept for Forever.',
+            suffixes = { 'Forever', 'Camelot' }, variable = 'Camelot', upcoming = 16001,
+            note = 'Not released yet: 16001 is its test / beta number (inside the Classic Era range, so no range is kept for Forever). The wiki says the Camelot name may change to Forever.',
         },
         {
             id = 'mists', display = 'Mists of Pandaria Classic', families = { 'classic' },

@@ -499,6 +499,36 @@ local function siblingsOf(dir, base, self)
     return own, family
 end
 
+--- The files next to a file without a suffix that take game types away from it: `<Name>_<Suffix>.toc` of a game or a family suffix.
+---@param uri uri
+---@return { file: string, suffix: string, games: table<string, true> }[]
+function m.siblingFiles(uri)
+    local path = furi.decode(uri)
+    local name = path:match('([^/\\]+)$') or path
+    ---@type string
+    local stem = name:gsub('%.[tT][oO][cC]$', '')
+    local dir = path:match('^(.*)[/\\][^/\\]*$') or '.'
+    local lowerBase = stem:lower()
+    ---@type { file: string, suffix: string, games: table<string, true> }[]
+    local found = {}
+    pcall(function ()
+        for entry in fs.pairs(fs.path(dir)) do
+            local file = entry:filename():string()
+            local suffix = file:lower() ~= name:lower() and file:lower():match('^' .. lowerBase:gsub('%p', '%%%0') .. '_([%w]+)%.toc$')
+            if suffix and suffixGames[suffix] then
+                ---@type table<string, true>
+                local games = {}
+                for _, id in ipairs(suffixGames[suffix]) do
+                    games[id] = true
+                end
+                found[#found+1] = { file = file, suffix = suffix, games = games }
+            end
+        end
+    end)
+    table.sort(found, function (a, b) return a.file:lower() < b.file:lower() end)
+    return found
+end
+
 --- The games a file name selects: the game suffix first, then the family suffix, else every game. Next to files of other suffixes a
 --- file keeps the games none of them takes: `Name.toc` is what is left when `Name_Classic.toc` exists (the mainline games), and
 --- `Name_Classic.toc` leaves out the classic games that have a `Name_<Game>.toc` of their own.

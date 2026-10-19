@@ -77,6 +77,7 @@ function m.briefConfig(value, depth)
 end
 
 ---@async
+---@param uri? uri
 function m.updateConfig(uri)
     config.addNullSymbol(json.null)
     local specified = cfgLoader.loadLocalConfig(uri, CONFIGPATH)

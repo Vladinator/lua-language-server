@@ -70,6 +70,7 @@ end
 ---@class cli.doc.export
 local export = {}
 
+---@param uri uri
 function export.getLocalPath(uri)
     local file_canonical = fs.canonical(fs.path(furi.decode(uri))):string()
     local doc_canonical = fs.canonical(fs.path(DOC)):string()
@@ -81,6 +82,8 @@ function export.getLocalPath(uri)
     return relativePath
 end
 
+---@param rowcol any `{ row, col }`, or anything else for "no position"
+---@return integer
 function export.positionOf(rowcol)
     return type(rowcol) == 'table' and guide.positionOf(rowcol[1], rowcol[2]) or -1
 end

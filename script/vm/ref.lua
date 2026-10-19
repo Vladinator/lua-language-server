@@ -75,6 +75,10 @@ local function searchInAllFiles(suri, searcher, notify)
 end
 
 ---@async
+---@param source     parser.object
+---@param pushResult fun(src: parser.object)
+---@param defMap     table<parser.object, boolean>
+---@param fileNotify? fun(uri: uri): boolean
 local function searchWord(source, pushResult, defMap, fileNotify)
     local key = guide.getKeyName(source)
     if not key then
@@ -94,6 +98,7 @@ local function searchWord(source, pushResult, defMap, fileNotify)
     end
 
     ---@async
+    ---@param uri uri
     local function findWord(uri)
         local text = files.getText(uri)
         if not text then
@@ -145,6 +150,10 @@ local function searchWord(source, pushResult, defMap, fileNotify)
 end
 
 ---@async
+---@param source     parser.object
+---@param pushResult fun(src: parser.object)
+---@param defMap     table<parser.object, boolean>
+---@param fileNotify? fun(uri: uri): boolean
 local function searchFunction(source, pushResult, defMap, fileNotify)
     ---@param src parser.object
     local function checkDef(src)
@@ -157,6 +166,7 @@ local function searchFunction(source, pushResult, defMap, fileNotify)
     end
 
     ---@async
+    ---@param uri uri
     local function findCall(uri)
         local state = files.getState(uri)
         if not state then
@@ -327,6 +337,7 @@ function vm.getRefs(source, fileNotify)
 
     ---@type boolean?
     local hasLocal
+    ---@param src parser.object
     local function pushResult(src)
         if src.type == 'local' then
             if hasLocal then

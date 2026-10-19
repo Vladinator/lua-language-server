@@ -42,6 +42,8 @@ local function searchByLocalID(source, pushResult)
     end
 end
 
+---@param source     parser.object
+---@param pushResult fun(src: parser.object)
 local function searchByNode(source, pushResult)
     local node = vm.compileNode(source)
     local suri = guide.getUri(source)
@@ -51,7 +53,9 @@ local function searchByNode(source, pushResult)
                 pushResult(set)
             end
         else
-            pushResult(n)
+            -- (a node can also hold a `vm.variable` or a `vm.generic`; they are handed out as they are, typed as the objects of a source:
+            -- see TODO.md "getDefs hands out variables")
+            pushResult(n --[[@as parser.object]])
         end
     end
 end
@@ -102,6 +106,10 @@ function vm.getDefs(source)
 end
 
 local HAS_DEF_ERR = false  -- the error object for comparing
+---@param checkFunc  fun(source: parser.object, pushResult: fun(src: parser.object))
+---@param source     parser.object
+---@param pushResult fun(src: parser.object)
+---@return boolean
 local function checkHasDef(checkFunc, source, pushResult)
     local _, err = pcall(checkFunc, source, pushResult)
     return err == HAS_DEF_ERR

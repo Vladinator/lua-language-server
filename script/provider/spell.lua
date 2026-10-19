@@ -9,14 +9,17 @@ local pformatting = require 'provider.formatting'
 
 local m = {}
 
+---@param filePath string
 function m.loadDictionaryFromFile(filePath)
     return codeFormat.spell_load_dictionary_from_path(filePath)
 end
 
+---@param buffer string
 function m.loadDictionaryFromBuffer(buffer)
     return codeFormat.spell_load_dictionary_from_buffer(buffer)
 end
 
+---@param word string
 function m.addWord(word)
     return codeFormat.spell_load_dictionary_from_buffer(word)
 end

@@ -112,6 +112,8 @@ function m.isOpen(uri)
     return m.openMap[uri] ~= nil
 end
 
+---@param uri uri
+---@return table?
 function m.getOpenedCache(uri)
     local data = m.openMap[uri]
     if not data then
@@ -121,6 +123,9 @@ function m.getOpenedCache(uri)
 end
 
 --- 是否是库文件
+---@param uri            uri
+---@param excludeFolder? boolean
+---@return boolean
 function m.isLibrary(uri, excludeFolder)
     if excludeFolder then
         for _, scp in ipairs(scope.folders) do
@@ -272,6 +277,7 @@ function m.setText(uri, text, isTrust, callback)
     --end
 end
 
+---@param uri uri
 function m.resetText(uri)
     local file = m.fileMap[uri]
     if not file then
@@ -282,6 +288,8 @@ function m.resetText(uri)
     m.setText(uri, originText, file.trusted)
 end
 
+---@param uri   uri
+---@param text? string
 function m.setRawText(uri, text)
     if not text then
         return
@@ -360,6 +368,8 @@ function m.getWordsOfHead(uri, head)
 end
 
 --- 获取文件版本
+---@param uri uri
+---@return integer?
 function m.getVersion(uri)
     local file = m.fileMap[uri]
     if not file then
@@ -425,6 +435,8 @@ function m.getChildFiles(uri)
     return results
 end
 
+---@param uri uri
+---@return (fun())?
 function m.addRef(uri)
     local file = m.fileMap[uri]
     if not file then
@@ -437,6 +449,7 @@ function m.addRef(uri)
     end
 end
 
+---@param uri uri
 function m.delRef(uri)
     local file = m.fileMap[uri]
     if not file then
@@ -768,6 +781,8 @@ function m.getLastState(uri)
     return m.stateMap[uri]
 end
 
+---@param uri uri
+---@return file?
 function m.getFile(uri)
     return m.fileMap[uri]
         or m.dllMap[uri]
@@ -815,6 +830,7 @@ function m.getCache(uri)
 end
 
 --- 获取文件关联
+---@param uri uri
 function m.getAssoc(uri)
     ---@type any[]
     local patt = {}
@@ -1041,6 +1057,8 @@ function m.watch(callback)
     m.watchList[#m.watchList+1] = callback
 end
 
+---@param ev  string
+---@param uri uri
 function m.onWatch(ev, uri)
     for _, callback in ipairs(m.watchList) do
         ---@async

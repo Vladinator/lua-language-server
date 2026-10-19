@@ -42,7 +42,7 @@ function m.loadRCConfig(uri, filename)
     return res
 end
 
----@param uri uri
+---@param uri? uri
 ---@param filename? string
 ---@return table?
 function m.loadLocalConfig(uri, filename)

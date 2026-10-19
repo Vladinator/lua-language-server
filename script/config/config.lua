@@ -4,10 +4,10 @@ local scope    = require 'workspace.scope'
 local template = require 'config.template'
 
 ---@alias config.source 'client'|'path'|'local'
----@alias config.changeEntry { uri: uri, key: string, value: any, oldValue: any }
+---@alias config.changeEntry { uri?: uri, key: string, value: any, oldValue: any }
 
 ---@class config.api
----@field watchList (fun(uri: uri, key: string, value: any, oldValue: any))[]
+---@field watchList (fun(uri?: uri, key: string, value: any, oldValue: any))[]
 ---@field changes?  config.changeEntry[]
 local m = {}
 m.watchList = {}
@@ -97,6 +97,10 @@ function m.set(uri, key, value)
     return false
 end
 
+---@param uri?   uri
+---@param key   string
+---@param value any
+---@return boolean
 function m.add(uri, key, value)
     local unit = template[key]
     assert(unit, 'unknown key: ' .. key)
@@ -121,6 +125,10 @@ function m.add(uri, key, value)
     return false
 end
 
+---@param uri?   uri
+---@param key   string
+---@param value any
+---@return boolean
 function m.remove(uri, key, value)
     local unit = template[key]
     assert(unit, 'unknown key: ' .. key)
@@ -143,6 +151,11 @@ function m.remove(uri, key, value)
     return false
 end
 
+---@param uri?   uri
+---@param key   string
+---@param prop  any
+---@param value any
+---@return boolean
 function m.prop(uri, key, prop, value)
     local unit = template[key]
     assert(unit, 'unknown key: ' .. key)
@@ -182,7 +195,7 @@ function m.get(uri, key)
     return value
 end
 
----@param uri uri
+---@param uri? uri
 ---@param key string
 ---@return any
 function m.getRaw(uri, key)
@@ -263,11 +276,15 @@ function m.update(scp, ...)
     m.event(scp.uri, '')
 end
 
----@param callback fun(uri: uri, key: string, value: any, oldValue: any)
+---@param callback fun(uri?: uri, key: string, value: any, oldValue: any)
 function m.watch(callback)
     m.watchList[#m.watchList+1] = callback
 end
 
+---@param uri?     uri
+---@param key     string
+---@param value   any
+---@param oldValue any
 function m.event(uri, key, value, oldValue)
     if not m.changes then
         m.changes = {}
@@ -289,6 +306,7 @@ function m.event(uri, key, value, oldValue)
     }
 end
 
+---@param null any a value that stands for `nil` in a setting
 function m.addNullSymbol(null)
     m.nullSymbols[null] = true
 end

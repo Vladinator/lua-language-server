@@ -22,6 +22,8 @@ local jsonc     = require 'jsonc'
 local m = {}
 m._eventList = {}
 
+---@param newClient? string the name of the client (set once at `initialize`)
+---@return string?
 function m.client(newClient)
     if newClient then
         m._client = newClient

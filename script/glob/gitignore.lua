@@ -77,6 +77,8 @@ function mt:addPattern(pat)
     end
 end
 
+---@param op   string
+---@param val? any
 function mt:setOption(op, val)
     if val == nil then
         val = true
@@ -101,6 +103,8 @@ function mt:callInterface(name, params)
     return func(params, self.data)
 end
 
+---@param name string
+---@return boolean
 function mt:hasInterface(name)
     return self.interface[name] ~= nil
 end
@@ -121,6 +125,7 @@ function mt:checkDirectory(catch, path, matcher0)
     end
 end
 
+---@param path string
 function mt:simpleMatch(path)
     path = self:getRelativePath(path)
     for i = #self.matcher, 1, -1 do

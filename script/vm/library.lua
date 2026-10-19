@@ -1,6 +1,8 @@
 ---@class vm
 local vm      = require 'vm.vm'
 
+---@param source parser.object
+---@return (string|parser.object)? -- the name of a builtin, see the field `special` of a source
 function vm.getLibraryName(source)
     if source.special then
         return source.special

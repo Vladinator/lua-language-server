@@ -168,6 +168,7 @@ function mt:loadFile(uri, libraryUri)
 end
 
 ---@async
+---@param fileName string what is shown while the files load
 function mt:loadAll(fileName)
     local startClock = os.clock()
     log.info('Load files from disk:', fileName)

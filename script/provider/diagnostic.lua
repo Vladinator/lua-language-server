@@ -274,6 +274,8 @@ local function mergeDiags(a, b, c)
 end
 
 -- enable `push`, disable `clear`
+---@param uri    uri
+---@param force? boolean
 function m.clear(uri, force)
     await.close('diag:' .. uri)
     if m.cache[uri] == nil and not force then

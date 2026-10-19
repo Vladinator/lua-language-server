@@ -60,6 +60,8 @@ function m.saveFile(path, content)
     end
 end
 
+---@param path fs.path
+---@param base fs.path
 function m.relative(path, base)
     local sPath = fs.absolute(path):string()
     local sBase = fs.absolute(base):string()

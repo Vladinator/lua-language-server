@@ -82,6 +82,8 @@ function mt:addPattern(pat)
     end
 end
 
+---@param op   string
+---@param val? any
 function mt:setOption(op, val)
     if val == nil then
         val = true

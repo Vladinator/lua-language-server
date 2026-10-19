@@ -493,6 +493,7 @@ end
 
 --- defer
 local deferMT = { __close = function (self) self[1]() end }
+---@param callback fun()
 function m.defer(callback)
     return setmetatable({ callback }, deferMT)
 end

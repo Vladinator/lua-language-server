@@ -703,6 +703,9 @@ function m.getRange(source)
 end
 
 --- 判断source是否包含position
+---@param source   parser.object
+---@param position integer
+---@return boolean
 function m.isContain(source, position)
     local start, finish = m.getStartFinish(source)
     if not start or not finish then
@@ -714,6 +717,9 @@ end
 --- 判断position在source的影响范围内
 ---
 --- 主要针对赋值等语句时，key包含value
+---@param source   parser.object
+---@param position integer
+---@return boolean
 function m.isInRange(source, position)
     local start, finish = m.getRange(source)
     if not start or not finish then
@@ -722,6 +728,10 @@ function m.isInRange(source, position)
     return start <= position and finish >= position
 end
 
+---@param source  parser.object
+---@param tStart  number
+---@param tFinish number the end of an open range is `math.huge`
+---@return boolean
 function m.isBetween(source, tStart, tFinish)
     local start, finish = m.getStartFinish(source)
     if not start or not finish then
@@ -730,6 +740,10 @@ function m.isBetween(source, tStart, tFinish)
     return start <= tFinish and finish >= tStart
 end
 
+---@param source  parser.object
+---@param tStart  number
+---@param tFinish number
+---@return boolean
 function m.isBetweenRange(source, tStart, tFinish)
     local start, finish = m.getRange(source)
     if not start or not finish then
@@ -1100,6 +1114,8 @@ function m.isGet(source)
     return false
 end
 
+---@param source? parser.object
+---@return (string|parser.object)? -- a builtin's name, see the field `special`
 function m.getSpecial(source)
     if not source then
         return nil
@@ -1348,6 +1364,8 @@ function m.isInComment(ast, offset)
     return false
 end
 
+---@param source parser.object
+---@return boolean
 function m.isOOP(source)
     if source.type == 'setmethod'
     or source.type == 'getmethod' then

@@ -93,7 +93,7 @@ local function checkKeyofParams(uri, call, func, resolved, callback)
             goto CONTINUE
         end
         do
-            local expected = vm.compileNode(vm.cloneObject(typeDoc, resolved) --[[@as parser.object]])
+            local expected = vm.compileNode(vm.cloneObject(typeDoc, resolved))
             local given    = vm.compileNode(arg)
             local givenView = arg.type == 'string' and ('"%s"'):format(arg[1]) or vm.getInfer(given):view(uri)
             if givenView == 'unknown' or givenView == 'nil' or vm.getInfer(given):hasAny(uri) then

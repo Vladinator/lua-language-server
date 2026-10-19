@@ -116,10 +116,23 @@ local function expandParamsProjection(arg, resolved)
     return expanded
 end
 
+-- The clone of an object is an object of the same kind: `cloneObject` says so with a generic (one cast, here), so that none of its
+-- callers has to cast the result back. The work is done by `cloneAny`, which recurses through the typed `cloneObject`.
+---@type fun(source: vm.node.object?, resolved?: table<string, vm.node>): vm.node.object?
+local cloneAny
+
+---@generic T: vm.node.object?
+---@param source    T
+---@param resolved? table<string, vm.node>
+---@return T
+local function cloneObject(source, resolved)
+    return cloneAny(source, resolved)
+end
+
 ---@param source    vm.node.object?
 ---@param resolved? table<string, vm.node>
 ---@return vm.node.object?
-local function cloneObject(source, resolved)
+function cloneAny(source, resolved)
     if not resolved or not source then
         return source
     end
@@ -166,7 +179,7 @@ local function cloneObject(source, resolved)
             types    = {},
         }
         for i, typeUnit in ipairs(source.types) do
-            local newObj     = cloneObject(typeUnit, resolved) --[[@as parser.object?]]
+            local newObj     = cloneObject(typeUnit, resolved)
             newType.types[i] = newObj
         end
         return newType
@@ -223,7 +236,7 @@ local function cloneObject(source, resolved)
             types  = {},
         }
         for i, typeUnit in ipairs(source.types) do
-            newIntersection.types[i] = cloneObject(typeUnit, resolved) --[[@as parser.object]]
+            newIntersection.types[i] = cloneObject(typeUnit, resolved)
         end
         return newIntersection
     end
@@ -234,10 +247,10 @@ local function cloneObject(source, resolved)
             start     = source.start,
             finish    = source.finish,
             parent    = source.parent,
-            check     = cloneObject(source.check, resolved) --[[@as parser.object]],
-            extends   = cloneObject(source.extends, resolved) --[[@as parser.object?]],
-            trueType  = cloneObject(source.trueType, resolved) --[[@as parser.object?]],
-            falseType = cloneObject(source.falseType, resolved) --[[@as parser.object?]],
+            check     = cloneObject(source.check, resolved),
+            extends   = cloneObject(source.extends, resolved),
+            trueType  = cloneObject(source.trueType, resolved),
+            falseType = cloneObject(source.falseType, resolved),
         }
         return newConditional
     end
@@ -257,8 +270,8 @@ local function cloneObject(source, resolved)
                 start   = field.start,
                 finish  = field.finish,
                 parent  = newTable,
-                name    = cloneObject(field.name, resolved) --[[@as parser.object]],
-                extends = cloneObject(field.extends, resolved) --[[@as parser.object]],
+                name    = cloneObject(field.name, resolved),
+                extends = cloneObject(field.extends, resolved),
             }
             newTable.fields[i] = newField
         end
@@ -282,13 +295,13 @@ local function cloneObject(source, resolved)
                     newDocFunc.args[#newDocFunc.args+1] = newArg
                 end
             else
-                local newObj = cloneObject(arg, resolved) --[[@as parser.object]]
+                local newObj = cloneObject(arg, resolved)
                 newObj.optional    = arg.optional
                 newDocFunc.args[#newDocFunc.args+1] = newObj
             end
         end
         for i, ret in ipairs(source.returns) do
-            local newObj = cloneObject(ret, resolved) --[[@as parser.object]]
+            local newObj = cloneObject(ret, resolved)
             newObj.parent   = newDocFunc
             newObj.optional = ret.optional
             newDocFunc.returns[i] = newObj
@@ -348,7 +361,7 @@ local function cloneObject(source, resolved)
                 extraOffset = source.extraOffset,
             }
             for i, sign in ipairs(source.signs) do
-                newSign.signs[i] = cloneObject(sign, resolved) --[[@as parser.object]]
+                newSign.signs[i] = cloneObject(sign, resolved)
             end
             if indexName and indexSign and resolved['#' .. indexName] then
                 -- (the name of a parameter, not a type: it stands for the number the call gave it)
@@ -490,9 +503,10 @@ function vm.createGeneric(proto, sign, flags)
     return generic
 end
 
----@param source    vm.node.object?
+---@generic T: vm.node.object?
+---@param source    T
 ---@param resolved? table<string, vm.node>
----@return vm.node.object?
+---@return T
 function vm.cloneObject(source, resolved)
     return cloneObject(source, resolved)
 end

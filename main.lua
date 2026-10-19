@@ -67,7 +67,6 @@ util.enableFormatString()
 collectgarbage('param', 'minormul', 10)
 collectgarbage('param', 'minormajor', 50)
 
----@diagnostic disable-next-line: lowercase-global
 log = require 'log'
 log.init(ROOT, fs.path(LOGPATH) / 'service.log')
 if LOGLEVEL then

@@ -19,10 +19,9 @@ protoDiagnostic.register {
 }
 
 --- How a function is written as a type, for the message: the parent's and the override's side by side.
----@param uri uri
----@param fn  parser.object
+---@param fn parser.object
 ---@return string
-local function signatureOf(uri, fn)
+local function signatureOf(fn)
     local args = buildArgs(fn)
     -- (the implicit `self` of a method is on both sides: not worth a word)
     if args[1] and args[1]:sub(1, 5) == 'self:' then
@@ -47,7 +46,7 @@ end
 ---@param base      parser.object
 ---@return string
 local function methodMessage(uri, key, childName, baseName, child, base)
-    return MESSAGE_METHOD:format(key, childName, baseName, baseName, signatureOf(uri, base), childName, signatureOf(uri, child))
+    return MESSAGE_METHOD:format(key, childName, baseName, baseName, signatureOf(base), childName, signatureOf(child))
 end
 
 --- The classes `className` inherits from, nearest first.

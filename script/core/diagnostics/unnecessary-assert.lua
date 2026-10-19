@@ -2,7 +2,6 @@ local files           = require 'files'
 local guide           = require 'parser.guide'
 local vm              = require 'vm'
 local await           = require 'await'
-local protoDiagnostic = require 'proto.diagnostic'
 
 local MESSAGE = 'Unnecessary assert: this expression is always truthy.'
 

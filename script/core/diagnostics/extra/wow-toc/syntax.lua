@@ -59,8 +59,6 @@ local gameById = {}
 local gameName = {}
 ---@type table<string, string[]>      lowercase family id -> game ids
 local familyGames = {}
----@type table<string, wowToc.family>
-local familyById = {}
 ---@type table<string, string[]>      lowercase suffix -> game ids (a game suffix: one game; a family suffix: its games)
 local suffixGames = {}
 ---@type table<string, wowToc.category>   normalized English category name -> category
@@ -86,8 +84,6 @@ for _, retired in ipairs(games.retiredSuffixes) do
 end
 ---@type table<string, true>          lowercase suffix of a family (not of one game)
 local familySuffix = {}
----@type table<string, string>        lowercase suffix -> description for hover
-local suffixText = {}
 ---@type string[]
 local gameOrder = {}
 
@@ -104,14 +100,11 @@ for _, game in ipairs(games.games) do
     end
     for _, suffix in ipairs(game.suffixes) do
         suffixGames[suffix:lower()] = { game.id }
-        suffixText[suffix:lower()] = ('the game %s'):format(game.display)
     end
 end
 for _, family in ipairs(games.families) do
-    familyById[family.id] = family
     suffixGames[family.suffix:lower()] = familyGames[family.id] or {}
     familySuffix[family.suffix:lower()] = true
-    suffixText[family.suffix:lower()] = ('the family %s'):format(family.display)
 end
 
 ---@type table<string, wowToc.directive>   lowercase name (and alias) -> directive
@@ -333,7 +326,7 @@ local function scanBrackets(text, from)
         end
         local close = text:find(']', open + 1, true)
         local inner = text:sub(open + 1, (close or #text + 1) - 1)
-        local nameFirst, nameLast = inner:find('^%s*[%w_]*')
+        local _, nameLast = inner:find('^%s*[%w_]*')
         local name = inner:match('^%s*([%w_]*)') or ''
         local nameStart = open + 1 + (inner:find('[%w_]') or (#inner + 1)) - 1
         if name == '' then
@@ -367,7 +360,6 @@ local function parseLine(rowText, row)
     end
     -- `#` at the very start is a comment (leading whitespace before it makes the line a file name)
     if text:sub(1, 2) == '##' then
-        local keyStart, keyFinish = text:find('^##%s*()[%w_%-]+', 1)
         local key = text:match('^##%s*([%w_%-]+)%s*:')
         if key then
             local first = text:find(key, 3, true) --[[@as integer]]
@@ -982,7 +974,7 @@ function m.diagnose(uri, text)
     ---@type wowToc.number[]
     local numbers = {}
     for _, line in ipairs(interfaceLines) do
-        for first, item, last in (line.value or ''):gmatch('()([^,%s]+)()') --[==[@as fun(): (integer, string, integer)]==] do
+        for first, item in (line.value or ''):gmatch('()([^,%s]+)') --[==[@as fun(): (integer, string)]==] do
             local at = (line.valueStart or 1) + first - 1
             ---@type integer?
             local number

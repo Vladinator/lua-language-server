@@ -25,10 +25,9 @@ end
 collectgarbage('param', 'minormul', 10)
 collectgarbage('param', 'minormajor', 50)
 
----@diagnostic disable-next-line: duplicate-set-field
+---@diagnostic expect-next-line: duplicate-set-field
 io.write = function () end
 
----@diagnostic disable-next-line: lowercase-global
 log = require 'log'
 log.init(ROOT, ROOT / 'log' / 'test.log')
 log.debug('测试开始')

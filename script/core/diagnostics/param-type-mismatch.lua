@@ -23,7 +23,6 @@ local function expandGenerics(defNode, classGenericMap)
     local generics = {}
     for dn in defNode:eachObject() do
         if dn.type == 'doc.generic.name' then
-            ---@cast dn parser.object
             generics[#generics+1] = dn
         end
     end
@@ -43,7 +42,7 @@ local function expandGenerics(defNode, classGenericMap)
             if limits then
                 -- (`---@generic K: keyof self`: `self` is the receiver of this call, not the class that declares the method)
                 if classGenericMap and classGenericMap.self then
-                    limits = vm.cloneObject(limits, { self = classGenericMap.self }) --[[@as parser.object]]
+                    limits = vm.cloneObject(limits, { self = classGenericMap.self })
                 end
                 defNode:merge(vm.compileNode(limits))
             else

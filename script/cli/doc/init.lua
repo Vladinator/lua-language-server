@@ -256,7 +256,7 @@ function doc.runCLI()
             DOC_OUT_PATH = fs.current_path():string()
         end
 
-        local ok, outPaths, err = dirty_export.serializeAndExport(docs, DOC_OUT_PATH)
+        local _, outPaths, err = dirty_export.serializeAndExport(docs, DOC_OUT_PATH)
         print(lang.script('CLI_DOC_DONE'))
         for i, path in ipairs(outPaths) do
             local this_err = (type(err) == 'table') and err[i] or nil

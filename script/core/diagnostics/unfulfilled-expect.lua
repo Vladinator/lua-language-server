@@ -1,6 +1,4 @@
 local files           = require 'files'
-local guide           = require 'parser.guide'
-local vm              = require 'vm'
 local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
 

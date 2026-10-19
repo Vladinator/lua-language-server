@@ -2393,7 +2393,7 @@ local function keyofArgNode(state, call, argIndex)
     if call.node.type == 'getmethod' and call.node.node then
         resolved.self = vm.compileNode(call.node.node)
     end
-    return vm.compileNode(vm.cloneObject(target, resolved) --[[@as parser.object]])
+    return vm.compileNode(vm.cloneObject(target, resolved))
 end
 
 ---@param state    parser.state

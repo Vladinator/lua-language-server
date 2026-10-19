@@ -3,7 +3,6 @@ local guide           = require 'parser.guide'
 local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
 local vm              = require 'vm'
-local files           = require 'files'
 
 local MESSAGE = 'The value is assigned as `nil` because the number of values is not enough. In Lua, `x, y = 1 ` is equivalent to `x, y = 1, nil` .'
 local CALL_MESSAGE = 'The function returns at most %d value(s): this variable is assigned `nil`.'

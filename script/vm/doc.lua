@@ -1,5 +1,4 @@
 local files  = require 'files'
-local await  = require 'await'
 local guide  = require 'parser.guide'
 ---@class vm
 local vm     = require 'vm.vm'

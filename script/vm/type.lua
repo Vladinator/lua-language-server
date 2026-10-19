@@ -1096,11 +1096,10 @@ end
 --- The kind of key a dictionary type has: `literals` (a union of string literals, `keys` lists them), `string`, `integer` (`integer` and
 --- `number` keys: the table can be an array), `mixed` (a union of kinds: `table<string|integer, V>` is a table that is both an array and a
 --- dictionary, nothing can be said about it) or `other`.
----@param uri  uri
 ---@param node vm.node
 ---@return string kind
 ---@return table<string, true>? keys
-local function dictionaryKeyKind(uri, node)
+local function dictionaryKeyKind(node)
     ---@type table<string, true>
     local keys = {}
     local count = 0
@@ -1170,7 +1169,7 @@ end
 local function dictionaryFits(uri, dictionary, member, childHasArray)
     local keyNode   = vm.compileNode(dictionary.signs[1])
     local valueNode = vm.compileNode(dictionary.signs[2])
-    local kind, keys = dictionaryKeyKind(uri, keyNode)
+    local kind, keys = dictionaryKeyKind(keyNode)
     if kind == 'other' or kind == 'mixed' then
         return nil
     end

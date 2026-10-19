@@ -1347,10 +1347,9 @@ end
 --- Parsed as ordinary `doc.type.sign` generic-instantiation syntax, same as the utility types
 --- above -- no new grammar. As the last declared return it passes on every return of `F` from the
 --- `index`-th (the first by default) on, see `spreadReturnsProjection`.
----@param uri    uri
 ---@param source parser.object a `doc.type.sign` whose name is `returns`
 ---@return boolean handled
-local function resolveReturnsProjection(uri, source)
+local function resolveReturnsProjection(source)
     if source.node[1] ~= 'returns' then
         return false
     end
@@ -2854,10 +2853,10 @@ local function bindReturnOfFunction(source, mfunc, index, args, classMap)
     end
 
     if mfunc.type == 'function' or mfunc.type == 'doc.type.function' then
-        local hasUnresolvedGeneric = false
+        local unresolved = false
         for rnode in returnNode:eachObject() do
             if vm.isGenericUnsolved(rnode) then
-                hasUnresolvedGeneric = true
+                unresolved = true
                 break
             end
             -- Also check inside doc.type.sign for unresolved generics
@@ -2865,15 +2864,15 @@ local function bindReturnOfFunction(source, mfunc, index, args, classMap)
             if rnode.type == 'doc.type.sign' and rnode.signs then
                 guide.eachSourceType(rnode, 'doc.generic.name', function (src)
                     if not src._resolved then
-                        hasUnresolvedGeneric = true
+                        unresolved = true
                     end
                 end)
-                if hasUnresolvedGeneric then
+                if unresolved then
                     break
                 end
             end
         end
-        if hasUnresolvedGeneric then
+        if unresolved then
             local sign = vm.getSign(mfunc)
             if sign and resolveArgs and #resolveArgs > 0 then
                 local resolved = sign:resolve(guide.getUri(source), resolveArgs)
@@ -4049,7 +4048,7 @@ local compilerSwitch = util.switch()
         if source.node[1] and resolveUtilityType(uri, source) then
             return
         end
-        if source.node[1] and resolveReturnsProjection(uri, source) then
+        if source.node[1] and resolveReturnsProjection(source) then
             return
         end
         if source.node[1] and resolveParamsProjection(source) then

@@ -54,7 +54,14 @@ function m.dump(path)
     file:close()
 end
 
+local ticks = 0
+
 local function maybeDump()
+    -- (the clock is read every 256th call: os.clock is not free, and it was most of the cost of a counter)
+    ticks = ticks + 1
+    if ticks % 256 ~= 0 then
+        return
+    end
     local now = os.clock()
     if now - lastDump >= 2 then
         lastDump = now

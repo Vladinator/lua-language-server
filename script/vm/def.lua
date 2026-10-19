@@ -42,8 +42,17 @@ local function searchByLocalID(source, pushResult)
     end
 end
 
+--- A node holds more than sources: also `vm.variable`s and `vm.generic`s. Neither is an assignment or a literal, so neither was ever a result
+--- (measured on a real project: every `variable` that reached `getDefs` was dropped by the `isAssign` / `isLiteral` test, none was returned).
+---@guard obj is parser.object
+---@param obj vm.object|vm.variable
+---@return boolean
+local function isSource(obj)
+    return obj.type ~= nil and obj.type ~= 'variable'
+end
+
 ---@param source     parser.object
----@param pushResult fun(src: parser.object)
+---@param pushResult fun(src: vm.object|vm.variable)
 local function searchByNode(source, pushResult)
     local node = vm.compileNode(source)
     local suri = guide.getUri(source)
@@ -53,9 +62,7 @@ local function searchByNode(source, pushResult)
                 pushResult(set)
             end
         else
-            -- (a node can also hold a `vm.variable` or a `vm.generic`; they are handed out as they are, typed as the objects of a source:
-            -- see TODO.md "getDefs hands out variables")
-            pushResult(n --[[@as parser.object]])
+            pushResult(n)
         end
     end
 end
@@ -70,8 +77,11 @@ function vm.getDefs(source)
 
     ---@type boolean?
     local hasLocal
-    ---@param src parser.object
+    ---@param src vm.object|vm.variable
     local function pushResult(src)
+        if not isSource(src) then
+            return
+        end
         -- (a field of `Pick<T, K>` / `A & B` stands for the field of `T` / `A` it was made from)
         while src.utilityOrigin do
             src = src.utilityOrigin
@@ -106,9 +116,9 @@ function vm.getDefs(source)
 end
 
 local HAS_DEF_ERR = false  -- the error object for comparing
----@param checkFunc  fun(source: parser.object, pushResult: fun(src: parser.object))
+---@param checkFunc  fun(source: parser.object, pushResult: fun(src: vm.object|vm.variable))
 ---@param source     parser.object
----@param pushResult fun(src: parser.object)
+---@param pushResult fun(src: vm.object|vm.variable)
 ---@return boolean
 local function checkHasDef(checkFunc, source, pushResult)
     local _, err = pcall(checkFunc, source, pushResult)
@@ -122,8 +132,11 @@ function vm.hasDef(source)
     local mark = {}
     ---@type boolean?
     local hasLocal
-    ---@param src parser.object
+    ---@param src vm.object|vm.variable
     local function pushResult(src)
+        if not isSource(src) then
+            return
+        end
         -- (a field of `Pick<T, K>` / `A & B` stands for the field of `T` / `A` it was made from)
         while src.utilityOrigin do
             src = src.utilityOrigin

@@ -387,7 +387,10 @@ local compilerGlobalSwitch = util.switch()
             for _, sign in ipairs(source.signs) do
                 newSign:addSign(vm.compileNode(sign))
             end
-            source.extends._generic = vm.createGeneric(source.extends, newSign)
+            local extends = source.extends
+            if extends then
+                extends._generic = vm.createGeneric(extends, newSign)
+            end
         end
     end)
     : case 'doc.enum'

@@ -73,9 +73,10 @@ function m.addRequest(scpName, only, changedUri)
         request = { all = false, names = {}, changedUris = {} }
         m.pending[scpName] = request
     end
-    if request.changedUris ~= false then
-        if changedUri then
-            request.changedUris[changedUri] = true
+    local changed = request.changedUris
+    if changed ~= false then
+        if changedUri and changed then
+            changed[changedUri] = true
         else
             request.changedUris = false
         end
@@ -113,12 +114,14 @@ function m.restoreRequest(scpName, request)
     for name in pairs(request.names) do
         pending.names[name] = true
     end
-    if pending.changedUris ~= false then
-        if not request.changedUris then
+    local pendingUris = pending.changedUris
+    if pendingUris ~= false then
+        local requestUris = request.changedUris
+        if not requestUris or not pendingUris then
             pending.changedUris = false
         else
-            for uri in pairs(request.changedUris) do
-                pending.changedUris[uri] = true
+            for uri in pairs(requestUris) do
+                pendingUris[uri] = true
             end
         end
     end

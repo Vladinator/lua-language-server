@@ -2885,9 +2885,9 @@ local function parseActions()
     end
 end
 
----@param params parser.object?
+---@param params parser.object
 ---@param isLambda? boolean
----@return parser.object?
+---@return parser.object
 local function parseParams(params, isLambda)
     ---@type boolean?
     local lastSep

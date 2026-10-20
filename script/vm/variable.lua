@@ -102,7 +102,10 @@ local compileSwitch = util.switch()
         local id = parentNode.id .. vm.ID_SPLITE .. key
         local variable = insertVariableID(id, source, base)
         source._variableNode = variable
-        source.field._variableNode = variable
+        local field = source.field
+        if field then
+            field._variableNode = variable
+        end
         if source.type == 'getfield' then
             compileVariables(source.next, base)
         end
@@ -123,7 +126,10 @@ local compileSwitch = util.switch()
         local id = parentNode.id .. vm.ID_SPLITE .. key
         local variable = insertVariableID(id, source, base)
         source._variableNode = variable
-        source.method._variableNode = variable
+        local method = source.method
+        if method then
+            method._variableNode = variable
+        end
         if source.type == 'getmethod' then
             compileVariables(source.next, base)
         end
@@ -144,7 +150,10 @@ local compileSwitch = util.switch()
         local id = parentNode.id .. vm.ID_SPLITE .. key
         local variable = insertVariableID(id, source, base)
         source._variableNode = variable
-        source.index._variableNode = variable
+        local index = source.index
+        if index then
+            index._variableNode = variable
+        end
         if source.type == 'setindex' then
             compileVariables(source.next, base)
         end

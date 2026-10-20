@@ -215,7 +215,7 @@ local function isAsync(value, propagate, deepLevel)
                 end
             end
         end
-        if propagate then -- if enable async propagation, try check calling functions
+        if propagate and asyncCache then -- if enable async propagation, try check calling functions
             if deepLevel and deepLevel > 50 then
                 return false
             end

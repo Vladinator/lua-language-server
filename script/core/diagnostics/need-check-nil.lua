@@ -46,6 +46,9 @@ return function (uri, callback)
             if nxt.type == 'getfield'
             or nxt.type == 'getmethod'
             or nxt.type == 'getindex'
+            or nxt.type == 'setfield'
+            or nxt.type == 'setmethod'
+            or nxt.type == 'setindex'
             or nxt.type == 'call' then
                 -- 安全导航（?. / ?.( / ?.[ 等）：访问本身已判空，无需再次检查
                 if not nxt.safe then

@@ -278,6 +278,8 @@ function cloneAny(source, resolved)
         return newTable
     end
     if source.type == 'doc.type.function' then
+        ---@type parser.object[]
+        local returns = {}
         ---@type parser.object
         local newDocFunc = {
             type    = source.type,
@@ -285,7 +287,7 @@ function cloneAny(source, resolved)
             finish  = source.finish,
             parent  = source.parent,
             args    = {},
-            returns = {},
+            returns = returns,
         }
         for _, arg in ipairs(source.args) do
             local expanded = expandParamsProjection(arg, resolved)
@@ -304,7 +306,7 @@ function cloneAny(source, resolved)
             local newObj = cloneObject(ret, resolved)
             newObj.parent   = newDocFunc
             newObj.optional = ret.optional
-            newDocFunc.returns[i] = newObj
+            returns[i] = newObj
         end
         return newDocFunc
     end

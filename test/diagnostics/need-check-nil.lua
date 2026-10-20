@@ -1709,3 +1709,45 @@ local r ---@type number?
 for _, v in pairs(callee) do r = 1 end
 print(<!r!> > 1)
 ]]
+
+-- writing through a value that may be nil is as much a runtime error as reading through it
+TEST [[
+---@type table<string, number>?
+local t = nil
+---@type { x: number }?
+local o = nil
+---@param s string
+---@param p? table<string, number>
+local function f(s, p)
+    <!t!>[s] = 1
+    <!t!>.a = 2
+    <!o!>.x = 1
+    <!p!>[s] = 1
+end
+]]
+
+-- fine: narrowed, assigned first, guarded with `and`
+TEST [[
+---@type table<string, number>?
+local t = nil
+---@type { x: number }?
+local o = nil
+---@param s string
+---@param p? table<string, number>
+local function f(s, p)
+    if t then t[s] = 1 end
+    if not o then return end
+    o.x = 1
+    if p then p[s] = 1 end
+    t = t or {}
+    t.a = 2
+    local _ = p and p[s]
+end
+]]
+
+-- defining a method on a value that may be nil
+TEST [[
+---@type table?
+local o = nil
+function <!o!>:run() end
+]]

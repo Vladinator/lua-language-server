@@ -128,7 +128,7 @@ function pathKey(expr)
     if t ~= 'getfield' and t ~= 'setfield' and t ~= 'getindex' and t ~= 'setindex' then
         return nil
     end
-    local name = guide.getKeyName(expr)
+    local name = guide.getKey(expr)
     if name == nil then
         -- `t[k]` with a key that is a local that is never assigned after it is declared (a parameter, a loop variable, a `local k = ...`):
         -- the same slot at every read, so it narrows like a literal key (TypeScript 5.5: "constant indexed accesses")
@@ -1279,7 +1279,7 @@ end
 ---@param expr parser.object getfield/setfield/getindex/setindex
 ---@return vm.flow.correlatedSibling[]?
 local function fieldSiblingKeys(expr)
-    local fieldName = guide.getKeyName(expr)
+    local fieldName = guide.getKey(expr)
     if type(fieldName) ~= 'string' then
         return nil
     end

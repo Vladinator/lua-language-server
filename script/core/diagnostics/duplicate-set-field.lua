@@ -51,7 +51,7 @@ return function (uri, callback)
     ---@async
     guide.eachSourceTypes(state.ast, sourceTypes, function (src)
         await.delay()
-        local name = guide.getKeyName(src)
+        local name = guide.getKey(src)
         if not name then
             return
         end

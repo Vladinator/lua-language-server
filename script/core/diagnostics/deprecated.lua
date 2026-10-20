@@ -203,7 +203,7 @@ return function (uri, callback)
             end
         end
 
-        local key = guide.getKeyName(src)
+        local key = guide.getKey(src)
         if not key then
             return
         end

@@ -173,7 +173,7 @@ return function (uri, callback)
             return
         end
         await.delay()
-        local key = guide.getKeyName(source.node)
+        local key = guide.getKey(source.node)
         if not mightBeNoDiscard(uri, source.node, key) then
             return
         end

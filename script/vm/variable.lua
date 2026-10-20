@@ -137,7 +137,7 @@ local compileSwitch = util.switch()
         if not parentNode then
             return
         end
-        local key = guide.getKeyName(source)
+        local key = guide.getKey(source)
         if type(key) ~= 'string' then
             return
         end

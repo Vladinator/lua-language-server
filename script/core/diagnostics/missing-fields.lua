@@ -45,11 +45,11 @@ local function getRequiredKeys(def, isPartial)
         if  not field.optional
         and field.type == "doc.field"
         and not vm.compileNode(field):isNullable() then
-            local key = vm.getKeyName(field)
+            local key = vm.getKey(field)
             if not key then
                 local fieldnode = vm.compileNode(field.field)[1]
                 if fieldnode and fieldnode.type == 'doc.type.integer' then
-                    key = vm.getKeyName(fieldnode)
+                    key = vm.getKey(fieldnode)
                 end
             end
             if key then
@@ -128,7 +128,7 @@ return function (uri, callback)
                 if not myKeys then
                     myKeys = {}
                     for _, field in ipairs(src) do
-                        local key = vm.getKeyName(field) or field.tindex
+                        local key = vm.getKey(field) or field.tindex
                         if key then
                             myKeys[key] = true
                         end

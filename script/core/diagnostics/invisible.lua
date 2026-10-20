@@ -187,7 +187,7 @@ return function (uri, callback)
         if not child then
             return
         end
-        local key = guide.getKeyName(src)
+        local key = guide.getKey(src)
         if not key then
             return
         end

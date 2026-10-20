@@ -25,13 +25,13 @@ return function (uri, callback)
     ---@param source parser.object
     guide.eachSourceType(ast.ast, 'table', function (source)
         await.delay()
-        ---@type table<string, parser.object[]>
+        ---@type table<string|integer, parser.object[]>
         local mark = {}
         for _, obj in ipairs(source) do
             if obj.type == 'tablefield'
             or obj.type == 'tableindex'
             or obj.type == 'tableexp' then
-                local name = guide.getKeyName(obj)
+                local name = guide.getKey(obj)
                 if name  then
                     if not mark[name] then
                         mark[name] = {}

@@ -252,12 +252,17 @@ local compilerGlobalSwitch = util.switch()
         if source.node._globalNode then
             local parentName = source.node._globalNode:getName()
             if parentName == '_G' then
-                name = keyName
+                -- (a global is named by a string: `_G[1]` declares none)
+                if type(keyName) == 'string' then
+                    name = keyName
+                end
             else
                 name = ('%s%s%s'):format(parentName, vm.ID_SPLITE, keyName)
             end
         elseif source.node.special == '_G' then
-            name = keyName
+            if type(keyName) == 'string' then
+                name = keyName
+            end
         end
         if not name then
             return
@@ -274,19 +279,24 @@ local compilerGlobalSwitch = util.switch()
     : call(function (source)
         ---@type string?
         local name
-        local keyName = guide.getKeyName(source)
+        local keyName = guide.getKey(source)
         if not keyName then
             return
         end
         if source.node._globalNode then
             local parentName = source.node._globalNode:getName()
             if parentName == '_G' then
-                name = keyName
+                -- (a global is named by a string: `_G[1]` declares none)
+                if type(keyName) == 'string' then
+                    name = keyName
+                end
             else
                 name = ('%s%s%s'):format(parentName, vm.ID_SPLITE, keyName)
             end
         elseif source.node.special == '_G' then
-            name = keyName
+            if type(keyName) == 'string' then
+                name = keyName
+            end
         end
         if not name then
             return

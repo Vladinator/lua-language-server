@@ -29,9 +29,10 @@ function m.getSpecial(source)
     return source.special
 end
 
+--- `guide.getKey`, also for the key of `rawset(t, k, v)` / `rawget(t, k)`. Can be an integer, see `guide.getKey`.
 ---@param source parser.object
----@return string?
-function m.getKeyName(source)
+---@return (string|integer)?
+function m.getKey(source)
     if not source then
         return nil
     end
@@ -39,13 +40,17 @@ function m.getKeyName(source)
         local special = m.getSpecial(source.node)
         if special == 'rawset'
         or special == 'rawget' then
-            -- may return the raw tableexp integer (see guide.lua's comment
-            -- on its own getKeyNameOfLiteral/getKeyName tableexp handling)
-            ---@diagnostic expect-next-line: return-type-mismatch
             return guide.getKeyNameOfLiteral(source.args[2])
         end
     end
-    return guide.getKeyName(source)
+    return guide.getKey(source)
+end
+
+--- The name of a node that is named by a string, see `guide.getKeyName`.
+---@param source parser.object
+---@return string?
+function m.getKeyName(source)
+    return m.getKey(source) --[[@as string?]]
 end
 
 ---@param source parser.object?

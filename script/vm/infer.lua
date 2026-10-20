@@ -941,7 +941,7 @@ function vm.viewKey(source, uri)
         local name = util.viewString(source[1], source[2])
         return ('[%s]'):format(name), name
     end
-    local key = vm.getKeyName(source)
+    local key = vm.getKey(source)
     if key == nil then
         return nil
     end

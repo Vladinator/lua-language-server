@@ -105,14 +105,17 @@ local function getVisibleKeyMap(source, fields)
     local keys = {}
     ---@type table<string, boolean>
     local map  = {}
-    ---@type table<string, boolean>
+    ---@type table<string|integer, boolean>
     local ignored = {}
     for _, field in ipairs(fields) do
         local key = vm.viewKey(field, uri)
-        local rawKey = guide.getKeyName(field)
+        local rawKey = guide.getKey(field)
         if rawKey and rawKey ~= key then
             ignored[rawKey] = true
-            map[rawKey] = nil
+            -- (the map holds view keys, strings: an integer key is never in it)
+            if type(rawKey) == 'string' then
+                map[rawKey] = nil
+            end
         end
         if  not ignored[key]
         and vm.isVisible(source, field) then

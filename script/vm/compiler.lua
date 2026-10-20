@@ -212,7 +212,7 @@ local function searchLiteralFieldFromTable(source, key, callback)
             local fkey
             if field.type == 'tablefield'
             or field.type == 'tableindex' then
-                fkey = guide.getKeyName(field)
+                fkey = guide.getKey(field)
             end
             if field.type == 'tableexp' then
                 fkey = field.tindex
@@ -3235,8 +3235,8 @@ local compilerSwitch = util.switch()
         if vm.bindDocs(source) then
             return
         end
-        ---@type (string|vm.node)?
-        local key = guide.getKeyName(source)
+        ---@type (string|integer|vm.node)?
+        local key = guide.getKey(source)
         if key == nil and source.index then
             key = vm.compileNode(source.index)
         end
@@ -3368,7 +3368,7 @@ local compilerSwitch = util.switch()
             hasMarkDoc = vm.bindDocs(source)
         end
 
-        local key = guide.getKeyName(source)
+        local key = guide.getKey(source)
         if not hasMarkDoc then
             if key then
                 vm.compileByParentNode(source.node, key, function (src)
@@ -4338,7 +4338,7 @@ local nodeSwitch;nodeSwitch = util.switch()
     : call(function (source, lastKey, pushResult)
         local parentNode = vm.compileNode(source.node)
         local uri = guide.getUri(source)
-        local key = guide.getKeyName(source)
+        local key = guide.getKey(source)
         if type(key) ~= 'string' then
             return
         end
@@ -4356,7 +4356,7 @@ local nodeSwitch;nodeSwitch = util.switch()
         if lastKey then
             return
         end
-        local key = guide.getKeyName(source)
+        local key = guide.getKey(source)
         if type(key) ~= 'string' then
             return
         end

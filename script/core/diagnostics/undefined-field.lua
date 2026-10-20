@@ -190,7 +190,7 @@ return function (uri, callback)
         await.delay()
         local index = src.index
         local node = src.node
-        if not index or not node or index.type == 'string' or guide.getKeyName(src) ~= nil then
+        if not index or not node or index.type == 'string' or guide.getKey(src) ~= nil then
             return
         end
         -- only a value that is declared as a class: the keys of a plain table (`local t = {}`, `_G`) are filled in as the program runs

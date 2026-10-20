@@ -176,7 +176,7 @@ end
 ---@param newname string
 ---@param callback core.rename.callback
 local function ofFieldThen(key, src, newname, callback)
-    if vm.getKeyName(src) ~= key then
+    if vm.getKey(src) ~= key then
         return
     end
     if     src.type == 'tablefield'

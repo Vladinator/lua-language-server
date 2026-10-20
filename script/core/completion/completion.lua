@@ -2265,20 +2265,20 @@ local function checkTableLiteralField(state, position, tbl, fields, results)
     if not text then
         return
     end
-    ---@type table<string, boolean>
+    ---@type table<string|integer, boolean>
     local mark = {}
     for _, field in ipairs(tbl) do
         if field.type == 'tablefield'
         or field.type == 'tableindex'
         or field.type == 'tableexp' then
-            local name = guide.getKeyName(field)
+            local name = guide.getKey(field)
             if name then
                 mark[name] = true
             end
         end
     end
     table.sort(fields, function (a, b)
-        return tostring(guide.getKeyName(a)) < tostring(guide.getKeyName(b))
+        return tostring(guide.getKey(a)) < tostring(guide.getKey(b))
     end)
     -- {$}
     local left = lookBackward.findWord(text, guide.positionToOffset(state, position))
@@ -2295,7 +2295,7 @@ local function checkTableLiteralField(state, position, tbl, fields, results)
         ---@type completion.results
         local fieldResults = {}
         for _, field in ipairs(fields) do
-            local name = guide.getKeyName(field)
+            local name = guide.getKey(field)
             if  name
             and not mark[name]
             and matchKey(left, tostring(name)) then
@@ -2439,14 +2439,14 @@ local function tryTable(state, position, results)
     if  tbl.type ~= 'table' then
         return
     end
-    ---@type table<string, boolean>
+    ---@type table<string|integer, boolean>
     local mark = {}
     ---@type parser.object[]
     local fields = {}
 
     local defs = vm.getFields(tbl)
     for _, field in ipairs(defs) do
-        local name = guide.getKeyName(field)
+        local name = guide.getKey(field)
         if name and not mark[name] then
             mark[name] = true
             fields[#fields+1] = field

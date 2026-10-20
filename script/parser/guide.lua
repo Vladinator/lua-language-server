@@ -1145,9 +1145,12 @@ function m.getKeyNameOfLiteral(obj)
     end
 end
 
+--- The key a node declares or reads: the name of a field, a method, a global or a local, the literal of an index (`t["a"]`, `t[1]`), the
+--- position of a table entry. A key of an INDEX node can be an integer, and must stay one (`t["1"]` is not `t[1]`: stringifying it broke the
+--- lookups that key a table by position).
 ---@param obj parser.object?
----@return string?
-function m.getKeyName(obj)
+---@return (string|integer)?
+function m.getKey(obj)
     if not obj then
         return nil
     end
@@ -1175,16 +1178,10 @@ function m.getKeyName(obj)
     elseif tp == 'getindex'
     or     tp == 'setindex'
     or     tp == 'tableindex' then
-        -- may transitively return the raw tableexp integer described below
-        ---@diagnostic expect-next-line: return-type-mismatch
         return m.getKeyNameOfLiteral(obj.index)
     elseif tp == 'tableexp' then
-        -- Genuinely returns the raw integer here (not a string) -- callers
-        -- that key a table by position (e.g. vm/compiler.lua's field
-        -- lookups) rely on getting the same integer back that indexed the
-        -- table literal in the first place; stringifying it here broke
-        -- those lookups (`t["1"]` is not `t[1]`) when tried.
-        ---@diagnostic expect-next-line: return-type-mismatch
+        -- the raw integer: callers that key a table by position (e.g. vm/compiler.lua's field lookups) rely on getting the same integer back
+        -- that indexed the table literal in the first place
         return obj.tindex
     elseif tp == 'field'
     or     tp == 'method' then
@@ -1205,11 +1202,19 @@ function m.getKeyName(obj)
     or     tp == 'doc.extends.name' then
         return obj[1]
     elseif tp == 'doc.type.field' then
-        return m.getKeyName(obj.name)
+        return m.getKey(obj.name)
     end
-    -- may return the raw tableexp integer described above
-    ---@diagnostic expect-next-line: return-type-mismatch
     return m.getKeyNameOfLiteral(obj)
+end
+
+--- The name of a node that is named by a string: a field, a method, a global, a local, a doc name. For an INDEX node (`t[1]`, a positional
+--- table entry, an integer type) the key can be an integer: ask `m.getKey`, whose type says so. (Measured 2026-10-20 on a real project and
+--- on the test suite: the nodes named by a string never gave an integer, and the places that got one are the ones that call `getKey`.)
+---@param obj parser.object?
+---@return string?
+function m.getKeyName(obj)
+    -- (an index node still gives its integer here, as it always did: the callers that can get one use `getKey`)
+    return m.getKey(obj) --[[@as string?]]
 end
 
 ---@param obj parser.object?

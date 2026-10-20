@@ -1351,6 +1351,18 @@ function vm.getClassIndexKeys(uri, tnode)
     local named = false
     ---@type table<vm.global, true>
     local seen = {}
+    -- what the type parameters of a class stand for where the type is written with arguments (`Map<string, number>`)
+    ---@type table<vm.global, table<string, vm.node>>
+    local bindings = {}
+    for tn in tnode:eachObject() do
+        if tn.type == 'doc.type.sign' and tn.node and tn.node[1] ~= 'table' and tn.signs then
+            local class = vm.getGlobal('type', tn.node[1] --[[@as string]])
+            local map = class and vm.getClassGenericMap(uri, class, tn.signs)
+            if class and map then
+                bindings[class] = map
+            end
+        end
+    end
     ---@param class vm.global
     local function walk(class)
         if seen[class] then
@@ -1369,7 +1381,22 @@ function vm.getClassIndexKeys(uri, tnode)
                 end
                 for _, field in ipairs(set.fields) do
                     if field.field and field.field.type == 'doc.type' then
-                        keys:merge(vm.compileNode(field.field))
+                        local keyNode = vm.compileNode(field.field)
+                        local bound = bindings[class]
+                        if bound then
+                            -- `---@field [K] V` of `Map<K, V>` written `Map<string, number>`: the key is what `K` stands for
+                            local resolved = vm.createNode()
+                            for obj in keyNode:eachObject() do
+                                local replaced = obj.type == 'doc.generic.name' and bound[obj[1] --[[@as string]]]
+                                if replaced then
+                                    resolved:merge(replaced)
+                                else
+                                    resolved:merge(vm.createNode(obj))
+                                end
+                            end
+                            keyNode = resolved
+                        end
+                        keys:merge(keyNode)
                         count = count + 1
                     elseif field.field then
                         named = true
@@ -1382,6 +1409,11 @@ function vm.getClassIndexKeys(uri, tnode)
         if tn.type == 'global' and tn.cate == 'type' then
             ---@cast tn vm.global
             walk(tn)
+        elseif tn.type == 'doc.type.sign' and tn.node and tn.node[1] ~= 'table' then
+            local class = vm.getGlobal('type', tn.node[1] --[[@as string]])
+            if class then
+                walk(class)
+            end
         end
     end
     for _, tbl in ipairs(collectClassTables(uri, tnode)) do

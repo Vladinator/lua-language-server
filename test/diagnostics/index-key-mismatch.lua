@@ -220,3 +220,22 @@ local n = { kind = 'x', other = 1, [1] = {} }
 n.kind = 'y'
 n.other = 2
 ]]
+
+-- the `[K]` field of a generic class is the argument that was bound; a generic alias of a table is its expansion
+TEST [[
+---@class KMap<K, V>
+---@field [K] V
+---@type KMap<string, number>
+local m = {}
+---@alias KDict<V> table<string, V>
+---@type KDict<number>
+local d = {}
+---@param n number
+---@param s string
+local function f(n, s)
+    m[s] = 1
+    m[<!n!>] = 1
+    d[s] = 1
+    d[<!n!>] = 1
+end
+]]

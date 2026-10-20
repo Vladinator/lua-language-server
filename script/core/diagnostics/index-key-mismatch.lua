@@ -26,6 +26,19 @@ local function hasGeneric(node)
     return false
 end
 
+--- Whether a type name is an alias (`---@alias`): its expansion sits next to it in the node.
+---@param uri    uri
+---@param global vm.global
+---@return boolean
+local function isAliasGlobal(uri, global)
+    for _, set in ipairs(global:getSets(uri)) do
+        if set.type == 'doc.alias' then
+            return true
+        end
+    end
+    return false
+end
+
 --- Whether a key type is a string literal (`'x'`), or a union of them.
 ---@param node vm.node
 ---@return boolean
@@ -51,6 +64,7 @@ local function declaredKeys(uri, tnode)
     local count = 0
     local hasNamed = false
     local hasClass = false
+    local sawClass = false
     for tn in tnode:eachObject() do
         if tn.type == 'doc.type.table' then
             for _, field in ipairs(tn.fields) do
@@ -65,12 +79,20 @@ local function declaredKeys(uri, tnode)
                 end
             end
         elseif tn.type == 'doc.type.sign' then
-            -- (read from the sign itself: of a union of two `table<K, V>` only one is expanded into a table object)
-            if tn.node and tn.node[1] == 'table' and tn.signs and tn.signs[1] then
-                local keyNode = vm.compileNode(tn.signs[1])
-                if not hasGeneric(keyNode) then
-                    keys:merge(keyNode)
-                    count = count + 1
+            if tn.node and tn.node[1] == 'table' then
+                -- (read from the sign itself: of a union of two `table<K, V>` only one is expanded into a table object)
+                if tn.signs and tn.signs[1] then
+                    local keyNode = vm.compileNode(tn.signs[1])
+                    if not hasGeneric(keyNode) then
+                        keys:merge(keyNode)
+                        count = count + 1
+                    end
+                end
+            else
+                -- `Map<string, number>`: a class written with its arguments (a generic alias, `Dict<number>`, is its expansion)
+                local named = tn.node and vm.getGlobal('type', tn.node[1] --[[@as string]])
+                if not named or not isAliasGlobal(uri, named) then
+                    sawClass = true
                 end
             end
         elseif tn.type == 'doc.type.array' then
@@ -78,28 +100,25 @@ local function declaredKeys(uri, tnode)
             count = count + 1
         elseif tn.type == 'global' and tn.cate == 'type' then
             ---@cast tn vm.global
-            local isAlias = false
-            for _, set in ipairs(tn:getSets(uri)) do
-                if set.type == 'doc.alias' then
-                    isAlias = true
-                end
-            end
-            if not isAlias then
-                -- a class declares keys only with `---@field [K] V` or by inheriting `table<K, V>`; `table`, `any`, ... say nothing
-                local classKeys, named = vm.getClassIndexKeys(uri, tnode)
-                if not classKeys then
-                    return nil, false, false
-                end
-                keys:merge(classKeys)
-                count = count + 1
-                hasNamed = hasNamed or named
-                hasClass = true
+            if not isAliasGlobal(uri, tn) then
+                sawClass = true
             end
         elseif tn.type ~= 'variable'
         and    tn.type ~= 'local'
         and    tn.type ~= 'table' then
             return nil, false, false
         end
+    end
+    if sawClass then
+        -- a class declares keys only with `---@field [K] V` or by inheriting `table<K, V>`; `table`, `any`, ... say nothing
+        local classKeys, named = vm.getClassIndexKeys(uri, tnode)
+        if not classKeys then
+            return nil, false, false
+        end
+        keys:merge(classKeys)
+        count = count + 1
+        hasNamed = named
+        hasClass = true
     end
     if count == 0 then
         return nil, false, false

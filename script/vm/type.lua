@@ -1338,6 +1338,66 @@ local function collectClassTables(uri, tnode)
     return found
 end
 
+--- The key types a class declares for its own indexing: the `---@field [K] V` lines of the class and of the classes it inherits from, and
+--- the K of an inherited `table<K, V>`. nil when it declares none. `named` tells that the class also has named fields (a string can
+--- then be a field name as well, whatever K says).
+---@param uri   uri
+---@param tnode vm.node
+---@return vm.node?
+---@return boolean named
+function vm.getClassIndexKeys(uri, tnode)
+    local keys = vm.createNode()
+    local count = 0
+    local named = false
+    ---@type table<vm.global, true>
+    local seen = {}
+    ---@param class vm.global
+    local function walk(class)
+        if seen[class] then
+            return
+        end
+        seen[class] = true
+        for _, set in ipairs(class:getSets(uri)) do
+            if set.type == 'doc.class' then
+                for _, ext in ipairs(set.extends or {}) do
+                    if ext.type == 'doc.extends.name' then
+                        local parent = vm.getGlobal('type', ext[1])
+                        if parent then
+                            walk(parent)
+                        end
+                    end
+                end
+                for _, field in ipairs(set.fields) do
+                    if field.field and field.field.type == 'doc.type' then
+                        keys:merge(vm.compileNode(field.field))
+                        count = count + 1
+                    elseif field.field then
+                        named = true
+                    end
+                end
+            end
+        end
+    end
+    for tn in tnode:eachObject() do
+        if tn.type == 'global' and tn.cate == 'type' then
+            ---@cast tn vm.global
+            walk(tn)
+        end
+    end
+    for _, tbl in ipairs(collectClassTables(uri, tnode)) do
+        for _, field in ipairs(tbl.fields or {}) do
+            if field.name.type ~= 'doc.field.name' then
+                keys:merge(vm.compileNode(field.name))
+                count = count + 1
+            end
+        end
+    end
+    if count == 0 then
+        return nil, named
+    end
+    return keys, named
+end
+
 --- The value type of indexing a class that inherits from `table<K, V>` with a key of the type `knode` (nil: the class has no such parent, or
 --- the key does not fit K).
 ---@param uri   uri

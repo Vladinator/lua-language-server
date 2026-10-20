@@ -175,3 +175,48 @@ local ok = { a = 1, ['b'] = 2 }
 ---@type table<'a'|'b', number>
 local bad = { a = 1, <!c!> = 2 }
 ]]
+
+-- a class declares keys with `---@field [K] V` (its own, a parent's) or by inheriting `table<K, V>`
+TEST [[
+---@class IdxA
+---@field [string] number
+---@class IdxB: IdxA
+---@class IdxC: table<string, number>
+---@class IdxD
+---@field name string
+---@field [integer] string
+---@type IdxA
+local a = {}
+---@type IdxB
+local b = {}
+---@type IdxC
+local c = {}
+---@type IdxD
+local d = {}
+---@param n number
+---@param s string
+---@param t boolean
+local function f(n, s, t)
+    a[s] = 1
+    a[<!n!>] = 1
+    b[s] = 1
+    b[<!t!>] = 1
+    c[s] = 1
+    c[<!n!>] = 1
+    d[1] = 'x'
+    d.name = 'x'
+    d[s] = 'x'
+    d[<!t!>] = 'x'
+end
+]]
+
+-- a class with an index field next to its named fields: a literal key is a field name (right or wrong, other diagnostics say), not a key type
+TEST [[
+---@class Node
+---@field kind string
+---@field [integer] Node
+---@type Node
+local n = { kind = 'x', other = 1, [1] = {} }
+n.kind = 'y'
+n.other = 2
+]]

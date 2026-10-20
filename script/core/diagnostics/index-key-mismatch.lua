@@ -26,21 +26,37 @@ local function hasGeneric(node)
     return false
 end
 
+--- Whether a key type is a string literal (`'x'`), or a union of them.
+---@param node vm.node
+---@return boolean
+local function isStringLiteral(node)
+    for obj in node:eachObject() do
+        if obj.type ~= 'string' and obj.type ~= 'doc.type.string' then
+            return false
+        end
+    end
+    return not node:isEmpty()
+end
+
 --- The key types the table types of the receiver declare, or nil when some part of the receiver says nothing about its keys (a class,
 --- `any`, no declaration at all): then nothing is reported. The variable, the local, the `table<K, V>` sign and the table literal the
 --- node also holds are the same value seen from other sides.
 ---@param uri   uri
 ---@param tnode vm.node
 ---@return vm.node?
+---@return boolean hasNamed whether a class among them also has named fields
+---@return boolean hasClass whether one of them is a class
 local function declaredKeys(uri, tnode)
     local keys = vm.createNode()
     local count = 0
+    local hasNamed = false
+    local hasClass = false
     for tn in tnode:eachObject() do
         if tn.type == 'doc.type.table' then
             for _, field in ipairs(tn.fields) do
                 if field.name.type == 'doc.field.name' then
                     -- (a named field of an inline type: `undefined-field` says what is wrong with a stray key)
-                    return nil
+                    return nil, false, false
                 end
                 local keyNode = vm.compileNode(field.name)
                 if not hasGeneric(keyNode) then
@@ -69,23 +85,30 @@ local function declaredKeys(uri, tnode)
                 end
             end
             if not isAlias then
-                -- (a class, `table`, `any`, ...: it says nothing about the keys, or not only that)
-                return nil
+                -- a class declares keys only with `---@field [K] V` or by inheriting `table<K, V>`; `table`, `any`, ... say nothing
+                local classKeys, named = vm.getClassIndexKeys(uri, tnode)
+                if not classKeys then
+                    return nil, false, false
+                end
+                keys:merge(classKeys)
+                count = count + 1
+                hasNamed = hasNamed or named
+                hasClass = true
             end
         elseif tn.type ~= 'variable'
         and    tn.type ~= 'local'
         and    tn.type ~= 'table' then
-            return nil
+            return nil, false, false
         end
     end
     if count == 0 then
-        return nil
+        return nil, false, false
     end
     if keys:hasName('integer') then
         -- (a float with an integer value is the same key: `t[i / 2]`)
         keys:merge(vm.declareGlobal('type', 'number'))
     end
-    return keys
+    return keys, hasNamed, hasClass
 end
 
 ---@async
@@ -120,8 +143,16 @@ return function (uri, callback)
             return
         end
         delayer:delay()
-        local keys = declaredKeys(uri, vm.compileNode(receiver))
+        local keys, hasNamed, hasClass = declaredKeys(uri, vm.compileNode(receiver))
         if not keys then
+            return
+        end
+        if hasClass and isStringLiteral(given) then
+            -- (the name of a field of the class, or of one it lacks: `excess-field` / `inject-field` say which)
+            return
+        end
+        if hasNamed and given:hasName('string') then
+            -- (a string can be the name of a field of the class)
             return
         end
         if given:hasNil() and src.type == 'getindex' then

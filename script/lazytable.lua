@@ -17,7 +17,7 @@ _ENV = nil
 ---@field source     table
 ---@field codeMap    table<integer, string>
 ---@field dumpMark   table<any, integer>
----@field excludes   table<table, true>
+---@field excludes   table<table|function|userdata|thread, true>
 ---@field refMap     table<any, integer>
 ---@field instMap    table<integer, table|function|thread|userdata>
 local mt = {}

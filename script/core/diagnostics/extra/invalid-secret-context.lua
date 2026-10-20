@@ -964,7 +964,7 @@ vm.registerGenesisRule('getfield', function (source, node)
         ---@type string[]?
         local predicates
         if object.type == 'global' and object.cate == 'type' then
-            predicates = byClass[object.name]
+            predicates = byClass[object:getName()]
         end
         if predicates then
             for _, predicate in ipairs(predicates) do

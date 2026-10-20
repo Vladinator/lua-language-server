@@ -28,7 +28,7 @@ local type         = type
 ---@field vstart?               integer
 ---@field attrs?                parser.object -- a 'localattrs' node; its array part holds 'localattr' nodes
 ---@field specials              parser.object[]
----@field labels                parser.object[]
+---@field labels                table<string, parser.object>
 ---@field node                  parser.object
 ---@field key                   parser.object -- `doc.type.indexed`'s own key type (`T[K]`'s `K`)
 ---@field check                 parser.object -- `doc.type.conditional`'s own `T` (`T extends U ? X : Y`)

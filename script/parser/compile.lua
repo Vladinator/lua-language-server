@@ -4490,7 +4490,7 @@ local function parseLabel()
         if not block.labels then
             block.labels = {}
         end
-        local name = label[1]
+        local name = label[1] --[[@as string]]
         local olabel = guide.getLabel(block, name)
         if olabel then
             if State.version == 'Lua 5.4'

@@ -1022,16 +1022,16 @@ end
 ---@param uri    uri
 ---@param start  integer
 ---@param finish number
----@return semantic.token[]|integer[]
+---@return integer[]
 return function (uri, start, finish)
     ---@type semantic.token[]
     local results = {}
     if not config.get(uri, 'Lua.semantic.enable') then
-        return results
+        return {}
     end
     local state = files.getState(uri)
     if not state then
-        return results
+        return {}
     end
 
     ---@type semantic.options
@@ -1148,7 +1148,7 @@ return function (uri, start, finish)
     end
 
     if #results == 0 then
-        return results
+        return {}
     end
 
     results = solveMultilineAndOverlapping(state, results)

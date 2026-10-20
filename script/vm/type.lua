@@ -1575,7 +1575,7 @@ function vm.viewTypeErrorMessage(uri, errs)
     local mark  = {}
     local index = 1
     while true do
-        local name = errs[index]
+        local name = errs[index] --[[@as string?]]  -- (the list is a name, then the values of its message)
         if not name then
             break
         end

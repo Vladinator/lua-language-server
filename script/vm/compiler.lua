@@ -706,7 +706,7 @@ function vm.getClassFields(suri, object, key, pushResult)
     local mark = {}
 
     ---@param class vm.global
-    ---@param searchedFields? table<string, boolean>
+    ---@param searchedFields? table<string|number|integer|boolean|vm.global|vm.ANY|vm.ANYDOC, boolean>
     local function searchClass(class, searchedFields)
         local name = class.name
         if mark[name] then
@@ -2279,7 +2279,7 @@ local function compileFunctionParam(func, source)
                     if replacesTables and an.type == 'doc.type.table' then
                         goto NEXT_OBJECT
                     end
-                    local said = classArguments and an.type == 'global' and an.cate == 'type' and classArguments[an.name]
+                    local said = classArguments and an.type == 'global' and an.cate == 'type' and classArguments[an:getName()]
                     -- (`fun(values: T[])`, `fun(map: table<string, T>)`: the type parameter sits inside a bigger type)
                     ---@type vm.node.object?
                     local composite
@@ -3954,7 +3954,7 @@ local compilerSwitch = util.switch()
         for _, typeUnit in ipairs(source.types) do
             local opNode = vm.compileNode(typeUnit)
             for obj in opNode:eachObject() do
-                if obj.type == 'global' and obj.cate == 'type' and IMPOSSIBLE_INTERSECTION_NAMES[obj.name] then
+                if obj.type == 'global' and obj.cate == 'type' and IMPOSSIBLE_INTERSECTION_NAMES[obj:getName()] then
                     impossible = true
                 elseif not (obj.type == 'global' and obj.cate == 'type' and (obj.name == 'unknown' or obj.name == 'any')) then
                     searchFieldSwitch(obj.type, uri, obj, vm.ANY, function (field)

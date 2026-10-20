@@ -176,9 +176,9 @@ local function getDefNode(uri, call, funcNode, i, classGenericMap)
                 if classGenericMap then
                     local newNode = vm.createNode()
                     for pn in paramNode:eachObject() do
-                        if pn.type == 'global' and pn.cate == 'type' and classGenericMap[pn.name] then
+                        if pn.type == 'global' and pn.cate == 'type' and classGenericMap[pn:getName()] then
                             -- Replace the global type reference with the resolved type
-                            newNode:merge(classGenericMap[pn.name])
+                            newNode:merge(classGenericMap[pn:getName()])
                         else
                             newNode:merge(pn)
                         end

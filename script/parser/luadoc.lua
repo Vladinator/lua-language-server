@@ -217,7 +217,7 @@ end
 ---@return (string|integer)? tokenContent
 --- The marks of the type syntax the editor colours as operators (as TypeScript does): the parser records each one it takes as
 --- syntax, so a word of a tail comment (`---@param a string: the name`) that never passes through `nextToken` is not one.
----@type table<string, true>
+---@type table<string|integer, true>
 local SyntaxMarks = {
     [':'] = true, [','] = true, ['?'] = true, ['!'] = true, ['&'] = true, ['|'] = true, ['='] = true,
     ['{'] = true, ['}'] = true, ['('] = true, [')'] = true, ['[]'] = true, ['['] = true, [']'] = true,

@@ -1270,7 +1270,7 @@ local function getUses(uri)
             ---@type string|false
             local op = parent.op and parent.op.type
             if not ALLOWED_BINARY_OPS[op] then
-                add(src, COMPARISON_OPS[op] and 'secret-comparison' or 'secret-arithmetic')
+                add(src, op and COMPARISON_OPS[op] and 'secret-comparison' or 'secret-arithmetic')
             end
         end
     end)

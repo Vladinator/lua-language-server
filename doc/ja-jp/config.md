@@ -375,6 +375,7 @@ Array<string>
 * ``"incompatible-override"``: Enable diagnostics for a class that overrides a member of a class it inherits from with something that does not fit it (TypeScript's "class incorrectly extends"): a method that needs more arguments, takes or gives other types, or a field redeclared with a type that is not assignable to the parent's. A narrower type is an override; a wider or unrelated one is a collision. Only parents the user owns are judged: a member declared in a library outside the workspace (third-party annotations, which a polyfill class may re-annotate on purpose) is left alone.
 * ``"incomplete-signature-doc"``: 関数の @param または @return 注釈が不完全な場合の診断。
 * ``"index-in-func-name"``: 関数名にインデックスが含まれる
+* ``"index-key-mismatch"``: Enable diagnostics for indexing a table whose key type is declared (`table<number, V>`, `V[]`, `{ [K]: V }`) with a key of an incompatible type (`t[flag]` with `flag: boolean`).
 * ``"inject-field"``: オブジェクトへのフィールド注入
 * ``"invalid-class-parent"``: Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `true`, `false`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
 * ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
@@ -765,6 +766,7 @@ object<string, string>
     * generic-param-mismatch
     * grouped-return-mismatch
     * incompatible-override
+    * index-key-mismatch
     * inject-field
     * invalid-class-parent
     * mixed-enum-values
@@ -964,6 +966,7 @@ object<string, string>
     * generic-param-mismatch
     * grouped-return-mismatch
     * incompatible-override
+    * index-key-mismatch
     * inject-field
     * invalid-class-parent
     * mixed-enum-values
@@ -1201,6 +1204,10 @@ object<string, string>
     関数の @param または @return 注釈が不完全な場合の診断。
     */
     "incomplete-signature-doc": "None",
+    /*
+    Enable diagnostics for indexing a table whose key type is declared (`table<number, V>`, `V[]`, `{ [K]: V }`) with a key of an incompatible type (`t[flag]` with `flag: boolean`).
+    */
+    "index-key-mismatch": "Opened",
     /*
     オブジェクトへのフィールド注入
     */
@@ -1740,6 +1747,10 @@ object<string, string>
     関数の @param または @return 注釈が不完全な場合の診断。
     */
     "incomplete-signature-doc": "Warning",
+    /*
+    Enable diagnostics for indexing a table whose key type is declared (`table<number, V>`, `V[]`, `{ [K]: V }`) with a key of an incompatible type (`t[flag]` with `flag: boolean`).
+    */
+    "index-key-mismatch": "Warning",
     /*
     オブジェクトへのフィールド注入
     */

@@ -126,6 +126,8 @@ end
 m.scopeDiagCount = 0
 m.pauseCount = 0
 
+---@param t   any
+---@param sep? string
 local function concat(t, sep)
     if type(t) ~= 'table' then
         return t
@@ -641,6 +643,7 @@ function m.refresh(uri)
 end
 
 ---@async
+---@param uri uri
 local function askForDisable(uri)
     if m.dontAskedForDisable then
         return
@@ -688,6 +691,7 @@ local function askForDisable(uri)
     end
 end
 
+---@param finished? boolean
 local function clearMemory(finished)
     if m.scopeDiagCount > 0 then
         return

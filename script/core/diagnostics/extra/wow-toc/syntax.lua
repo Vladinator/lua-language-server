@@ -208,6 +208,8 @@ end
 ---@param names string[]
 ---@return string?
 local function nearest(word, names)
+    ---@param a string
+    ---@param b string
     local function distance(a, b)
         a, b = a:lower(), b:lower()
         ---@type table<integer, integer>

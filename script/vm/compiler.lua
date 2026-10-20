@@ -903,6 +903,7 @@ function vm.getClassFields(suri, object, key, pushResult)
         copyToSearched()
     end
 
+    ---@param class vm.global
     local function searchGlobal(class)
         if class.cate == 'type' and class.name == '_G' then
             if key == vm.ANY then
@@ -3114,6 +3115,7 @@ local compilerSwitch = util.switch()
                 -- (`known or function (x) end`: what the other operands are says nothing about this function)
                 ---@type table<vm.node.object, true>
                 local others = {}
+                ---@param exp parser.object
                 local function collect(exp)
                     if exp == source then
                         return

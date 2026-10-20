@@ -12,6 +12,7 @@ local timer      = require 'timer'
 
 local reqCounter = util.counter()
 
+---@param buf string
 local function logSend(buf)
     if not RPCLOG then
         return

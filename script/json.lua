@@ -145,6 +145,7 @@ local function encode_string(v)
     return (string_gsub(v, '[%z\1-\31\\"]', encode_escape_map))
 end
 
+---@param v string
 function encode_map.string(v)
     statusBuilder[#statusBuilder+1] = '"'
     statusBuilder[#statusBuilder+1] = encode_string(v)
@@ -163,11 +164,13 @@ end
 
 if string_match(tostring(1/2), "%p") == "," then
     local _convertreal = convertreal
+    ---@param v number
     function convertreal(v)
         return string_gsub(_convertreal(v), ',', '.')
     end
 end
 
+---@param v number
 function encode_map.number(v)
     if v ~= v or v <= tiny or v >= huge then
         error("unexpected number value '" .. tostring(v) .. "'")
@@ -178,6 +181,7 @@ function encode_map.number(v)
     return convertreal(v)
 end
 
+---@param v boolean
 function encode_map.boolean(v)
     if v then
         return "true"
@@ -276,6 +280,7 @@ function encode_map.table(t)
     end
 end
 
+---@param v any
 local function encode_unexpected(v)
     if v == json.null then
         return "null"

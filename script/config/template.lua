@@ -27,12 +27,14 @@ function mt:__call(...)
     return self
 end
 
+---@param default any
 function mt:__shr(default)
     self.default = default
     self.hasDefault = true
     return self
 end
 
+---@param enums any[]|fun(): any[]
 function mt:__shl(enums)
     self.enums = enums
     return self

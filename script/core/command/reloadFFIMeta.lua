@@ -7,6 +7,7 @@ local searchCode  = require 'plugins.ffi.searchCode'
 local cdefRerence = require 'plugins.ffi.cdefRerence'
 local ffi         = require 'plugins.ffi'
 
+---@param uri uri
 local function createDir(uri)
     local dir     = scope.getScope(uri).uri or 'default'
     local fileDir = fs.path(METAPATH) / ('%08x'):format(SDBMHash():hash(dir))

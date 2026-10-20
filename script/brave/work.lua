@@ -57,6 +57,7 @@ brave.on('loadProtoBySocket', function (param)
         log.error(...)
     end
 
+    ---@param data string
     function lsmaster:on_data(data)
         lsclient:write(data)
         --net.update()

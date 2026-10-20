@@ -2,6 +2,7 @@ local config = require 'config'
 local ws = require 'workspace'
 local util = require 'utility'
 
+---@param key string
 local function getConfig(key)
     local scope = ws.getFirstScope()
     local uri = scope.uri

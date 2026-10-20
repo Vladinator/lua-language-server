@@ -150,6 +150,7 @@ function mt:getFolderName()
     return self.folderName
 end
 
+---@param obj any something with a `__close` or a `remove` (see `scope.gc`)
 function mt:gc(obj)
     self._gc:add(obj)
 end

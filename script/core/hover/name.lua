@@ -44,6 +44,7 @@ local function asField(source, oop)
     end
 end
 
+---@param source parser.object
 local function asTableField(source)
     if not source.field then
         return
@@ -51,10 +52,13 @@ local function asTableField(source)
     return guide.getKeyName(source.field)
 end
 
+---@param source parser.object
 local function asGlobal(source)
     return guide.getKeyName(source)
 end
 
+---@param source parser.object
+---@param oop    boolean
 local function asDocFunction(source, oop)
     local doc = guide.getParentType(source, 'doc.type')
             or  guide.getParentType(source, 'doc.overload')
@@ -68,8 +72,12 @@ local function asDocFunction(source, oop)
     return ''
 end
 
+---@param source parser.object
+---@return string
 local function asDocField(source)
-    return source.field[1]
+    -- (a `doc.field` that reaches the hover has its name: the parser stops before making one without)
+    ---@diagnostic expect-next-line: need-check-nil
+    return source.field[1] --[[@as string]]
 end
 
 function buildName(source, oop)

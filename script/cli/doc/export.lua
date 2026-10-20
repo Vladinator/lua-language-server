@@ -88,6 +88,9 @@ function export.positionOf(rowcol)
     return type(rowcol) == 'table' and guide.positionOf(rowcol[1], rowcol[2]) or -1
 end
 
+---@param a table
+---@param b table
+---@return boolean
 function export.sortDoc(a,b)
     if a.name and b.name and a.name ~= b.name then
         return a.name < b.name

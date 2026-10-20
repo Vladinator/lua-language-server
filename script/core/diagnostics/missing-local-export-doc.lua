@@ -18,6 +18,9 @@ protoDiagnostic.register {
 }
 
 ---@async
+---@param ast      parser.object
+---@param name     string
+---@param callback fun(result: { start: integer, finish: integer, message: string })
 local function findSetField(ast, name, callback)
     ---@async
     guide.eachSourceType(ast, 'setfield', function (source)

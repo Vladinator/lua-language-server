@@ -59,6 +59,7 @@ local function encode(v)
     statusBuilder[#statusBuilder+1] = res
 end
 
+---@param v string
 function encode_map.string(v)
     statusBuilder[#statusBuilder+1] = '"'
     statusBuilder[#statusBuilder+1] = encode_string(v)

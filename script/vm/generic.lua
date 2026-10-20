@@ -314,6 +314,7 @@ function cloneAny(source, resolved)
         -- (non-generic) resolved type. Skip cloning when the resolved value
         -- is just another doc.generic.name (e.g. T -> T inside a method body),
         -- which would cause double-wrapping in display (list<<T>>).
+        ---@param name string
         local function hasConcreteResolution(name)
             local rnode = resolved[name]
             if not rnode then

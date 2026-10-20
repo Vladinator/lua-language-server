@@ -99,6 +99,8 @@ local function disableDiagnostic(uri, code, start, results)
             }
         }
     }
+    ---@param title string
+    ---@param edit  table
     local function pushEdit(title, edit)
         results[#results+1] = {
             title   = title,

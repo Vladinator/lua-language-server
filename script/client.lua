@@ -404,6 +404,8 @@ local function removeAppliedChanges(changes, applied)
     end
 end
 
+---@param uri?         uri
+---@param finalChanges table[]
 local function tryModifySpecifiedConfig(uri, finalChanges)
     if #finalChanges == 0 then
         return false
@@ -436,6 +438,9 @@ local function tryModifySpecifiedConfig(uri, finalChanges)
     return true
 end
 
+---@param uri          uri
+---@param finalChanges table[]
+---@param create       boolean?
 local function tryModifyRC(uri, finalChanges, create)
     if #finalChanges == 0 then
         return false
@@ -698,6 +703,7 @@ local function hookPrint()
     end
 end
 
+---@param t table the `initialize` parameters of the client
 function m.init(t)
     log.info('Client init', inspect(t))
     m.info = t

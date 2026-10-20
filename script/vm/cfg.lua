@@ -281,6 +281,7 @@ end
 local function runsAtLeastOnce(stmt)
     if stmt.type == 'loop' then
         local init, max, step = stmt.init, stmt.max, stmt.step
+        ---@param expr? parser.object
         local function number(expr)
             return expr and (expr.type == 'integer' or expr.type == 'number') and type(expr[1]) == 'number' and expr[1] or nil
         end

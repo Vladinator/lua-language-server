@@ -77,6 +77,8 @@ local function relpath(path)
     return path
 end
 
+---@param uri   uri
+---@param diags table[]
 local function report_pretty(uri, diags)
     local path = relpath(furi.decode(uri))
 
@@ -170,6 +172,7 @@ local function apply_check_level(uri, checkLevel)
     config.set(uri, 'Lua.diagnostics.disable', util.getTableKeys(config_disables, true))
 end
 
+---@param uri uri
 local function downgrade_checks_to_opened(uri)
     local diagStatus = config.get(uri, 'Lua.diagnostics.neededFileStatus') --[[@as table<string, string>]]
     for d, status in pairs(diagStatus) do
@@ -216,6 +219,7 @@ function export.runCLI()
     local lastClock = os.clock()
     local results = {}  --- @type table<string, table[]>
 
+    ---@param err any
     local function errorhandler(err)
         print(err)
         print(debug.traceback())

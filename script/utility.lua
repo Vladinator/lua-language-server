@@ -29,6 +29,7 @@ local assert       = assert
 
 _ENV = nil
 
+---@param n any
 local function isInteger(n)
     if mathType then
         return mathType(n) == 'integer'
@@ -37,6 +38,7 @@ local function isInteger(n)
     end
 end
 
+---@param n number
 local function formatNumber(n)
     if n == inf
     or n == -inf

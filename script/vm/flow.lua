@@ -1435,10 +1435,12 @@ local function namesOverlap(a, b, uri)
     if a == b or a == 'any' or b == 'any' or a == 'unknown' or b == 'unknown' then
         return true
     end
+    ---@param n string
     local function numeric(n) return n == 'number' or n == 'integer' end
     if numeric(a) and numeric(b) then
         return true
     end
+    ---@param n string
     local function boolish(n) return n == 'boolean' or n == 'true' or n == 'false' end
     if boolish(a) and boolish(b) then
         -- `true` and `false` are distinct literals; plain `boolean` overlaps both

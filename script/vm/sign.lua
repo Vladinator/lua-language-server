@@ -403,6 +403,7 @@ function mt:resolve(uri, args)
     ---@param name     string
     ---@param argNode  vm.node
     ---@return vm.node?
+    ---@param uri uri
     local function widenBinding(uri, bound, signNode, name, argNode)
         local plain = false
         for obj in signNode:eachObject() do

@@ -206,6 +206,7 @@ local function parseTokens(text, offset)
     Ci = 0
 end
 
+---@param offset? integer
 local function peekToken(offset)
     offset = offset or 1
     return TokenTypes[Ci + offset], TokenContents[Ci + offset]
@@ -238,6 +239,9 @@ local function nextToken()
     return TokenTypes[Ci], TokenContents[Ci]
 end
 
+---@param tp       string
+---@param content  string|integer
+---@param offset?  integer
 local function checkToken(tp, content, offset)
     offset = offset or 0
     return  TokenTypes[Ci + offset] == tp
@@ -310,6 +314,7 @@ local function parseName(tp, parent)
     return name
 end
 
+---@param symbol string
 local function nextSymbolOrError(symbol)
     if checkToken('symbol', symbol, 1) then
         nextToken()

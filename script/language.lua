@@ -16,6 +16,7 @@ local function supportLanguage()
     return list
 end
 
+---@param id? string
 local function getLanguage(id)
     local support = supportLanguage()
     -- 检查是否支持语言
@@ -35,6 +36,8 @@ local function getLanguage(id)
     return 'en-us'
 end
 
+---@param name     string
+---@param language string
 local function loadFileByLanguage(name, language)
     local path = ROOT / 'locale' / language / (name .. '.lua')
     local buf = util.loadFile(path:string())
@@ -48,6 +51,7 @@ local function loadFileByLanguage(name, language)
     return tbl
 end
 
+---@param str string
 local function formatAsArray(str, ...)
     local index = 0
     local args = {...}
@@ -73,6 +77,7 @@ local function formatAsArray(str, ...)
     end)
 end
 
+---@param str string
 local function formatAsTable(str, ...)
     ---@type any
     local args = ...
@@ -96,6 +101,8 @@ local function formatAsTable(str, ...)
     end)
 end
 
+---@param name     string
+---@param language string
 local function loadLang(name, language)
     local tbl = loadFileByLanguage(name, 'en-us')
     if language ~= 'en-us' then

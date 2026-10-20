@@ -22,6 +22,7 @@ local comparisons = {
     ['>='] = true,
 }
 
+---@param source? parser.object
 local function isNot(source)
     return source
        and source.type == 'unary'

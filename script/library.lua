@@ -252,6 +252,7 @@ local function loadMetaLocale(langID, result)
     return result
 end
 
+---@param uri uri
 local function initBuiltIn(uri)
     log.info('Init builtin library at:', uri)
     local scp      = scope.getScope(uri)

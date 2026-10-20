@@ -52,14 +52,18 @@ return function (uri, callback)
             return
         end
         -- a class that inherits from `table<string, V>` takes any string key
-        if src.type == 'setfield' and vm.getClassIndexValue(uri, vm.compileNode(node), 'string') then
+        if (src.type == 'setfield' or src.type == 'setindex') and vm.getClassIndexValue(uri, vm.compileNode(node), 'string') then
             return
         end
 
         -- a variable that a narrowing cut down to one member of a union (`if not x.specs then x.specs = {} end`: only the member without
         -- `specs` can be here) may still be declared with the field by another member of what the variable can hold: the code builds that member
         local keyName = guide.getKeyName(src)
-        if keyName and src.type == 'setfield' and node.type == 'getlocal' and node.node then
+        if src.type == 'setindex' and type(keyName) ~= 'string' then
+            -- (`t[k] = v` with a key that is not a string literal: `index-key-mismatch` and the key type say what is wrong)
+            return
+        end
+        if keyName and (src.type == 'setfield' or src.type == 'setindex') and node.type == 'getlocal' and node.node then
             ---@type boolean?
             local declared
             vm.compileByParentNode(node.node, keyName, function (def)
@@ -131,6 +135,12 @@ return function (uri, callback)
                 finish  = src.field.finish,
                 message = message,
             }
+        elseif src.type == 'setindex' and src.index then
+            callback {
+                start   = src.index.start,
+                finish  = src.index.finish,
+                message = message,
+            }
         elseif src.type == 'setmethod' and src.method then
             callback {
                 start   = src.method.start,
@@ -140,6 +150,7 @@ return function (uri, callback)
         end
     end
     guide.eachSourceType(ast.ast, 'setfield',  checkInjectField)
+    guide.eachSourceType(ast.ast, 'setindex',  checkInjectField)
     guide.eachSourceType(ast.ast, 'setmethod', checkInjectField)
 
     ---@async

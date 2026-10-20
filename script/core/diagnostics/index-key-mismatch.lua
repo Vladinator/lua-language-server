@@ -174,7 +174,12 @@ return function (uri, callback)
             -- (a string can be the name of a field of the class)
             return
         end
-        if given:hasNil() and src.type == 'getindex' then
+        local literalKey = src.type == 'setindex' and guide.getKey(src)
+        if type(literalKey) == 'string' then
+            -- (`t['name'] = v` is `t.name = v`: `inject-field` says it, as for the dotted form)
+            return
+        end
+        if given:hasNil() and (src.type == 'getindex' or vm.getInfer(given):view(uri) == 'nil') then
             -- (`nil-index` says that one)
             return
         end

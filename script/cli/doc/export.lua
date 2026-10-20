@@ -44,6 +44,7 @@ local furi     = require 'file-uri'
 ---@field desc? string code commentary
 ---@field extends? string | docUnion what type this 'is'. string:<Parent_Class> for type: 'type', docUnion for type: 'function', string<primative> for other type 's
 ---@field fields? docUnion[] class's fields
+---@field ['[1]']? any the first element of a `doc.field.name` (an array-style field name)
 ---@field file? string path to where this token is defined
 ---@field finish? [integer, integer] 0-indexed [line, column] position of end of token
 ---@field name? string canonical name

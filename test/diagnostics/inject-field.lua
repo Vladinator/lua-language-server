@@ -185,3 +185,23 @@ local function fill()
 end
 fill()
 ]]
+
+-- the bracket form with a string literal is the dotted form: a key the declared table type does not have
+TEST [[
+---@type table<'a'|'b', number>
+local t = {}
+t.a = 1
+t['b'] = 2
+t[<!'c'!>] = 3
+]]
+
+-- fine: a string key of a table that takes any string, a non-literal key
+TEST [[
+---@type table<string, number>
+local t = {}
+---@param s string
+local function f(s)
+    t['c'] = 1
+    t[s] = 1
+end
+]]

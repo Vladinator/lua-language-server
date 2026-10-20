@@ -52,3 +52,18 @@ local function g() end
 
 local _ = t[<!g()!>]
 ]]
+
+-- writing with a key that is nil for certain is always the runtime error "index is nil"
+TEST [[
+local t = {}
+t[<!nil!>] = 1
+]]
+
+-- fine: a key that is only possibly nil is need-check-nil's, a plain key is fine
+TEST [[
+local t = {}
+---@type string?
+local k
+t[k] = 1
+t['x'] = 1
+]]

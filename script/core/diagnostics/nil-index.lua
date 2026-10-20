@@ -22,7 +22,7 @@ return function (uri, callback)
 
     local delayer = await.newThrottledDelayer(500)
     ---@async
-    guide.eachSourceType(state.ast, 'getindex', function (src)
+    guide.eachSourceTypes(state.ast, { 'getindex', 'setindex' }, function (src)
         local index = src.index
         if not index then
             return
@@ -30,6 +30,17 @@ return function (uri, callback)
         delayer:delay()
         local node = vm.compileNode(index)
         if vm.getInfer(index):hasType(uri, 'any') then
+            return
+        end
+        if src.type == 'setindex' then
+            -- writing: a key that MAY be nil is need-check-nil's; a key that is nil for certain (`t[nil] = v`) is always the error "index is nil"
+            if vm.getInfer(index):view(uri) == 'nil' then
+                callback {
+                    start   = index.start,
+                    finish  = index.finish,
+                    message = 'The key is `nil`.',
+                }
+            end
             return
         end
         if node:hasNil() then

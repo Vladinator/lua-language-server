@@ -406,6 +406,7 @@ end
 
 ---@param uri?         uri
 ---@param finalChanges table[]
+---@return boolean
 local function tryModifySpecifiedConfig(uri, finalChanges)
     if #finalChanges == 0 then
         return false
@@ -441,6 +442,7 @@ end
 ---@param uri          uri
 ---@param finalChanges table[]
 ---@param create       boolean?
+---@return boolean
 local function tryModifyRC(uri, finalChanges, create)
     if #finalChanges == 0 then
         return false

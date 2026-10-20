@@ -3,12 +3,14 @@ local matcher = require 'glob.matcher'
 
 ---@param name string
 ---@param pat  any an lpeg pattern
+---@return lpeglabel.pattern
 local function prop(name, pat)
     return m.Cg(m.Cc(true), name) * pat
 end
 
 ---@param type string
 ---@param pat  any an lpeg pattern
+---@return lpeglabel.pattern
 local function object(type, pat)
     return m.Ct(
         m.Cg(m.Cc(type), 'type') *
@@ -18,6 +20,7 @@ end
 
 ---@param p   any an lpeg pattern
 ---@param err string
+---@return lpeglabel.pattern
 local function expect(p, err)
     return p + m.T(err)
 end
@@ -118,6 +121,7 @@ end
 ---@param catch    any
 ---@param path     string
 ---@param matcher0 table
+---@return boolean
 function mt:checkDirectory(catch, path, matcher0)
     if not self:hasInterface 'type' then
         return true
@@ -135,6 +139,7 @@ function mt:checkDirectory(catch, path, matcher0)
 end
 
 ---@param path string
+---@return boolean?
 function mt:simpleMatch(path)
     path = self:getRelativePath(path)
     for i = #self.matcher, 1, -1 do

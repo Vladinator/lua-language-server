@@ -315,6 +315,7 @@ function cloneAny(source, resolved)
         -- is just another doc.generic.name (e.g. T -> T inside a method body),
         -- which would cause double-wrapping in display (list<<T>>).
         ---@param name string
+        ---@return boolean
         local function hasConcreteResolution(name)
             local rnode = resolved[name]
             if not rnode then

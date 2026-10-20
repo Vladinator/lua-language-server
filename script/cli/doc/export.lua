@@ -71,6 +71,7 @@ end
 local export = {}
 
 ---@param uri uri
+---@return string
 function export.getLocalPath(uri)
     local file_canonical = fs.canonical(fs.path(furi.decode(uri))):string()
     local doc_canonical = fs.canonical(fs.path(DOC)):string()

@@ -23,6 +23,7 @@ local comparisons = {
 }
 
 ---@param source? parser.object
+---@return boolean?
 local function isNot(source)
     return source
        and source.type == 'unary'

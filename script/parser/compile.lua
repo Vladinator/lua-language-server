@@ -633,6 +633,7 @@ local function pushLongCommentError(left, right)
 end
 
 ---@param isAction? boolean
+---@return boolean
 local function skipComment(isAction)
     local token = TokenText[Index + 1]
     if token == '--'
@@ -705,6 +706,7 @@ local function skipSpace(isAction)
 end
 
 ---@param isAction? boolean
+---@return boolean
 local function expectAssign(isAction)
     local token = TokenText[Index + 1]
     if token == '=' then
@@ -2784,6 +2786,7 @@ local function parseParen()
 end
 
 ---@param node? parser.object
+---@return parser.object?
 local function resolveName(node)
     if not node then
         return nil
@@ -2814,6 +2817,7 @@ local function resolveName(node)
 end
 
 ---@param token string
+---@return boolean
 local function isChunkFinishToken(token)
     local currentChunk = Chunk[#Chunk]
     if not currentChunk then
@@ -3003,6 +3007,7 @@ end
 
 ---@param declareType? 'local'|'global'|false
 ---@param isAction?    boolean
+---@return parser.object
 local function parseFunction(declareType, isAction)
     local funcLeft  = getPosition(TokenPos[Index], 'left')
     local funcRight = getPosition(TokenPos[Index] + 7, 'right')
@@ -3181,6 +3186,7 @@ local function parseLambdaDoBlock(lambda)
 end
 
 ---@param isDoublePipe? boolean
+---@return parser.object
 local function parseLambda(isDoublePipe)
     local lambdaLeft = getPosition(TokenPos[Index], 'left')
     local lambdaRight = getPosition(TokenPos[Index], 'right')

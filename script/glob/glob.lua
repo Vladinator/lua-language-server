@@ -3,12 +3,14 @@ local matcher = require 'glob.matcher'
 
 ---@param name string
 ---@param pat  any an lpeg pattern
+---@return lpeglabel.pattern
 local function prop(name, pat)
     return m.Cg(m.Cc(true), name) * pat
 end
 
 ---@param type string
 ---@param pat  any an lpeg pattern
+---@return lpeglabel.pattern
 local function object(type, pat)
     return m.Ct(
         m.Cg(m.Cc(type), 'type') *
@@ -18,6 +20,7 @@ end
 
 ---@param p   any an lpeg pattern
 ---@param err string
+---@return lpeglabel.pattern
 local function expect(p, err)
     return p + m.T(err)
 end

@@ -207,6 +207,7 @@ local function parseTokens(text, offset)
 end
 
 ---@param offset? integer
+---@return (string, string|integer) | (nil, nil) -- the type and the content of the token; both nil past the end
 local function peekToken(offset)
     offset = offset or 1
     return TokenTypes[Ci + offset], TokenContents[Ci + offset]
@@ -242,6 +243,7 @@ end
 ---@param tp       string
 ---@param content  string|integer
 ---@param offset?  integer
+---@return boolean
 local function checkToken(tp, content, offset)
     offset = offset or 0
     return  TokenTypes[Ci + offset] == tp
@@ -315,6 +317,7 @@ local function parseName(tp, parent)
 end
 
 ---@param symbol string
+---@return boolean
 local function nextSymbolOrError(symbol)
     if checkToken('symbol', symbol, 1) then
         nextToken()
@@ -1122,7 +1125,6 @@ local function parseCodePattern(parent)
     local finishOffset = i-1
     if finishOffset == 1 then
         -- code only, no pattern
-        ---@diagnostic expect-next-line: cast-local-type -- pattern's later use (as code.pattern) is optional
         pattern = nil
     else
         for _ = 2, finishOffset do

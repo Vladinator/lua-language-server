@@ -146,6 +146,7 @@ local function encode_string(v)
 end
 
 ---@param v string
+---@return string
 function encode_map.string(v)
     statusBuilder[#statusBuilder+1] = '"'
     statusBuilder[#statusBuilder+1] = encode_string(v)
@@ -182,6 +183,7 @@ function encode_map.number(v)
 end
 
 ---@param v boolean
+---@return string
 function encode_map.boolean(v)
     if v then
         return "true"
@@ -281,6 +283,7 @@ function encode_map.table(t)
 end
 
 ---@param v any
+---@return string
 local function encode_unexpected(v)
     if v == json.null then
         return "null"

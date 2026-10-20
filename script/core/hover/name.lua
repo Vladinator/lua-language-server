@@ -45,6 +45,7 @@ local function asField(source, oop)
 end
 
 ---@param source parser.object
+---@return string?
 local function asTableField(source)
     if not source.field then
         return
@@ -53,12 +54,14 @@ local function asTableField(source)
 end
 
 ---@param source parser.object
+---@return string?
 local function asGlobal(source)
     return guide.getKeyName(source)
 end
 
 ---@param source parser.object
 ---@param oop    boolean
+---@return string?
 local function asDocFunction(source, oop)
     local doc = guide.getParentType(source, 'doc.type')
             or  guide.getParentType(source, 'doc.overload')

@@ -28,6 +28,7 @@ function mt:__call(...)
 end
 
 ---@param default any
+---@return config.unit
 function mt:__shr(default)
     self.default = default
     self.hasDefault = true
@@ -35,6 +36,7 @@ function mt:__shr(default)
 end
 
 ---@param enums any[]|fun(): any[]
+---@return config.unit
 function mt:__shl(enums)
     self.enums = enums
     return self

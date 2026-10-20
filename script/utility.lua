@@ -30,6 +30,7 @@ local assert       = assert
 _ENV = nil
 
 ---@param n any
+---@return boolean
 local function isInteger(n)
     if mathType then
         return mathType(n) == 'integer'
@@ -496,6 +497,7 @@ end
 --- defer
 local deferMT = { __close = function (self) self[1]() end }
 ---@param callback fun()
+---@return table
 function m.defer(callback)
     return setmetatable({ callback }, deferMT)
 end

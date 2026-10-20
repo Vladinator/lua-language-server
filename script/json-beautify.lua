@@ -60,6 +60,7 @@ local function encode(v)
 end
 
 ---@param v string
+---@return string
 function encode_map.string(v)
     statusBuilder[#statusBuilder+1] = '"'
     statusBuilder[#statusBuilder+1] = encode_string(v)

@@ -831,6 +831,7 @@ end
 
 --- 获取文件关联
 ---@param uri uri
+---@return glob
 function m.getAssoc(uri)
     ---@type any[]
     local patt = {}

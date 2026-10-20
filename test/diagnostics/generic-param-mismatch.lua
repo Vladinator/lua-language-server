@@ -332,3 +332,79 @@ applyTwice(mixed, 1)
 applyTwice(mixed, <!"text"!>)
 applyOptional(numbers, "anything")
 ]]
+
+-- a type parameter bound through the key or the value slot of a table type is checked at the later arguments
+TEST [[
+---@generic K, V
+---@param t table<K, V>
+---@param k K
+---@param v V
+local function put(t, k, v) end
+---@generic K, V
+---@param t { [K]: V }
+---@param k K
+local function put2(t, k) end
+
+---@type table<number, boolean>
+local cell = {}
+---@type { [number]: boolean }
+local inl = {}
+---@type any
+local anything
+---@param s string
+---@param n number
+local function f(s, n)
+    put(cell, n, true)
+    put(cell, <!s!>, true)
+    put(cell, n, <!'x'!>)
+    put(cell, anything, true)
+    put2(inl, n)
+    put2(inl, <!s!>)
+end
+]]
+
+-- fine: a table that declares nothing about its slots binds nothing
+TEST [[
+---@generic K, V
+---@param t table<K, V>
+---@param k K
+local function put(t, k) end
+local plain = {}
+---@class Bag
+local bag = {}
+---@param s string
+local function f(s)
+    put(plain, s)
+    put(bag, s)
+end
+]]
+
+-- an overload with exactly the arguments written is the call's signature: `table.insert(list, value)`
+TEST [[
+---@type string[]
+local strs = {}
+---@type any
+local anything
+table.insert(strs, 'x')
+table.insert(strs, <!1!>)
+table.insert(strs, 1, 'x')
+table.insert(anything, 1)
+]]
+
+-- an array given for `table<K, V>` binds K to its integer index and V to its element
+TEST [[
+---@generic K, V
+---@param t table<K, V>
+---@param k K
+---@param v V
+local function put(t, k, v) end
+---@type string[]
+local strs = {}
+---@param s string
+---@param i integer
+local function f(s, i)
+    put(strs, i, 'x')
+    put(strs, <!s!>, 'x')
+    put(strs, i, <!1!>)
+end
+]]

@@ -1334,6 +1334,37 @@ local function F(v)
 end
 ]]
 
+-- `Record<string, V>` (a key TYPE, not literals) is the index signature `{ [string]: V }`; it used to be an empty table (nothing was
+-- known of its values, any key was fine)
+TEST '{ [string]: number }' [[
+---@param v Record<string, number>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
+TEST 'number' [[
+---@param v Record<string, number>
+local function F(v)
+    local <?y?> = v.anything
+end
+]]
+
+TEST 'boolean' [[
+---@param v Record<integer, boolean>
+local function F(v)
+    local <?y?> = v[1]
+end
+]]
+
+-- literal keys next to a key type keep their own fields
+TEST '{ a: number, [string]: number }' [[
+---@param v Record<"a"|string, number>
+local function F(v)
+    local <?y?> = v
+end
+]]
+
 -- `NonNullable<T>` keeps the type and drops `nil` / the optional mark (positive); a type without nil stays as it is (negative).
 TEST 'string|number' [[
 ---@param v NonNullable<string|number|nil>

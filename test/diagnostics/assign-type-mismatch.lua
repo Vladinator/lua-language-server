@@ -681,3 +681,11 @@ local function alsoFine()
     return { name = "x" }
 end
 ]]
+
+-- the value of a `Record<string, V>`
+TEST [[
+---@type Record<string, number>
+local rec = {}
+rec.a = 1
+<!rec['b']!> = 'x'
+]]

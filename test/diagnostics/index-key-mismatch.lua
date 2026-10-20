@@ -130,3 +130,48 @@ local function f(s)
     local _ = either[s]
 end
 ]]
+
+-- `Record<K, V>` with a key type is the index signature `{ [K]: V }`: the key and the value are checked
+TEST [[
+---@type Record<string, number>
+local rec = {}
+---@param n number
+---@param s string
+local function f(n, s)
+    rec[s] = 1
+    rec[<!n!>] = 1
+end
+]]
+
+-- the entries of a table constructor are keys too: `[k] = v`, `name = v` (the string key) and the positions (the integer keys)
+TEST [[
+---@type table<number, boolean>
+local a = { [1] = true, [<!'x'!>] = true, <!y!> = true }
+---@type table<string, number>
+local b = { x = 1, [<!1!>] = 1 }
+---@type number[]
+local c = { 1, 2, <!k!> = 3 }
+---@type table<string, number>
+local d = { <!1!> }
+]]
+
+-- fine: entries that fit, a constructor with no declared type, an `any`
+TEST [[
+---@type table<number, boolean>
+local a = { [1] = true, [2.5] = false }
+---@type table<string, number>
+local b = { x = 1, ['y'] = 2 }
+---@type number[]
+local c = { 1, 2, 3 }
+local d = { x = 1, [1] = 2 }
+---@type table<string|number, any>
+local e = { x = 1, 2 }
+]]
+
+-- a named entry is the literal key: fine for a declared literal, reported for another one
+TEST [[
+---@type table<'a'|'b', number>
+local ok = { a = 1, ['b'] = 2 }
+---@type table<'a'|'b', number>
+local bad = { a = 1, <!c!> = 2 }
+]]

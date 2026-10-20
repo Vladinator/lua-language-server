@@ -271,7 +271,7 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
             end
             if not source.isTuple then
                 local key = field.name
-                if key.type == 'doc.type' then
+                if key.type == 'doc.type' or key.type == 'doc.type.precomputed' then
                     buf[#buf+1] = ('[%s]: '):format(vm.getInfer(key):view(uri))
                 elseif type(key[1]) == 'string' then
                     buf[#buf+1] = key[1] .. ': '

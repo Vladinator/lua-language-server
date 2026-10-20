@@ -97,17 +97,33 @@ return function (uri, callback)
 
     local delayer = await.newThrottledDelayer(500)
     ---@async
-    guide.eachSourceTypes(state.ast, { 'getindex', 'setindex' }, function (src)
-        local index = src.index
-        if not index or not src.node then
+    guide.eachSourceTypes(state.ast, { 'getindex', 'setindex', 'tableindex', 'tablefield', 'tableexp' }, function (src)
+        ---@type parser.object?, vm.node?, parser.object?
+        local receiver, given, at
+        if src.type == 'tablefield' then
+            -- `{ a = 1 }`: the key is the string `a`
+            local name = src.field
+            if not name then
+                return
+            end
+            receiver, at = src.parent, name
+            ---@type parser.object
+            local literal = { type = 'doc.type.string', start = name.start, finish = name.finish, [1] = name[1], [2] = '"' }
+            given = vm.createNode(literal)
+        elseif src.type == 'tableexp' then
+            -- `{ 1, 2 }`: the key is the position
+            receiver, given, at = src.parent, vm.createNode(vm.declareGlobal('type', 'integer')), src
+        elseif src.index then
+            receiver, given, at = src.type == 'tableindex' and src.parent or src.node, vm.compileNode(src.index), src.index
+        end
+        if not receiver or not given or not at then
             return
         end
         delayer:delay()
-        local keys = declaredKeys(uri, vm.compileNode(src.node))
+        local keys = declaredKeys(uri, vm.compileNode(receiver))
         if not keys then
             return
         end
-        local given = vm.compileNode(index)
         if given:hasNil() and src.type == 'getindex' then
             -- (`nil-index` says that one)
             return
@@ -117,8 +133,8 @@ return function (uri, callback)
             return
         end
         callback {
-            start   = index.start,
-            finish  = index.finish,
+            start   = at.start,
+            finish  = at.finish,
             message = ('Cannot use `%s` as a key of a table indexed by `%s`.'):format(
                 vm.getInfer(given):view(uri),
                 vm.getInfer(keys):view(uri)

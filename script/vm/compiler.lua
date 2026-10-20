@@ -597,7 +597,7 @@ local searchFieldSwitch = util.switch()
         end
         for _, field in ipairs(source.fields) do
             local fieldKey = field.name
-            if fieldKey.type == 'doc.type' then
+            if fieldKey.type == 'doc.type' or fieldKey.type == 'doc.type.precomputed' then
                 local fieldNode = vm.compileNode(fieldKey)
                 for fn in fieldNode:eachObject() do
                     if fn.type == 'global' and fn.cate == 'type' then
@@ -1165,6 +1165,39 @@ local function buildUtilityField(tableObj, key, node, origin)
     return field
 end
 
+--- The index signature of a utility type (`Record<string, V>`): a field whose key is a type, not a name. Its key is a precomputed node,
+--- which every reader of `doc.type.table` fields that takes a `doc.type` key (`[K]: V`) already reads.
+---@param tableObj parser.object
+---@param keyType  vm.node.object the key type (`string`, `number`, ...)
+---@param node     vm.node        the value type
+---@return parser.object
+local function buildUtilityIndex(tableObj, keyType, node)
+    ---@type parser.object
+    local field = {
+        type      = 'doc.type.field',
+        parent    = tableObj,
+        synthetic = true,
+        start     = tableObj.start,
+        finish    = tableObj.finish,
+    }
+    field.name = {
+        type   = 'doc.type.precomputed',
+        parent = field,
+        start  = tableObj.start,
+        finish = tableObj.finish,
+    }
+    vm.setNode(field.name, vm.createNode(keyType), true)
+    field.extends = {
+        type   = 'doc.type.precomputed',
+        parent = field,
+        start  = tableObj.start,
+        finish = tableObj.finish,
+    }
+    vm.setNode(field.extends, node, true)
+    vm.setNode(field, node, true)
+    return field
+end
+
 --- @Partial/@Required add/remove the field's own optionality; @Pick/@Omit filter by a literal key
 --- or union of literal keys; @Record builds fresh fields from a literal key union and one value
 --- type, ignoring `T` (its `signs[1]` doubles as the key type). All five build a synthetic
@@ -1269,6 +1302,9 @@ local function resolveUtilityType(uri, source)
                         seen[key] = true
                         fields[#fields+1] = buildUtilityField(tableObj, key, valueNode)
                     end
+                elseif kn.type == 'global' and kn.cate == 'type' then
+                    -- `Record<string, V>`: the index signature `{ [string]: V }`, one field for the key type
+                    fields[#fields+1] = buildUtilityIndex(tableObj, kn, valueNode)
                 end
             end
         end

@@ -138,3 +138,28 @@ TEST [[
 ---@type Child
 local a = { own = 1, parentField = 2, <!typo!> = true }
 ]]
+
+-- a class with an index field that takes strings takes any named field; one that indexes integers only does not
+TEST [[
+---@class StrIdx
+---@field [string] number
+---@type StrIdx
+local a = { x = 1, y = 2 }
+
+---@class IntIdx
+---@field [integer] string
+---@type IntIdx
+local b = { 'a', <!x!> = 'b' }
+
+---@class StrIdxParent
+---@field [string] number
+---@class StrIdxChild: StrIdxParent
+---@type StrIdxChild
+local c = { x = 1 }
+
+---@class NamedAndIdx
+---@field name string
+---@field [string] boolean
+---@type NamedAndIdx
+local d = { name = 'x', other = true }
+]]

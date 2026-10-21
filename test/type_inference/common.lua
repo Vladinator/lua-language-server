@@ -1404,6 +1404,96 @@ local m = {}
 for _, <?v?> in ipairs(m) do end
 ]]
 
+-- constant folding: the operator and the kind of its literals decide the type (each operator, the integer and the float case)
+TEST 'integer' [[
+local <?x?> = 7 - 2
+]]
+
+TEST 'integer' [[
+local <?x?> = 7 * 2
+]]
+
+TEST 'number' [[
+local <?x?> = 7 / 2
+]]
+
+TEST 'integer' [[
+local <?x?> = 7 % 3
+]]
+
+TEST 'integer' [[
+local <?x?> = 7 // 2
+]]
+
+TEST 'number' [[
+local <?x?> = 2 ^ 3
+]]
+
+TEST 'number' [[
+local <?x?> = 7 // 2.0 + 0.5
+]]
+
+TEST 'integer' [[
+local <?x?> = 6 & 3
+]]
+
+TEST 'integer' [[
+local <?x?> = 6 | 3
+]]
+
+TEST 'integer' [[
+local <?x?> = 6 ~ 3
+]]
+
+TEST 'integer' [[
+local <?x?> = 16 >> 2
+]]
+
+TEST 'integer' [[
+local <?x?> = 16 ~>> 2
+]]
+
+TEST 'boolean' [[
+local <?x?> = 1 < 2
+]]
+
+TEST 'boolean' [[
+local <?x?> = 2 <= 2
+]]
+
+TEST 'boolean' [[
+local <?x?> = 3 > 2
+]]
+
+TEST 'boolean' [[
+local <?x?> = 3 >= 4
+]]
+
+TEST 'boolean' [[
+local <?x?> = 1 == 1
+]]
+
+TEST 'boolean' [[
+local <?x?> = 1 ~= 2
+]]
+
+TEST 'number' [[
+local <?x?> = 7 / 0
+]]
+
+TEST 'integer' [[
+local <?x?> = 7 % 3 + 1 // 1
+]]
+
+-- a number concatenated: floats print with the runtime version's spelling (`1.0` for Lua 5.3+, `1` for LuaJIT / 5.1); the type is a string either way
+TEST 'string' [[
+local <?x?> = 1.0 .. 2.5
+]]
+
+TEST 'string' [[
+local <?x?> = 3 .. 4
+]]
+
 -- arithmetic over a union of integer literals is a number (LibPixelStrip: `2 ^ BITS` with `BITS: 2|3|4` was `unknown`)
 TEST 'number' [[
 ---@type 2|3|4

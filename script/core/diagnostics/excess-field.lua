@@ -180,6 +180,13 @@ return function (uri, callback)
         if vm.getClassIndexValue(uri, vm.compileNode(classes[1]), 'string') then
             return
         end
+        -- a class with an index field that takes strings (`---@field [string] number`) takes any named field
+        for _, class in ipairs(classes) do
+            local indexKeys = vm.getClassIndexKeys(uri, vm.compileNode(class))
+            if indexKeys and vm.isSubType(uri, 'string', indexKeys) then
+                return
+            end
+        end
 
         for _, field in ipairs(src) do
             local keyNode = field.type == 'tablefield' and field.field

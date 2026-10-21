@@ -356,3 +356,30 @@ local child
 child:Set():Extra()
 child:Set():<!Missing!>()
 ]]
+
+-- a class declared on a `return { ... }`: the fields of the table are the fields of the class (LibPixelStrip: `---@class Stats` before `return { ... }`)
+TEST [[
+local function stats()
+    local pending = 0
+    ---@class RetStats
+    return {
+        enabled = true,
+        pending = pending,
+    }
+end
+local st = stats()
+print(st.enabled, st.pending, st.<!nope!>)
+]]
+
+-- ... and the same table kept in a local first
+TEST [[
+local function stats()
+    ---@class RetStats2
+    local t = {
+        enabled = true,
+    }
+    return t
+end
+local st = stats()
+print(st.enabled, st.<!nope!>)
+]]

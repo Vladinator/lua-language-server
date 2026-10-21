@@ -757,8 +757,13 @@ function vm.getClassFields(suri, object, key, pushResult)
                 -- check local field and global field
                 if not searchedFields[key] and set.bindSource then
                     local src = set.bindSource
-                    if src.value and src.value.type == 'table' then
-                        searchFieldSwitch('table', suri, src.value, key, function (field)
+                    -- (`---@class X` on a `return { ... }`: the table is the returned expression)
+                    local tableValue = src.value
+                    if src.type == 'return' and src[1] and not src[2] then
+                        tableValue = src[1]
+                    end
+                    if tableValue and tableValue.type == 'table' then
+                        searchFieldSwitch('table', suri, tableValue, key, function (field)
                             local fieldKey = guide.getKeyName(field)
                             if fieldKey then
                                 if  not searchedFields[fieldKey]

@@ -445,6 +445,72 @@ vm.unarySwich = util.switch()
         end
     end)
 
+--- Whether a type name is an alias (`---@alias`): its expansion sits next to it in a node.
+---@param uri    uri
+---@param global vm.global
+---@return boolean
+local function isAliasGlobal(uri, global)
+    for _, set in ipairs(global:getSets(uri)) do
+        if set.type == 'doc.alias' then
+            return true
+        end
+    end
+    return false
+end
+
+--- What an operand certainly is, looking at every part of its type (literals included, a union of literals too): `'integer'` when all parts are
+--- integers, `'number'` when all are numbers (floats among them), `'string'` when all are strings; nil for anything else (an operand that may
+--- also be nil, a class, a mix of strings and numbers...): it says nothing.
+---@param source parser.object
+---@return 'integer'|'number'|'string'?
+local function literalKindOf(source)
+    local node = vm.compileNode(source)
+    if node:hasNil() then
+        return nil
+    end
+    local count = 0
+    local hasFloat = false
+    local hasString = false
+    for obj in node:eachObject() do
+        if obj.type == 'integer' or obj.type == 'doc.type.integer' then
+            count = count + 1
+        elseif obj.type == 'number' then
+            count = count + 1
+            hasFloat = hasFloat or math.type(obj[1]) ~= 'integer'
+        elseif obj.type == 'string' or obj.type == 'doc.type.string' then
+            count = count + 1
+            hasString = true
+        elseif obj.type == 'global' and obj.cate == 'type' then
+            ---@cast obj vm.global
+            if obj.name == 'integer' or obj.name == 'number' or obj.name == 'string' then
+                count = count + 1
+                hasFloat = hasFloat or obj.name == 'number'
+                hasString = hasString or obj.name == 'string'
+            elseif not isAliasGlobal(guide.getUri(source), obj) then
+                -- (an alias sits next to the literals it stands for; any other type says nothing)
+                return nil
+            end
+        elseif obj.type ~= 'local' and obj.type ~= 'variable' then
+            -- (a local or its variable sits next to the types it holds)
+            return nil
+        end
+    end
+    if count == 0 then
+        return nil
+    end
+    if hasString then
+        -- (a string part with a number part is neither)
+        for obj in node:eachObject() do
+            if obj.type == 'integer' or obj.type == 'doc.type.integer' or obj.type == 'number'
+            or (obj.type == 'global' and (obj.name == 'integer' or obj.name == 'number')) then
+                return nil
+            end
+        end
+        return 'string'
+    end
+    return hasFloat and 'number' or 'integer'
+end
+
 vm.binarySwitch = util.switch()
     : case 'and'
     ---@param source parser.object
@@ -662,6 +728,17 @@ vm.binarySwitch = util.switch()
                     return
                 end
             end
+            -- operands that are unions of number literals (`---@type 2|3|4`: no `integer` among their views) still are numbers
+            local kind1, kind2 = literalKindOf(source[1]), literalKindOf(source[2])
+            if kind1 and kind2 and kind1 ~= 'string' and kind2 ~= 'string' then
+                if op == '/' or op == '^' then
+                    vm.setNode(source, vm.declareGlobal('type', 'number'))
+                elseif op == '//' or (kind1 == 'integer' and kind2 == 'integer') then
+                    vm.setNode(source, vm.declareGlobal('type', 'integer'))
+                else
+                    vm.setNode(source, vm.declareGlobal('type', 'number'))
+                end
+            end
         end
     end)
     : case '..'
@@ -709,6 +786,11 @@ vm.binarySwitch = util.switch()
             or  infer2:hasType(uri, 'number')
             or  infer2:hasType(uri, 'string')
             ) then
+                vm.setNode(source, vm.declareGlobal('type', 'string'))
+                return
+            end
+            -- unions of literals (`---@type 'a'|'b'`): their views are the literals, not `string`
+            if literalKindOf(source[1]) and literalKindOf(source[2]) then
                 vm.setNode(source, vm.declareGlobal('type', 'string'))
                 return
             end

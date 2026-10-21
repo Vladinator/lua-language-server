@@ -1404,6 +1404,109 @@ local m = {}
 for _, <?v?> in ipairs(m) do end
 ]]
 
+-- arithmetic over a union of integer literals is a number (LibPixelStrip: `2 ^ BITS` with `BITS: 2|3|4` was `unknown`)
+TEST 'number' [[
+---@type 2|3|4
+local bits
+local <?x?> = 2 ^ bits
+]]
+
+TEST 'integer' [[
+---@type 2|3|4
+local bits
+local <?x?> = bits * 2
+]]
+
+TEST 'number' [[
+---@type 2|3|4
+local bits
+local <?x?> = bits ^ 2
+]]
+
+TEST 'integer' [[
+---@type 2|3|4
+local bits
+local <?x?> = bits + bits
+]]
+
+-- ... through an alias of the literals (LibPixelStrip: `---@type LibPixelStrip-1.0_Bits`)
+TEST 'number' [[
+---@alias ZArithBits 2|3|4
+local bits = 4 ---@type ZArithBits
+local <?x?> = 2 ^ bits
+]]
+
+TEST 'string' [[
+---@alias ZArithMode 'a'|'b'
+local mode = 'a' ---@type ZArithMode
+local <?x?> = mode .. 'c'
+]]
+
+-- ... floats among the literals make it a number; a part that may be nil or a string says nothing
+TEST 'number' [[
+---@type 1|number
+local v
+local <?x?> = v + 1
+]]
+
+TEST 'unknown' [[
+---@type 2|3|nil
+local v
+local <?x?> = v * 2
+]]
+
+TEST 'unknown' [[
+---@type 'a'|'b'
+local v
+local <?x?> = v * 2
+]]
+
+TEST 'unknown' [[
+---@param v? 2|3
+local function f(v)
+    local <?x?> = v * 2
+end
+]]
+
+TEST 'number' [[
+---@type 2|3
+local bits
+local f = 2.5
+local <?x?> = f * bits
+]]
+
+-- ... and strings of literals concatenate to a string, comparisons give a boolean
+TEST 'string' [[
+---@type 'a'|'b'
+local s
+local <?x?> = s .. 'c'
+]]
+
+TEST 'boolean' [[
+---@type 2|3|4
+local bits
+local <?x?> = bits < 3
+]]
+
+-- the fields of a table under a class on its `return` have their own types
+TEST 'boolean' [[
+local function stats()
+    ---@class RetStats3
+    return { enabled = true, count = 1 }
+end
+local st = stats()
+local <?x?> = st.enabled
+]]
+
+TEST 'integer' [[
+local function stats()
+    ---@class RetStats4
+    return { enabled = true, count = 1 }
+end
+local st = stats()
+local <?x?> = st.count
+]]
+
 -- `NonNullable<T>` keeps the type and drops `nil` / the optional mark (positive); a type without nil stays as it is (negative).
 TEST 'string|number' [[
 ---@param v NonNullable<string|number|nil>

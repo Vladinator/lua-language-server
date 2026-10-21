@@ -2040,7 +2040,8 @@ local function checkEqualEnumInString(state, position, results)
         if not parent.op then
             return
         end
-        if parent.op.type ~= '==' and parent.op.type ~= '~=' then
+        -- (`x == '<here>'`, and the fallback of `x or '<here>'`: the values the left operand can be)
+        if parent.op.type ~= '==' and parent.op.type ~= '~=' and parent.op.type ~= 'or' then
             return
         end
         checkEqualEnumLeft(state, position, parent[1], results)

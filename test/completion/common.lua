@@ -2253,6 +2253,45 @@ print(x == '<??>')
     },
 }
 
+-- the fallback of an `or`: the literals the left operand can be (`mode = mode or '<??>'`, found in LibPixelStrip: only the plain words of the file came)
+TEST [[
+---@alias ZOrMode "zqa"|"zqb"
+---@param mode? ZOrMode
+local function f(mode)
+    mode = mode or '<??>'
+end
+]]
+{
+    {
+        label  = "'zqa'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+    {
+        label  = "'zqb'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+}
+
+TEST [[
+---@type "a"|"b"
+local x
+local y = x or '<??>'
+]]
+{
+    {
+        label  = "'a'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+    {
+        label  = "'b'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+}
+
 TEST [[
 ---@type "a"|"b"|"c"
 local x

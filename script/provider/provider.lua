@@ -85,7 +85,10 @@ function m.updateConfig(uri)
         log.info('Load config from specified', CONFIGPATH)
         log.info(inspect(m.briefConfig(specified)))
         -- watch directory
-        filewatch.watch(workspace.getAbsolutePath(uri, CONFIGPATH):gsub('[^/\\]+$', ''), false)
+        local configPath = workspace.getAbsolutePath(uri, CONFIGPATH)
+        if configPath then
+            filewatch.watch(configPath:gsub('[^/\\]+$', ''), false)
+        end
         config.update(scope.override, specified)
     end
 

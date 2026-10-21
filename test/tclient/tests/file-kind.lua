@@ -120,9 +120,9 @@ lclient():start(function (client)
     client:initialize()
     ws.awaitReady()
 
-    ---@return { uri: string, version: integer?, diagnostics: any[] }?
+    ---@return { uri: string, version: integer?, diagnostics: any[] }
     local function last()
-        return published[#published]
+        return assert(published[#published], 'nothing was published yet')
     end
 
     --- (a change of a setting reaches the watchers on a later tick)

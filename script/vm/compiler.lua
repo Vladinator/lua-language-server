@@ -36,7 +36,10 @@ local function setNodeCheckSafe(source, node)
     or source.type == 'getindex'
     or source.type == 'getmethod'
     or source.type == 'call') then
-        vm.getNode(source):addOptional()
+        local node = vm.getNode(source)
+        if node then
+            node:addOptional()
+        end
     end
 end
 
@@ -3013,7 +3016,10 @@ local function bindReturnOfFunction(source, mfunc, index, args, classMap)
             vm.setNode(source, vm.declareGlobal('type', 'unknown'))
         end
         if returnNode:isOptional() then
-            vm.getNode(source):addOptional()
+            local node = vm.getNode(source)
+            if node then
+                node:addOptional()
+            end
         end
         -- vm.propagateFlags/vm.applyDerivedFlags are no-ops for any flag
         -- no plugin has registered, so this stays correct whether or not
@@ -3537,7 +3543,7 @@ local compilerSwitch = util.switch()
                 local hasKnownType
                 ---@type boolean?
                 local hasUnknownType
-                for n in vm.getNode(source):eachObject() do
+                for n in (vm.getNode(source) or vm.createNode()):eachObject() do
                     if guide.isLiteral(n) then
                         if n.type ~= 'nil' then
                             hasKnownType = true
@@ -3794,11 +3800,12 @@ local compilerSwitch = util.switch()
         for _, typeUnit in ipairs(source.types) do
             vm.setNode(source, vm.compileNode(typeUnit))
         end
-        if source.optional then
-            vm.getNode(source):addOptional()
+        local sourceNode = vm.getNode(source)
+        if sourceNode and source.optional then
+            sourceNode:addOptional()
         end
-        if source.lateinit then
-            vm.getNode(source):setFlag('lateinit')
+        if sourceNode and source.lateinit then
+            sourceNode:setFlag('lateinit')
         end
     end)
     : case 'doc.type.integer'
@@ -4110,8 +4117,9 @@ local compilerSwitch = util.switch()
                 if set.extends then
                     for _, ext in ipairs(set.extends) do
                         if ext.type == 'doc.type.table' then
-                            if vm.getGeneric(ext) then
-                                local resolved = vm.getGeneric(ext):resolve(uri, source.signs)
+                            local extGeneric = vm.getGeneric(ext)
+                            if extGeneric then
+                                local resolved = extGeneric:resolve(uri, source.signs)
                                 for obj in resolved:eachObject() do
                                     obj.hideView = true
                                 end
@@ -4122,8 +4130,9 @@ local compilerSwitch = util.switch()
                 end
             end
             if set.type == 'doc.alias' then
-                if vm.getGeneric(set.extends) then
-                    local resolved = vm.getGeneric(set.extends):resolve(uri, source.signs)
+                local aliasGeneric = vm.getGeneric(set.extends)
+                if aliasGeneric then
+                    local resolved = aliasGeneric:resolve(uri, source.signs)
                     vm.setNode(source, resolved)
                 end
             end
@@ -4235,8 +4244,9 @@ local compilerSwitch = util.switch()
         else
             vm.setNode(source, vm.declareGlobal('type', 'any'))
         end
-        if source.optional then
-            vm.getNode(source):addOptional()
+        local optionalNode = vm.getNode(source)
+        if optionalNode and source.optional then
+            optionalNode:addOptional()
         end
     end)
     : case 'unary'
@@ -4427,7 +4437,8 @@ end
 
 ---@param source parser.object
 local function compileByParentNode(source)
-    if vm.getNode(source):isTyped() then
+    local typedNode = vm.getNode(source)
+    if typedNode and typedNode:isTyped() then
         return
     end
     vm.compileByNodeChain(source, function (result)

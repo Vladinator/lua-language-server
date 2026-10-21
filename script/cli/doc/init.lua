@@ -36,7 +36,7 @@ local function getPathDocUpdate()
     local ok, doc_path = pcall(
         function ()
             local json = require('json')
-            local json_file = io.open(doc_json_path:string(), 'r'):read('*all')
+            local json_file = assert(io.open(doc_json_path:string(), 'r')):read('*all')
             local json_data = json.decode(json_file)
             for _, section in ipairs(json_data --[[@as any[] ]]) do
                 if section.type == 'luals.config' then

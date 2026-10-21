@@ -198,19 +198,21 @@ return function (uri, callback)
         local defs = vm.getDefs(src)
         for _, def in ipairs(defs) do
             if not vm.isVisible(src.node, def) then
+                local parentClass = vm.getParentClass(def)
+                local parentName  = parentClass and parentClass:getName() or '?'
                 if vm.getVisibleType(def) == 'private' then
                     callback {
                         start   = child.start,
                         finish  = child.finish,
                         uri     = uri,
-                        message = PRIVATE_MESSAGE:format(key, vm.getParentClass(def):getName()),
+                        message = PRIVATE_MESSAGE:format(key, parentName),
                     }
                 elseif vm.getVisibleType(def) == 'protected' then
                     callback {
                         start   = child.start,
                         finish  = child.finish,
                         uri     = uri,
-                        message = PROTECTED_MESSAGE:format(key, vm.getParentClass(def):getName()),
+                        message = PROTECTED_MESSAGE:format(key, parentName),
                     }
                 elseif vm.getVisibleType(def) == 'package' then
                     callback {

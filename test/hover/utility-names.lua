@@ -90,7 +90,8 @@ do
     local detail
     for _, item in ipairs(completion.completion(TESTURI, catched['?'][1][1], nil) or {}) do
         if item.label == 'unpart' and item.id then
-            detail = completion.resolve(item.id).detail
+            local resolved = completion.resolve(item.id)
+            detail = resolved and resolved.detail
         end
     end
     files.remove(TESTURI)

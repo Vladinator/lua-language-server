@@ -37,7 +37,7 @@ return function (uri, callback)
 
     local delayer = await.newThrottledDelayer(500)
     ---@async
-    guide.eachSourceTypes(state.ast, {'getlocal', 'getglobal', 'getfield', 'getindex', 'getmethod'}, function (src)
+    guide.eachSourceTypes(state.ast, {'getlocal', 'getglobal', 'getfield', 'getindex', 'getmethod', 'call'}, function (src)
         delayer:delay()
         ---@type boolean?
         local checkNil
@@ -58,7 +58,11 @@ return function (uri, callback)
         end
         local parent = src.parent
         if parent then
-            if parent.type == 'call' and parent.node == src then
+            if src.type == 'call' then
+                -- (the result of a call is checked where it is used as a table, `find().value`, `find():m()`, and only there: operators on it
+                -- are not judged (`tonumber(s) / 255`, `a .. f()`: every `string?` / `number?` return would be one), nor is calling it
+                -- (`TEST 'x' [[...]]` calls the result of a call, a closure the helper returns)
+            elseif parent.type == 'call' and parent.node == src then
                 -- 安全导航调用（f?.()）：已判空，无需再次检查
                 if not parent.safe then
                     checkNil = true

@@ -13,11 +13,13 @@ local function TestVisualize(fileName)
 	function writer:write(text)
 		output = (output .. text)
 	end
-	visualize.visualizeAst(io.open(inputFile):read('a'), writer)
-	local expectedOutput = io.open(outputFile):read('a')
+	visualize.visualizeAst(assert(io.open(inputFile)):read('a'), writer)
+	local expectedOutput = assert(io.open(outputFile)):read('a')
 	if expectedOutput ~= output then
 		-- uncomment this to update reference output
-		io.open(outputFile, "w+"):write(output):close()
+		local updated = assert(io.open(outputFile, "w+"))
+		updated:write(output)
+		updated:close()
 		error('output mismatch for test file ' .. inputFile)
 	end
 end

@@ -1775,8 +1775,9 @@ local function insertDocEnum(state, pos, doc, enums)
     local parent = tbl.parent
     ---@type string?
     local parentName
-    if vm.getGlobalNode(parent) then
-        parentName = vm.getGlobalNode(parent):getCodeName()
+    local parentGlobal = vm.getGlobalNode(parent)
+    if parentGlobal then
+        parentName = parentGlobal:getCodeName()
     else
         local locals = guide.getVisibleLocals(state.ast, pos)
         for _, loc in pairs(locals) do

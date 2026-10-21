@@ -253,13 +253,13 @@ function mt:resolve(uri, args)
                         resolve(firstValue, tvalueNode)
                     end
                 else
-                    if ufieldNode:get(1).type == 'doc.generic.name' then
+                    if firstField.type == 'doc.generic.name' then
                         -- { [number]: number}|number[] -> { [K]: number }
                         local tnode = vm.getTableKey(uri, node, uvalueNode, true)
                         if tnode then
                             resolve(firstField, tnode)
                         end
-                    elseif uvalueNode:get(1).type == 'doc.generic.name' then
+                    elseif firstValue.type == 'doc.generic.name' then
                         -- { [number]: number}|number[] -> { [number]: V }
                         local tnode = vm.getTableValue(uri, node, ufieldNode, true)
                         if tnode then

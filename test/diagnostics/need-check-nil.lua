@@ -1751,3 +1751,36 @@ TEST [[
 local o = nil
 function <!o!>:run() end
 ]]
+
+-- the result of a call that may be nil, used as a table right away
+TEST [[
+---@return { value: number }?
+local function find() return nil end
+---@return string?
+local function name() return nil end
+
+local a = <!find()!>.value
+local b = <!name()!>:upper()
+local c = <!find()!>['value']
+]]
+
+-- fine: a guarded result, a default, or a use that is not a table access (operators on a call result are not judged, nor is calling it)
+TEST [[
+---@return { value: number }?
+local function find() return nil end
+---@return number?
+local function num() return nil end
+---@return string?
+local function name() return nil end
+---@return (fun(): number)?
+local function maker() return nil end
+
+local a = (find() or { value = 1 }).value
+local b = find()
+local c = b and b.value
+local d = num() + 1
+local e = 'x' .. name()
+local f = -num()
+local g = maker()()
+if find() then end
+]]

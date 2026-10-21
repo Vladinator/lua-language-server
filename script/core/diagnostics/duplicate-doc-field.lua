@@ -71,7 +71,11 @@ return function (uri, callback)
         if not class then
             return
         end
-        for _, set in ipairs(vm.getGlobal('type', class.class[1]):getSets(uri)) do
+        local classGlobal = vm.getGlobal('type', class.class[1])
+        if not classGlobal then
+            return
+        end
+        for _, set in ipairs(classGlobal:getSets(uri)) do
             if not set.fields then
                 goto CONTINUE
             end

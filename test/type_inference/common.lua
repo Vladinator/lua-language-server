@@ -1365,6 +1365,45 @@ local function F(v)
 end
 ]]
 
+-- `ipairs` over a union of an array and a string-keyed table gives the values of the integer-keyed part (the string-keyed table has none)
+TEST 'number' [[
+---@type number[] | table<string, true>
+local m = {}
+for _, <?v?> in ipairs(m) do end
+]]
+
+TEST 'number' [[
+---@type table<string, true> | number[]
+local m = {}
+for _, <?v?> in ipairs(m) do end
+]]
+
+-- ... a string-keyed table alone keeps its value type for the loop (nothing there is integer-keyed, the declared value is the useful answer)
+TEST 'true' [[
+---@type table<string, true>
+local m = {}
+for _, <?v?> in ipairs(m) do end
+]]
+
+-- ... and the integer-keyed forms of the same stay what they are
+TEST 'boolean' [[
+---@type table<integer, boolean>
+local m = {}
+for _, <?v?> in ipairs(m) do end
+]]
+
+TEST 'string' [[
+---@type string[]
+local m = {}
+for _, <?v?> in ipairs(m) do end
+]]
+
+TEST 'string|number' [[
+---@type number[] | string[]
+local m = {}
+for _, <?v?> in ipairs(m) do end
+]]
+
 -- `NonNullable<T>` keeps the type and drops `nil` / the optional mark (positive); a type without nil stays as it is (negative).
 TEST 'string|number' [[
 ---@param v NonNullable<string|number|nil>

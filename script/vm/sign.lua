@@ -163,8 +163,16 @@ function mt:resolve(uri, args)
             -- the array element generic (V) to the sign parameter, even
             -- when it's another generic name (T inside a method body).
             local handled = false
+            local hasArrayFacet = false
             for n in node:eachObject() do
-                if n.type == 'doc.type.sign' and n.signs and n.node and n.node[1] then
+                if n.type == 'doc.type.array' then
+                    hasArrayFacet = true
+                end
+            end
+            for n in node:eachObject() do
+                -- (next to an array, `table<K, V>` is not a class with an integer field: its key is whatever `K` says, and the facet with the integer keys is the
+                -- array; alone it keeps binding the value type, which is what `ipairs(dict)` reports)
+                if n.type == 'doc.type.sign' and n.signs and n.node and n.node[1] and not (n.node[1] == 'table' and hasArrayFacet) then
                     local classGlobal = vm.getGlobal('type', n.node[1])
                     if classGlobal then
                         local genericMap = vm.getClassGenericMap(uri, classGlobal, n.signs)

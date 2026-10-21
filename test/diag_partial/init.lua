@@ -320,6 +320,29 @@ do
     assert(assert(diag.takeRequest('s')).all == true)
 end
 
+-- the files known to have changed: a request without a changed file poisons the narrowing (false) and it stays poisoned
+do
+    diag.pending = {}
+    diag.addRequest('s', { a = true }, 'file:///one.lua')
+    diag.addRequest('s', { a = true }, 'file:///two.lua')
+    local request = assert(diag.takeRequest('s'))
+    assert(type(request.changedUris) == 'table' and request.changedUris['file:///one.lua'] and request.changedUris['file:///two.lua'],
+        'the changed files are collected')
+    diag.addRequest('s', { a = true })
+    diag.addRequest('s', { a = true }, 'file:///three.lua')
+    request = assert(diag.takeRequest('s'))
+    assert(request.changedUris == false, 'no changed file named once: the whole scope, also when a later request names one')
+    -- putting back a request next to what came in meanwhile
+    diag.addRequest('s', { a = true }, 'file:///four.lua')
+    diag.restoreRequest('s', { all = false, names = { b = true }, changedUris = false })
+    request = assert(diag.takeRequest('s'))
+    assert(request.changedUris == false, 'a poisoned request put back poisons the pending one')
+    diag.addRequest('s', { a = true }, 'file:///five.lua')
+    diag.restoreRequest('s', { all = false, names = { b = true } })
+    request = assert(diag.takeRequest('s'))
+    assert(request.changedUris == false, 'a request that never knew its changed files poisons the pending one')
+end
+
 for _, name in ipairs(silenced) do
     provider[name] = saved[name]
 end

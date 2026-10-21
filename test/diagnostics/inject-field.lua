@@ -205,3 +205,32 @@ local function f(s)
     t[s] = 1
 end
 ]]
+
+-- the same with the bracket form: a member of the union declares the field, so `['specs'] = ...` is not a stray key either
+TEST [[
+---@class Info
+---@field itemID number
+---@field name string?
+
+---@class Cache
+---@field public items table<number, Info | { everyone: boolean, specs: table<number, number> }>
+local cache = { items = {} } ---@class Cache
+
+---@return Info?
+local function getInfo(i) return nil end
+
+local function fill()
+    local itemInfo = getInfo(1)
+    if itemInfo and itemInfo.itemID then
+        local itemCache = cache.items[itemInfo.itemID]
+        if not itemCache then
+            itemCache = itemInfo
+            cache.items[itemInfo.itemID] = itemCache
+        end
+        if not itemCache.specs then
+            itemCache['specs'] = {}
+        end
+    end
+end
+fill()
+]]

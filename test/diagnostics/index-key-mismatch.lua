@@ -239,3 +239,33 @@ local function f(n, s)
     d[<!n!>] = 1
 end
 ]]
+
+-- a class that inherits from a class nobody declared says nothing about its keys (no crash on the missing parent)
+TEST [[
+---@class OrphanChild: NoSuchParent
+---@field [integer] string
+---@type OrphanChild
+local o = {}
+---@param s string
+local function f(s)
+    o[1] = 'x'
+    o[<!true!>] = 'x'
+end
+]]
+
+-- a generic class with a concrete index field and a generic one: the concrete key stays as written, the generic one is what the argument says
+TEST [[
+---@class MixedMap<K, V>
+---@field [K] V
+---@field [boolean] string
+---@type MixedMap<integer, number>
+local m = {}
+---@param s string
+---@param i integer
+---@param b boolean
+local function f(s, i, b)
+    m[i] = 1
+    m[b] = 'x'
+    m[<!s!>] = 1
+end
+]]

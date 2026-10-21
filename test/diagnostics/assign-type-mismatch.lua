@@ -724,3 +724,19 @@ local function takeString(s) end
 takeString({ value = 'x', label = 'y' })
 takeString({ <!value!> = 1, label = 'y' })
 ]]
+
+-- the elements of a `T[]` field of a generic class with its arguments (nested table literal), and of a `table<string, T>` field
+TEST [[
+---@class GList<T>
+---@field list T[]
+---@field map table<string, T>
+
+---@type GList<integer>
+local a = { list = { 1, 2 }, map = { k = 1 } }
+---@type GList<integer>
+local b = { list = { 1, <!'s'!> }, map = { <!k!> = 's' } }
+---@param p GList<string>
+local function take(p) end
+take({ list = { 'a' }, map = { k = 'b' } })
+take({ list = { <!1!> }, map = { <!k!> = 2 } })
+]]

@@ -3470,6 +3470,8 @@ local compilerSwitch = util.switch()
             or src.type == 'doc.type.field'
             or src.type == 'doc.type.name'
             or src.type == 'doc.type'
+            -- (the element of an array of a type parameter, once the arguments bound it: `T[]` of `Box<integer>`)
+            or (src.type == 'doc.generic.name' and src._resolved)
             or guide.isLiteral(src) then
                 hasMarkDoc = true
                 vm.setNode(source, vm.compileNode(src))

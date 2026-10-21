@@ -1597,6 +1597,89 @@ local st = stats()
 local <?x?> = st.count
 ]]
 
+-- an intersection keeps the facets that have no name to merge under: the elements of an array, an index signature
+TEST 'number' [[
+---@type number[] & { [string]: boolean }
+local v
+local <?x?> = v[1]
+]]
+
+TEST 'boolean' [[
+---@type number[] & { [string]: boolean }
+local v
+local <?x?> = v.key
+]]
+
+TEST 'number' [[
+---@type { name: string } & number[]
+local v
+local <?x?> = v[2]
+]]
+
+TEST 'string' [[
+---@type { name: string } & number[]
+local v
+local <?x?> = v.name
+]]
+
+-- a named field wins over the index signature of an intersection (wow-addon-console: `CharacterStatsPane & table<CategoryNames, Frame?>` read a declared field as optional)
+TEST 'ZPart' [[
+---@class ZPart
+---@class ZPane
+---@field cat ZPart
+---@alias ZCatName "cat"|"other"
+---@type ZPane & table<ZCatName, ZPart?>
+local pane
+local <?x?> = pane.cat
+]]
+
+TEST 'ZPart2' [[
+---@class ZPart2
+---@class ZPane2
+---@field cat ZPart2
+---@alias ZCatName2 "cat"|"other"
+---@type ZPane2 & table<ZCatName2, ZPart2?>
+local pane
+local <?x?> = pane.other
+]]
+
+TEST 'string' [[
+---@type { name: string } & { [string]: number|string }
+local v
+local <?x?> = v.name
+]]
+
+TEST 'string|number' [[
+---@type { name: string } & { [string]: number|string }
+local v
+local <?x?> = v.other
+]]
+
+-- ... and through a generic alias of one (wowlua-ls `OrderedList<K, V>`): the type arguments bind K and V from both facets
+TEST 'string' [[
+---@alias ZOrdered<K, V> V[] & { [K]: V }
+---@generic K, V
+---@param tbl ZOrdered<K, V>
+---@return K
+---@return V
+local function get(tbl) end
+---@type ZOrdered<string, number>
+local ord
+local <?k?>, v = get(ord)
+]]
+
+TEST 'number' [[
+---@alias ZOrdered2<K, V> V[] & { [K]: V }
+---@generic K, V
+---@param tbl ZOrdered2<K, V>
+---@return K
+---@return V
+local function get(tbl) end
+---@type ZOrdered2<string, number>
+local ord
+local k, <?v?> = get(ord)
+]]
+
 -- `NonNullable<T>` keeps the type and drops `nil` / the optional mark (positive); a type without nil stays as it is (negative).
 TEST 'string|number' [[
 ---@param v NonNullable<string|number|nil>

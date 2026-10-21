@@ -598,8 +598,22 @@ local searchFieldSwitch = util.switch()
         if type(key) == 'string' and key:find(vm.ID_SPLITE) then
             return
         end
+        -- (a named field wins over an index signature of the same shape: `{ name: string, [string]: number }` has a `string` name, and so does the
+        -- merge of `Class & table<string, T?>`)
+        local hasNamed = false
+        if type(key) == 'string' then
+            for _, field in ipairs(source.fields) do
+                if field.name.type == 'doc.field.name' and field.name[1] == key then
+                    hasNamed = true
+                    break
+                end
+            end
+        end
         for _, field in ipairs(source.fields) do
             local fieldKey = field.name
+            if hasNamed and fieldKey.type ~= 'doc.field.name' then
+                goto NEXT_FIELD
+            end
             if fieldKey.type == 'doc.type' or fieldKey.type == 'doc.type.precomputed' then
                 local fieldNode = vm.compileNode(fieldKey)
                 for fn in fieldNode:eachObject() do
@@ -629,6 +643,7 @@ local searchFieldSwitch = util.switch()
                     pushResult(field, true)
                 end
             end
+            ::NEXT_FIELD::
         end
     end)
     : case 'doc.type.sign'
@@ -4004,18 +4019,28 @@ local compilerSwitch = util.switch()
         ---@type table<string, integer>
         local index = {}
         local impossible = false
+        ---@type parser.object[]
+        local arrayFacets = {}
         for _, typeUnit in ipairs(source.types) do
             local opNode = vm.compileNode(typeUnit)
             for obj in opNode:eachObject() do
                 if obj.type == 'global' and obj.cate == 'type' and IMPOSSIBLE_INTERSECTION_NAMES[obj:getName()] then
                     impossible = true
                 elseif not (obj.type == 'global' and obj.cate == 'type' and (obj.name == 'unknown' or obj.name == 'any')) then
+                    if obj.type == 'doc.type.array' then
+                        -- (`string[] & { n: number }`: the elements have no name to merge under: the array stays a facet of the result)
+                        arrayFacets[#arrayFacets+1] = obj
+                    end
                     searchFieldSwitch(obj.type, uri, obj, vm.ANY, function (field)
                         if field.type == 'generic' then
                             return
                         end
                         local key = guide.getKeyName(field)
                         if not key then
+                            if field.type == 'doc.type.field' and field.name and field.name.type == 'doc.type' and field.extends then
+                                -- (an index signature, `{ [string]: number }`: its key is a type, the field is kept as it is)
+                                fields[#fields+1] = field
+                            end
                             return
                         end
                         local fieldNode = vm.compileNode(field)
@@ -4035,6 +4060,9 @@ local compilerSwitch = util.switch()
             return
         end
         vm.setNode(source, tableObj)
+        for _, arrayFacet in ipairs(arrayFacets) do
+            vm.setNode(source, arrayFacet)
+        end
     end)
     : case 'doc.type.conditional'
     -- `T extends U ? X : Y` (TypeScript's conditional types): decided by `vm.isSubType(uri, T, U)`

@@ -413,3 +413,36 @@ local v
 ]]
 
 config.set(nil, 'Lua.type.checkTableShape', false)
+
+-- the fallback literal of `x = x or 'lit'` is checked against the declared type even when the left side is never nil (LibPixelStrip: a typo in the mode)
+TEST [[
+---@alias CastMode "queue"|"latest"
+---@param mode CastMode
+local function reg(mode)
+    mode = mode or <!"queuee"!>
+    return mode
+end
+---@param n integer
+local function count(n)
+    n = n or <!"x"!>
+    n = n or 5
+    return n
+end
+]]
+
+-- fine: a fallback that is one of the declared literals, a non-literal fallback (judged as before), a plain assignment
+TEST [[
+---@alias CastMode2 "queue"|"latest"
+---@param mode CastMode2
+local function reg(mode)
+    mode = mode or "queue"
+    mode = mode or "latest"
+    return mode
+end
+---@param n integer
+---@param other number
+local function count(n, other)
+    n = n or other
+    n = n and 5 or 6
+end
+]]

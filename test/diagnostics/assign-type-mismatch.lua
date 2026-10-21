@@ -689,3 +689,20 @@ local rec = {}
 rec.a = 1
 <!rec['b']!> = 'x'
 ]]
+
+-- a table written for a generic class with its arguments (`Box<integer>`): the fields are the class's with the arguments bound
+TEST [[
+---@class GBox<T>
+---@field value T
+---@field label string
+
+---@type GBox<integer>
+local a = { value = 1, label = 'x' }
+---@type GBox<integer>
+local b = { <!value!> = 'x', label = 'x' }
+---@type GBox<string>
+local c = { value = 'x', <!label!> = 1 }
+local holder = {}
+---@type GBox<string>
+holder.d = { <!value!> = 1, label = 'x' }
+]]

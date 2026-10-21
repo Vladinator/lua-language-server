@@ -18,7 +18,7 @@ function m.len(encoding, s, i, j)
     i = i or 1
     j = j or #s
     if encoding == 'utf16'
-    or encoding == 'utf16' then
+    or encoding == 'utf16le' then
         local us = utf16le.fromutf8(s:sub(i, j))
         return #us // 2
     end

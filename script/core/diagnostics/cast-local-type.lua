@@ -63,6 +63,25 @@ return function (uri, callback)
                             ref = vm.getInfer(refNode):view(uri),
                         }) .. '\n' .. vm.viewTypeErrorMessage(uri, errs),
                     }
+                elseif value.type == 'binary' and value.op and value.op.type == 'or' and value[2] then
+                    -- `mode = mode or "queuee"`: the fallback is a literal of its own. A left side that can never be false or nil leaves the
+                    -- expression typed as the left side alone and the typo would pass: the literal is checked against the declared type too
+                    -- (TypeScript types `a || b` as the union of both parts)
+                    local fallback = value[2]
+                    if fallback.type == 'string' or fallback.type == 'number' or fallback.type == 'integer' or fallback.type == 'boolean' then
+                        local fallbackNode = vm.compileNode(fallback)
+                        local fallbackErrs = {}
+                        if not vm.canCastType(uri, locNode, fallbackNode, fallbackErrs) then
+                            callback {
+                                start   = fallback.start,
+                                finish  = fallback.finish,
+                                message = lang.script('DIAG_CAST_LOCAL_TYPE', {
+                                    def = vm.getInfer(locNode):view(uri),
+                                    ref = vm.getInfer(fallbackNode):view(uri),
+                                }) .. '\n' .. vm.viewTypeErrorMessage(uri, fallbackErrs),
+                            }
+                        end
+                    end
                 end
             end
         end

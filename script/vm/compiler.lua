@@ -3090,7 +3090,8 @@ local compilerSwitch = util.switch()
                     if not guide.isBasicType(pn.name) then
                         vm.setNode(source, pn)
                     end
-                elseif pn.type == 'doc.type.table' or pn.type == 'doc.type.array' then
+                elseif pn.type == 'doc.type.table' or pn.type == 'doc.type.array' or pn.type == 'doc.type.sign' then
+                    -- (a sign is a class written with its arguments, `Box<integer>`: its fields are the class's with the arguments bound)
                     vm.setNode(source, pn)
                 end
             end

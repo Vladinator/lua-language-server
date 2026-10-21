@@ -159,6 +159,16 @@ Symbol              <-  ({} {
 
 ---@alias parser.visibleType 'public' | 'protected' | 'private' | 'package'
 
+-- Node kinds with their own class (parser.object stays the base every kind shares; see design/PARSER-OBJECT-PLAN.md).
+-- A kind class tightens the base fields the parser always fills for that kind, so readers need no nil check.
+---@class (incremental) parser.object.doc.generic.object: parser.object
+---@field type 'doc.generic.object'
+---@field generic parser.object the 'doc.generic.name' node; an element is dropped when the name is missing
+
+---@class (incremental) parser.object.doc.generic: parser.object
+---@field type 'doc.generic'
+---@field generics parser.object.doc.generic.object[]
+
 ---@class parser.object
 ---@field literal           boolean
 ---@field signs             parser.object[]
@@ -1999,7 +2009,7 @@ local docSwitch = util.switch()
     end)
     : case 'generic'
     : call(function ()
-        ---@type parser.object
+        ---@type parser.object.doc.generic
         local result = {
             type = 'doc.generic',
             generics = {},
@@ -2019,6 +2029,7 @@ local docSwitch = util.switch()
                 }
                 return nil
             end
+            ---@cast object parser.object.doc.generic.object
             object.start = object.generic.start
             if not result.start then
                 result.start = object.start
@@ -2041,7 +2052,6 @@ local docSwitch = util.switch()
                 object.defaultType = parseType(object)
             end
             object.finish = getFinish()
-            ---@diagnostic expect-next-line: need-check-nil
             result.generics[#result.generics+1] = object
             if not checkToken('symbol', ',', 1) then
                 break
@@ -2902,8 +2912,8 @@ local function bindGeneric(binded)
     local generics = {}
     for _, doc in ipairs(binded) do
         if doc.type == 'doc.generic' then
+            ---@cast doc parser.object.doc.generic
             for _, obj in ipairs(doc.generics) do
-                ---@diagnostic expect-next-line: need-check-nil -- .generic is always set on a 'doc.generic' element
                 local name = obj.generic[1] --[[@as string|integer]]
                 generics[name] = obj
             end
@@ -3250,7 +3260,7 @@ end
 
 --- The functions of this file that declare type parameters (`---@generic T`), in file order, with the `doc.generic` that declares them: the
 --- docs inside their body can name those type parameters. Filled while the docs are bound (a function's own comment block comes before its body).
----@type {func: parser.object, doc: parser.object}[]
+---@type {func: parser.object, doc: parser.object.doc.generic}[]
 local genericFuncs = {}
 
 --- The type parameters of the functions around a group of docs are in scope for it: `---@type T` above a local in the body of
@@ -3269,7 +3279,6 @@ local function bindEnclosingGenerics(binded)
         if func.start < pos and pos < func.finish then
             generics = generics or {}
             for _, obj in ipairs(entry.doc.generics) do
-                ---@diagnostic expect-next-line: need-check-nil -- .generic is always set on a 'doc.generic.object'
                 local name = obj.generic[1] --[[@as string|integer]]
                 generics[name] = obj
             end
@@ -3333,6 +3342,7 @@ local function bindDocWithSources(sources, binded)
     -- a function that declares type parameters: its body's docs can name them (see `bindEnclosingGenerics`)
     for _, doc in ipairs(binded or {}) do
         if doc.type == 'doc.generic' and doc.bindSource and doc.bindSource.type == 'function' then
+            ---@cast doc parser.object.doc.generic
             genericFuncs[#genericFuncs+1] = { func = doc.bindSource, doc = doc }
         end
     end

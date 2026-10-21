@@ -159,10 +159,11 @@ end
 
 --- The key and the value types the table types of a node declare (`table<number, boolean>`, `{ [K]: V }`, `V[]`); nil when part of the
 --- node says nothing about them (a class, `any`, an undeclared table).
+---@param uri  uri
 ---@param node vm.node
 ---@return vm.node? key
 ---@return vm.node? value
-local function tableSlots(node)
+local function tableSlots(uri, node)
     local key, value = vm.createNode(), vm.createNode()
     local count = 0
     for obj in node:eachObject() do
@@ -193,6 +194,18 @@ local function tableSlots(node)
             key:merge(vm.declareGlobal('type', 'integer'))
             value:merge(vm.compileNode(obj.node))
             count = count + 1
+        elseif obj.type == 'global' and obj.cate == 'type' then
+            -- (an alias sits next to its expansion: `Cell` for `table<Id, Name>`; a class says nothing about the slots)
+            ---@cast obj vm.global
+            local isAlias = false
+            for _, set in ipairs(obj:getSets(uri)) do
+                if set.type == 'doc.alias' then
+                    isAlias = true
+                end
+            end
+            if not isAlias then
+                return nil, nil
+            end
         elseif obj.type ~= 'local' and obj.type ~= 'variable' and obj.type ~= 'table' and obj.type ~= 'doc.type.sign' then
             return nil, nil
         end
@@ -336,7 +349,7 @@ return function (uri, callback)
                     -- `table<K, V>` / `{ [K]: V }`: the key and the value types the argument declares bind `K` and `V`
                     local slots = tableGenerics(signNode)
                     if #slots > 0 then
-                        local key, value = tableSlots(vm.compileNode(arg))
+                        local key, value = tableSlots(uri, vm.compileNode(arg))
                         for _, slot in ipairs(slots) do
                             local slotNode = slot.slot == 'key' and key or value
                             local candidate = slotNode and candidateOf(uri, slotNode)

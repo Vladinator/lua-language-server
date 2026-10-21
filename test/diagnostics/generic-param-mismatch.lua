@@ -408,3 +408,38 @@ local function f(s, i)
     put(strs, i, <!1!>)
 end
 ]]
+
+-- an alias of a table type binds the slots like the table type itself (the alias name sits next to its expansion in the argument)
+TEST [[
+---@alias Cell table<number, boolean>
+---@generic K, V
+---@param t table<K, V>
+---@param k K
+---@param v V
+local function put(t, k, v) end
+---@type Cell
+local cell = {}
+---@param s string
+---@param n number
+local function f(s, n)
+    put(cell, n, true)
+    put(cell, <!s!>, true)
+    put(cell, n, <!'x'!>)
+end
+]]
+
+-- a class given for `table<K, V>` binds nothing
+TEST [[
+---@generic K, V
+---@param t table<K, V>
+---@param k K
+local function put(t, k) end
+---@class Thing
+---@field name string
+---@type Thing
+local thing = {}
+---@param s string
+local function f(s)
+    put(thing, s)
+end
+]]

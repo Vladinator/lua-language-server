@@ -1998,6 +1998,8 @@ local function isValidCallArgNode(source, node)
     end
     if source.type == 'table' then
         return node.type == 'doc.type.table' or node.type == 'doc.type.array'
+            -- (a class written with its arguments, `Box<integer>`; `table<K, V>` is the table type that `V[]`-style inference reads from the literal)
+            or (node.type == 'doc.type.sign' and node.node and node.node[1] ~= 'table')
             or (    node.type == 'global'
                 and node.cate == 'type'
                 ---@cast node vm.global

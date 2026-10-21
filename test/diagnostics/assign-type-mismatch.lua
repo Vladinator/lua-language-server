@@ -706,3 +706,21 @@ local holder = {}
 ---@type GBox<string>
 holder.d = { <!value!> = 1, label = 'x' }
 ]]
+
+-- the same for a table given as an ARGUMENT for a parameter of a generic class with its arguments
+TEST [[
+---@class GArg<T>
+---@field value T
+---@field label string
+
+---@param b GArg<integer>
+local function take(b) end
+
+take({ value = 1, label = 'x' })
+take({ <!value!> = 'x', label = 'x' })
+take({ value = 1, <!label!> = 2 })
+---@param s GArg<string>
+local function takeString(s) end
+takeString({ value = 'x', label = 'y' })
+takeString({ <!value!> = 1, label = 'y' })
+]]

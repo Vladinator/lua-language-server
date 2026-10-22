@@ -169,6 +169,28 @@ Symbol              <-  ({} {
 ---@field type 'doc.generic'
 ---@field generics parser.object.doc.generic.object[]
 
+---@class (incremental) parser.object.doc: parser.object
+---@field type 'doc'
+---@field groups parser.object[][] the docs of the file, one list per comment block; set by luadoc() before bindDocs runs
+
+---@class (incremental) parser.object.doc.class: parser.object
+---@field type 'doc.class'
+---@field operators parser.object[]
+---@field calls parser.object[]
+
+---@class (incremental) parser.object.doc.return: parser.object
+---@field type 'doc.return'
+---@field returns parser.object[]
+
+---@class (incremental) parser.object.doc.type.function: parser.object
+---@field type 'doc.type.function'
+---@field args parser.object[]
+---@field returns parser.object[]
+
+---@class (incremental) parser.object.doc.version: parser.object
+---@field type 'doc.version'
+---@field versions parser.object[]
+
 ---@class parser.object
 ---@field literal           boolean
 ---@field signs             parser.object[]
@@ -706,7 +728,7 @@ local function  parseTypeUnitFunction(parent)
         return nil
     end
     nextToken()
-    ---@type parser.object
+    ---@type parser.object.doc.type.function
     local typeUnit = {
         type    = 'doc.type.function',
         parent  = parent,
@@ -804,7 +826,6 @@ local function  parseTypeUnitFunction(parent)
                 nextToken()
                 rtn.optional = true
             end
-            ---@diagnostic expect-next-line: need-check-nil
             typeUnit.returns[#typeUnit.returns+1] = rtn
             if checkToken('symbol', ',', 1) then
                 nextToken()
@@ -1749,7 +1770,7 @@ local docSwitch = util.switch()
     end)
     : case 'return'
     : call(function ()
-        ---@type parser.object
+        ---@type parser.object.doc.return
         local result = {
             type    = 'doc.return',
             returns = {},
@@ -1828,7 +1849,6 @@ local docSwitch = util.switch()
                 return true
             end)
             lockResume = savedLock
-            ---@diagnostic expect-next-line: need-check-nil
             if #result.returns > 0 then
                 return result
             end
@@ -1889,7 +1909,6 @@ local docSwitch = util.switch()
             -- `result.returns` is set to `{}` above, unconditionally, outside this closure; the
             -- closure only ever reassigns it to a non-empty list on success, never clears it --
             -- correlated invariant the checker can't see through a closure's own reassignment.
-            ---@diagnostic expect-next-line: need-check-nil
             if #result.returns > 0 then
                 return result
             end
@@ -1923,14 +1942,12 @@ local docSwitch = util.switch()
                 docType.name = parseName('doc.return.name', docType)
                             or parseDots('doc.return.name', docType)
             end
-            ---@diagnostic expect-next-line: need-check-nil
             result.returns[#result.returns+1] = docType
             if not checkToken('symbol', ',', 1) then
                 break
             end
             nextToken()
         end
-        ---@diagnostic expect-next-line: need-check-nil
         if #result.returns == 0 then
             return nil
         end
@@ -2121,7 +2138,7 @@ local docSwitch = util.switch()
     end)
     : case 'version'
     : call(function ()
-        ---@type parser.object
+        ---@type parser.object.doc.version
         local result = {
             type     = 'doc.version',
             versions = {},
@@ -2163,14 +2180,12 @@ local docSwitch = util.switch()
             end
             version.version = tonumber(text) or text
             version.finish = getFinish()
-            ---@diagnostic expect-next-line: need-check-nil
             result.versions[#result.versions+1] = version
             if not checkToken('symbol', ',', 1) then
                 break
             end
             nextToken()
         end
-        ---@diagnostic expect-next-line: need-check-nil
         if #result.versions == 0 then
             return nil
         end
@@ -3188,7 +3203,7 @@ end
 
 ---@param binded parser.object[]
 local function bindCommentsAndFields(binded)
-    ---@type parser.object?
+    ---@type parser.object.doc.class?
     local class
     ---@type parser.object[]
     local comments = {}
@@ -3215,6 +3230,7 @@ local function bindCommentsAndFields(binded)
                 doc.source = source
                 source.bindSource = doc
             end
+            ---@cast doc parser.object.doc.class
             class = doc
             bindCommentsToDoc(doc, comments)
             comments = {}
@@ -3231,7 +3247,6 @@ local function bindCommentsAndFields(binded)
             comments = {}
         elseif doc.type == 'doc.operator' then
             if class then
-                ---@diagnostic expect-next-line: need-check-nil -- .operators is always set on a constructed 'doc.class' node
                 class.operators[#class.operators+1] = doc
                 doc.class = class
             end
@@ -3239,7 +3254,6 @@ local function bindCommentsAndFields(binded)
             comments = {}
         elseif doc.type == 'doc.overload' then
             if class then
-                ---@diagnostic expect-next-line: need-check-nil -- .calls is always set on a constructed 'doc.class' node
                 class.calls[#class.calls+1] = doc
                 doc.class = class
             end
@@ -3419,7 +3433,6 @@ local function bindDocs(state)
     for i, doc in ipairs(state.ast.docs) do
         if not binded then
             binded = {}
-            ---@diagnostic expect-next-line: need-check-nil -- .groups is always set by luadoc() before bindDocs runs
             state.ast.docs.groups[#state.ast.docs.groups+1] = binded
         end
         binded[#binded+1] = doc

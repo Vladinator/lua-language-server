@@ -74,7 +74,7 @@ local type         = type
 ---@field returnIndex           integer
 ---@field assignIndex           integer
 ---@field docIndex              integer
----@field docs                  parser.object
+---@field docs                  parser.object.doc
 ---@field state                 parser.state
 ---@field comment               string|parser.state.comm|parser.object -- a plain string on 'doc.resume' enum-default/additional nodes; otherwise an object carrying `.text` (a 'doc.tailcomment' node or the raw parser.state.comm)
 ---@field optional              boolean

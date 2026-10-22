@@ -1460,7 +1460,7 @@ on(takesEither)
 on(untyped)
 ]]
 
--- ... and the return types the other way: what the function gives (written, or inferred when known) has to fit what the type promises
+-- ... and the return types the other way: what the function gives (written, or inferred when known) has to fit what the type promises; a named function that gives nothing does not fit a promised value
 TEST [[
 ---@param cb fun(): number
 local function on(cb) end
@@ -1475,7 +1475,7 @@ local function nothing() end
 on(<!gives!>)
 on(giveInteger)
 on(<!inferred!>)
-on(nothing)
+on(<!nothing!>)
 ]]
 
 -- ... a plain `function` takes any; a generic callback type is judged by what does not depend on its type parameters (how many arguments it gives)
@@ -1651,7 +1651,7 @@ takeName(key(o, "name"))
 takeAge(<!key(o, "name")!>)
 ]]
 
--- ... an inferred return counts when it is known: a string given where a number is promised, not an unknown one, not a `nil` among them
+-- ... an inferred return counts when it is known: a string given where a number is promised, not an unknown one, not a `nil` among them; a named function with no result at all does not fit
 TEST [[
 ---@param cb fun(): number
 local function on(cb) end
@@ -1668,7 +1668,7 @@ on(<!mixed!>)
 on(unknownResult)
 on(maybeNumber)
 on(numbers)
-on(nothing)
+on(<!nothing!>)
 ]]
 
 -- a dictionary `table<K, V>` is not an array: a hash with string keys, or one with number keys (they overlap the indices), does not fit `E[]`
@@ -2023,4 +2023,62 @@ TEST [[
 local function newRequired(keyType, valType, lookup) end
 
 newRequired("string", "number", <!nil!>)
+]]
+
+-- a named function that gives nothing, where the callback promises a value
+TEST [[
+---@param cb fun(): number
+local function takesProducer(cb) end
+
+local function noop() end
+local function noopWithParam(x) end
+local holder = {}
+function holder.plain() end
+
+takesProducer(<!noop!>)
+takesProducer(<!noopWithParam!>)
+takesProducer(<!holder.plain!>)
+takesProducer(<!print!>)
+]]
+
+-- ... but not where the result may be nil, is `any`, `nil` or a type parameter, nothing is promised, the function never returns or gives a value
+TEST [[
+---@param a fun(): boolean?
+local function optional(a) end
+---@param a fun()
+local function nothing(a) end
+---@param a fun(): any
+local function anything(a) end
+---@param a fun(): nil
+local function nilResult(a) end
+---@generic T
+---@param a fun(): T
+---@return T
+local function generic(a) return a() end
+---@param a fun(): number
+local function producer(a) end
+
+local function noop() end
+local function fails() error('x') end
+local function value() return 1 end
+---@return number
+local function declared() return 1 end
+
+optional(noop)
+nothing(noop)
+anything(noop)
+nilResult(noop)
+local r = generic(noop)
+producer(fails)
+producer(value)
+producer(declared)
+]]
+
+-- ... a function literal written in the argument is `missing-return`'s business, and a table field is not a named function
+TEST [[
+---@param cb fun(): number
+local function producer(cb) end
+
+producer(function() end)
+local t = { cb = function() end }
 ]]

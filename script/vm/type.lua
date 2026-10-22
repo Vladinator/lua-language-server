@@ -468,6 +468,40 @@ local function opaqueAliasesOf(uri, node)
     return found
 end
 
+--- Does a function written with a body give nothing at all: no `return` with a value, no `@return`, and it does not end in a call that never returns?
+---@param func parser.object
+---@return boolean
+local function givesNothing(func)
+    if func.returns then
+        return false
+    end
+    for _, doc in ipairs(func.bindDocs or {}) do
+        if doc.type == 'doc.return' then
+            return false
+        end
+    end
+    return not vm.blockExits(func) and vm.countReturnsOfSource(func) == 0
+end
+
+--- Does a promised return type ask for a value: not optional, not `any`, `unknown`, `nil` or `never`, and not a type parameter?
+---@param promised parser.object|vm.generic
+---@return boolean
+local function promisesValue(promised)
+    local node = vm.compileNode(promised)
+    if node:isOptional() then
+        return false
+    end
+    local any = false
+    for obj in node:eachObject() do
+        if obj.type == 'global' and obj.cate == 'type' and (obj.name == 'any' or obj.name == 'unknown' or obj.name == 'nil' or obj.name == 'never')
+        or obj.type == 'nil' or obj.type == 'doc.generic.name' or obj.type == 'generic' or obj.type == 'variable' or obj.type == 'local' then
+            return false
+        end
+        any = true
+    end
+    return any
+end
+
 --- A function (or `fun(...)`) given where `fun(...)` is asked for: it must not need more arguments than the type provides, what the
 --- type provides has to fit the parameters that are declared, and what it gives has to fit what the type promises (TypeScript's
 --- rule). Only what is written counts: an unannotated parameter or return says nothing, and a generic type or function is not judged.
@@ -589,6 +623,10 @@ local function functionTypeMismatch(uri, child, parent)
         end
     else
         promised = parent.returns and parent.returns[1]
+    end
+    -- (a named function that gives nothing, where a value is promised: `takesCallback(print)`)
+    if promised and child.type == 'function' and givesNothing(child) and promisesValue(promised) then
+        return true
     end
     if promised and not (child.type == 'function' and not child.returns) then
         ---@type (parser.object|vm.generic)?

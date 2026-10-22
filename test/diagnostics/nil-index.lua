@@ -67,3 +67,16 @@ local k
 t[k] = 1
 t['x'] = 1
 ]]
+
+-- a table constructor with a key that is nil for certain: the runtime error "index is nil"
+TEST [[
+local t = { [<!nil!>] = 1, a = 2 }
+]]
+
+-- ... a possibly nil key, a plain key and a computed one are not judged here
+TEST [[
+---@type string?
+local k
+local a = { [k] = 1 }
+local b = { ['x'] = 1, [1] = 2, [k or 'y'] = 3 }
+]]

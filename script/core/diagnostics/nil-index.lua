@@ -10,7 +10,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
-    description = 'Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.',
+    description = 'Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.',
 }
 
 ---@async
@@ -22,7 +22,7 @@ return function (uri, callback)
 
     local delayer = await.newThrottledDelayer(500)
     ---@async
-    guide.eachSourceTypes(state.ast, { 'getindex', 'setindex' }, function (src)
+    guide.eachSourceTypes(state.ast, { 'getindex', 'setindex', 'tableindex' }, function (src)
         local index = src.index
         if not index then
             return
@@ -32,7 +32,7 @@ return function (uri, callback)
         if vm.getInfer(index):hasType(uri, 'any') then
             return
         end
-        if src.type == 'setindex' then
+        if src.type == 'setindex' or src.type == 'tableindex' then
             -- writing: a key that MAY be nil is need-check-nil's; a key that is nil for certain (`t[nil] = v`) is always the error "index is nil"
             if vm.getInfer(index):view(uri) == 'nil' then
                 callback {

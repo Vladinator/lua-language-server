@@ -241,7 +241,7 @@ local anything
 ---@param mixed string|"nope"
 ---@param blank ""|"Reg"
 local function f(flag, s, mixed, blank)
-    local _ = cb["yyy"]
+    local _ = cb[<!"yyy"!>]
     local _ = cb[s]
     local _ = cb[mixed]
     local _ = cb[blank]
@@ -382,4 +382,43 @@ local function stats()
 end
 local st = stats()
 print(st.enabled, st.<!nope!>)
+]]
+
+-- `p['nothing']` is the same read as `p.nothing` for a value declared as a class
+TEST [[
+---@class StrIdx1
+---@field name string
+---@type StrIdx1
+local p = { name = 'x' }
+print(p['name'], p[<!'nothing'!>], p.name, p.<!nothing!>)
+]]
+
+-- ... not for a plain table, `any`, a class that answers any string key, or a key that is not a literal
+TEST [[
+---@class StrIdx2
+---@field name string
+---@class StrIdx3
+---@field [string] number
+---@type StrIdx2
+local declared = { name = 'x' }
+---@type StrIdx3
+local open = {}
+---@type table<string, number>
+local dict = {}
+---@type any
+local any
+local plain = {}
+local key = 'nothing'
+print(declared[key], open['anything'], dict['anything'], any['anything'], plain['anything'], string['len'])
+]]
+
+-- ... a field of a parent class, and one added with a doc field further down
+TEST [[
+---@class StrIdx4
+---@field base number
+---@class StrIdx5: StrIdx4
+---@field own number
+---@type StrIdx5
+local c = { base = 1, own = 2 }
+print(c['base'], c['own'], c[<!'zzz'!>])
 ]]

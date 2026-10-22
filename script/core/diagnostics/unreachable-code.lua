@@ -31,6 +31,29 @@ local function allLiteral(source)
     return result
 end
 
+--- A statement after which nothing of the block runs: a call of a function that never returns (`error(...)`, `os.exit()`, a `---@return never`).
+---@param action parser.object
+---@return boolean
+local function neverReturns(action)
+    return action.type == 'call' and vm.isNeverCall(action)
+end
+
+--- A `do ... end` that ends with a `return` or a call that never returns directly in it (`do return end`, the debugging idiom): it runs once, so what
+--- follows it in the same block never runs. Only judged for the statements of a function or the main chunk: inside a loop a `goto continue` can skip it.
+---@param action parser.object
+---@return boolean
+local function doEnds(action)
+    if action.type ~= 'do' then
+        return false
+    end
+    for _, inner in ipairs(action) do
+        if inner.type == 'return' or neverReturns(inner) then
+            return true
+        end
+    end
+    return false
+end
+
 ---@param block parser.object
 ---@return boolean
 local function hasReturn(block)
@@ -79,9 +102,17 @@ return function (uri, callback)
     guide.eachSourceTypes(state.ast, {'main', 'function'}, function (source)
         await.delay()
         for i, action in ipairs(source) do
-            if  guide.isBlockType(action)
-            and hasReturn(action) then
-                if i < #source then
+            if  (guide.isBlockType(action) and hasReturn(action))
+            or  neverReturns(action)
+            or  doEnds(action) then
+                -- (a label after it can be reached by a `goto`: what follows is not judged)
+                local labelAfter = false
+                for j = i + 1, #source do
+                    if source[j].type == 'label' then
+                        labelAfter = true
+                    end
+                end
+                if i < #source and not labelAfter then
                     callback {
                         start   = source[i+1].start,
                         finish  = source[#source].finish,

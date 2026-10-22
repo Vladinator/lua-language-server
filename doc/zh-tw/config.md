@@ -443,7 +443,7 @@ Array<string>
 * ``"nesting-long-mark"``: 巢狀的長註解標記
 * ``"newfield-call"``: 在字面常數表中，2行程式碼之間缺少分隔符，在語法上被解析為了一次索引操作
 * ``"newline-call"``: 以 `(` 開始的新行，在語法上被解析為了上一行的函式呼叫
-* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
 * ``"nil-table-key"``: Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
 * ``"no-unknown"``: 無法推斷變數的未知類型
 * ``"no-visible-label"``: 不可見的標籤
@@ -1307,7 +1307,7 @@ object<string, string>
     */
     "newline-call": "Any",
     /*
-    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
     */
     "nil-index": "Opened",
     /*
@@ -1857,7 +1857,7 @@ object<string, string>
     */
     "newline-call": "Warning",
     /*
-    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
     */
     "nil-index": "Warning",
     /*

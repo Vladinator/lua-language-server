@@ -443,7 +443,7 @@ Array<string>
 * ``"nesting-long-mark"``: Marcadores de comentario largo anidados
 * ``"newfield-call"``: Habilita el diagnóstico de campo nuevo en una llamada. Se alza un error cuando los paréntesis de una llamada a una función aparecen en la siguiente línea cuando se define un campo en una tabla.
 * ``"newline-call"``: Habilita el diagnóstico de llamadas en línea nueva. Se alza un error en las líneas que comienzan con `(`, lo que se lee sintácticamente como una llamada a la línea anterior.
-* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
 * ``"nil-table-key"``: Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
 * ``"no-unknown"``: Habilita el diagnóstico para los casos en que el tipo no puede ser inferido.
 * ``"no-visible-label"``: Etiqueta invisible
@@ -1307,7 +1307,7 @@ object<string, string>
     */
     "newline-call": "Any",
     /*
-    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
     */
     "nil-index": "Opened",
     /*
@@ -1858,7 +1858,7 @@ object<string, string>
     */
     "newline-call": "Warning",
     /*
-    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
     */
     "nil-index": "Warning",
     /*

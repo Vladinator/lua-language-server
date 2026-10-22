@@ -443,7 +443,7 @@ Array<string>
 * ``"nesting-long-mark"``: Marcadores de comentário longo aninhados
 * ``"newfield-call"``: Em uma tabela literal, faltou um separador entre duas linhas; foi interpretado como uma operação de índice
 * ``"newline-call"``: Nova linha iniciando com `(` é analisada como chamada da linha anterior
-* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
 * ``"nil-table-key"``: Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
 * ``"no-unknown"``: Habilita diagnóstico para casos em que o tipo não pode ser inferido.
 * ``"no-visible-label"``: Rótulo invisível
@@ -1307,7 +1307,7 @@ object<string, string>
     */
     "newline-call": "Any",
     /*
-    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
     */
     "nil-index": "Opened",
     /*
@@ -1858,7 +1858,7 @@ object<string, string>
     */
     "newline-call": "Warning",
     /*
-    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
     */
     "nil-index": "Warning",
     /*

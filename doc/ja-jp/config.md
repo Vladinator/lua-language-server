@@ -443,7 +443,7 @@ Array<string>
 * ``"nesting-long-mark"``: ネストした長いコメントマーカー
 * ``"newfield-call"``: newfield 呼び出しの診断を有効にします。テーブル定義中に関数呼び出しの括弧が次の行に現れる場合に発生します。
 * ``"newline-call"``: 改行呼び出しの診断を有効にします。`(` で始まる行が前の行への関数呼び出しとして構文解析される場合に発生します。
-* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+* ``"nil-index"``: Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
 * ``"nil-table-key"``: Enable diagnostics for a table type whose key type includes `nil` (`table<string?, V>`): `nil` is not a valid table key.
 * ``"no-unknown"``: 型を推論できない場合の診断を有効にします。
 * ``"no-visible-label"``: 見えないラベル
@@ -1307,7 +1307,7 @@ object<string, string>
     */
     "newline-call": "Any",
     /*
-    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
     */
     "nil-index": "Opened",
     /*
@@ -1858,7 +1858,7 @@ object<string, string>
     */
     "newline-call": "Warning",
     /*
-    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`.
+    Enable diagnostics for reading a table with a possibly-nil key through brackets (`t[k]` where `k` may be `nil`). Writing one is `need-check-nil`; a key that is `nil` for certain (`t[nil] = v`, `{ [nil] = v }`) is the runtime error "index is nil" and is reported on the write.
     */
     "nil-index": "Warning",
     /*

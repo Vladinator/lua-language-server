@@ -96,3 +96,82 @@ local function f(x)
     print(1)
 end
 ]]
+
+-- code after a call that never returns, in the same block (`error` ends the function there)
+TEST [[
+local function f()
+    error('stop')
+    <!print(1)
+    print(2)!>
+end
+]]
+
+-- ... and after a function declared `---@return never`, and `os.exit`
+TEST [[
+---@return never
+local function fail() error('x') end
+
+local function f()
+    fail()
+    <!print(1)!>
+end
+local function g()
+    os.exit()
+    <!print(2)!>
+end
+]]
+
+-- ... not when the call may not run (a branch, a loop), or when it is the last statement
+TEST [[
+local function f(x)
+    if x then error('x') end
+    print(1)
+    for _ = 1, 2 do error('y') end
+    print(2)
+    while x do error('z') end
+    print(3)
+    error('last')
+end
+]]
+
+-- `do return end` (the debugging idiom) ends what follows it in the block
+TEST [[
+local function f()
+    do return 1 end
+    <!print(1)!>
+end
+local function g()
+    do error('x') end
+    <!print(2)!>
+end
+]]
+
+-- ... a `do` block without a return, or with it behind a condition, does not
+TEST [[
+local function f(x)
+    do print(1) end
+    print(2)
+    do
+        if x then return 1 end
+    end
+    print(3)
+end
+]]
+
+-- a label after it can be reached by a `goto`: nothing is judged
+TEST [[
+local function f(x)
+    for _ = 1, 2 do
+        if x then goto continue end
+        do return false end
+        ::continue::
+        print(1)
+    end
+    return true
+end
+local function g()
+    error('x')
+    ::again::
+    print(1)
+end
+]]

@@ -12,7 +12,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
-    description = 'Enable diagnostics for cases in which an undefined field of a variable is read, also through an index that chooses between literal names (`t[flag and "a" or "b"]`).',
+    description = 'Enable diagnostics for cases in which an undefined field of a variable is read, also through a string literal index (`p["nothing"]`, as `p.nothing`) and through an index that chooses between literal names (`t[flag and "a" or "b"]`).',
 }
 
 -- (the types a value can have that are not a declared shape of fields)
@@ -235,6 +235,45 @@ return function (uri, callback)
             end
         end
     end
+    --- `p['nothing']` is the same read as `p.nothing`: for a value declared as a class, a string literal key that is no field is as undefined.
+    --- (A plain table, `any`, and a class with a string index (`table<string, V>`, `[string]: V`) answer any key and are not judged.)
+    ---@async
+    ---@param src parser.object
+    local function checkUndefinedStringIndex(src)
+        local index = src.index
+        local node = src.node
+        if not index or not node or index.type ~= 'string' or type(index[1]) ~= 'string' then
+            return
+        end
+        await.delay()
+        if vm.hasDef(src) then
+            return
+        end
+        local nodeInfo = vm.compileNode(node)
+        ---@type boolean?
+        local declared
+        for view in vm.getInfer(node):eachView(uri) do
+            if skipCheckClass[view] or notAShape[view] then
+                return
+            end
+            declared = true
+        end
+        if not declared or vm.getClassIndexValue(uri, nodeInfo, 'string') then
+            return
+        end
+        -- (a declared `table<string, V>` / `{ [string]: V }` answers any key; a table constructor given to the class has values of its own)
+        for object in nodeInfo:eachObject() do
+            if object.type == 'doc.type.table' or object.type == 'doc.type.sign' then
+                return
+            end
+        end
+        callback {
+            start   = index.start,
+            finish  = index.finish,
+            message = MESSAGE:format(index[1]),
+        }
+    end
+    guide.eachSourceType(ast.ast, 'getindex', checkUndefinedStringIndex)
     guide.eachSourceType(ast.ast, 'getfield',  checkUndefinedField)
     guide.eachSourceType(ast.ast, 'getmethod', checkUndefinedField)
     guide.eachSourceType(ast.ast, 'getindex', checkUndefinedFieldByIndexEnum)

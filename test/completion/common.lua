@@ -6087,6 +6087,71 @@ end
     assert(detailOf(result, 'sides'):find('?', 1, true), 'in the else branch: ' .. detailOf(result, 'sides'))
 end)
 
+-- the documentation of that item shows the narrowed type too (what the hover at the cursor would say), by the condition alone or after a read in the body
+---@param result table[]
+---@param label string
+---@return string
+local function descriptionOf(result, label)
+    for _, it in ipairs(result) do
+        if it.label == label then
+            return tostring(it.description)
+        end
+    end
+    return 'no such item'
+end
+
+Cared['detail'] = nil
+Cared['description'] = true
+TEST [[
+---@class NarrowShapeDoc1
+---@field sides number?
+local shape
+
+if shape.sides then
+    shape.si<??>
+end
+]]
+(function (result)
+    local desc = descriptionOf(result, 'sides')
+    assert(desc:find('sides: number', 1, true), 'documentation by the condition: ' .. desc)
+    assert(not desc:find('number?', 1, true), 'documentation by the condition: ' .. desc)
+end)
+
+TEST [[
+---@class NarrowShapeDoc2
+---@field sides number?
+local shape
+
+if shape.sides then
+    print(shape.sides)
+    shape.si<??>
+end
+]]
+(function (result)
+    local desc = descriptionOf(result, 'sides')
+    assert(desc:find('sides: number', 1, true) and not desc:find('number?', 1, true), 'documentation after a read: ' .. desc)
+end)
+
+-- negative: the else branch and a place outside the block keep the declared type in the documentation
+TEST [[
+---@class NarrowShapeDoc3
+---@field sides number?
+local shape
+
+if shape.sides then
+    print(1)
+else
+    shape.si<??>
+end
+]]
+(function (result)
+    local desc = descriptionOf(result, 'sides')
+    assert(desc:find('number?', 1, true), 'documentation in the else branch: ' .. desc)
+end)
+
+Cared['description'] = nil
+Cared['detail'] = true
+
 -- ... a call between does not end it (the flow engine keeps field paths across calls)
 TEST [[
 ---@class NarrowShape2

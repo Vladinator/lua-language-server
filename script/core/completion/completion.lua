@@ -363,10 +363,11 @@ end
 
 ---@async
 ---@param source parser.object
+---@param typeNode? vm.node the type to show instead of the source's own (the earlier read of a field stands for the one at the cursor)
 ---@return markdown
-local function buildDesc(source)
+local function buildDesc(source, typeNode)
     local desc = markdown()
-    local hover = getHover.get(source, 1)
+    local hover = getHover.get(source, 1, typeNode)
     desc:add('md', hover)
     desc:splitLine()
     desc:add('lua', getSnip(source))
@@ -1024,7 +1025,7 @@ local function checkFieldThen(state, name, src, word, position, parent, oop, res
             local narrowed, read = narrowedFieldNodeOf(parent, name, position)
             return {
                 detail      = buildDetail(newSrc, narrowed),
-                description = buildDesc(read or newSrc),
+                description = buildDesc(read or newSrc, read and narrowed or nil),
             }
         end),
 

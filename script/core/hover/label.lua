@@ -78,11 +78,12 @@ end
 ---@param source parser.object
 ---@param title string
 ---@param level integer
+---@param typeNode? vm.node the type to show instead of the source's own (a narrowed field a completion item stands for)
 ---@return string
 ---@return integer?
-local function asValue(source, title, level)
+local function asValue(source, title, level, typeNode)
     local name    = buildName(source, false) or ''
-    local ifr     = vm.getInfer(source)
+    local ifr     = vm.getInfer(typeNode or source)
     local type    = ifr:viewFlagged(guide.getUri(source))
     local literal = ifr:viewLiterals()
     local cont, maxLevel = buildTable(source, level)
@@ -181,11 +182,11 @@ end
 ---@param source parser.object
 ---@param level integer
 ---@return string
-local function asField(source, level)
+local function asField(source, level, typeNode)
     if isGlobalField(source) then
         return asGlobal(source, level)
     end
-    return asValue(source, '(field)', level)
+    return asValue(source, '(field)', level, typeNode)
 end
 
 ---@param source parser.object
@@ -261,7 +262,7 @@ end
 ---@param level integer
 ---@return string?
 ---@return integer? maxLevel the deepest level reached (only set by a table)
-return function (source, oop, level)
+return function (source, oop, level, typeNode)
     if     source.type == 'function'
     or     source.type == 'doc.type.function' then
         return asFunction(source, oop)
@@ -280,7 +281,7 @@ return function (source, oop, level)
     or     source.type == 'tablefield'
     or     source.type == 'field'
     or     source.type == 'method' then
-        return asField(source, level)
+        return asField(source, level, typeNode)
     elseif source.type == 'string' then
         return asString(source)
     elseif source.type == 'number'

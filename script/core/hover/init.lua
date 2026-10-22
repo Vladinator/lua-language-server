@@ -47,9 +47,10 @@ end
 ---@async
 ---@param source parser.object
 ---@param level integer
+---@param typeNode? vm.node the type to show for a field instead of its own (a narrowed field a completion item stands for)
 ---@return markdown
 ---@return integer
-local function getHover(source, level)
+local function getHover(source, level, typeNode)
     local md        = markdown()
     ---@type table<parser.object, boolean>
     local defMark   = {}
@@ -139,7 +140,7 @@ local function getHover(source, level)
         defMark[def] = true
 
         if checkLable then
-            local label, maxLevel = getLabel(def, oop, level)
+            local label, maxLevel = getLabel(def, oop, level, def == source and typeNode or nil)
             if maxLevel and totalMaxLevel < maxLevel then
                 totalMaxLevel = maxLevel
             end

@@ -113,8 +113,9 @@ TEST [[
 ---@param s string
 ---@param b boolean
 ---@param o? number
-local function f(n, s, b, o)
-    local r = { n == s, b == n, b and n, not n, b or s, o == n, n ~= b }
+---@param fn fun(): number
+local function f(n, s, b, o, fn)
+    local r = { n == s, b == n, b and n, not n, not b, not fn, not s, b or s, o == n, n ~= b }
 end
 ]]
 

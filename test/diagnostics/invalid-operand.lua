@@ -155,3 +155,34 @@ local function f(x)
     end
 end
 ]]
+
+-- bitwise operators do not convert strings in Lua 5.4 and 5.5 (the arithmetic ones do)
+TEST [[
+---@param s string
+---@param n number
+local function f(s, n)
+    local a = <!s!> & 1
+    local b = 1 | <!s!>
+    local c = ~<!s!>
+    local d = n << <!s!>
+    local e = s + 1
+    local g = -s
+end
+]]
+
+-- ... in Lua 5.5 too, but Lua 5.3 converted them
+TEST([[
+---@param s string
+local function f(s)
+    local a = <!s!> & 1
+end
+]], 'Lua 5.5')
+
+TEST([[
+---@param s string
+local function f(s)
+    local a = s & 1
+    local b = ~s
+    local c = s | 1
+end
+]], 'Lua 5.3')

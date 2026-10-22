@@ -3,6 +3,7 @@ local guide           = require 'parser.guide'
 local vm              = require 'vm'
 local await           = require 'await'
 local protoDiagnostic = require 'proto.diagnostic'
+local config          = require 'config'
 
 protoDiagnostic.register {
     'invalid-operand',
@@ -42,6 +43,8 @@ local ARITHMETIC = {
     ['&'] = true, ['|'] = true, ['~'] = true, ['<<'] = true, ['>>'] = true,
     ['..'] = true,
 }
+-- the bitwise operators: strings are NOT converted to numbers by them in Lua 5.4 and 5.5 (only by the arithmetic ones; 5.3 converted them)
+local BITWISE = { ['&'] = true, ['|'] = true, ['~'] = true, ['<<'] = true, ['>>'] = true }
 local ORDERING = { ['<'] = true, ['>'] = true, ['<='] = true, ['>='] = true }
 
 --- The set of primitive kinds of a value, or nil when it can be anything else (a table, a class, `any`, an unresolved type: they may have a metatable).
@@ -94,6 +97,7 @@ local function allIn(kinds, bad)
 end
 
 local NO_ARITHMETIC = { [BOOLEAN] = true, [FUNCTION] = true }
+local NO_BITWISE    = { [BOOLEAN] = true, [FUNCTION] = true, [STRING] = true }
 local NO_LENGTH     = { [NUMBER] = true, [BOOLEAN] = true, [FUNCTION] = true }
 
 ---@param kinds table<string, true>
@@ -116,6 +120,18 @@ return function (uri, callback)
     end
 
     local delayer = await.newThrottledDelayer(500)
+    local version = config.get(uri, 'Lua.runtime.version')
+    local stringsInBitwise = version == 'Lua 5.4' or version == 'Lua 5.5'
+
+    --- The kinds an operand of the operator cannot be.
+    ---@param op string
+    ---@return table<string, true>
+    local function invalidFor(op)
+        if BITWISE[op] and stringsInBitwise then
+            return NO_BITWISE
+        end
+        return NO_ARITHMETIC
+    end
 
     ---@async
     ---@param operand parser.object
@@ -150,7 +166,7 @@ return function (uri, callback)
             end
         elseif op == '-' or op == '~' then
             local kinds = kindsOf(operand)
-            if kinds and allIn(kinds, NO_ARITHMETIC) then
+            if kinds and allIn(kinds, invalidFor(op)) then
                 report(operand, kinds, op)
             end
         end
@@ -170,10 +186,11 @@ return function (uri, callback)
             if not lk or not rk then
                 return
             end
-            if allIn(lk, NO_ARITHMETIC) then
+            local invalid = invalidFor(op)
+            if allIn(lk, invalid) then
                 report(left, lk, op)
             end
-            if allIn(rk, NO_ARITHMETIC) then
+            if allIn(rk, invalid) then
                 report(right, rk, op)
             end
         elseif ORDERING[op] then

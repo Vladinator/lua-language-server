@@ -35,6 +35,10 @@ return function (uri, callback)
             }
             return
         end
+        -- (`nil` and `false` are the two values that are not closed: a variable can be declared with them)
+        if source.value.type == 'boolean' and source.value[1] == false then
+            return
+        end
         local infer = vm.getInfer(source.value)
         if  not infer:hasClass(uri)
         and not infer:hasType(uri, 'nil')

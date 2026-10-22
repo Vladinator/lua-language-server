@@ -372,7 +372,7 @@ Array<string>
 * ``"global-in-nil-env"``: 不能使用全域變數（ `_ENV` 被設定為 `nil`）
 * ``"grouped-return-mismatch"``: Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
 * ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
-* ``"impossible-comparison"``: Enable diagnostics for a comparison of a value declared as a union of string or number literals with a literal that is not one of them (`mode == "latestt"` with `mode: "queue"|"latest"`): the comparison is always false (always true for `~=`). TypeScript: "This comparison appears to be unintentional because the types have no overlap".
+* ``"impossible-comparison"``: Enable diagnostics for a comparison of a value declared as a union of string or number literals with a literal that is not one of them (`mode == "latestt"` with `mode: "queue"|"latest"`), or of a value declared as a string, number or boolean with a literal of another kind (`s == 5` with `s: string`; Lua does not coerce in `==`): the comparison is always false (always true for `~=`). TypeScript: "This comparison appears to be unintentional because the types have no overlap".
 * ``"incompatible-override"``: Enable diagnostics for a class that overrides a member of a class it inherits from with something that does not fit it (TypeScript's "class incorrectly extends"): a method that needs more arguments, takes or gives other types, or a field redeclared with a type that is not assignable to the parent's. A narrower type is an override; a wider or unrelated one is a collision. Only parents the user owns are judged: a member declared in a library outside the workspace (third-party annotations, which a polyfill class may re-annotate on purpose) is left alone.
 * ``"incomplete-signature-doc"``: `@param` 或 `@return` 不完整
 * ``"index-in-func-name"``: 函式名稱中包含索引
@@ -1203,7 +1203,7 @@ object<string, string>
     */
     "implicit-nil-return": "None",
     /*
-    Enable diagnostics for a comparison of a value declared as a union of string or number literals with a literal that is not one of them (`mode == "latestt"` with `mode: "queue"|"latest"`): the comparison is always false (always true for `~=`). TypeScript: "This comparison appears to be unintentional because the types have no overlap".
+    Enable diagnostics for a comparison of a value declared as a union of string or number literals with a literal that is not one of them (`mode == "latestt"` with `mode: "queue"|"latest"`), or of a value declared as a string, number or boolean with a literal of another kind (`s == 5` with `s: string`; Lua does not coerce in `==`): the comparison is always false (always true for `~=`). TypeScript: "This comparison appears to be unintentional because the types have no overlap".
     */
     "impossible-comparison": "Opened",
     /*
@@ -1753,7 +1753,7 @@ object<string, string>
     */
     "implicit-nil-return": "Hint",
     /*
-    Enable diagnostics for a comparison of a value declared as a union of string or number literals with a literal that is not one of them (`mode == "latestt"` with `mode: "queue"|"latest"`): the comparison is always false (always true for `~=`). TypeScript: "This comparison appears to be unintentional because the types have no overlap".
+    Enable diagnostics for a comparison of a value declared as a union of string or number literals with a literal that is not one of them (`mode == "latestt"` with `mode: "queue"|"latest"`), or of a value declared as a string, number or boolean with a literal of another kind (`s == 5` with `s: string`; Lua does not coerce in `==`): the comparison is always false (always true for `~=`). TypeScript: "This comparison appears to be unintentional because the types have no overlap".
     */
     "impossible-comparison": "Warning",
     /*

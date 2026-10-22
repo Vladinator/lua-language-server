@@ -10,7 +10,7 @@ protoDiagnostic.register {
     group    = 'type-check',
     severity = 'Warning',
     status   = 'Opened',
-    description = 'Enable diagnostics for a comparison of a value declared as a union of string or number literals with a literal that is not one of them (`mode == "latestt"` with `mode: "queue"|"latest"`): the comparison is always false (always true for `~=`). TypeScript: "This comparison appears to be unintentional because the types have no overlap".',
+    description = 'Enable diagnostics for a comparison of a value declared as a union of string or number literals with a literal that is not one of them (`mode == "latestt"` with `mode: "queue"|"latest"`), or of a value declared as a string, number or boolean with a literal of another kind (`s == 5` with `s: string`; Lua does not coerce in `==`): the comparison is always false (always true for `~=`). TypeScript: "This comparison appears to be unintentional because the types have no overlap".',
 }
 
 --- Whether an alias type name (`---@alias`): its expansion sits next to it in a node.
@@ -57,6 +57,57 @@ local function declaredLiterals(uri, node)
     return literals
 end
 
+local PRIMITIVE_KIND = {
+    ['string']  = 'string',
+    ['number']  = 'number',
+    ['integer'] = 'number',
+    ['boolean'] = 'boolean',
+}
+
+--- The primitive kinds of a value that is DECLARED as nothing but string / number / boolean (a parameter `s: string`, a field, a result of a
+--- function with `@return`), possibly optional. An inferred value (`local x = 5` is what the variable holds now), a literal union, an alias, a
+--- class, `any` and the like say nothing here.
+---@param node vm.node
+---@return table<string, true>?
+local function declaredPrimitives(node)
+    ---@type table<string, true>
+    local kinds = {}
+    local found = false
+    for _, c in ipairs(node) do
+        if c.type == 'variable' or c.type == 'local' or (c.type == 'global' and c.cate ~= 'type') then
+            -- (the variables a node came from: not types)
+        elseif c.type == 'global' and c.cate == 'type' then
+            ---@cast c vm.global
+            if c.name ~= 'nil' then
+                local kind = PRIMITIVE_KIND[c.name]
+                if not kind then
+                    return nil
+                end
+                kinds[kind] = true
+                found = true
+            end
+        elseif c.type ~= 'nil' then
+            return nil
+        end
+    end
+    if not found then
+        return nil
+    end
+    return kinds
+end
+
+---@param source parser.object
+---@return string?
+local function literalKind(source)
+    if source.type == 'string' then
+        return 'string'
+    elseif source.type == 'integer' or source.type == 'number' then
+        return 'number'
+    elseif source.type == 'boolean' then
+        return 'boolean'
+    end
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -75,14 +126,14 @@ return function (uri, callback)
         if not left or not right then
             return
         end
-        local litSide = (right.type == 'string' or right.type == 'integer' or right.type == 'number') and right
-                     or (left.type == 'string' or left.type == 'integer' or left.type == 'number') and left
+        local litSide = literalKind(right) and right
+                     or literalKind(left) and left
                      or nil
         if not litSide then
             return
         end
         local other = litSide == right and left or right
-        if other.type == 'string' or other.type == 'integer' or other.type == 'number' then
+        if literalKind(other) then
             -- (two literals: a constant, not a typo)
             return
         end
@@ -90,6 +141,23 @@ return function (uri, callback)
         local otherNode = vm.compileNode(other)
         local literals = declaredLiterals(uri, otherNode)
         if not literals then
+            -- (a string / number / boolean declared as such: a literal of another kind is never equal to it; Lua does not coerce in `==`)
+            local kinds = declaredPrimitives(otherNode)
+            local kind = literalKind(litSide)
+            if kinds and kind and not kinds[kind] then
+                callback {
+                    start   = src.start,
+                    finish  = src.finish,
+                    message = ('This comparison is always %s: the value is `%s`, never %s.'):format(
+                        op == '==' and 'false' or 'true',
+                        vm.getInfer(otherNode):view(uri),
+                        litSide.type == 'string' and ('"%s"'):format(litSide[1]) or tostring(litSide[1])
+                    ),
+                }
+            end
+            return
+        end
+        if litSide.type == 'boolean' then
             return
         end
         local wanted = litSide[1]

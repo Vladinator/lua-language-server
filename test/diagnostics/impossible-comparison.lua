@@ -44,7 +44,7 @@ if o == 3 then end
 if <!o == 9!> then end
 ]]
 
--- fine: values that are not a union of declared literals say nothing (primitives, `any`, unknown, classes, booleans, inferred values)
+-- fine: values that are not a union of declared literals say nothing (`any`, unknown, classes, inferred values); a declared primitive is judged only against a literal of another kind (`s == 5`, `b == 1`)
 TEST [[
 ---@param s string
 ---@param i integer
@@ -59,8 +59,8 @@ local function f(s, i, a, u, b, t)
     if u == "x" then end
     if b == true then end
     if t == "x" then end
-    if s == 5 then end
-    if b == 1 then end
+    if <!s == 5!> then end
+    if <!b == 1!> then end
 end
 local function untyped(p, ...)
     if p == "x" then end
@@ -128,4 +128,53 @@ TEST [[
 local tv = type(1)
 if tv == 'cdata' or tv == 'ctype' then end
 if <!tv == 'strng'!> then end
+]]
+
+-- a value declared as a string / number / boolean against a literal of another kind: Lua does not coerce in `==`
+TEST [[
+---@param s string
+---@param n number
+---@param i integer
+---@param b boolean
+---@param o? string
+local function f(s, n, i, b, o)
+    if <!s == 5!> then end
+    if <!s ~= 5!> then end
+    if <!5 == s!> then end
+    if <!n == "5"!> then end
+    if <!i == false!> then end
+    if <!b == 1!> then end
+    if <!b == "yes"!> then end
+    if <!o == 5!> then end
+    if <!s:upper() == 5!> then end
+end
+]]
+
+-- ... the same kind, a union holding the kind, an unknown or a table, an inferred value, two literals
+TEST [[
+---@param s string
+---@param n number
+---@param b boolean
+---@param u string|number
+---@param t table
+---@param a any
+---@param o? string
+local function f(s, n, b, u, t, a, o)
+    if s == "x" then end
+    if n == 5 then end
+    if n == 5.5 then end
+    if b == true then end
+    if b == false then end
+    if u == 5 then end
+    if u == "x" then end
+    if t == 5 then end
+    if a == 5 then end
+    if o == nil then end
+    if s == nil then end
+    if 1 == 2 then end
+    local x = 5
+    if x == "a" then end
+    local y = "s"
+    if y == 1 then end
+end
 ]]

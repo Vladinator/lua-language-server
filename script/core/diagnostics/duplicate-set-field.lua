@@ -80,6 +80,18 @@ return function (uri, callback)
             if not defValue or defValue.type ~= 'function' then
                 goto CONTINUE
             end
+            -- a definition on ANOTHER table, reached through a metatable link (`setmetatable(Dog, { __index = Animal })`) is the parent's:
+            -- a subclass that sets the same name overrides it, it does not set the same field twice. (Two locals of one `---@class` in two files
+            -- are the same class: that stays a duplicate.)
+            if  src.node and def.node
+            and src.node.type == 'getlocal' and def.node.type == 'getlocal'
+            and src.node.node ~= def.node.node then
+                local srcClass = vm.getDefinedClass(guide.getUri(src), src.node)
+                local defClass = vm.getDefinedClass(guide.getUri(def), def.node)
+                if not (srcClass and defClass and srcClass.name == defClass.name) then
+                    goto CONTINUE
+                end
+            end
             if vm.getDefinedClass(guide.getUri(def), def.node)
             and not vm.getDefinedClass(guide.getUri(src), src.node)
             then

@@ -64,11 +64,14 @@ return function (uri, callback)
         else
             for i = funcArgs + 1, #source.args do
                 local arg = source.args[i]
-                callback {
-                    start   = arg.start,
-                    finish  = arg.finish,
-                    message = MESSAGE:format(funcArgs, callArgs)
-                }
+                -- (a trailing `...` may expand to nothing)
+                if not (arg.type == 'varargs' and i == #source.args) then
+                    callback {
+                        start   = arg.start,
+                        finish  = arg.finish,
+                        message = MESSAGE:format(funcArgs, callArgs)
+                    }
+                end
             end
         end
     end)

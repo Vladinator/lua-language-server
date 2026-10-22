@@ -98,3 +98,26 @@ function <!x:f!>() end
 
 function <!x:f!>() end
 ]]
+
+-- a subclass built with a metatable link overrides the name of its parent: not the same field set twice
+TEST [[
+local Animal = {}
+Animal.__index = Animal
+function Animal.new() return setmetatable({}, Animal) end
+function Animal:speak() return 'a' end
+
+local Dog = setmetatable({}, { __index = Animal })
+Dog.__index = Dog
+function Dog.new() return setmetatable({}, Dog) end
+function Dog:speak() return 'woof' end
+]]
+
+-- ... the same name set twice on the SAME table is still reported, parent or not
+TEST [[
+local Animal = {}
+function Animal:speak() return 'a' end
+
+local Dog = setmetatable({}, { __index = Animal })
+function <!Dog:speak!>() return 'woof' end
+function <!Dog:speak!>() return 'bark' end
+]]

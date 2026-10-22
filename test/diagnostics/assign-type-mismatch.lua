@@ -740,3 +740,35 @@ local function take(p) end
 take({ list = { 'a' }, map = { k = 'b' } })
 take({ list = { <!1!> }, map = { <!k!> = 2 } })
 ]]
+
+-- the hooking idiom: a plain function written for a method slot takes the object first
+TEST [[
+---@class HookFrame
+local HookFrame = {}
+function HookFrame:Show() end
+---@param n number
+function HookFrame:SetN(n) end
+---@return boolean
+function HookFrame:Is() return true end
+
+---@type HookFrame
+local f = HookFrame
+f.Show = function(self) end
+f.Show = function(self, ...) end
+f.Show = function() end
+f.SetN = function(self, n) end
+f.SetN = function(self, ...) end
+f.Is = function(self) return false end
+]]
+
+-- ... one that needs more than the object and what the method provides is still a mismatch
+TEST [[
+---@class HookFrame2
+local HookFrame2 = {}
+function HookFrame2:Show() end
+
+---@type HookFrame2
+local f = HookFrame2
+<!f.Show!> = function(self, extra) end
+<!f.Show!> = function(self, a, b) end
+]]

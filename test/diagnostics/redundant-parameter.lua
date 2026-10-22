@@ -316,3 +316,31 @@ TEST [[
 local plain = setmetatable({}, { __index = {} })
 plain(1, 2, 3)
 ]]
+
+-- a trailing `...` may expand to nothing (`return original(self, ...)`, the hooking idiom)
+TEST [[
+local function one(a) end
+local function none() end
+local function hook(self, ...)
+    one(self, ...)
+    none(...)
+    return one(self, ...)
+end
+]]
+
+-- ... a real extra argument before the `...` is still reported
+TEST [[
+local function one(a) end
+local function hook(self, ...)
+    one(self, <!self!>, ...)
+end
+]]
+
+-- ... a `...` alone, and a `...` that is not last (it gives one value there)
+TEST [[
+local function one(a) end
+local function h(...)
+    one(...)
+    one(1, <!...!>, ...)
+end
+]]

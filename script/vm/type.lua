@@ -567,6 +567,24 @@ local function functionTypeMismatch(uri, child, parent)
             table.remove(taken, 1)
         end
     end
+    -- (a plain function written for a method slot, `obj.Show = function(self, ...) end`, the hooking idiom: the method is called with the object first, so
+    -- the first parameter of the function is the object, not a parameter the method type provides)
+    if parentIsFunction and child.type == 'function' and taken[1] then
+        local parentHasSelf, childHasSelf = false, false
+        for _, arg in ipairs(parent.args or {}) do
+            if arg.type == 'self' then
+                parentHasSelf = true
+            end
+        end
+        for _, arg in ipairs(child.args or {}) do
+            if arg.type == 'self' then
+                childHasSelf = true
+            end
+        end
+        if parentHasSelf and not childHasSelf then
+            table.remove(taken, 1)
+        end
+    end
     local providesAny = false
     for _, arg in ipairs(provided) do
         if arg.type == '...' or (arg.name and arg.name[1] == '...') then

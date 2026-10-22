@@ -244,7 +244,8 @@ function rawlen(v) end
 function rawset(table, index, value) end
 
 ---#DES 'select'
----@param index integer|"#"
+---@overload fun(index: "#", ...: any): integer
+---@param index integer
 ---@param ...   any
 ---@return any
 ---@nodiscard

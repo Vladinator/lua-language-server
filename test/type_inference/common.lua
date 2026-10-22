@@ -9844,3 +9844,23 @@ local SelfChild4 = {}
 local child
 local <?v?> = child.Set(child)
 ]]
+
+-- select('#', ...) is the number of extra arguments; a numeric index gives the arguments themselves
+TEST 'integer' [[
+local <?n?> = select('#', 1, 2, 3)
+]]
+
+TEST 'integer' [[
+local function f(...)
+    local <?n?> = select('#', ...)
+end
+]]
+
+TEST 'any' [[
+local <?v?> = select(2, 'a', 'b')
+]]
+
+TEST 'any' [[
+local k = 2
+local <?v?> = select(k, 'a', 'b')
+]]

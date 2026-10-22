@@ -419,6 +419,7 @@ Array<string>
 * ``"inject-field"``: Injecting a field into an object
 * ``"invalid-class-parent"``: Enable diagnostics for a `---@class Child : Parent` whose parent is a primitive type (`string`, `number`, `integer`, `boolean`, `true`, `false`, `nil`, `function`, `thread`): a class describes a table. `table`, `userdata` and `any` stay allowed. Off by default: `---@class Name : string` is also used on purpose, as a named string type.
 * ``"invalid-guard"``: Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
+* ``"invalid-operand"``: Enable diagnostics for an operator applied to an operand that always fails at run time: the length of a number, arithmetic or `..` on a boolean or a function, a number compared with a string. Only primitives are judged: a table or a class may carry a metatable with the metamethod, so it never is.
 * ``"invalid-secret-context"``: Enable diagnostics for a secret-context tag (`---@secret-when`, `---@secret-unless`, `---@secret-clears`, `---@secret-restriction-guard`, `---@secret-precondition`, `---@secret-satisfies`) that is not of its form, is not above a function, or names a parameter the function does not have.
 * ``"invalid-secret-guard"``: Enable diagnostics for a `---@secret-guard <parameter> <is-secret|accessible|any-secret>` that is not of that form, is not above a function, or names something that is not a parameter of that function.
 * ``"invisible"``: Enable diagnostics for accesses to fields which are invisible.
@@ -820,6 +821,7 @@ object<string, string>
     * index-key-mismatch
     * inject-field
     * invalid-class-parent
+    * invalid-operand
     * mixed-enum-values
     * mutate-readonly
     * need-check-nil
@@ -1023,6 +1025,7 @@ object<string, string>
     * index-key-mismatch
     * inject-field
     * invalid-class-parent
+    * invalid-operand
     * mixed-enum-values
     * mutate-readonly
     * need-check-nil
@@ -1288,6 +1291,10 @@ object<string, string>
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Opened",
+    /*
+    Enable diagnostics for an operator applied to an operand that always fails at run time: the length of a number, arithmetic or `..` on a boolean or a function, a number compared with a string. Only primitives are judged: a table or a class may carry a metatable with the metamethod, so it never is.
+    */
+    "invalid-operand": "Opened",
     /*
     Enable diagnostics for a secret-context tag (`---@secret-when`, `---@secret-unless`, `---@secret-clears`, `---@secret-restriction-guard`, `---@secret-precondition`, `---@secret-satisfies`) that is not of its form, is not above a function, or names a parameter the function does not have.
     */
@@ -1846,6 +1853,10 @@ object<string, string>
     Enable diagnostics for a `---@guard x is T` / `---@asserts x is T` that is not of that form, or names something that is not a parameter of the function it is bound to.
     */
     "invalid-guard": "Warning",
+    /*
+    Enable diagnostics for an operator applied to an operand that always fails at run time: the length of a number, arithmetic or `..` on a boolean or a function, a number compared with a string. Only primitives are judged: a table or a class may carry a metatable with the metamethod, so it never is.
+    */
+    "invalid-operand": "Warning",
     /*
     Enable diagnostics for a secret-context tag (`---@secret-when`, `---@secret-unless`, `---@secret-clears`, `---@secret-restriction-guard`, `---@secret-precondition`, `---@secret-satisfies`) that is not of its form, is not above a function, or names a parameter the function does not have.
     */

@@ -767,7 +767,6 @@ function OP.add(str, option, path, value)
         local pathlst, err = split_path(path)
         if not pathlst then
             error(err)
-            return
         end
         value = add_prefix(value, pathlst)
         return beautify(value, option)
@@ -775,7 +774,6 @@ function OP.add(str, option, path, value)
     local t, k, isarray, lastpath = query(ast, path)
     if not t then
         error(k)
-        return
     end
     ---@cast k string|integer -- `query` returns the key when it returns an ast
     if lastpath then
@@ -814,7 +812,6 @@ function OP.remove(str, _, path)
     local t, k, isarray, lastpath = query(ast, path)
     if not t then
         error(k)
-        return
     end
     ---@cast k string|integer -- `query` returns the key when it returns an ast
     if lastpath then
@@ -851,7 +848,6 @@ function OP.replace(str, option, path, value)
         local pathlst, err = split_path(path)
         if not pathlst then
             error(err)
-            return
         end
         value = add_prefix(value, pathlst)
         return beautify(value, option)
@@ -859,7 +855,6 @@ function OP.replace(str, option, path, value)
     local t, k, isarray, lastpath = query(ast, path)
     if not t then
         error(k)
-        return
     end
     ---@cast k string|integer -- `query` returns the key when it returns an ast
     if lastpath then
@@ -894,7 +889,6 @@ local function edit(str, patch, option)
     local f = OP[patch.op]
     if not f then
         error(string_format("invalid op: %s", patch.op))
-        return
     end
     option = beautify_option(option)
     return f(str, option, patch.path, patch.value)

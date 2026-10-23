@@ -34,12 +34,12 @@ docTags.registerBindRule('doc.deprecated', function (doc, source, isParam)
     return not (source.type == 'function' or isParam)
 end)
 
-local types = {'getglobal', 'getfield', 'getindex', 'getmethod'}
+local types = {'getglobal', 'getfield', 'getindex', 'getmethod', 'getlocal'}
 
 -- The definition shapes `vm.getDeprecated`'s own `deep` search can ever find a `doc.deprecated`/
 -- `doc.version` on: setglobal/setfield/setmethod/tablefield/setindex/tableindex directly, or (its
 -- own fallback for a bare function def) a `function` node, keyed by its parent's name.
-local markDefTypes = {'setglobal', 'setfield', 'setmethod', 'tablefield', 'setindex', 'tableindex'}
+local markDefTypes = {'setglobal', 'setfield', 'setmethod', 'tablefield', 'setindex', 'tableindex', 'local'}
 
 ---@param src parser.object?
 ---@return boolean

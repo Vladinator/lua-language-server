@@ -175,3 +175,41 @@ local function g()
     print(1)
 end
 ]]
+
+-- the code after a `goto` in the same block, up to the next label (a label can be the target of another goto)
+TEST [[
+for i = 1, 3 do
+    goto continue
+    <!print(i)
+    print(i + 1)!>
+    ::continue::
+end
+]]
+
+-- ... a goto last in its block, or followed by a label at once, leaves nothing; a goto behind a condition judges nothing
+TEST [[
+for i = 1, 3 do
+    if i == 2 then goto continue end
+    print(i)
+    ::continue::
+end
+do
+    goto skip
+    ::skip::
+    print(1)
+end
+]]
+
+-- ... inside any block, not only a function body
+TEST [[
+local x = ...
+if x then
+    goto done
+    <!print(1)!>
+end
+while x do
+    goto done
+    <!x = nil!>
+end
+::done::
+]]

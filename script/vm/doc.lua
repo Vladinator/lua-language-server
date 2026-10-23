@@ -176,7 +176,8 @@ function vm.getDeprecated(value, deep)
             or def.type == 'setmethod'
             or def.type == 'setindex'
             or def.type == 'tablefield'
-            or def.type == 'tableindex' then
+            or def.type == 'tableindex'
+            or def.type == 'local' then
                 deprecated = getDeprecated(def)
                 if not deprecated then
                     return nil

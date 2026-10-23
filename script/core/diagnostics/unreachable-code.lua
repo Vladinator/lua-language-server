@@ -99,9 +99,28 @@ return function (uri, callback)
     end
 
     ---@async
-    guide.eachSourceTypes(state.ast, {'main', 'function'}, function (source)
+    guide.eachSourceTypes(state.ast, {'main', 'function', 'do', 'while', 'loop', 'in', 'repeat', 'ifblock', 'elseifblock', 'elseblock'}, function (source)
         await.delay()
         for i, action in ipairs(source) do
+            if action.type == 'goto' then
+                -- a `goto` leaves the block: what follows it up to the next label can never run (a label can be a target of another `goto`)
+                local last = #source
+                for j = i + 1, #source do
+                    if source[j].type == 'label' then
+                        last = j - 1
+                        break
+                    end
+                end
+                if i < last then
+                    callback {
+                        start   = source[i+1].start,
+                        finish  = source[last].range or source[last].finish,
+                        tags    = { define.DiagnosticTag.Unnecessary },
+                        message = MESSAGE,
+                    }
+                end
+                return
+            end
             if  (guide.isBlockType(action) and hasReturn(action))
             or  neverReturns(action)
             or  doEnds(action) then
@@ -115,7 +134,7 @@ return function (uri, callback)
                 if i < #source and not labelAfter then
                     callback {
                         start   = source[i+1].start,
-                        finish  = source[#source].finish,
+                        finish  = source[#source].range or source[#source].finish,
                         tags    = { define.DiagnosticTag.Unnecessary },
                         message = MESSAGE,
                     }

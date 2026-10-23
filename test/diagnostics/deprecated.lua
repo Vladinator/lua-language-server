@@ -45,3 +45,24 @@ end
 local plain = 1
 print(plain)
 ]]
+
+-- a deprecated CLASS is reported where an annotation names it, not at its own declaration or for another class
+TEST [[
+---@deprecated use NewClass
+---@class OldClass
+local OldClass = {}
+
+---@class NewClass
+local NewClass = {}
+
+---@type <!OldClass!>
+local a
+---@param p <!OldClass!>
+---@return <!OldClass!>|nil
+local function f(p) end
+---@type NewClass
+local b
+---@type OldClassX
+local c
+print(a, b, c, f)
+]]

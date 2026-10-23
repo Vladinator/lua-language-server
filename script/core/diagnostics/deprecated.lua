@@ -179,11 +179,66 @@ local function mightBeDeprecated(uri, src, key)
     return false
 end
 
+--- The classes of the workspace declared with a `@deprecated` in their doc group, by name, worked out once per
+--- workspace state (dropped with the rest of `vm.getCache` when a file changes).
+---@param uri uri
+---@return table<string, parser.object>
+local function getDeprecatedClasses(uri)
+    local cache = vm.getCache('deprecated.classes') --[[@as table<string, table<string, parser.object>>]]
+    local key   = scope.getScope(uri):getName()
+    ---@type table<string, parser.object>?
+    local cached = cache[key]
+    if cached then
+        return cached
+    end
+    ---@type table<string, parser.object>
+    local found = {}
+    for fileUri in files.eachFile(uri) do
+        local state = files.getState(fileUri)
+        if state then
+            guide.eachSourceType(state.ast, 'doc.class', function (class)
+                for _, doc in ipairs(class.bindGroup or {}) do
+                    if doc.type == 'doc.deprecated' then
+                        local name = class.class and class.class[1]
+                        if type(name) == 'string' then
+                            found[name] = doc
+                        end
+                    end
+                end
+            end)
+        end
+    end
+    cache[key] = found
+    return found
+end
+
 ---@async
 return function (uri, callback)
     local ast = files.getState(uri)
     if not ast then
         return
+    end
+
+    -- a deprecated CLASS named in an annotation (`---@type OldClass`, `---@param x OldClass`)
+    local deprecatedClasses = getDeprecatedClasses(uri)
+    if next(deprecatedClasses) then
+        guide.eachSourceType(ast.ast, 'doc.type.name', function (src)
+            local name = src[1]
+            local doc  = type(name) == 'string' and deprecatedClasses[name]
+            if not doc then
+                return
+            end
+            local message = MESSAGE
+            if doc.comment then
+                message = ('%s(%s)'):format(message, util.trim(doc.comment.text))
+            end
+            callback {
+                start   = src.start,
+                finish  = src.finish,
+                tags    = { define.DiagnosticTag.Deprecated },
+                message = message,
+            }
+        end)
     end
 
     local dglobals = util.arrayToHash(config.get(uri, 'Lua.diagnostics.globals'))

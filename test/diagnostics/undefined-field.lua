@@ -422,3 +422,21 @@ TEST [[
 local c = { base = 1, own = 2 }
 print(c['base'], c['own'], c[<!'zzz'!>])
 ]]
+
+-- ... nor for a string, a number or a boolean value (their methods and fields are the library's)
+TEST [[
+---@type string
+local s = 'x'
+---@type number
+local n = 1
+---@type boolean
+local b = true
+print(s['len'], s['nothing'], n['nothing'], b['nothing'])
+]]
+
+-- ... a function value has no fields at all: both spellings are reported
+TEST [[
+---@type fun()
+local f = function() end
+print(f.<!nothing!>, f[<!'nothing'!>])
+]]

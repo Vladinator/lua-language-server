@@ -230,6 +230,36 @@ function vm.getMetamethodFunctions(name, obj)
     return found
 end
 
+--- The types a write through a proxy takes (`setmetatable({}, { __newindex = fn })`): the declared types of the second (key) and the third (value)
+--- parameter of the `__newindex` function. Only when the receiver has exactly one such function; a parameter nothing declares gives nothing.
+---@param node vm.node the receiver
+---@return vm.node? key
+---@return vm.node? value
+function vm.getProxyWriteTypes(node)
+    ---@type parser.object?
+    local only
+    for obj in node:eachObject() do
+        if obj.type == 'table' then
+            for _, func in ipairs(vm.getMetamethodFunctions('newindex', obj)) do
+                if func.type ~= 'function' or only then
+                    return nil, nil
+                end
+                only = func
+            end
+        end
+    end
+    if not only or not only.args then
+        return nil, nil
+    end
+    ---@param param parser.object?
+    ---@return vm.node?
+    local function declared(param)
+        local typed = param and vm.compileNode(param)
+        return typed and typed.hasDefined and typed or nil
+    end
+    return declared(only.args[2]), declared(only.args[3])
+end
+
 --- The first result (or the `index`-th) of the functions.
 ---@param funcs  parser.object[]
 ---@param index? integer

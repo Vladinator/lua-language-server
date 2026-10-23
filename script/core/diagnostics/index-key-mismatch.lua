@@ -163,6 +163,10 @@ return function (uri, callback)
         end
         delayer:delay()
         local keys, hasNamed, hasClass = declaredKeys(uri, vm.compileNode(receiver))
+        if not keys and src.type == 'setindex' then
+            -- (a write through a proxy takes the key type its `__newindex` function declares)
+            keys = vm.getProxyWriteTypes(vm.compileNode(receiver))
+        end
         if not keys then
             return
         end

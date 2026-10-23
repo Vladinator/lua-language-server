@@ -269,3 +269,23 @@ local function f(s, i, b)
     m[<!s!>] = 1
 end
 ]]
+
+-- a write through a proxy takes the key type its `__newindex` function declares
+TEST [[
+---@param t table
+---@param k string
+---@param v any
+local function setIt(t, k, v) rawset(t, k, v) end
+local proxy = setmetatable({}, { __newindex = setIt })
+proxy['name'] = 1
+proxy[<!1!>] = 2
+proxy[<!true!>] = 3
+]]
+
+-- ... no declared key, no judgement
+TEST [[
+local function untyped(t, k, v) rawset(t, k, v) end
+local a = setmetatable({}, { __newindex = untyped })
+a[1] = 1
+a.x = 2
+]]

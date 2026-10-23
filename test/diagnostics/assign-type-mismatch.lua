@@ -772,3 +772,42 @@ local f = HookFrame2
 <!f.Show!> = function(self, extra) end
 <!f.Show!> = function(self, a, b) end
 ]]
+
+-- a write through a proxy takes the value type its `__newindex` function declares
+TEST [[
+---@param t table
+---@param k string
+---@param v number
+local function setIt(t, k, v) rawset(t, k, v) end
+local proxy = setmetatable({}, { __newindex = setIt })
+proxy.name = 1
+<!proxy.name!> = 'x'
+<!proxy['other']!> = true
+]]
+
+-- ... a function that declares no value type, an inline function and a plain table take anything
+TEST [[
+local function untyped(t, k, v) rawset(t, k, v) end
+local a = setmetatable({}, { __newindex = untyped })
+a.name = 'x'
+local b = setmetatable({}, { __newindex = function (t, k, v) rawset(t, k, v) end })
+b.name = 'x'
+local c = {}
+c.name = 'x'
+]]
+
+-- ... two possible __newindex functions say nothing about the value
+TEST [[
+---@param t table
+---@param k string
+---@param v number
+local function setNumber(t, k, v) rawset(t, k, v) end
+---@param t table
+---@param k string
+---@param v string
+local function setString(t, k, v) rawset(t, k, v) end
+local flag = math.random() > 0.5
+local proxy = setmetatable({}, { __newindex = flag and setNumber or setString })
+proxy.a = 1
+proxy.b = 'x'
+]]

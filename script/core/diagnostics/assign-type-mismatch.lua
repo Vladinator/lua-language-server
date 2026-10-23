@@ -109,6 +109,11 @@ return function (uri, callback)
         end
 
         local varNode = vm.compileNode(source)
+        if (source.type == 'setfield' or source.type == 'setindex') and not varNode.hasDefined then
+            -- (a write through a proxy takes what its `__newindex` function declares for the value)
+            local _, proxyValue = vm.getProxyWriteTypes(vm.compileNode(source.node))
+            varNode = proxyValue or varNode
+        end
         local errs = {}
         if vm.canCastType(uri, varNode, valueNode, errs) then
             return

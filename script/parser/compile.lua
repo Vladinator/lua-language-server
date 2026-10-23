@@ -3514,8 +3514,8 @@ local function parseUnaryOP()
         start  = getPosition(TokenPos[Index], 'left'),
         finish = getPosition(TokenPos[Index] + #symbol - 1, 'right'),
     }
-    -- the bitwise `~x` exists from Lua 5.3 on (a WoW addon on 5.1 would not load)
-    if symbol == '~' and (State.version == 'Lua 5.1' or State.version == 'Lua 5.2') then
+    -- the bitwise `~x` exists from Lua 5.3 on (a WoW addon on 5.1 would not load; LuaJIT has the `bit` library instead)
+    if symbol == '~' and (State.version == 'Lua 5.1' or State.version == 'Lua 5.2' or (State.version == 'LuaJIT' and not State.luaJITExtensions)) then
         pushError {
             type    = 'UNSUPPORT_SYMBOL',
             version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
@@ -3598,9 +3598,9 @@ local function parseBinaryOP(asAction, level)
             }
         end
     end
-    -- the bitwise operators `&`, `|` and `~` exist from Lua 5.3 on (a WoW addon on 5.1 would not load)
+    -- the bitwise operators `&`, `|` and `~` exist from Lua 5.3 on (a WoW addon on 5.1 would not load; LuaJIT has the `bit` library instead)
     if (token == '&' or token == '|' or token == '~')
-    and (State.version == 'Lua 5.1' or State.version == 'Lua 5.2') then
+    and (State.version == 'Lua 5.1' or State.version == 'Lua 5.2' or (State.version == 'LuaJIT' and not State.luaJITExtensions)) then
         pushError {
             type    = 'UNSUPPORT_SYMBOL',
             version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
@@ -3614,11 +3614,11 @@ local function parseBinaryOP(asAction, level)
     if token == '//'
     or token == '<<'
     or token == '>>' then
-        -- << >>：Lua 5.3+ 与 LuaJIT 支持；//（地板除）仅 Lua 5.3+（LuaJIT 未反向移植）
+        -- `//`, `<<` and `>>` exist from Lua 5.3 on; LuaJIT has none of them (it has the `bit` library), except in its extension mode
         if  State.version ~= 'Lua 5.3'
         and State.version ~= 'Lua 5.4'
         and State.version ~= 'Lua 5.5'
-        and not (State.version == 'LuaJIT' and token ~= '//') then
+        and not (State.version == 'LuaJIT' and State.luaJITExtensions and token ~= '//') then
             pushError {
                 type    = 'UNSUPPORT_SYMBOL',
                 version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},

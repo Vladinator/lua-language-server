@@ -1790,3 +1790,91 @@ local x = 1 & 3 | 2 ~ 1
 local y = ~x
 ]]
 (nil)
+
+-- LuaJIT has none of the 5.3 operators (it has the `bit` library); only its extension mode (luajit_ext.lua) does
+Version = 'LuaJIT'
+TEST[[
+local x = 1 <!&!> 3
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'LuaJIT',
+    }
+}
+
+TEST[[
+local x = 1 <!|!> 3
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'LuaJIT',
+    }
+}
+
+TEST[[
+local x = 1 <!~!> 3
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'LuaJIT',
+    }
+}
+
+TEST[[
+local x = <!~!>3
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'LuaJIT',
+    }
+}
+
+TEST[[
+local x = 1 <!<<!> 2
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'LuaJIT',
+    }
+}
+
+TEST[[
+local x = 8 <!>>!> 1
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'LuaJIT',
+    }
+}
+
+TEST[[
+local x = 7 <!//!> 2
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'LuaJIT',
+    }
+}
+
+-- ... and the operators it does have
+TEST[[
+local x = 1 ~= 3
+local y = (1 + 2) * 3 % 4 ^ 2 / 5 - 6
+goto done
+::done::
+]]
+(nil)

@@ -86,7 +86,14 @@ local function asValue(source, title, level, typeNode)
     local ifr     = vm.getInfer(typeNode or source)
     local type    = ifr:viewFlagged(guide.getUri(source))
     local literal = ifr:viewLiterals()
-    local cont, maxLevel = buildTable(source, level)
+    -- (a value that is `nil` here has no table to preview: a field narrowed to nil would show the body of the type it was declared as)
+    ---@type string?
+    local cont
+    ---@type integer?
+    local maxLevel
+    if type ~= 'nil' then
+        cont, maxLevel = buildTable(source, level)
+    end
     ---@type string[]
     local pack = {}
     pack[#pack+1] = title

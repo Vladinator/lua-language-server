@@ -3001,4 +3001,61 @@ local Child2 = {}
 (class) HvParentB
 ]]
 
+-- a field narrowed to nil is `nil`, not the body of the type it was declared as
+TEST [[
+---@param t { a: string|nil }
+local function f(t)
+    if not t.a then
+        print(t.<?a?>)
+    end
+end
+]]
+"(field) t.a: nil"
+
+-- ... narrowed to a value it is that value's type
+TEST [[
+---@param t { a: string|nil }
+local function f(t)
+    if t.a then
+        print(t.<?a?>)
+    end
+end
+]]
+"(field) t.a: string"
+
+-- the table of a vararg of a union is an array of the union
+TEST [[
+---@param ... string|number
+local function f(...)
+    local <?packed?> = { ... }
+end
+]]
+"local packed: (string|number)[]"
+
+-- ... of one type, and of an optional
+TEST [[
+---@param ... string
+local function f(...)
+    local <?packed?> = { ... }
+end
+]]
+"local packed: string[]"
+
+TEST [[
+---@param ... string?
+local function f(...)
+    local <?packed?> = { ... }
+end
+]]
+"local packed: (string?)[]"
+
+-- ... a union inside the brackets of an element type needs none around it
+TEST [[
+---@param ... table<string, number|string>
+local function f(...)
+    local <?packed?> = { ... }
+end
+]]
+"local packed: table<string, string|number>[]"
+
 require 'hover.utility-names'

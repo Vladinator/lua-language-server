@@ -79,8 +79,8 @@ return function (uri, callback)
         local inlineShape
         -- (the table itself is one of its definitions: what it is declared as is the rest)
         local declared = 0
-        for _, def in ipairs(defs) do
-            if def ~= src then
+        for i = 1, #defs do
+            if defs[i] ~= src then
                 declared = declared + 1
             end
         end

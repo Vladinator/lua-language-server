@@ -83,6 +83,21 @@ local viewNodeSwitch;viewNodeSwitch = util.switch()
 
         if #source == 1 and source[1].type == 'varargs' then
             local node = vm.getInfer(source[1]):view(uri)
+            -- (`{ ... }` with `...: string|number` is `(string|number)[]`, not `string|number[]`: a union or an optional element needs its brackets)
+            local depth = 0
+            for i = 1, #node do
+                local ch = node:sub(i, i)
+                if ch == '(' or ch == '<' or ch == '{' then
+                    depth = depth + 1
+                elseif ch == ')' or ch == '>' or ch == '}' then
+                    depth = depth - 1
+                elseif ch == '|' and depth == 0 then
+                    return ('(%s)[]'):format(node)
+                end
+            end
+            if node:sub(-1) == '?' and depth == 0 then
+                return ('(%s)[]'):format(node)
+            end
             return ('%s[]'):format(node)
         end
 

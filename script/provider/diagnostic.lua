@@ -20,6 +20,7 @@ local fw           = require 'filewatch'
 local vm           = require 'vm.vm'
 local diagd        = require 'proto.diagnostic'
 local diagAffected = require 'workspace.diagnostic-affected'
+local guide        = require 'parser.guide'
 
 ---@alias diagnosticProvider.errRelated { uri?: uri, message?: string, start: integer, finish: integer }
 ---@alias diagnosticProvider.errInfo { version?: string[]|string, related?: diagnosticProvider.errRelated[] }
@@ -169,7 +170,8 @@ local function buildSyntaxError(uri, err)
             if rel.message then
                 rmessage = lang.script('PARSER_' .. rel.message)
             else
-                rmessage = text:sub(rel.start, rel.finish)
+                -- (a position is row and column, not a byte offset)
+                rmessage = text:sub(guide.positionToOffset(state, rel.start) + 1, guide.positionToOffset(state, rel.finish))
             end
             local relUri = rel.uri or uri
             local relState = files.getState(relUri)

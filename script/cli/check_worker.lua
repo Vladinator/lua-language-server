@@ -175,13 +175,22 @@ end
 ---@param uri uri
 local function downgrade_checks_to_opened(uri)
     local diagStatus = config.get(uri, 'Lua.diagnostics.neededFileStatus') --[[@as table<string, string>]]
+    local groupStatus = config.get(uri, 'Lua.diagnostics.groupFileStatus') --[[@as table<string, string>]]
     for d, status in pairs(diagStatus) do
         if status == 'Any' or status == 'Any!' then
             diagStatus[d] = 'Opened!'
         end
     end
     for d, status in pairs(protoDiag.getDefaultStatus() --[[@as table<string, string>]]) do
-        if status == 'Any' or status == 'Any!' then
+        -- (a diagnostic the user spoke for stays as they set it: `None` in `neededFileStatus`, or `None` for its group, turns it off here
+        -- as it does in the editor; only the ones that run by default are widened to every file of the check)
+        local groupOff = false
+        for _, group in ipairs(protoDiag.getGroups(d)) do
+            if groupStatus[group] == 'None' then
+                groupOff = true
+            end
+        end
+        if (status == 'Any' or status == 'Any!') and diagStatus[d] == nil and not groupOff then
             diagStatus[d] = 'Opened!'
         end
     end

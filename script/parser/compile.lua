@@ -3514,6 +3514,18 @@ local function parseUnaryOP()
         start  = getPosition(TokenPos[Index], 'left'),
         finish = getPosition(TokenPos[Index] + #symbol - 1, 'right'),
     }
+    -- the bitwise `~x` exists from Lua 5.3 on (a WoW addon on 5.1 would not load)
+    if symbol == '~' and (State.version == 'Lua 5.1' or State.version == 'Lua 5.2') then
+        pushError {
+            type    = 'UNSUPPORT_SYMBOL',
+            version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+            start   = op.start,
+            finish  = op.finish,
+            info    = {
+                version = State.version,
+            }
+        }
+    end
     Index = Index + 2
     return op, myLevel
 end
@@ -3585,6 +3597,19 @@ local function parseBinaryOP(asAction, level)
                 }
             }
         end
+    end
+    -- the bitwise operators `&`, `|` and `~` exist from Lua 5.3 on (a WoW addon on 5.1 would not load)
+    if (token == '&' or token == '|' or token == '~')
+    and (State.version == 'Lua 5.1' or State.version == 'Lua 5.2') then
+        pushError {
+            type    = 'UNSUPPORT_SYMBOL',
+            version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+            start   = op.start,
+            finish  = op.finish,
+            info    = {
+                version = State.version,
+            }
+        }
     end
     if token == '//'
     or token == '<<'

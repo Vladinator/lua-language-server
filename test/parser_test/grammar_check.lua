@@ -1712,3 +1712,81 @@ x = 0b1<!2!>
 {
     type = 'MALFORMED_NUMBER',
 }
+
+-- the bitwise operators `&`, `|`, `~` (binary and unary) exist from Lua 5.3 on
+Version = 'Lua 5.1'
+TEST[[
+local x = 1 <!&!> 3
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'Lua 5.1',
+    }
+}
+
+TEST[[
+local x = 1 <!|!> 3
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'Lua 5.1',
+    }
+}
+
+TEST[[
+local x = 1 <!~!> 3
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'Lua 5.1',
+    }
+}
+
+TEST[[
+local x = <!~!>3
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'Lua 5.1',
+    }
+}
+
+-- `~=` is the inequality in every version
+TEST[[
+local x = 1 ~= 3
+]]
+(nil)
+
+Version = 'Lua 5.2'
+TEST[[
+local x = 1 <!&!> 3
+]]
+{
+    type = 'UNSUPPORT_SYMBOL',
+    version = {'Lua 5.3', 'Lua 5.4', 'Lua 5.5'},
+    info = {
+        version = 'Lua 5.2',
+    }
+}
+
+Version = 'Lua 5.3'
+TEST[[
+local x = 1 & 3 | 2 ~ 1
+local y = ~x
+]]
+(nil)
+
+Version = 'Lua 5.4'
+TEST[[
+local x = 1 & 3 | 2 ~ 1
+local y = ~x
+]]
+(nil)

@@ -244,12 +244,14 @@ local function asNumber(source)
     if type(num) ~= 'number' then
         return nil
     end
-    local uri  = guide.getUri(source)
-    local text = files.getText(uri)
-    if not text then
+    local uri   = guide.getUri(source)
+    local text  = files.getText(uri)
+    local state = files.getState(uri)
+    if not text or not state then
         return nil
     end
-    local raw = text:sub(source.start + 1, source.finish)
+    -- (positions are row and column, not offsets into the text: on any line but the first the slice would be empty)
+    local raw = text:sub(guide.positionToOffset(state, source.start) + 1, guide.positionToOffset(state, source.finish))
     if not raw or not raw:find '[^%-%d%.]' then
         return nil
     end

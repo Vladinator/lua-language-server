@@ -7,9 +7,8 @@ return function (text)
     ---@type integer
     local current = 1
     ---@type { [integer]: integer, size: integer }
-    local lines = {}
+    local lines = { size = #text }
     lines[0] = 1
-    lines.size = #text
     local i = 0
     while true do
         local pos = sfind(text,'[\r\n]', current)

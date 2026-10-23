@@ -12,7 +12,7 @@ local c99 = require("plugins.ffi.c-parser.c99")
 ---@field [integer] any
 
 ---@class Ctx
----@field incdirs {quote: string[], system: string[]}
+---@field incdirs {quote?: string[], system?: string[]}
 ---@field defines table<string, Token?>
 ---@field ifmode (boolean|string)[]
 ---@field output string[]

@@ -18,7 +18,7 @@ protoDiagnostic.register {
     group    = 'unbalanced',
     severity = 'Warning',
     status   = 'Any',
-    description = 'Missing fields',
+    description = 'Missing fields: a table constructor lacks a required field of the class, or of the inline shape `{ x: number, y: number }`, it is declared as.',
 }
 
 -- `---@class (incremental) X`: a table constructor for the class is not checked for missing fields, it
@@ -75,6 +75,15 @@ return function (uri, callback)
 
         vm.removeNode(src) -- the node is not updated correctly, reason still unknown
         local defs = vm.getDefs(src)
+        ---@type parser.object?
+        local inlineShape
+        -- (the table itself is one of its definitions: what it is declared as is the rest)
+        local declared = 0
+        for _, def in ipairs(defs) do
+            if def ~= src then
+                declared = declared + 1
+            end
+        end
         ---@type table<string, missing-fields.defs>
         local sortedDefs = {}
         for _, def in ipairs(defs) do
@@ -108,8 +117,43 @@ return function (uri, callback)
             end
             if def.type == 'doc.type.array'
             or def.type == 'doc.type.table' then
-                return
+                -- (an inline shape `{ x: number, y: number }` that is the ONLY type the table is declared as has required fields like a
+                -- class has; `table<K, V>`, an array, a union with anything else and a shape without named fields (an index signature, a tuple) say nothing)
+                if def.type == 'doc.type.table' and declared == 1 then
+                    inlineShape = def
+                else
+                    return
+                end
             end
+        end
+        if inlineShape then
+            ---@type string[]
+            local missed = {}
+            ---@type table<string|integer, boolean>
+            local present = {}
+            for _, field in ipairs(src) do
+                local key = vm.getKey(field) or field.tindex
+                if key then
+                    present[key] = true
+                end
+            end
+            for _, field in ipairs(inlineShape.fields or {}) do
+                local key = vm.getKeyName(field)
+                if  type(key) == 'string'
+                and not field.optional
+                and not vm.compileNode(field):isNullable()
+                and not present[key] then
+                    missed[#missed+1] = ('`%s`'):format(key)
+                end
+            end
+            if #missed > 0 then
+                callback {
+                    start   = src.start,
+                    finish  = src.finish,
+                    message = MESSAGE:format('{ ... }', table.concat(missed, ', ')),
+                }
+            end
+            return
         end
 
         ---@type table<string|integer, boolean>?

@@ -280,7 +280,7 @@ function cloneAny(source, resolved)
     if source.type == 'doc.type.function' then
         ---@type parser.object[]
         local returns = {}
-        ---@type parser.object
+        ---@type parser.object.doc.type.function
         local newDocFunc = {
             type    = source.type,
             start   = source.start,

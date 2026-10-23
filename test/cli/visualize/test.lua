@@ -7,12 +7,12 @@ local function TestVisualize(fileName)
 	local inputFile = testDataDir .. fileName .. '.txt'
 	local outputFile = testDataDir .. fileName .. '-expected.txt'
 	local output = ''
-	---@type { write: fun(self: table, text: string) }
-	local writer = {}
-	---@param text string
-	function writer:write(text)
-		output = (output .. text)
-	end
+	local writer = {
+		---@param text string
+		write = function (_, text)
+			output = (output .. text)
+		end,
+	}
 	visualize.visualizeAst(assert(io.open(inputFile)):read('a'), writer)
 	local expectedOutput = assert(io.open(outputFile)):read('a')
 	if expectedOutput ~= output then

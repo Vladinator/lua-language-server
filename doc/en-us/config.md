@@ -465,7 +465,7 @@ Array<string>
 * ``"miss-sep-in-table"``
 * ``"miss-space-between"``
 * ``"miss-symbol"``
-* ``"missing-fields"``: Missing fields
+* ``"missing-fields"``: Missing fields: a table constructor lacks a required field of the class, or of the inline shape `{ x: number, y: number }`, it is declared as.
 * ``"missing-global-doc"``: Missing annotations for globals! Global functions must have a comment and annotations for all parameters and return values.
 * ``"missing-local-export-doc"``: Missing annotations for exported locals! Exported local functions must have a comment and annotations for all parameters and return values.
 * ``"missing-param-annotation"``: Enable diagnostics for a function that other files can reach (a global, a function of a global table, of an exported table) with a parameter that has no `---@param`. Local functions and file-private tables are not looked at (the wowlua-ls diagnostic of the same name).
@@ -1312,7 +1312,7 @@ object<string, string>
     */
     "lowercase-global": "Any",
     /*
-    Missing fields
+    Missing fields: a table constructor lacks a required field of the class, or of the inline shape `{ x: number, y: number }`, it is declared as.
     */
     "missing-fields": "Any",
     /*
@@ -1874,7 +1874,7 @@ object<string, string>
     */
     "lowercase-global": "Information",
     /*
-    Missing fields
+    Missing fields: a table constructor lacks a required field of the class, or of the inline shape `{ x: number, y: number }`, it is declared as.
     */
     "missing-fields": "Warning",
     /*

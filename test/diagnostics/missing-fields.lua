@@ -702,3 +702,50 @@ local function id(v)
     return {}
 end
 ]]
+
+-- an inline shape has required fields like a class: the table declared as nothing else is checked against it
+TEST [[
+---@param p { x: number, y: number }
+local function f(p) end
+f(<!{ x = 1 }!>)
+f({ x = 1, y = 2 })
+f({ x = 1, y = 2, z = 3 })
+
+---@type { a: number, b: string }
+local shaped = <!{ a = 1 }!>
+]]
+
+-- ... an optional or nullable field may be left out, an index signature and a table<K, V> have no required key
+TEST [[
+---@param p { x: number, y?: number, z: string|nil }
+local function f(p) end
+f({ x = 1 })
+
+---@param d table<string, number>
+local function g(d) end
+g({})
+
+---@param s { [string]: number }
+local function h(s) end
+h({})
+]]
+
+-- ... a union of shapes is not judged against each of them
+TEST [[
+---@param p { a: number }|{ b: number }
+local function f(p) end
+f({ a = 1 })
+f({ b = 1 })
+]]
+
+-- ... nested shapes, and a returned table
+TEST [[
+---@param p { inner: { z: number } }
+local function f(p) end
+f({ inner = { z = 1 } })
+f({ inner = <!{}!> })
+f(<!{}!>)
+
+---@return { a: number, b: string }
+local function g() return <!{ a = 1 }!> end
+]]

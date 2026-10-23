@@ -173,6 +173,12 @@ function loadfile(filename, mode, env) end
 function loadstring(text, chunkname) end
 
 ---@version 5.1
+---Returns the memory in use by Lua, in kilobytes (removed in Lua 5.2: use `collectgarbage('count')`).
+---@return integer
+---@nodiscard
+function gcinfo() end
+
+---@version 5.1
 ---@param proxy boolean|table|userdata
 ---@return userdata
 ---@nodiscard

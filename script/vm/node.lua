@@ -145,6 +145,16 @@ function mt:isOptional()
 end
 
 ---@return boolean
+function mt:hasAny()
+    for _, c in ipairs(self) do
+        if c.type == 'global' and c.cate == 'type' and c.name == 'any' then
+            return true
+        end
+    end
+    return false
+end
+
+---@return boolean
 function mt:hasFalsy()
     if self.optional then
         return true

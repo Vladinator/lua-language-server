@@ -783,6 +783,7 @@ TEST [[
     debug: debuglib,
     dofile: function,
     error: function,
+    gcinfo: function,
     getfenv: function,
     getmetatable: function,
     io: iolib,

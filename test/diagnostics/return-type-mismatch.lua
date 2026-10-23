@@ -205,3 +205,14 @@ local function right()
     return nums
 end
 ]]
+
+-- a returned value against a type nothing declares is not a mismatch (undefined-doc-name reports the name)
+TEST [[
+---@return GhostType
+local function ghost() return 1 end
+---@return GhostType?
+local function ghostOptional() return 'x' end
+---@class RealOne
+---@return RealOne
+local function real() return <!1!> end
+]]

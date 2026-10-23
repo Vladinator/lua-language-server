@@ -316,6 +316,8 @@ return function (uri, callback)
             and config.get(uri, 'Lua.type.checkFieldNilArguments')
             and not config.get(uri, 'Lua.type.weakNilCheck')
             and refNode:isOptional()
+            -- (`any` contains `nil` already: an optional `any` field, `---@field value? any`, is just `any`)
+            and not refNode:hasAny()
             and vm.isSubType(uri, 'nil', defNode) == false then
                 fits = false
                 errs[#errs+1] = 'TYPE_ERROR_OPTIONAL_DISMATCH'

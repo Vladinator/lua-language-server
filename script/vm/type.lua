@@ -301,6 +301,26 @@ local function checkValue(parent, child, mark, errs)
     return true
 end
 
+--- The type names the language itself has, with or without a `---@class` in the meta files.
+local builtinTypeNames = {
+    ['nil'] = true, ['boolean'] = true, ['string'] = true, ['number'] = true, ['integer'] = true, ['table'] = true,
+    ['function'] = true, ['thread'] = true, ['userdata'] = true, ['lightuserdata'] = true, ['any'] = true, ['unknown'] = true,
+    ['never'] = true, ['true'] = true, ['false'] = true, ['_G'] = true, ['_ENV'] = true, ['...'] = true, ['self'] = true,
+}
+
+--- A type name that nothing declares (`---@param x NoSuchType`, the library that declares it is not loaded): `undefined-doc-name` says so
+--- once, and the type is unknown to the checks that compare with it, which then say nothing more about it.
+---@param name string
+---@param suri uri
+---@return boolean
+local function isUndefinedType(name, suri)
+    if builtinTypeNames[name] or vm.isUtilityTypeName(name) then
+        return false
+    end
+    local globalVar = vm.getGlobal('type', name)
+    return not globalVar or #globalVar:getSets(suri) == 0
+end
+
 ---@param name string
 ---@param suri uri
 ---@return boolean
@@ -842,6 +862,9 @@ local function isSubTypeOfNames(uri, child, parent, mark, errs)
     or isAlias(childName, uri) then
         return nil
     end
+    if child.type == 'global' and child.cate == 'type' and isUndefinedType(childName, uri) then
+        return true
+    end
 
     if type(parent) == 'string' then
         local globalVar = vm.getGlobal('type', parent)
@@ -899,6 +922,9 @@ local function isSubTypeOfNames(uri, child, parent, mark, errs)
     if not parentName
     or isAlias(parentName, uri) then
         return nil
+    end
+    if parent.type == 'global' and parent.cate == 'type' and isUndefinedType(parentName, uri) then
+        return true
     end
 
     -- nothing has the type `never` but `never` (a table would pass as a class without fields)

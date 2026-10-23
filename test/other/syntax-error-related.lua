@@ -12,10 +12,18 @@ local function related(pad)
     files.setText(uri, ('local x = 1\n'):rep(pad) .. 'local function f()\n  if x then\n    print(x)\nend\n')
     local state = files.getState(uri)
     assert(state)
+    ---@type string[]
     local texts = {}
-    for _, d in ipairs(diag.syntaxErrors(uri, state) or {}) do
-        for _, rel in ipairs(d.relatedInformation or {}) do
-            texts[#texts+1] = rel.message
+    local errors = diag.syntaxErrors(uri, state)
+    if not errors then
+        return texts
+    end
+    for _, err in ipairs(errors) do
+        local list = err.relatedInformation
+        if list then
+            for _, rel in ipairs(list) do
+                texts[#texts+1] = rel.message
+            end
         end
     end
     return texts

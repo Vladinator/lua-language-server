@@ -2082,3 +2082,27 @@ local function producer(cb) end
 producer(function() end)
 local t = { cb = function() end }
 ]]
+
+-- an optional `any` field is `any`: it holds nil already, so passing it where a number is wanted is not reported (the other optional fields are)
+TEST [[
+---@class AnyField
+---@field value? any
+---@field count? number
+local anyField = {}
+---@param n number
+local function wantsNumber(n) return n end
+wantsNumber(anyField.value)
+wantsNumber(<!anyField.count!>)
+]]
+
+-- a type nothing declares is unknown (undefined-doc-name reports it): no mismatch on top; a declared one is still checked
+TEST [[
+---@param p GhostType
+local function ghost(p) end
+ghost('x')
+ghost(1)
+---@class RealOne
+---@param p RealOne
+local function real(p) end
+real(<!'x'!>)
+]]

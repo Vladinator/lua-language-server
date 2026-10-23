@@ -2,6 +2,9 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `FIX` A type name that nothing declares (the library that has it is not loaded) is reported once, by `undefined-doc-name`; `param-type-mismatch`, `return-type-mismatch`, `assign-type-mismatch` and `index-key-mismatch` no longer add a mismatch for every value that meets it.
+* `FIX` An optional `any` field (`---@field value? any`) passed on to a `number` parameter is no longer reported by `param-type-mismatch`: `any` already holds `nil`.
+* `NEW` The Lua 5.1 global `gcinfo` is known.
 * `FIX` The related information of a syntax error that quotes the text (the `function` of a missing `end`) was cut at the wrong place, empty on any line but the first.
 * `NEW` `deprecated` also reports a class marked `---@deprecated` where an annotation names it (`---@type OldClass`, `---@param p OldClass`, `---@return`), not at its own declaration.
 * `NEW` The four tables `Lua.diagnostics.neededFileStatus`, `groupFileStatus`, `severity` and `groupSeverity` accept the key `*`: the value for every diagnostic the table does not list. `{ "*": "Any" }` checks every file of the workspace with the diagnostics that are on (the ones that are off by default stay off), `{ "*": "Hint" }` in the severity tables quietens everything; a listed name, a name with `!` and a group keep their own value.

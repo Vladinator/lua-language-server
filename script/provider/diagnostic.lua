@@ -25,6 +25,10 @@ local guide        = require 'parser.guide'
 ---@alias diagnosticProvider.errRelated { uri?: uri, message?: string, start: integer, finish: integer }
 ---@alias diagnosticProvider.errInfo { version?: string[]|string, related?: diagnosticProvider.errRelated[] }
 
+---@class diagnosticProvider.relatedInformation
+---@field message  string
+---@field location table
+
 --- An LSP Diagnostic as sent to the client.
 ---@class diagnosticProvider.diagnostic
 ---@field range               table
@@ -34,7 +38,7 @@ local guide        = require 'parser.guide'
 ---@field code?               string
 ---@field tags?               integer[]
 ---@field data?               any
----@field relatedInformation? table[]
+---@field relatedInformation? diagnosticProvider.relatedInformation[]
 
 ---@class diagnosticProvider
 ---@field cache table<uri, diagnosticProvider.diagnostic[]|false>
@@ -160,7 +164,7 @@ local function buildSyntaxError(uri, err)
     end
 
     local related = info and info.related
-    ---@type table[]?
+    ---@type diagnosticProvider.relatedInformation[]?
     local relatedInformation
     if related then
         relatedInformation = {}
@@ -205,7 +209,7 @@ local function buildDiagnostic(uri, diag)
         return
     end
 
-    ---@type table[]?
+    ---@type diagnosticProvider.relatedInformation[]?
     local relatedInformation
     if diag.related then
         relatedInformation = {}

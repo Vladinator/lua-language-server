@@ -811,3 +811,12 @@ local proxy = setmetatable({}, { __newindex = flag and setNumber or setString })
 proxy.a = 1
 proxy.b = 'x'
 ]]
+
+-- a value assigned to a type nothing declares is not a mismatch (undefined-doc-name reports the name)
+TEST [[
+---@type GhostType
+local ghost = 'x'
+---@class RealOne
+---@type RealOne
+local <!real!> = 'x'
+]]

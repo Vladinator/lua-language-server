@@ -2,6 +2,7 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `FIX` A file saved as Latin-1 or CP1252 (old addons) made messages and the `--check` report carry invalid UTF-8 wherever a diagnostic or hover quoted its bytes (`Duplicate index `café``); the JSON the server writes is always valid UTF-8 now, each stray byte shown as U+FFFD.
 * `FIX` `undefined-field` and `inject-field` say nothing about a value whose type nothing declares, or whose class extends a parent nothing declares (the library is not loaded): `undefined-doc-name` / `undefined-doc-class` report the name once.
 * `FIX` The related information of a diagnostic (`duplicate-index`, `duplicate-set-field`, ...) quoted the text at a byte offset taken from a position: garbage, and invalid UTF-8 (the whole message refused by a client) in a file with multibyte characters. Completion after a syntax error in an annotation had the same mix-up.
 * `FIX` `tonumber(n)` with a number is a `number` (not `number?`), so `t[tonumber(mid)]` after rounding needs no nil check.

@@ -139,9 +139,35 @@ encode_map["nil"] = function ()
     return "null"
 end
 
+local utf8_len = utf8.len
+
+--- A string that is not valid UTF-8 (a quoted piece of a file saved as Latin-1 or CP1252: the old addons are full of them) becomes one that is,
+--- every byte that does not belong to a character replaced by U+FFFD; a client refuses, or silently drops, a message with invalid UTF-8.
+---@param v string
+---@return string
+local function replace_invalid_utf8(v)
+    ---@type string[]
+    local parts = {}
+    local from = 1
+    while from <= #v do
+        local ok, bad = utf8_len(v, from)
+        if ok or not bad then
+            parts[#parts+1] = string_sub(v, from)
+            break
+        end
+        parts[#parts+1] = string_sub(v, from, bad - 1)
+        parts[#parts+1] = string_char(0xEF, 0xBF, 0xBD)
+        from = bad + 1
+    end
+    return table_concat(parts)
+end
+
 ---@param v string
 ---@return string
 local function encode_string(v)
+    if not utf8_len(v) then
+        v = replace_invalid_utf8(v)
+    end
     return (string_gsub(v, '[%z\1-\31\\"]', encode_escape_map))
 end
 

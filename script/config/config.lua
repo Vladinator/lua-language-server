@@ -228,6 +228,8 @@ end
 ---@param ...  table
 function m.update(scp, ...)
     local oldConfig = m.getNowTable(scp)
+    -- (the very first load of a scope sets everything: that is not a change for anyone)
+    local loadedBefore = scp:get 'config.loaded'
     m.version = m.version + 1
     ---@type table<string, any>
     local newConfig = {}
@@ -271,7 +273,21 @@ function m.update(scp, ...)
                 m.event(scp.uri, key, newValue, oldValue)
             end
         end
+        -- a setting that was not there before (a `.luarc.json` created while the server runs, a client that sends only the settings that were changed) was
+        -- at its default: the watchers hear of it as of any other change, else what depends on it is never refreshed
+        if loadedBefore then
+            for key, newValue in pairs(newConfig) do
+                if oldConfig[key] == nil then
+                    local unit = template[key]
+                    local default = unit and unit.default
+                    if not util.equal(default, newValue) then
+                        m.event(scp.uri, key, newValue, default)
+                    end
+                end
+            end
+        end
     end
+    scp:set('config.loaded', true)
 
     m.event(scp.uri, '')
 end

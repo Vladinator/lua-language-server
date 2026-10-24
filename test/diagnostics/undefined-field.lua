@@ -440,3 +440,17 @@ TEST [[
 local f = function() end
 print(f.<!nothing!>, f[<!'nothing'!>])
 ]]
+
+-- a type nothing declares, or a class with a parent nothing declares, has unknown fields (undefined-doc-name / undefined-doc-class report the name)
+TEST [[
+---@type GhostObject
+local ghost = {}
+ghost:Append('a')
+print(ghost.count)
+---@class OrphanClass : GhostParent
+local orphan = {}
+orphan:inherited()
+---@class FullClass
+local full = {}
+print(full.<!missing!>)
+]]

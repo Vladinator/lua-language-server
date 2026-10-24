@@ -223,7 +223,8 @@ local function buildDiagnostic(uri, diag)
                 goto CONTINUE
             end
             relatedInformation[#relatedInformation+1] = {
-                message  = rel.message or rtext:sub(rel.start, rel.finish),
+                -- (a position is row and column, not a byte offset)
+                message  = rel.message or rtext:sub(guide.positionToOffset(relState, rel.start) + 1, guide.positionToOffset(relState, rel.finish)),
                 location = converter.location(rel.uri, converter.packRange(relState, rel.start, rel.finish))
             }
             ::CONTINUE::
@@ -242,6 +243,9 @@ local function buildDiagnostic(uri, diag)
         relatedInformation = relatedInformation,
     }
 end
+
+-- (the tests build one result by hand)
+m.buildDiagnostic = buildDiagnostic
 
 ---@param a diagnosticProvider.diagnostic[]?
 ---@param b diagnosticProvider.diagnostic[]?

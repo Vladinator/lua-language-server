@@ -43,7 +43,7 @@ return function (uri, callback)
         ---@type boolean?
         local ok
         for view in vm.getInfer(node):eachView(uri) do
-            if skipCheckClass[view] then
+            if skipCheckClass[view] or vm.hasUndeclaredAncestry(uri, view) then
                 return
             end
             ok = true

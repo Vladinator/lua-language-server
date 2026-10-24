@@ -314,11 +314,47 @@ local builtinTypeNames = {
 ---@param suri uri
 ---@return boolean
 local function isUndefinedType(name, suri)
-    if builtinTypeNames[name] or vm.isUtilityTypeName(name) then
+    if builtinTypeNames[name] or not name:match '^[%a_][%w_.%-]*$' or vm.isUtilityTypeName(name) then
         return false
     end
     local globalVar = vm.getGlobal('type', name)
     return not globalVar or #globalVar:getSets(suri) == 0
+end
+
+--- Is `name` a type nothing declares, or a class with an ancestor nothing declares (`---@class Real : Ghost`)? Nothing is known of what
+--- such a type has, so the checks of fields and calls on a value of it say nothing (`undefined-doc-name` / `undefined-doc-class` do).
+---@param suri uri
+---@param name string
+---@return boolean
+function vm.hasUndeclaredAncestry(suri, name)
+    ---@type table<string, true>
+    local seen = {}
+    ---@param current string
+    ---@return boolean
+    local function walk(current)
+        if seen[current] then
+            return false
+        end
+        seen[current] = true
+        if isUndefinedType(current, suri) then
+            return true
+        end
+        local globalVar = vm.getGlobal('type', current)
+        if not globalVar then
+            return false
+        end
+        for _, set in ipairs(globalVar:getSets(suri)) do
+            if set.type == 'doc.class' and set.extends then
+                for _, ext in ipairs(set.extends) do
+                    if ext.type == 'doc.extends.name' and type(ext[1]) == 'string' and walk(ext[1]) then
+                        return true
+                    end
+                end
+            end
+        end
+        return false
+    end
+    return walk(name)
 end
 
 ---@param name string

@@ -36,3 +36,29 @@ for _, pad in ipairs { 0, 1, 40 } do
 end
 
 files.remove(uri)
+
+-- ... and the related text a diagnostic of the checks quotes (`duplicate-index`: the other key), also in a file with multibyte characters
+-- (cut at a byte offset it was a piece of a character: invalid UTF-8 in the message, which the client refuses)
+local multibyteUri = furi.encode(TESTROOT .. 'diagnostic-related-multibyte.lua')
+---@type string[]
+local lines = {}
+for i = 1, 30 do
+    lines[#lines+1] = ('local value%d = "%s"'):format(i, string.char(0xe5, 0x8d, 0x83):rep(i))
+end
+lines[#lines+1] = 'local t = { alpha = 1, alpha = 2 }'
+files.setText(multibyteUri, table.concat(lines, string.char(10)) .. string.char(10))
+local multibyteState = files.getState(multibyteUri)
+assert(multibyteState)
+local row = #lines - 1
+local first  = ('local t = { '):len()
+local built = diag.buildDiagnostic(multibyteUri, {
+    start   = row * 10000 + first + #'alpha = 1, ',
+    finish  = row * 10000 + first + #'alpha = 1, alpha',
+    message = 'Duplicate index `alpha`.',
+    related = {
+        { uri = multibyteUri, start = row * 10000 + first, finish = row * 10000 + first + #'alpha' },
+    },
+})
+assert(built and built.relatedInformation and #built.relatedInformation == 1)
+assert(built.relatedInformation[1].message == 'alpha', ('the related text is %q'):format(built.relatedInformation[1].message))
+files.remove(multibyteUri)

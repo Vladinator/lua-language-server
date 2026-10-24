@@ -234,3 +234,15 @@ local function fill()
 end
 fill()
 ]]
+
+-- a type nothing declares has unknown fields: injecting one is not reported (the name is, by undefined-doc-name)
+TEST [[
+---@type GhostObject
+local ghost = {}
+ghost.field = 1
+---@class FullClass
+---@param full FullClass
+local function inject(full)
+    full.<!field!> = 1
+end
+]]

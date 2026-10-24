@@ -2624,8 +2624,7 @@ local function getluaDocByErr(state, start, position)
         if  err.finish <= position
         ---@diagnostic expect-next-line: need-check-nil
         and err.start >= start  then
-            ---@diagnostic expect-next-line: need-check-nil
-            if not text:sub(err.finish + 1, position):find '%S' then
+            if not text:sub(guide.positionToOffset(state, err.finish) + 1, guide.positionToOffset(state, position)):find '%S' then
                 targetError = err
                 break
             end

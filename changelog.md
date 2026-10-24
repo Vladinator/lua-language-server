@@ -2,6 +2,8 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `FIX` A file that is not open and changes on disk (a `git checkout`, a formatter, another editor) now starts the workspace diagnosis like a save does; before, the files that use it kept the diagnostics of its old text until the next save (a file created or removed already did).
+* `FIX` A file closed without saving is what is on disk again: the server kept the text that was discarded ("Don't save"), and the files that use it, hover and go to definition went on using it.
 * `FIX` A line longer than 10000 characters (generated data files) pushed the positions of what it contains into the next line's range: a local declared on it was `undefined-global` on the lines after it. The columns end at the last one, like the positions of the editor features already did.
 * `FIX` A file saved as Latin-1 or CP1252 (old addons) made messages and the `--check` report carry invalid UTF-8 wherever a diagnostic or hover quoted its bytes (`Duplicate index `café``); the JSON the server writes is always valid UTF-8 now, each stray byte shown as U+FFFD.
 * `FIX` `undefined-field` and `inject-field` say nothing about a value whose type nothing declares, or whose class extends a parent nothing declares (the library is not loaded): `undefined-doc-name` / `undefined-doc-class` report the name once.

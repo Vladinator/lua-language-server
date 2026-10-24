@@ -973,6 +973,11 @@ files.watch(function (ev, uri) ---@async
         m.stopScopeDiag(uri)
         m.refresh(uri)
         m.refreshScopeDiag('OnChange', uri)
+        if not files.isOpen(uri) then
+            -- a file that is not open and changes (a `git checkout`, a formatter, another editor) is a save as far as the files that use it go: it is
+            -- created and removed the same way above, and the editor never sends a save for it
+            m.refreshScopeDiag('OnSave', uri)
+        end
     elseif ev == 'open' then
         if ws.isReady(uri) then
             m.resendDiagnostic(uri)

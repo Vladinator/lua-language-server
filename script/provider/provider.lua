@@ -370,6 +370,14 @@ m.register 'textDocument/didClose' {
         files.close(uri)
         if not files.isLua(uri) then
             files.remove(uri)
+        elseif files.exists(uri) then
+            -- a closed file is what is on disk: the editor drops the changes that were not saved ("Don't save"), and the files that use it,
+            -- hover and go to definition must not go on with the text that was discarded
+            local path = furi.decode(uri)
+            local text = path and util.loadFile(path)
+            if text and text ~= files.getText(uri) then
+                files.setText(uri, text, false)
+            end
         end
     end
 }

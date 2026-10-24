@@ -338,14 +338,21 @@ end
 ---@param leftOrRight 'left'|'right'
 ---@return parser.position
 local function getPosition(offset, leftOrRight)
+    -- (a column past the end of the row's range would land in the next row: a line longer than LineMulti characters, generated data
+    -- mostly, ends at the last column like `guide.positionOf` clamps it, and what follows on the next lines stays after it)
+    ---@type integer
+    local col
     if not offset or offset > #Lua then
-        return LineMulti * Line + #Lua - LineOffset + 1
-    end
-    if leftOrRight == 'left' then
-        return LineMulti * Line + offset - LineOffset
+        col = #Lua - LineOffset + 1
+    elseif leftOrRight == 'left' then
+        col = offset - LineOffset
     else
-        return LineMulti * Line + offset - LineOffset + 1
+        col = offset - LineOffset + 1
     end
+    if col >= LineMulti then
+        col = LineMulti - 1
+    end
+    return LineMulti * Line + col
 end
 
 ---@return string?          word

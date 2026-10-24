@@ -34,3 +34,9 @@ TEST [[
 ---@class c
 c = {}
 ]]
+
+-- a line longer than the 10000 columns of a position (generated data): the code on the lines after it still sees what the line declares,
+-- and still reports what is not declared
+TEST("local long = '" .. ('x'):rep(12000) .. "'\nprint(long)\nprint(<!notDeclared!>)\n")
+TEST("local first = {" .. ('1,'):rep(6000) .. "} local second = 2\nprint(first, second)\nprint(<!notDeclared!>)\n")
+TEST("local a = 1" .. (' '):rep(10050) .. "local b = 2; print(b)\nprint(a, b, <!notDeclared!>)\n")

@@ -2,6 +2,7 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `FIX` `tonumber(n)` with a number is a `number` (not `number?`), so `t[tonumber(mid)]` after rounding needs no nil check.
 * `FIX` `Lua.runtime.version = "LuaJIT"` rejects the Lua 5.3 operators `&`, `|`, `~`, `<<`, `>>` and `//` like stock LuaJIT does (it has the `bit` library); `Lua.runtime.enableLuaJITExtensions` keeps accepting the bit operators.
 * `FIX` A type name that nothing declares (the library that has it is not loaded) is reported once, by `undefined-doc-name`; `param-type-mismatch`, `return-type-mismatch`, `assign-type-mismatch` and `index-key-mismatch` no longer add a mismatch for every value that meets it.
 * `FIX` An optional `any` field (`---@field value? any`) passed on to a `number` parameter is no longer reported by `param-type-mismatch`: `any` already holds `nil`.

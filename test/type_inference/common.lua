@@ -9767,6 +9767,23 @@ TEST 'number?' [[
 local <?v?> = tonumber("42")
 ]]
 
+-- a number given to `tonumber` comes back as it is: never nil (`t[tonumber(mid)]` in code that rounds first)
+TEST 'number' [[
+local <?v?> = tonumber(math.floor(2.5))
+]]
+
+TEST 'number' [[
+local n = 1.5
+local <?v?> = tonumber(n)
+]]
+
+-- ... an unknown argument may not be a number
+TEST 'number?' [[
+---@type any
+local x
+local <?v?> = tonumber(x)
+]]
+
 -- `---@return self` called with a colon returns the receiver itself (TypeScript's `this` type), not the class that declares the method
 TEST 'SelfChild' [[
 ---@class SelfBase

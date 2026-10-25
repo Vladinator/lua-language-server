@@ -110,6 +110,19 @@ local function loadDirectoryFiles(dirPath)
                 known[existing] = true
             end
 
+            --- A skipped file must not leave a diagnostic behind that nothing can run: the diagnosis of every file would raise on it.
+            local function forgetNew()
+                for registered in pairs(diag.diagnosticDatas) do
+                    if not known[registered] then
+                        diag.diagnosticDatas[registered] = nil
+                        for _, group in pairs(diag.diagnosticGroups) do
+                            group[registered] = nil
+                        end
+                    end
+                end
+                diag.diagnosticDatas[name] = before
+            end
+
             local src, readErr = util.loadFile(filePath)
             if not src then
                 log.warn(('Diagnostic plugin: failed to read [%s]: %s'):format(filePath, readErr))
@@ -127,13 +140,13 @@ local function loadDirectoryFiles(dirPath)
             if not suc then
                 log.error(('Diagnostic plugin: error running [%s]: %s'):format(filePath, result))
                 showError(dirPath, result)
-                diag.diagnosticDatas[name] = before
+                forgetNew()
                 goto CONTINUE
             end
 
             if before and owner[name] ~= filePath then
                 log.warn(('Diagnostic plugin [%s] registers %q, which collides with an existing diagnostic of the same name. Skipped.'):format(filePath, name))
-                diag.diagnosticDatas[name] = before
+                forgetNew()
                 goto CONTINUE
             end
 
@@ -153,12 +166,13 @@ local function loadDirectoryFiles(dirPath)
                     goto CONTINUE
                 end
                 log.warn(('Diagnostic plugin [%s] must self-register as %q (its own filename) via proto.diagnostic.register -- see core/diagnostics/extra/secret-access.lua for the expected shape.'):format(filePath, name))
+                forgetNew()
                 goto CONTINUE
             end
 
             if type(result) ~= 'function' then
                 log.warn(('Diagnostic plugin [%s] must `return function(uri, callback) ... end`.'):format(filePath))
-                diag.diagnosticDatas[name] = before
+                forgetNew()
                 goto CONTINUE
             end
 

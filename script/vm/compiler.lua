@@ -2250,6 +2250,10 @@ local function compileForVars(source, target)
         source._iterArgs = iterArgs
         source._iterVars = {}
     end
+    -- (the nodes of the three stand-in objects below are kept outside the compile frames, so the bookkeeping that drops what was built from a
+    -- half-built ancestor cannot reach them: a status that came out unknown because its compile was running right then stayed unknown, and so did the
+    -- loop variable on every later compile. They are dropped here when this build consumed such a compile.)
+    local watch <close> = vm.watchCompileCycles()
     -- iterator
     if not vm.getNode(iterator) then
         selectNode(iterator,    source.exps, 1)
@@ -2268,6 +2272,11 @@ local function compileForVars(source, target)
                 local node = getReturn(iterator, i, iterArgs)
                 node:removeOptional()
                 vm.setNode(loc, node)
+                if watch.hit then
+                    vm.removeNode(iterator)
+                    vm.removeNode(iterArgs[1])
+                    vm.removeNode(iterArgs[2])
+                end
                 return true
             end
         end

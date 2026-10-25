@@ -2,6 +2,7 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `FIX` The loop variable of `for k, v in ipairs(t)` / `pairs(t)` could come out `unknown` for good when the table's own type was being computed at that moment (a result built from a half-finished computation was kept); it is recomputed now.
 * `FIX` The fallback of `x or "lit"` / `c and "lit" or "lit"` is checked against the declared type (`state.role = f() or "NONE"` with `f` giving a plain `string` let any text through), by `assign-type-mismatch`, `param-type-mismatch`, `return-type-mismatch` and `cast-local-type`; completion inside such a literal (and on the left of `==`, and for a local narrowed by an assignment) offers the declared literals.
 * `FIX` `pairs` over `{ numSpecs: number, [number]: number }` gives the keys `string|number` (the named fields are keys too), and `impossible-comparison` says nothing about a variable that has no type of its own.
 * `FIX` A setting that appears for the first time after the settings were loaded (a `.luarc.json` created while the server runs, a client that sends only the settings the user changed) is a change like any other: the diagnostics of the open files, the workspace and the rest that depend on it are refreshed. Before, only a setting that was already there when the settings were loaded was heard of; a client that sends every setting (VS Code) never showed it.

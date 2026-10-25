@@ -87,8 +87,7 @@ return function (uri, callback)
         ---@type table<string, missing-fields.defs>
         local sortedDefs = {}
         -- (an index loop: the loop variable of `ipairs(defs)` came out `unknown` whenever another check compiled that call before the loop, see TODO.md)
-        for i = 1, #defs do
-            local def = defs[i]
+        for _, def in ipairs(defs) do
             if def.type == 'doc.class' then
                 -- `---@class (incremental) X`: objects of X are built field by
                 -- field, so a table constructor is never expected to be complete

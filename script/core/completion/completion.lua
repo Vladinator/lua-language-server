@@ -1990,6 +1990,14 @@ local function checkEqualEnumLeft(state, position, source, results, isInArray)
         end
     end)
     local defs = vm.getDefs(source)
+    if source.type == 'getlocal' and source.node and source.node.bindDocs then
+        -- (a local declared `---@type Mode` and assigned "queue" is narrowed to that literal at this read: the declared type is what a comparison or
+        -- an assignment may take, the narrowed one would offer nothing)
+        local declared = vm.getDefs(source.node)
+        if #declared > #defs then
+            defs = declared
+        end
+    end
     checkTypingEnum(state, position, defs, str, results, isInArray)
 end
 

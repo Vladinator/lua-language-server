@@ -216,3 +216,22 @@ local function ghostOptional() return 'x' end
 ---@return RealOne
 local function real() return <!1!> end
 ]]
+
+-- the fallback literal of a returned `x or "lit"` is checked against the declared return type
+TEST [[
+---@alias RfMode "queue"|"latest"
+---@return string
+local function str() end
+---@return boolean
+local function flag() end
+---@return RfMode
+local function bad1() return str() or <!"quue"!> end
+---@return RfMode
+local function bad2() return <!flag() and "quue" or "latest"!> end
+---@return RfMode
+local function good1() return str() or "queue" end
+---@return RfMode
+local function good2() return flag() and "queue" or "latest" end
+---@return string
+local function plain() return str() or "anything" end
+]]

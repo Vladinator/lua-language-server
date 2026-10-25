@@ -178,3 +178,28 @@ local function f(s, n, b, u, t, a, o)
     if y == 1 then end
 end
 ]]
+
+-- a variable that says nothing itself (the key of `pairs` over a record with named fields only) is not turned into a `string` by an earlier
+-- comparison with a string: the later comparison with a number is not judged (found in a user's addon)
+TEST [[
+---@type { name: string, size: number }
+local plain = {}
+for k in pairs(plain) do
+    if k == "name" then end
+    if k == 1 then end
+end
+---@return unknown
+local function u() end
+local z = u()
+if z == "a" then end
+if z == 1 then end
+]]
+
+-- ... while a declared `string` still is
+TEST [[
+---@param s string
+local function f(s)
+    if s == "a" then end
+    if <!s == 1!> then end
+end
+]]

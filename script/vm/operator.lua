@@ -858,3 +858,35 @@ vm.binarySwitch = util.switch()
             vm.setNode(source, vm.declareGlobal('type', 'boolean'))
         end
     end)
+
+
+--- The literals that a value built with `or` / `and` (and parentheses) can end up as: `f() or "NONE"` can be `"NONE"`, `ok and "A" or "B"` either of them.
+--- The type of the whole is the union of its parts, and a wider part swallows a literal (`string or "NONE"` is `string`): a literal that is not allowed
+--- where the value goes would pass. A literal that stands alone is not listed (the check of the whole value is its check).
+---@param value parser.object
+---@return parser.object[]
+function vm.getFallbackLiterals(value)
+    ---@type parser.object[]
+    local found = {}
+    ---@param node parser.object
+    ---@param top  boolean
+    local function walk(node, top)
+        if node.type == 'paren' then
+            if node.exp then
+                walk(node.exp, top)
+            end
+        elseif node.type == 'binary' and node.op and (node.op.type == 'or' or node.op.type == 'and') then
+            -- (the left side of `and` is a condition: what it is does not come out)
+            if node.op.type == 'or' and node[1] then
+                walk(node[1], false)
+            end
+            if node[2] then
+                walk(node[2], false)
+            end
+        elseif not top and (node.type == 'string' or node.type == 'number' or node.type == 'integer' or node.type == 'boolean') then
+            found[#found+1] = node
+        end
+    end
+    walk(value, true)
+    return found
+end

@@ -334,6 +334,22 @@ return function (uri, callback)
                         vm.getInfer(rawDefNode):view(uri)
                     ) .. '\n' .. vm.viewTypeErrorMessage(uri, errs),
                 }
+            else
+                -- `setRole(f() or "NONE")`: a literal that the wider part of the expression swallows is checked on its own
+                for _, literal in ipairs(vm.getFallbackLiterals(arg)) do
+                    local literalNode = vm.compileNode(literal)
+                    local literalErrs = {}
+                    if not vm.canCastType(uri, defNode, literalNode, literalErrs) then
+                        callback {
+                            start   = literal.start,
+                            finish  = literal.finish,
+                            message = MESSAGE:format(
+                                vm.getInfer(literalNode):view(uri),
+                                vm.getInfer(getRawDefNode(funcNode, i)):view(uri)
+                            ) .. '\n' .. vm.viewTypeErrorMessage(uri, literalErrs),
+                        }
+                    end
+                end
             end
             ::CONTINUE::
         end

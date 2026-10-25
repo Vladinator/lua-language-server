@@ -2036,17 +2036,43 @@ local function checkEqualEnumInString(state, position, results)
         return
     end
     if parent.type == 'binary' then
-        if source ~= parent[2] then
-            return
-        end
         if not parent.op then
             return
         end
-        -- (`x == '<here>'`, and the fallback of `x or '<here>'`: the values the left operand can be)
-        if parent.op.type ~= '==' and parent.op.type ~= '~=' and parent.op.type ~= 'or' then
+        if source == parent[1] and (parent.op.type == '==' or parent.op.type == '~=') then
+            -- (`'<here>' == x`: the same literals, from the right operand)
+            checkEqualEnumLeft(state, position, parent[2], results)
             return
         end
-        checkEqualEnumLeft(state, position, parent[1], results)
+        if source ~= parent[2] then
+            return
+        end
+        -- (`x == '<here>'`, and the fallback of `x or '<here>'`: the values the left operand can be)
+        local op = parent.op.type
+        if op ~= '==' and op ~= '~=' and op ~= 'or' and op ~= 'and' then
+            return
+        end
+        local before = #results
+        if op ~= 'and' then
+            checkEqualEnumLeft(state, position, parent[1], results)
+        end
+        if op == '==' or op == '~=' or #results > before then
+            -- (the left operand had literals of its own: they are what the target takes too, offering both would list each twice)
+            return
+        end
+        -- `state.role = f() or '<here>'`, `cond and '<here>' or 'NONE'`: the literal is a value of what the whole expression goes to, the target of the
+        -- assignment (a plain `string` on the left has no literals of its own to offer)
+        local whole = parent
+        while whole.parent
+        and (whole.parent.type == 'paren'
+            or (whole.parent.type == 'binary' and whole.parent.op
+                and (whole.parent.op.type == 'or' or whole.parent.op.type == 'and'))) do
+            whole = whole.parent
+        end
+        parent = whole.parent
+        if not parent then
+            return
+        end
     end
     if (parent.type == 'tableexp') then
         checkEqualEnumLeft(state, position, parent.parent and parent.parent.parent, results, true)
@@ -2057,10 +2083,14 @@ local function checkEqualEnumInString(state, position, results)
     end
 
     if parent.type == 'setlocal'
-    or parent.type == 'setglobal'
-    or parent.type == 'setfield'
-    or parent.type == 'setindex' then
+    or parent.type == 'setglobal' then
         checkEqualEnumLeft(state, position, parent.node, results)
+    end
+    -- (a field assignment: the field is the set node itself, `parent.node` is the receiver, `state` of `state.role = '<here>'`)
+    if parent.type == 'setfield'
+    or parent.type == 'setindex'
+    or parent.type == 'setmethod' then
+        checkEqualEnumLeft(state, position, parent, results)
     end
     if parent.type == 'tablefield'
     or parent.type == 'tableindex' then

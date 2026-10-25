@@ -9881,3 +9881,33 @@ TEST 'any' [[
 local k = 2
 local <?v?> = select(k, 'a', 'b')
 ]]
+
+-- `pairs` over a table with an index signature and named fields: the named fields are keys too (`string`), so the key is `string|number`, not `number` alone
+-- (found in a user's addon: `{ numSpecs: number, [number]: number }` and `if k ~= "numSpecs"`)
+TEST 'string|number' [[
+---@type { numSpecs: number, [number]: number }
+local m = {}
+for <?k?> in pairs(m) do end
+]]
+
+TEST 'string|number' [[
+---@type table<string, { numSpecs: number, [number]: number }>
+local roles = {}
+for _, specToClass in pairs(roles) do
+    for <?k?> in pairs(specToClass) do end
+end
+]]
+
+-- ... a table with named fields only keeps saying nothing (a table may have more keys than its type names)
+TEST 'unknown' [[
+---@type { name: string, size: number }
+local m = {}
+for <?k?> in pairs(m) do end
+]]
+
+-- ... a plain index signature is unchanged
+TEST 'string' [[
+---@type { [string]: number }
+local m = {}
+for <?k?> in pairs(m) do end
+]]

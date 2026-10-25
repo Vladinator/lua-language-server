@@ -2106,3 +2106,28 @@ ghost(1)
 local function real(p) end
 real(<!'x'!>)
 ]]
+
+-- the fallback literal of an argument `x or "lit"` is checked against the parameter (a plain `string` on the left makes the whole expression
+-- fit, the literal alone does not)
+TEST [[
+---@alias PfMode "queue"|"latest"
+---@param m PfMode
+local function take(m) end
+---@param m? PfMode
+local function takeOpt(m) end
+---@return string
+local function str() end
+---@return any
+local function any() end
+---@return boolean
+local function flag() end
+take(str() or <!"quue"!>)
+take(any() or <!"quue"!>)
+takeOpt(str() or <!"quue"!>)
+take(<!flag() and "quue" or "latest"!>)
+take((str() or <!"quue"!>))
+take(str() or "queue")
+take(any() or "latest")
+takeOpt(str() or "queue")
+take(flag() and "queue" or "latest")
+]]

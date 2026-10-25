@@ -820,3 +820,66 @@ local ghost = 'x'
 ---@type RealOne
 local <!real!> = 'x'
 ]]
+
+-- the fallback literal of `x or "lit"` / `c and "lit" or "lit"` is a value of its own: it is checked against the declared type
+-- (found in a user's addon: `state.role = UnitGroupRolesAssigned and UnitGroupRolesAssigned(unit) or "NONE"`)
+TEST [[
+---@alias FbMode "queue"|"latest"
+---@class FbState
+---@field mode FbMode
+---@field name string
+---@type FbState
+local s = {}
+---@return string
+local function str() end
+---@return any
+local function any() end
+---@return FbMode
+local function mode() end
+---@return boolean
+local function flag() end
+s.mode = str() or <!"quue"!>
+s.mode = any() or <!"quue"!>
+s.mode = mode() or <!"quue"!>
+<!s.mode!> = flag() and "quue" or "latest"
+<!s.mode!> = flag() and "queue" or "quue"
+s.mode = (str() or <!"quue"!>)
+s.mode = str() or str() or <!"quue"!>
+s.mode = str() or <!"quue"!> or str()
+s.mode = str() or "queue"
+s.mode = mode() or "latest"
+s.mode = flag() and "queue" or "latest"
+s.mode = (str() or "queue")
+s.mode = str()
+s.name = str() or "anything"
+s.name = flag() and "a" or "b"
+]]
+
+-- ... a table field, an index and a number union too
+TEST [[
+---@alias FbBits 2|3
+---@class FbBox
+---@field bits FbBits
+---@field list ("a"|"b")[]
+---@type FbBox
+local b = {}
+---@return integer
+local function int() end
+b.bits = int() or <!5!>
+b.bits = int() or 3
+b["bits"] = int() or <!5!>
+<!b.list[1]!> = int() and "c" or "a"
+b.list[1] = int() and "b" or "a"
+]]
+
+-- a local typed by its value only is never wrong in its fallback; a declared one is (found by the repo's own check: `local cfg = load() or false`)
+TEST [[
+---@return string[]?
+local function load() end
+local cfg = load() or false
+local flag = load() and "a" or 1
+---@return string
+local function word() end
+---@type "a"|"b"
+local typed = word() or <!"c"!>
+]]

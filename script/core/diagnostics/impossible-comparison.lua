@@ -138,6 +138,11 @@ return function (uri, callback)
             return
         end
         delayer:delay()
+        if other.type == 'getlocal' and other.node and vm.isUnknown(vm.compileNode(other.node)) then
+            -- (a variable that says nothing itself, such as the key of `pairs` over a record with named fields: an earlier `k == "name"` narrows it
+            -- to `string` here, which is not a declaration)
+            return
+        end
         local otherNode = vm.compileNode(other)
         local literals = declaredLiterals(uri, otherNode)
         if not literals then

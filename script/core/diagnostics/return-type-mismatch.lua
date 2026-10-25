@@ -170,6 +170,24 @@ return function (uri, callback, name)
                     ) .. '\n' .. vm.viewTypeErrorMessage(uri, errs),
                 }
                 ok = false
+            else
+                -- `return f() or "NONE"`: a literal that the wider part of the expression swallows is checked on its own
+                for _, literal in ipairs(vm.getFallbackLiterals(exp)) do
+                    local literalNode = vm.compileNode(literal)
+                    local literalErrs = {}
+                    if not vm.canCastType(uri, docRet, literalNode, literalErrs) then
+                        report {
+                            start   = literal.start,
+                            finish  = literal.finish,
+                            message = MESSAGE:format(
+                                i,
+                                vm.getInfer(docRet):view(uri),
+                                vm.getInfer(literalNode):view(uri)
+                            ) .. '\n' .. vm.viewTypeErrorMessage(uri, literalErrs),
+                        }
+                        ok = false
+                    end
+                end
             end
         end
         return ok

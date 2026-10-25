@@ -2292,6 +2292,141 @@ local y = x or '<??>'
     },
 }
 
+-- the left of an `and` is only a condition: its literals are not offered for the right side, which goes where the whole expression goes
+TEST [[
+---@class ZAndState
+---@field role "zra"|"zrb"
+
+---@return "zlx"|"zly"
+local function cond() return 'zlx' end
+
+---@type ZAndState
+local state = {}
+state.role = cond() and '<??>' or 'zra'
+]]
+{
+    {
+        label  = "'zra'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+    {
+        label  = "'zrb'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+}
+
+-- the literal on the LEFT of a comparison offers the same literals as on the right
+TEST [[
+---@param role "zra"|"zrb"
+local function f(role)
+    if '<??>' == role then end
+end
+]]
+{
+    {
+        label  = "'zra'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+    {
+        label  = "'zrb'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+}
+
+-- the fallback of an `or` / `and` goes where the whole expression goes: `state.role = getRole() or '<??>'` with `getRole` giving a plain `string` has no literals on
+-- the left to offer, the declared field has (reported by the user on VladsGroupStatusLib: no completion, and any other text was accepted)
+TEST [[
+---@class ZRoleState
+---@field role "zra"|"zrb"
+
+---@return string
+local function getRole() return '' end
+
+---@type ZRoleState
+local state = {}
+state.role = getRole() or '<??>'
+]]
+{
+    {
+        label  = "'zra'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+    {
+        label  = "'zrb'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+}
+
+TEST [[
+---@class ZRoleState
+---@field role "zra"|"zrb"
+
+---@type ZRoleState
+local state = {}
+local flag = true
+state.role = flag and '<??>' or 'zra'
+]]
+{
+    {
+        label  = "'zra'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+    {
+        label  = "'zrb'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+}
+
+TEST [[
+---@class ZRoleState
+---@field role "zra"|"zrb"
+
+---@return string
+local function getRole() return '' end
+
+---@type ZRoleState
+local state = {}
+state.role = (getRole() or '<??>')
+]]
+{
+    {
+        label  = "'zra'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+    {
+        label  = "'zrb'",
+        kind   = define.CompletionItemKind.EnumMember,
+        textEdit = EXISTS,
+    },
+}
+
+-- ... a field without a literal union offers none of them
+TEST [[
+---@class ZPlainState
+---@field name string
+
+---@return string
+local function getName() return '' end
+
+---@type ZPlainState
+local state = {}
+state.name = getName() or '<??>'
+]]
+(function (results)
+    for _, res in ipairs(results) do
+        assert(res.kind ~= define.CompletionItemKind.EnumMember, 'no literal of another type: ' .. tostring(res.label))
+    end
+end)
+
 TEST [[
 ---@type "a"|"b"|"c"
 local x

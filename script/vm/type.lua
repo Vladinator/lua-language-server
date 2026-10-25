@@ -1653,16 +1653,27 @@ function vm.getTableKey(uri, tnode, vnode, reverse)
     local result = vm.createNode()
     for tn in tnode:eachObject() do
         if tn.type == 'doc.type.table' then
+            -- `{ numSpecs: number, [number]: number }`: next to an index signature the named fields are keys too (`string`), else the loop key of
+            -- `pairs` would be `number` and `k ~= "numSpecs"` an impossible comparison. A table with named fields only keeps saying nothing here.
+            local hasSignature = false
             for _, field in ipairs(tn.fields) do
-                if  field.name.type ~= 'doc.field.name'
-                and field.extends then
+                if field.name.type ~= 'doc.field.name' then
+                    hasSignature = true
+                    break
+                end
+            end
+            for _, field in ipairs(tn.fields) do
+                local named = field.name.type == 'doc.field.name'
+                if  field.extends
+                and (not named or hasSignature) then
+                    local keyNode = named and vm.declareGlobal('type', 'string') or vm.compileNode(field.name)
                     if reverse then
                         if vm.isSubType(uri, vm.compileNode(field.extends), vnode) then
-                            result:merge(vm.compileNode(field.name))
+                            result:merge(keyNode)
                         end
                     else
                         if vm.isSubType(uri, vnode, vm.compileNode(field.extends)) then
-                            result:merge(vm.compileNode(field.name))
+                            result:merge(keyNode)
                         end
                     end
                 end

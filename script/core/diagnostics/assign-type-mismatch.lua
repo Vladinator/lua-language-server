@@ -56,6 +56,21 @@ local function hasMarkClass(source)
     return false
 end
 
+--- Whether a `local` declaration carries a `---@type` of its own: a bare `local x = f() or false` is typed by its value, no literal in it is wrong.
+---@param source parser.object
+---@return boolean
+local function hasDocType(source)
+    if source.type ~= 'local' then
+        return true
+    end
+    for _, doc in ipairs(source.bindDocs or {}) do
+        if doc.type == 'doc.type' then
+            return true
+        end
+    end
+    return false
+end
+
 ---@async
 return function (uri, callback)
     local state = files.getState(uri)
@@ -116,6 +131,24 @@ return function (uri, callback)
         end
         local errs = {}
         if vm.canCastType(uri, varNode, valueNode, errs) then
+            -- `state.role = f() or "NONE"`: with `f` giving a plain `string` the literal is swallowed by the union, and a wrong one would pass
+            -- (a plain local is cast-local-type's; a local that nothing declares takes its type from the value, so no literal is wrong)
+            if source.type ~= 'setlocal' and hasDocType(source) then
+                for _, literal in ipairs(vm.getFallbackLiterals(value)) do
+                    local literalNode = vm.compileNode(literal)
+                    local literalErrs = {}
+                    if not vm.canCastType(uri, varNode, literalNode, literalErrs) then
+                        callback {
+                            start   = literal.start,
+                            finish  = literal.finish,
+                            message = MESSAGE:format(
+                                vm.getInfer(literalNode):view(uri),
+                                vm.getInfer(varNode):view(uri)
+                            ) .. '\n' .. vm.viewTypeErrorMessage(uri, literalErrs),
+                        }
+                    end
+                end
+            end
             return
         end
 

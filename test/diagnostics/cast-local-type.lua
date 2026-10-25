@@ -446,3 +446,21 @@ local function count(n, other)
     n = n and 5 or 6
 end
 ]]
+
+-- the fallback literals of a re-assignment are checked against the declared type, through parentheses, `and` and chains
+TEST [[
+---@alias ClMode "queue"|"latest"
+---@type ClMode
+local cur = "queue"
+---@return string
+local function str() end
+---@return boolean
+local function flag() end
+cur = str() or <!"quue"!>
+cur = (str() or <!"quue"!>)
+<!cur!> = flag() and "quue" or "latest"
+cur = str() or str() or <!"quue"!>
+cur = str() or "queue"
+cur = (str() or "latest")
+cur = flag() and "queue" or "latest"
+]]

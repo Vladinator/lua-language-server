@@ -2,6 +2,8 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `FIX` The fallback of `x or "lit"` / `c and "lit" or "lit"` is checked against the declared type (`state.role = f() or "NONE"` with `f` giving a plain `string` let any text through), by `assign-type-mismatch`, `param-type-mismatch`, `return-type-mismatch` and `cast-local-type`; completion inside such a literal (and on the left of `==`, and for a local narrowed by an assignment) offers the declared literals.
+* `FIX` `pairs` over `{ numSpecs: number, [number]: number }` gives the keys `string|number` (the named fields are keys too), and `impossible-comparison` says nothing about a variable that has no type of its own.
 * `FIX` A setting that appears for the first time after the settings were loaded (a `.luarc.json` created while the server runs, a client that sends only the settings the user changed) is a change like any other: the diagnostics of the open files, the workspace and the rest that depend on it are refreshed. Before, only a setting that was already there when the settings were loaded was heard of; a client that sends every setting (VS Code) never showed it.
 * `FIX` A file that is not open and changes on disk (a `git checkout`, a formatter, another editor) now starts the workspace diagnosis like a save does; before, the files that use it kept the diagnostics of its old text until the next save (a file created or removed already did).
 * `FIX` A file closed without saving is what is on disk again: the server kept the text that was discarded ("Don't save"), and the files that use it, hover and go to definition went on using it.

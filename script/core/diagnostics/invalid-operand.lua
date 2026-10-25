@@ -60,7 +60,6 @@ local function primitiveKinds(uri, node)
         ---@type string?
         local kind
         if c.type == 'global' and c.cate == 'type' then
-            ---@cast c vm.global
             if c.name == 'nil' then
                 goto continue
             end

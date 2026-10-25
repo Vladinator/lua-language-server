@@ -562,7 +562,7 @@ function m.flushFiles(scp)
     if not cachedUris then
         return
     end
-    for uri in pairs(cachedUris --[[@as table<any, any>]]) do
+    for uri in pairs(cachedUris) do
         files.delRef(uri)
     end
 end
@@ -571,11 +571,11 @@ end
 function m.resetFiles(scp)
     local cachedUris = scp:get 'cachedUris'
     if cachedUris then
-        for uri in pairs(cachedUris --[[@as table<any, any>]]) do
+        for uri in pairs(cachedUris) do
             files.resetText(uri)
         end
     end
-    for uri in pairs(files.openMap --[[@as table<any, any>]]) do
+    for uri in pairs(files.openMap) do
         if scope.getScope(uri) == scp then
             files.resetText(uri)
         end

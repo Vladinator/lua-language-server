@@ -196,7 +196,6 @@ local function tableSlots(uri, node)
             count = count + 1
         elseif obj.type == 'global' and obj.cate == 'type' then
             -- (an alias sits next to its expansion: `Cell` for `table<Id, Name>`; a class says nothing about the slots)
-            ---@cast obj vm.global
             local isAlias = false
             for _, set in ipairs(obj:getSets(uri)) do
                 if set.type == 'doc.alias' then

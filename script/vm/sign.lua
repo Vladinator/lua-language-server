@@ -289,7 +289,6 @@ function mt:resolve(uri, args)
                 for n in node:eachObject() do
                     if n.type == 'function'
                     or n.type == 'doc.type.function' then
-                        ---@cast n parser.object
                         local fret = vm.getReturnOfFunction(n, i)
                         if fret then
                             local retNode = vm.compileNode(fret)

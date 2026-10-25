@@ -4243,7 +4243,6 @@ local compilerSwitch = util.switch()
         if func and func.type == 'function' then
             for contextual in vm.compileNode(func):eachObject() do
                 if contextual.type == 'doc.type.function' then
-                    ---@cast contextual parser.object
                     for _, arg in ipairs(contextual.args) do
                         if arg.name and arg.name[1] == '...' and arg.extends then
                             vm.setNode(source, vm.compileNode(arg.extends))

@@ -77,7 +77,6 @@ local function declaredPrimitives(node)
         if c.type == 'variable' or c.type == 'local' or (c.type == 'global' and c.cate ~= 'type') then
             -- (the variables a node came from: not types)
         elseif c.type == 'global' and c.cate == 'type' then
-            ---@cast c vm.global
             if c.name ~= 'nil' then
                 local kind = PRIMITIVE_KIND[c.name]
                 if not kind then

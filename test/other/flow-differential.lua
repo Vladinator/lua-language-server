@@ -18,7 +18,7 @@ local fsu   = require 'fs-utility'
 
 ---@type string[]
 local paths = {}
--- FLOW_DIR=<dir>: scan another directory (`lua-tests` exercises the secret / guard rules)
+-- FLOW_DIR=<dir>: scan another directory (`tests/lua-tests` of the dev repo exercises the secret / guard rules)
 -- (LLS_FLOW_EVAL=1 evaluates every assignment: a small default keeps the suite short)
 local scanDir = os.getenv('FLOW_DIR') or (os.getenv('LLS_FLOW_EVAL') ~= '0' and 'script/vm' or 'script')
 fsu.scanDirectory(fs.path(scanDir), function (fullpath)

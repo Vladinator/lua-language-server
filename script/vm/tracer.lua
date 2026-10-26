@@ -1523,7 +1523,7 @@ end
 --- the tail-recursion below (and any future per-block-type merge like it) must only fire for the
 --- shortcut's own fall-through, or it corrupts that internal read (confirmed 2026-09-27: extending
 --- the loop-narrowing merge to 'while' this way broke an unrelated 'loop' test; the 'if' handler has
---- the identical shape and was never attempted for the same reason, TODO.md/SUMMARY-LOG). Propagated
+--- the identical shape and was never attempted for the same reason, TODO.md/docs/SUMMARY-LOG). Propagated
 --- through this function's own tail-recursion so a chain that started as the shortcut stays tagged
 --- as it falls through several enclosing blocks.
 function mt:lookIntoBlock(block, start, node, effect, viaShortcut)

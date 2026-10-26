@@ -86,7 +86,7 @@ local function directoryOf(uri)
     return furi.decode(uri):match('^(.*)[/\\][^/\\]*$')
 end
 
--- The look of a hover (HOVER-STYLE.md in the docs repo): a code-fenced signature, a summary, then short labelled facts -------------------------
+-- The look of a hover (docs/HOVER-STYLE.md in the dev repo): a code-fenced signature, a summary, then short labelled facts -------------------------
 
 --- The shape of the value of a directive, for the signature line.
 ---@param directive wowToc.directive

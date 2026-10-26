@@ -149,7 +149,7 @@ end
 ]], { 'string?', 'string' })
 
 -- the exact shape that broke the OLD engine's `while cond` extension attempt (2026-09-27,
--- SUMMARY-LOG.md/TODO-ARCHIVE.md): a loop condition testing the tracked variable against nil,
+-- docs/SUMMARY-LOG.md, docs/TODO-ARCHIVE.md): a loop condition testing the tracked variable against nil,
 -- with a reassignment inside the body feeding back through the loop-back edge. The old engine's
 -- calcNode shortcut had no notion of "the state entering the whole loop" and broke a
 -- previously-correct answer trying to add one; this engine computes it directly, as a
@@ -165,7 +165,7 @@ end
 print(x)
 ]], { 'string?', 'string' })
 
--- the *literal* original repro (SUMMARY-LOG.md, 2026-09-27): an inner guard makes the
+-- the *literal* original repro (docs/SUMMARY-LOG.md, 2026-09-27): an inner guard makes the
 -- reassignment provably unreachable (entering the outer loop body already proves x == nil, so
 -- the inner `if x == nil` is always true, so `return` always fires first -- `x = nil` never
 -- runs). The old engine's reverted extension anchored on this unreachable code and broke a

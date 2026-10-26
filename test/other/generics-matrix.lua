@@ -2,7 +2,7 @@
 -- what TypeScript does beside each one. One row per case: { name, code, the local to read, the type it must have,
 -- note }. A row with a 6th element is a KNOWN GAP: the 4th is what TypeScript says, the 6th is what the engine says
 -- today, and the test pins the latter, so a fix shows up here (update the row, move it out of the gaps).
--- The written spec is GENERICS-SPEC.md in the dev repo.
+-- The written spec is docs/GENERICS-SPEC.md in the dev repo.
 local files = require 'files'
 local guide = require 'parser.guide'
 local vm    = require 'vm'

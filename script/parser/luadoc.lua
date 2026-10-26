@@ -159,7 +159,7 @@ Symbol              <-  ({} {
 
 ---@alias parser.visibleType 'public' | 'protected' | 'private' | 'package'
 
--- Node kinds with their own class (parser.object stays the base every kind shares; see design/PARSER-OBJECT-PLAN.md).
+-- Node kinds with their own class (parser.object stays the base every kind shares; see docs/design/PARSER-OBJECT-PLAN.md).
 -- A kind class tightens the base fields the parser always fills for that kind, so readers need no nil check.
 ---@class (incremental) parser.object.doc.generic.object: parser.object
 ---@field type 'doc.generic.object'

@@ -661,7 +661,7 @@ local function f(a, b, c)
 end
 ]]
 
--- (the elaborate matrix of this lives in the parent repo: lua-tests/17_secret_proof.lua, checked by `tools/validate.py`)
+-- (the elaborate matrix of this lives in the parent repo: tests/lua-tests/17_secret_proof.lua, checked by `tools/validate.py`)
 
 -- the named parameter is the one that narrows, not the first
 TEST [[

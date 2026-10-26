@@ -6712,3 +6712,93 @@ takes(var<??>)
     end
     assert(first and first.label == 'varbnum', 'the integer variable is preselected: ' .. tostring(first and first.label))
 end)
+
+-- where an expression is expected (`if <here>`, `x and <here>`, `return <here>`) the statement keywords and snippets are not offered, the expression ones are
+-- (a one letter word, so that every keyword that starts with it would show up: `f` is `for`, `false`, `function`)
+---@param offered string[]
+---@param hidden string[]
+---@return fun(results: table[])
+local function keywordProbe(offered, hidden)
+    ---@param results table[]
+    local function check(results)
+        ---@type table<string, boolean>
+        local labels = {}
+        for _, res in ipairs(results) do
+            if res.kind == define.CompletionItemKind.Keyword or res.kind == define.CompletionItemKind.Snippet then
+                labels[res.label --[[@as string]]] = true
+            end
+        end
+        for _, label in ipairs(offered) do
+            assert(labels[label], ('`%s` should be offered here'):format(label))
+        end
+        for _, label in ipairs(hidden) do
+            assert(not labels[label], ('`%s` should not be offered here'):format(label))
+        end
+    end
+    return check
+end
+
+TEST [[
+local x
+if f<??>
+]]
+(keywordProbe({ 'false', 'function ()' }, { 'for .. pairs', 'for .. ipairs', 'for i = ..' }))
+
+TEST [[
+local x
+if e<??>
+]]
+(keywordProbe({}, { 'end', 'else', 'elseif .. then' }))
+
+TEST [[
+local x
+while w<??>
+]]
+(keywordProbe({}, { 'while .. do' }))
+
+TEST [[
+local x
+local a = x and l<??>
+]]
+(keywordProbe({}, { 'local', 'local function' }))
+
+TEST [[
+local x
+local a = x and n<??>
+]]
+(keywordProbe({ 'nil', 'not' }, {}))
+
+TEST [[
+local x
+local a = x + i<??>
+]]
+(keywordProbe({}, { 'if .. then', 'in ..' }))
+
+TEST [[
+local x
+local a = x .. t<??>
+]]
+(keywordProbe({ 'true' }, { 'then .. end' }))
+
+TEST [[
+local function f()
+    return u<??>
+end
+]]
+(keywordProbe({}, { 'until' }))
+
+-- ... a statement is still expected after `do` / `then` / `else`, and a `return` on an EARLIER line says nothing
+TEST [[
+do
+    f<??>
+end
+]]
+(keywordProbe({ 'for .. pairs', 'false' }, {}))
+
+TEST [[
+local function f()
+    return
+    en<??>
+end
+]]
+(keywordProbe({ 'end' }, {}))

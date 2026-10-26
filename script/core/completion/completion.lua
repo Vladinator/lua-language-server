@@ -1321,6 +1321,48 @@ local function checkCommon(state, word, position, results)
     end
 end
 
+-- The words after which an expression is expected (`if <here>`, `x and <here>`, `return <here>`): the statement keywords and snippets make no sense there.
+local EXPRESSION_WORDS = {
+    ['if'] = true, ['elseif'] = true, ['while'] = true, ['until'] = true, ['return'] = true,
+    ['and'] = true, ['or'] = true, ['not'] = true, ['in'] = true,
+}
+
+--- Whether an expression is expected right before `offset`: after one of EXPRESSION_WORDS or after a binary / unary operator, on the same line (a `return` alone on
+--- a line says nothing about the next one: `end` follows it).
+---@param text   string
+---@param offset integer
+---@return boolean
+local function expectsExpression(text, offset)
+    local i = offset
+    while i >= 1 do
+        local ch = text:sub(i, i)
+        if ch == ' ' or ch == '\t' then
+            i = i - 1
+        else
+            break
+        end
+    end
+    if i < 1 then
+        return false
+    end
+    local ch = text:sub(i, i)
+    if ch:find('[%+%-%*/%%%^#<>&|~]') then
+        return true
+    end
+    if ch == '.' then
+        -- (`..` is concatenation, a single dot is a field access)
+        return text:sub(i - 1, i - 1) == '.'
+    end
+    if ch:find('[%a_]') then
+        local j = i
+        while j > 1 and text:sub(j - 1, j - 1):find('[%w_]') do
+            j = j - 1
+        end
+        return EXPRESSION_WORDS[text:sub(j, i)] == true
+    end
+    return false
+end
+
 ---@param state      parser.state
 ---@param start      integer
 ---@param position   integer
@@ -1335,6 +1377,7 @@ local function checkKeyWord(state, start, position, word, hasSpace, afterLocal, 
     local snipType = config.get(state.uri, 'Lua.completion.keywordSnippet')
     local symbol = lookBackward.findSymbol(text, guide.positionToOffset(state, start))
     local isExp = symbol == '(' or symbol == ',' or symbol == '=' or symbol == '[' or symbol == '{'
+               or expectsExpression(text, guide.positionToOffset(state, start))
     ---@type core.completion.keyword.info
     local info = {
         hasSpace = hasSpace,
@@ -1364,6 +1407,7 @@ local function checkKeyWord(state, start, position, word, hasSpace, afterLocal, 
             if  key ~= 'nil'
             and key ~= 'true'
             and key ~= 'false'
+            and key ~= 'not'
             and key ~= 'function' then
                 goto CONTINUE
             end

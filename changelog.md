@@ -2,6 +2,7 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `FIX` Completion where an expression is expected (after `if`, `elseif`, `while`, `until`, `return`, `and`, `or`, `not`, `in` and the operators) no longer lists the statement keywords and snippets (`for .. pairs`, `end`, `local`, `until`, ...), only `nil`, `true`, `false`, `function` and `not`; `not` is offered in every expression position.
 * `FIX` The loop variable of `for k, v in ipairs(t)` / `pairs(t)` could come out `unknown` for good when the table's own type was being computed at that moment (a result built from a half-finished computation was kept); it is recomputed now.
 * `FIX` The fallback of `x or "lit"` / `c and "lit" or "lit"` is checked against the declared type (`state.role = f() or "NONE"` with `f` giving a plain `string` let any text through), by `assign-type-mismatch`, `param-type-mismatch`, `return-type-mismatch` and `cast-local-type`; completion inside such a literal (and on the left of `==`, and for a local narrowed by an assignment) offers the declared literals.
 * `FIX` `pairs` over `{ numSpecs: number, [number]: number }` gives the keys `string|number` (the named fields are keys too), and `impossible-comparison` says nothing about a variable that has no type of its own.

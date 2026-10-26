@@ -134,7 +134,32 @@ lclient():start(function (client)
         local version = nextVersion
         client:notify('textDocument/didOpen', { textDocument = { uri = uri, languageId = 'jsonc', version = version, text = text } })
         waitFor(function () return versions[uri] == version end, 'diagnostics of ' .. uri)
-        return published[uri]
+        -- (the unused entries: the diagnostics of the ignored settings are tested apart, `ignored` below)
+        ---@type table[]
+        local unused = {}
+        for _, diag in ipairs(published[uri] or {}) do
+            if diag.code == hygiene.CODE then
+                unused[#unused+1] = diag
+            end
+        end
+        return unused
+    end
+
+    --- The diagnostics of ignored settings of a text (`ignored-config-setting`).
+    ---@async
+    ---@param uri  string
+    ---@param text string
+    ---@return table[]
+    local function ignored(uri, text)
+        open(uri, text)
+        ---@type table[]
+        local list = {}
+        for _, diag in ipairs(published[uri] or {}) do
+            if diag.code == hygiene.CODE_IGNORED then
+                list[#list+1] = diag
+            end
+        end
+        return list
     end
 
     ---@param diags table[]
@@ -376,6 +401,40 @@ lclient():start(function (client)
         end
     end
     assert(seen, 'the reload judged the settings file again')
+
+    -- ignored settings (`ignored-config-setting`): what the server's own checker and loader do not take
+    do
+        local list = ignored(cfgUri, '{ "Lua.no.such.setting": 1 }')
+        assert(#list == 1 and list[1].message:find('not a setting', 1, true) and list[1].severity == 3, 'an unknown setting, an information')
+        assert(list[1].range.start.line == 0 and list[1].range.start.character == 2, 'at the key')
+
+        list = ignored(cfgUri, '{ "Lua.runtime.version": "Lua 9.9" }')
+        assert(#list == 1 and list[1].message:find('rejected', 1, true), 'a value the setting does not take')
+
+        list = ignored(cfgUri, table.concat({
+            '{',
+            '  "Lua.diagnostics.neededFileStatus": { "unused-local": "Sometimes", "global-element": "Any" }',
+            '}',
+        }, '\n'))
+        assert(#list == 1 and list[1].range.start.line == 1 and list[1].message:find('unused-local', 1, true), 'one entry of a table, at its key; the valid one is left alone')
+
+        list = ignored(cfgUri, '{ "Lua.diagnostics.disable": ["no-such-diagnostic", "unused-local"] }')
+        assert(#list == 1 and list[1].message:find('no-such-diagnostic', 1, true), 'a list: the entry the server drops')
+
+        -- what is fine is not reported
+        assert(#ignored(cfgUri, '{ "Lua.runtime.version": "Lua 5.1", "Lua.diagnostics.globals": ["x"], "Lua.diagnostics.severity": { "unused-local": "Error" } }') == 0, 'valid settings')
+        assert(#ignored(cfgUri, '{ "editor.fontSize": 12, "files.eol": "\\n", "Lua.telemetry.enable": false }') == 0, 'the editor\'s own settings, and the ones of the extension')
+        assert(#ignored(rootUri .. '/.luarc.json', '{ "$schema": "x", "runtime": { "version": "Lua 5.1" }, "diagnostics.globals": ["x"] }') == 0, 'the spellings of a .luarc.json')
+        assert(#ignored(rootUri .. '/.luarc.json', '{ "runtime": { "versoin": "Lua 5.1" } }') == 1, 'a typo in a .luarc.json')
+        assert(#ignored(rootUri .. '/.luarc.json', '{ "editor.fontSize": 12 }') == 1, 'in a .luarc.json every key is ours')
+        assert(#ignored(cfgUri, '{ "Lua.runtime.version": null }') == 0, 'a null is an unset setting')
+        assert(#ignored(cfgUri, '{ "Lua.runtime.version": ') == 0, 'a damaged text says nothing')
+
+        -- the diagnostic is switched off like any other
+        config.set(cfgUri, 'Lua.diagnostics.disable', { hygiene.CODE_IGNORED })
+        assert(#ignored(cfgUri, '{ "Lua.no.such.setting": 1 }') == 0, 'disabled')
+        config.set(cfgUri, 'Lua.diagnostics.disable', {})
+    end
 
     -- the disable list and the severity apply like for any diagnostic
     config.set(cfgUri, 'Lua.diagnostics.disable', { hygiene.CODE })

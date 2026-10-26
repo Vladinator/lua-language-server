@@ -2,6 +2,7 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `NEW` Diagnostic `ignored-config-setting` (information, on by default; strict group): in a project's `.luarc.json` / `.vscode/settings.json` a setting the server does not know, a value it rejects (the whole setting is then ignored) or an entry of a table or list that it drops is marked, with the reason. Until now such a setting just did nothing and nothing said so.
 * `FIX` A name that is no diagnostic (a typo, a name of another version, a diagnostic of a plugin that loads later) or a value that is no status in `Lua.diagnostics.neededFileStatus`, `severity`, `groupFileStatus` or `groupSeverity` made the server drop the WHOLE table, silently: every other entry stopped applying. The entries that are fine are kept now (an array setting always did).
 * `FIX` Completion where an expression is expected (after `if`, `elseif`, `while`, `until`, `return`, `and`, `or`, `not`, `in` and the operators) no longer lists the statement keywords and snippets (`for .. pairs`, `end`, `local`, `until`, ...), only `nil`, `true`, `false`, `function` and `not`; `not` is offered in every expression position.
 * `FIX` The loop variable of `for k, v in ipairs(t)` / `pairs(t)` could come out `unknown` for good when the table's own type was being computed at that moment (a result built from a half-finished computation was kept); it is recomputed now.

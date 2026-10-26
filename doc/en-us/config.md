@@ -410,6 +410,7 @@ Array<string>
 * ``"global-element"``: Enable diagnostics to warn about global elements.
 * ``"global-in-nil-env"``: Enable cannot use global variables （ `_ENV` is set to `nil`） diagnostics.
 * ``"grouped-return-mismatch"``: Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
+* ``"ignored-config-setting"``: Enable diagnostics for a setting in a project's settings file (`.luarc.json`, `.vscode/settings.json`) that the server ignores: a setting it does not know, a value it rejects (the whole setting is ignored), or an entry of a table or list it drops. Nothing else tells the user: the setting just does nothing.
 * ``"implicit-nil-return"``: Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
 * ``"impossible-comparison"``: Enable diagnostics for a comparison of a value declared as a union of string or number literals with a literal that is not one of them (`mode == "latestt"` with `mode: "queue"|"latest"`), or of a value declared as a string, number or boolean with a literal of another kind (`s == 5` with `s: string`; Lua does not coerce in `==`): the comparison is always false (always true for `~=`). TypeScript: "This comparison appears to be unintentional because the types have no overlap".
 * ``"incompatible-override"``: Enable diagnostics for a class that overrides a member of a class it inherits from with something that does not fit it (TypeScript's "class incorrectly extends"): a method that needs more arguments, takes or gives other types, or a field redeclared with a type that is not assignable to the parent's. A narrower type is an override; a wider or unrelated one is a collision. Only parents the user owns are judged: a member declared in a library outside the workspace (third-party annotations, which a polyfill class may re-annotate on purpose) is left alone.
@@ -775,6 +776,7 @@ object<string, string>
     * close-non-object
     * deprecated
     * discard-returns
+    * ignored-config-setting
     * invisible
     */
     "strict": "Fallback",
@@ -979,6 +981,7 @@ object<string, string>
     * close-non-object
     * deprecated
     * discard-returns
+    * ignored-config-setting
     * invisible
     */
     "strict": "Fallback",
@@ -1259,6 +1262,10 @@ object<string, string>
     Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
     */
     "grouped-return-mismatch": "Opened",
+    /*
+    Enable diagnostics for a setting in a project's settings file (`.luarc.json`, `.vscode/settings.json`) that the server ignores: a setting it does not know, a value it rejects (the whole setting is ignored), or an entry of a table or list it drops. Nothing else tells the user: the setting just does nothing.
+    */
+    "ignored-config-setting": "Any",
     /*
     Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
     */
@@ -1821,6 +1828,10 @@ object<string, string>
     Enable diagnostics for return values that each fit their own slot but together match none of the cases of a tuple-union return annotation (`---@return (A, B) | (C, D)`).
     */
     "grouped-return-mismatch": "Warning",
+    /*
+    Enable diagnostics for a setting in a project's settings file (`.luarc.json`, `.vscode/settings.json`) that the server ignores: a setting it does not know, a value it rejects (the whole setting is ignored), or an entry of a table or list it drops. Nothing else tells the user: the setting just does nothing.
+    */
+    "ignored-config-setting": "Information",
     /*
     Enable diagnostics for a bare `return` in a function whose first `@return` is optional (`T?`): write `return nil` to say it on purpose.
     */

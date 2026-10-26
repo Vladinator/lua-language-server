@@ -23,6 +23,7 @@ local config = require 'config'
 -- analysis runs in `--check` (script/cli/check_worker.lua).
 
 local CODE = 'unused-config-global'
+local CODE_IGNORED = 'ignored-config-setting'
 local KIND = 'luaconfig'
 
 diagd.register { CODE } {
@@ -31,6 +32,14 @@ diagd.register { CODE } {
     status      = 'Any',
     fileKind    = KIND,
     description = 'Enable diagnostics for an entry of `Lua.diagnostics.globals` or `Lua.diagnostics.globalsRegex` in a project\'s settings file that does nothing: the global is defined, or nothing in the workspace uses it.',
+}
+
+diagd.register { CODE_IGNORED } {
+    group       = 'strict',
+    severity    = 'Information',
+    status      = 'Any',
+    fileKind    = KIND,
+    description = 'Enable diagnostics for a setting in a project\'s settings file (`.luarc.json`, `.vscode/settings.json`) that the server ignores: a setting it does not know, a value it rejects (the whole setting is ignored), or an entry of a table or list it drops. Nothing else tells the user: the setting just does nothing.',
 }
 
 ---@class configHygiene.entry
@@ -48,13 +57,23 @@ diagd.register { CODE } {
 
 local m = {}
 
+---@class configHygiene.setting
+---@field path        string dotted path of the key (`Lua.diagnostics.globals`, `diagnostics.globals`, `Lua.diagnostics.severity.unused-local`)
+---@field keyStart    integer byte offset of the opening quote of the key
+---@field keyFinish   integer byte offset of its closing quote
+---@field valueStart  integer byte range of the value
+---@field valueFinish integer
+
 ---@param text string
 ---@return configHygiene.entry[]
+---@return configHygiene.setting[]
 function m.scan(text)
     local pos = 1
     local len = #text
     ---@type configHygiene.entry[]
     local entries = {}
+    ---@type configHygiene.setting[]
+    local settings = {}
 
     local function skipSpace()
         while pos <= len do
@@ -174,12 +193,21 @@ function m.scan(text)
             elseif c == ',' then
                 pos = pos + 1
             elseif c == '"' then
-                local key = parseString()
+                local key, keyStart, keyFinish = parseString()
                 skipSpace()
                 if text:sub(pos, pos) == ':' then
                     pos = pos + 1
                     skipSpace()
-                    parseValue(path == '' and key or (path .. '.' .. key))
+                    local childPath  = path == '' and key or (path .. '.' .. key)
+                    local valueStart = pos
+                    parseValue(childPath)
+                    settings[#settings+1] = {
+                        path        = childPath,
+                        keyStart    = keyStart,
+                        keyFinish   = keyFinish,
+                        valueStart  = valueStart,
+                        valueFinish = pos - 1,
+                    }
                 end
             else
                 pos = pos + 1
@@ -210,7 +238,132 @@ function m.scan(text)
     end
 
     parseValue('')
-    return entries
+    return entries, settings
+end
+
+-- settings the EXTENSION owns and the server never sees (and the `$schema` line of a `.luarc.json`)
+local CLIENT_ONLY = { ['Lua.telemetry.enable'] = true, ['telemetry.enable'] = true, ['$schema'] = true }
+
+--- The template key of a path of a settings file (`Lua.x.y`, or `x.y` in a `.luarc.json`).
+---@param path string
+---@return string?
+local function templateKey(path)
+    local template = require 'config.template'
+    local full = path:sub(1, 4) == 'Lua.' and path or ('Lua.' .. path)
+    if template[full] then
+        return full
+    end
+end
+
+--- The settings the server ignores: a setting it does not know, a value it rejects, an entry of a table or list that it drops. The server's own checker and
+--- loader decide (script/config/template.lua), so what is reported is what really has no effect.
+---@param text     string
+---@param settings configHygiene.setting[]
+---@param isLuarc  boolean in a `.luarc.json` every key is ours, in a `settings.json` only the `Lua.` ones
+---@return { start: integer, finish: integer, message: string }[]
+function m.settingProblems(text, settings, isLuarc)
+    local template = require 'config.template'
+    local json     = require 'json'
+    ---@type { start: integer, finish: integer, message: string }[]
+    local problems = {}
+    ---@type table<string, configHygiene.setting>
+    local byPath = {}
+    for _, setting in ipairs(settings) do
+        byPath[setting.path] = setting
+    end
+    --- Whether an ancestor of the path is itself a setting (the entries inside a table setting are judged with it).
+    ---@param path string
+    ---@return boolean
+    local function insideSetting(path)
+        local from = 1
+        while true do
+            local at = path:find('.', from, true)
+            if not at then
+                return false
+            end
+            if templateKey(path:sub(1, at - 1)) then
+                return true
+            end
+            from = at + 1
+        end
+    end
+    for _, setting in ipairs(settings) do
+        local path = setting.path
+        if insideSetting(path) then
+            goto CONTINUE
+        end
+        local key = templateKey(path)
+        local valueText = text:sub(setting.valueStart, setting.valueFinish):gsub('%s+$', '')
+        local isObject = valueText:sub(1, 1) == '{'
+        if not key then
+            if (path:sub(1, 4) == 'Lua.' or isLuarc) and not CLIENT_ONLY[path] and not isObject then
+                problems[#problems+1] = {
+                    start   = setting.keyStart,
+                    finish  = setting.keyFinish,
+                    message = ('`%s` is not a setting of the server: it is ignored.'):format(path),
+                }
+            end
+            goto CONTINUE
+        end
+        do
+            local ok, decoded = pcall(json.decode, valueText)
+            ---@type any
+            local value = decoded
+            if not ok or value == nil or value == json.null then
+                goto CONTINUE
+            end
+            local unit = template[key]
+            if not unit:checker(value) then
+                problems[#problems+1] = {
+                    start   = setting.keyStart,
+                    finish  = setting.keyFinish,
+                    message = ('The value of `%s` is rejected by the server: the whole setting is ignored.'):format(path),
+                }
+            elseif type(value) == 'table' then
+                ---@type table<any, any>?
+                local loaded = unit:loader(value)
+                ---@type table<any, any>
+                local map = value
+                if type(loaded) == 'table' then
+                    if #map == 0 then
+                        for k in pairs(map) do
+                            if loaded[k] == nil then
+                                local child = byPath[path .. '.' .. tostring(k)]
+                                if child then
+                                    problems[#problems+1] = {
+                                        start   = child.keyStart,
+                                        finish  = child.keyFinish,
+                                        message = ('The value of `%s` in `%s` is rejected by the server: the entry is ignored.'):format(tostring(k), path),
+                                    }
+                                end
+                            end
+                        end
+                    else
+                        ---@type table<string, true>
+                        local kept = {}
+                        for _, v in ipairs(loaded) do
+                            kept[tostring(v)] = true
+                        end
+                        for _, v in ipairs(map) do
+                            if type(v) == 'string' and not kept[v] then
+                                local quoted = '"' .. v .. '"'
+                                local at = text:find(quoted, setting.valueStart, true)
+                                if at and at <= setting.valueFinish then
+                                    problems[#problems+1] = {
+                                        start   = at,
+                                        finish  = at + #quoted - 1,
+                                        message = ('`%s` is not valid in `%s`: the entry is ignored.'):format(v, path),
+                                    }
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        ::CONTINUE::
+    end
+    return problems
 end
 
 --- The words of the files the server skips for their size (and that are closed), by scope. Nothing is known of what such a file reads or
@@ -483,7 +636,8 @@ local kind = {
         if not hasFolder(uri) then
             return found
         end
-        for _, entry in ipairs(m.scan(text)) do
+        local entries, settings = m.scan(text)
+        for _, entry in ipairs(entries) do
             local message = m.verdict(uri, entry)
             if message then
                 found[#found+1] = {
@@ -495,6 +649,18 @@ local kind = {
                     },
                 }
             end
+        end
+        local path    = (furi.decode(uri) or ''):lower()
+        local isLuarc = util.stringEndWith(path, '.luarc.json') or util.stringEndWith(path, '.luarc.jsonc')
+        for _, problem in ipairs(m.settingProblems(text, settings, isLuarc)) do
+            found[#found+1] = {
+                code    = CODE_IGNORED,
+                message = problem.message,
+                range   = {
+                    start   = positionOf(text, problem.start),
+                    ['end'] = positionOf(text, problem.finish + 1),
+                },
+            }
         end
         return found
     end,
@@ -561,5 +727,6 @@ kinds.register(kind)
 
 m.kind = kind
 m.CODE = CODE
+m.CODE_IGNORED = CODE_IGNORED
 
 return m

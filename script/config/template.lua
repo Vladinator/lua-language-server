@@ -152,22 +152,10 @@ register('Hash', {}, function (self, value)
     local subkey   = self.subkey   --[[@as config.unit]]
     local subvalue = self.subvalue --[[@as config.unit]]
     if type(value) == 'table' then
-        if #value == 0 then
-            for k, v in pairs(value --[[@as table<any, any>]]) do
-                if not subkey:checker(k)
-                or not subvalue:checker(v) then
-                    return false
-                end
-            end
-        else
-            if not subvalue:checker(true) then
-                return false
-            end
-            for _, v in ipairs(value --[[@as any[] ]]) do
-                if not subkey:checker(v) then
-                    return false
-                end
-            end
+        -- (a table is accepted as a whole and the loader keeps the entries that are fine, like an array does: one name that is no diagnostic, or one value that is no
+        -- status, must not cost the user every other entry of the table)
+        if #value ~= 0 and not subvalue:checker(true) then
+            return false
         end
         return true
     end
@@ -177,15 +165,24 @@ register('Hash', {}, function (self, value)
     end
 end, function (self, value)
     if type(value) == 'table' then
+        local subkey   = self.subkey   --[[@as config.unit]]
+        local subvalue = self.subvalue --[[@as config.unit]]
         ---@type table<any, any>
         local t = {}
         if #value == 0 then
             for k, v in pairs(value --[[@as table<any, any>]]) do
-                t[k] = v
+                -- (a key that is a string is kept even when it is not one of the known names: a typo, a name of another version, a diagnostic of a plugin that is loaded
+                -- later; the value has to be valid)
+                if (type(k) == 'string' or subkey:checker(k))
+                and subvalue:checker(v) then
+                    t[k] = v
+                end
             end
         else
             for _, k in pairs(value --[[@as table<any, any>]]) do
-                t[k] = true
+                if type(k) == 'string' or subkey:checker(k) then
+                    t[k] = true
+                end
             end
         end
         return t

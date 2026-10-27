@@ -241,6 +241,44 @@ function m.scan(text)
     return entries, settings
 end
 
+--- The text of a JSON value without its comments (`// ...`, `/* ... */`) and trailing commas: a settings file is JSONC, and the value of a table setting
+--- often has comments inside it. Strings are left alone.
+---@param text string
+---@return string
+local function stripJsonComments(text)
+    ---@type string[]
+    local parts = {}
+    local pos, len = 1, #text
+    while pos <= len do
+        local c = text:sub(pos, pos)
+        if c == '"' then
+            local finish = pos + 1
+            while finish <= len do
+                local d = text:sub(finish, finish)
+                if d == '\\' then
+                    finish = finish + 2
+                elseif d == '"' then
+                    break
+                else
+                    finish = finish + 1
+                end
+            end
+            parts[#parts+1] = text:sub(pos, finish)
+            pos = finish + 1
+        elseif text:sub(pos, pos + 1) == '//' then
+            local e = text:find('\n', pos, true)
+            pos = e or len + 1
+        elseif text:sub(pos, pos + 1) == '/*' then
+            local _, e = text:find('*/', pos + 2, true)
+            pos = (e or len) + 1
+        else
+            parts[#parts+1] = c
+            pos = pos + 1
+        end
+    end
+    return (table.concat(parts):gsub(',(%s*[%]}])', '%1'))
+end
+
 -- settings the EXTENSION owns and the server never sees (and the `$schema` line of a `.luarc.json`)
 local CLIENT_ONLY = { ['Lua.telemetry.enable'] = true, ['telemetry.enable'] = true, ['$schema'] = true }
 
@@ -306,7 +344,7 @@ function m.settingProblems(text, settings, isLuarc)
             goto CONTINUE
         end
         do
-            local ok, decoded = pcall(json.decode, valueText)
+            local ok, decoded = pcall(json.decode, stripJsonComments(valueText))
             ---@type any
             local value = decoded
             if not ok or value == nil or value == json.null then

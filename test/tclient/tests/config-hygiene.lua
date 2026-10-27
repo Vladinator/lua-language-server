@@ -421,6 +421,22 @@ lclient():start(function (client)
         list = ignored(cfgUri, '{ "Lua.diagnostics.disable": ["no-such-diagnostic", "unused-local"] }')
         assert(#list == 1 and list[1].message:find('no-such-diagnostic', 1, true), 'a list: the entry the server drops')
 
+        -- a settings file is JSONC: comments and trailing commas inside the value of a table setting do not hide its entries
+        list = ignored(cfgUri, table.concat({
+            '{',
+            '  "Lua.diagnostics.neededFileStatus": {',
+            '    // a comment inside the value',
+            '    "unused-local": "Sometimes", /* and another */',
+            '    "global-element": "Any", // trailing comma follows',
+            '  },',
+            '  "Lua.diagnostics.disable": ["no-such-diagnostic", /* x */ "unused-local",],',
+            '}',
+        }, '\n'))
+        assert(#list == 2, 'comments inside the values do not stop the check: ' .. #list)
+        assert(list[1].range.start.line == 3 and list[2].message:find('no-such-diagnostic', 1, true), 'the entries are found')
+        -- a comment that looks like a string is not a comment
+        assert(#ignored(cfgUri, '{ "Lua.diagnostics.globals": ["// not a comment", "/* nor this */"] }') == 0, 'strings with // inside')
+
         -- what is fine is not reported
         assert(#ignored(cfgUri, '{ "Lua.runtime.version": "Lua 5.1", "Lua.diagnostics.globals": ["x"], "Lua.diagnostics.severity": { "unused-local": "Error" } }') == 0, 'valid settings')
         assert(#ignored(cfgUri, '{ "editor.fontSize": 12, "files.eol": "\\n", "Lua.telemetry.enable": false }') == 0, 'the editor\'s own settings, and the ones of the extension')

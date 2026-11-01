@@ -602,6 +602,14 @@ TYPE_ERROR_CHILD_ALL_DISMATCH =
 'All subtypes in `{child}` cannot match `{parent}`'
 TYPE_ERROR_PARENT_ALL_DISMATCH =
 '`{child}` cannot match any subtypes in `{parent}`'
+TYPE_ERROR_FUNCTION_TOO_MANY_PARAMS =
+'The function needs {required} argument(s), but the type provides only {provided}'
+TYPE_ERROR_FUNCTION_PARAM_DISMATCH =
+'Parameter #{index} takes `{child}`, but the type provides `{parent}`'
+TYPE_ERROR_FUNCTION_NO_RETURN =
+'The function returns nothing, but the type promises `{parent}`'
+TYPE_ERROR_FUNCTION_RETURN_DISMATCH =
+'The function returns `{child}`, but the type promises `{parent}`'
 TYPE_ERROR_UNION_DISMATCH =
 '`{child}` cannot match `{parent}`'
 TYPE_ERROR_OPTIONAL_DISMATCH =

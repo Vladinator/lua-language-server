@@ -564,7 +564,11 @@ end
 ---@param uri    uri
 ---@param child  parser.object
 ---@param parent parser.object
----@return boolean
+---@return boolean mismatch
+---@return string? reason   the name of the message that says what does not fit (`TYPE_ERROR_FUNCTION_*`)
+---@return any? first       the values of that message
+---@return any? second
+---@return any? third
 local function functionTypeMismatch(uri, child, parent)
     -- (the parent is a `fun(...)` type, or a function with its annotations: a method a class declares, that another one overrides)
     if (parent.type ~= 'doc.type.function' and parent.type ~= 'function')
@@ -656,7 +660,7 @@ local function functionTypeMismatch(uri, child, parent)
             end
         end
         if required > #provided then
-            return true
+            return true, 'TYPE_ERROR_FUNCTION_TOO_MANY_PARAMS', required, #provided
         end
     end
     for i = 1, math.min(#taken, #provided) do
@@ -683,7 +687,7 @@ local function functionTypeMismatch(uri, child, parent)
         -- other way round is fine too; only two types that have nothing in common are a mismatch)
         if wantNode and takes then
             if vm.isSubType(uri, wantNode, takes) == false and vm.isSubType(uri, takes, wantNode) == false then
-                return true
+                return true, 'TYPE_ERROR_FUNCTION_PARAM_DISMATCH', i, takes, wantNode
             end
         end
     end
@@ -700,7 +704,7 @@ local function functionTypeMismatch(uri, child, parent)
     end
     -- (a named function that gives nothing, where a value is promised: `takesCallback(print)`)
     if promised and child.type == 'function' and givesNothing(child) and promisesValue(promised) then
-        return true
+        return true, 'TYPE_ERROR_FUNCTION_NO_RETURN', promised
     end
     if promised and not (child.type == 'function' and not child.returns) then
         ---@type (parser.object|vm.generic)?
@@ -727,8 +731,11 @@ local function functionTypeMismatch(uri, child, parent)
             end
         end
         -- (a `nil` among what it gives is not what makes it unfit: a function that gives nothing when it fails fits)
-        if given and vm.isSubType(uri, vm.compileNode(given):copy():removeOptional():remove 'nil', vm.compileNode(promised)) == false then
-            return true
+        if given then
+            local givenNode = vm.compileNode(given):copy():removeOptional():remove 'nil'
+            if vm.isSubType(uri, givenNode, vm.compileNode(promised)) == false then
+                return true, 'TYPE_ERROR_FUNCTION_RETURN_DISMATCH', givenNode, vm.compileNode(promised)
+            end
         end
     end
     return false
@@ -974,8 +981,23 @@ local function isSubTypeOfNames(uri, child, parent, mark, errs)
         end
         if parentName == 'function'
         and isNode(child) and isNode(parent)
-        and functionTypeMismatch(uri, child, parent) then
+        then
+            local mismatch, reason, first, second, third = functionTypeMismatch(uri, child, parent)
+            if not mismatch then
+                return true
+            end
             if errs then
+                -- (the reason first: the list is shown the other way round, so it ends up as the last line, under the two types that do not match)
+                if reason then
+                    errs[#errs+1] = reason
+                    errs[#errs+1] = first
+                    if second ~= nil then
+                        errs[#errs+1] = second
+                    end
+                    if third ~= nil then
+                        errs[#errs+1] = third
+                    end
+                end
                 errs[#errs+1] = 'TYPE_ERROR_DISMATCH'
                 errs[#errs+1] = child
                 errs[#errs+1] = parent
@@ -1780,6 +1802,10 @@ local ErrorMessageMap = {
     TYPE_ERROR_PARENT_ALL_DISMATCH        = {'child', 'parent'},
     TYPE_ERROR_UNION_DISMATCH             = {'child', 'parent'},
     TYPE_ERROR_OPTIONAL_DISMATCH          = {'parent'},
+    TYPE_ERROR_FUNCTION_TOO_MANY_PARAMS   = {'required', 'provided'},
+    TYPE_ERROR_FUNCTION_PARAM_DISMATCH    = {'index', 'child', 'parent'},
+    TYPE_ERROR_FUNCTION_NO_RETURN         = {'parent'},
+    TYPE_ERROR_FUNCTION_RETURN_DISMATCH   = {'child', 'parent'},
     TYPE_ERROR_NUMBER_LITERAL_TO_INTEGER  = {'child'},
     TYPE_ERROR_NUMBER_TYPE_TO_INTEGER     = {},
     TYPE_ERROR_DISMATCH                   = {'child', 'parent'},

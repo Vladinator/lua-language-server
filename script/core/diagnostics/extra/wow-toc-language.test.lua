@@ -241,6 +241,42 @@ end
 for _, name in ipairs { 'standard', 'forever', 'camelot', 'mainline' } do
     withFile('File.lua [AllowLoadGameType ' .. name .. ']', {}, 'a real game type: ' .. name)
 end
+-- what an unknown word of a game type value does depends on the directive: the wiki's warning (a list of only unknown types counts as met)
+do
+    ---@param text string
+    ---@param code string
+    ---@return string[]
+    local function messagesOf(text, code)
+        ---@type string[]
+        local found = {}
+        for _, diag in ipairs(diagnose(text)) do
+            if diag.code == code then
+                found[#found+1] = diag.message
+            end
+        end
+        return found
+    end
+    local function say(name, line, wanted, unwanted)
+        local found = messagesOf(HEADER .. line .. nl, 'toc-invalid-value')
+        assert(#found == 1 and found[1]:find(wanted, 1, true), name .. ': ' .. tostring(found[1]))
+        if unwanted then
+            assert(not found[1]:find(unwanted, 1, true), name .. ' says too much: ' .. found[1])
+        end
+    end
+    say('header Allow, only unknown', '## AllowLoadGameType: retail', 'loads on every game')
+    do
+        local found = messagesOf(HEADER .. '## AllowLoadGameType: retail midnight' .. nl, 'toc-invalid-value')
+        assert(#found == 2 and found[1]:find('loads on every game', 1, true) and found[2]:find('loads on every game', 1, true), 'header Allow, two unknown: both words say it')
+    end
+    say('header Allow, one unknown among known', '## AllowLoadGameType: retail, cata', 'the other types in the list decide', 'every game')
+    say('header Exclude', '## ExcludeLoadGameType: retail', 'It excludes nothing', 'every game')
+    say('inline Allow, only unknown', 'Core.lua [AllowLoadGameType retail]', 'loads on every game')
+    say('inline Allow, one unknown among known', 'Core.lua [AllowLoadGameType retail, cata]', 'the other types in the list decide', 'every game')
+    say('inline Exclude', 'Core.lua [ExcludeLoadGameType retail]', 'It excludes nothing', 'every game')
+    -- a list of known types says nothing of the kind
+    assert(#messagesOf(HEADER .. '## AllowLoadGameType: standard, cata' .. nl, 'toc-invalid-value') == 0, 'known types: nothing to say')
+end
+withFile('[RegionalTextLocale]\\Core.lua', {}, '[RegionalTextLocale] in a path')
 withFile('File.lua [allowloadgametype Standard]', {}, 'inline names and values are case-insensitive')
 withFile('File.lua [AllowLoad Game]', {})
 withFile('File.lua [AllowLoad Both]', {})
@@ -1031,6 +1067,7 @@ hoverLacks('a game with nothing ahead of its release', '## AllowLoadGameType: ca
 hoverLacks('a game with an upcoming number says nothing of an unreleased one', '## AllowLoadGameType: stand|ard', { 'Not released' })
 hovers('a family', '## AllowLoadGameType: main|line', { 'game family  mainline', 'Retail (Midnight)', 'Forever' })
 hovers('an alias', '## ExcludeLoadGameType: camel|ot', { 'Forever' })
+hovers('the inline Exclude says when it was added', 'File.lua [Exclude|LoadGameType cata]', { '12.0.0' })
 hovers('an inline directive', 'File.lua [AllowLoad|GameType cata]', { '[AllowLoadGameType <game type>' })
 hovers('an inline variable', 'Dir\\[Text|Locale].lua', { '[TextLocale]' })
 hovers('a bracket value', 'File.lua [AllowLoadGameType ca|ta]', { 'Cataclysm Classic' })

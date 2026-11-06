@@ -157,7 +157,8 @@ return {
         { name = 'AllowLoadGameType', value = 'gametypes',
           description = 'Loads this line only on the listed game types or families, comma separated.' },
         { name = 'ExcludeLoadGameType', value = 'gametypes',
-          description = 'Loads this line on every game type except the listed ones.' },
+          description = 'Loads this line on every game type except the listed ones.',
+          since = 'Added in 12.0.0: a client older than that does not know it.' },
         { name = 'AllowLoadTextLocale', value = 'locales',
           description = 'Loads this line only for the listed client locales (as `GetLocale` returns them: `enUS`, `frFR`, ...).' },
         { name = 'AllowLoadEnvironment', value = 'enum', values = { 'Global', 'Secure' },
@@ -173,5 +174,6 @@ return {
         { name = 'Family',     description = 'Expands to the game family: `Mainline` or `Classic`.' },
         { name = 'Game',       description = 'Expands to the game type: `Standard`, `Mists`, `Cata`, `Vanilla`, `TBC`, `Wrath`, `Camelot`, ...' },
         { name = 'TextLocale', description = 'Expands to the client text locale (`enUS`, `frFR`, `deDE`, ...): `Localization\\[TextLocale].lua` loads the file of the locale.' },
+        { name = 'RegionalTextLocale', description = 'Expands to the region specific locale of the client text locale and region (`enGB` and `ptPT` in the EU region, `enUS` and `ptBR` in the NA region). Added in 12.1.7 (Standard and Forever only).' },
     },
 }

@@ -259,6 +259,23 @@ local function gameTypeHint(word)
     return suggestion and (' (did you mean `%s`?)'):format(suggestion) or ''
 end
 
+--- The message for a word of an `AllowLoadGameType` / `ExcludeLoadGameType` value that is no game type. What it does depends on the directive: an
+--- unknown type in an Exclude excludes nothing; in an Allow the known types still decide, unless none of the listed ones is known: the client then
+--- treats the condition as met (the wiki's warning), so the file or line loads on every game, the opposite of what the author wrote.
+---@param word    string
+---@param allow   boolean  the directive is an `AllowLoadGameType`
+---@param nothing boolean  every word of the value is unknown
+---@return string
+local function unknownGameMessage(word, allow, nothing)
+    local text = ('Unknown game type `%s`%s.'):format(word, gameTypeHint(word))
+    if not allow then
+        return text .. ' It excludes nothing.'
+    elseif nothing then
+        return text .. ' No listed type is a game type, so the client treats the condition as met and this loads on every game.'
+    end
+    return text .. ' It is ignored; the other types in the list decide.'
+end
+
 -- Parsing -----------------------------------------------------------------------------------------------
 
 local MAX_LINE = 1024
@@ -929,10 +946,10 @@ function m.diagnose(uri, text)
                 elseif directive.value == 'function' and value ~= '' and not value:match('^[%a_][%w_]*$') then
                     report(line.row, line.valueStart or 1, line.valueFinish or 1, 'toc-invalid-value', ('`%s` takes the name of a global function, not `%s`.'):format(key, value))
                 elseif directive.value == 'gametypes' and value ~= '' then
-                    local _, unknown = m.gameWords(value)
+                    local _, unknown, count = m.gameWords(value)
                     for _, item in ipairs(unknown) do
                         report(line.row, (line.valueStart or 1) + item.start - 1, (line.valueStart or 1) + item.finish - 1, 'toc-invalid-value',
-                            ('Unknown game type `%s`%s. (The client treats an unknown type as satisfying `AllowLoadGameType`.)'):format(item.word, gameTypeHint(item.word)))
+                            unknownGameMessage(item.word, directive.name == 'AllowLoadGameType', #unknown == count))
                     end
                 end
             end
@@ -1150,10 +1167,10 @@ function m.diagnose(uri, text)
                             ('`[%s]` takes %s, not `%s`.'):format(inline.name, '`' .. table.concat(inline.values or {}, '`, `') .. '`', bracket.value))
                     end
                 elseif inline.value == 'gametypes' then
-                    local _, unknown = m.gameWords(bracket.value)
+                    local _, unknown, count = m.gameWords(bracket.value)
                     for _, item in ipairs(unknown) do
                         report(line.row, bracket.valueStart + item.start - 1, bracket.valueStart + item.finish - 1, 'toc-invalid-value',
-                            ('Unknown game type `%s`%s.'):format(item.word, gameTypeHint(item.word)))
+                            unknownGameMessage(item.word, inline.name == 'AllowLoadGameType', #unknown == count))
                     end
                 elseif inline.value == 'locales' then
                     for first, word, last in bracket.value:gmatch('()([^,%s]+)()') --[==[@as fun(): (integer, string, integer)]==] do

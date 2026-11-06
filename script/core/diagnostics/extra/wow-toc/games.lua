@@ -17,7 +17,11 @@
 --               `interface`. tools/toc_wiki_check.py (docs repo) compares both with the wiki table of game types.
 --   note        OPTIONAL: one line for hover
 --
--- Last revised 2026-10-19; `minimum` and `upcoming` are the released and the newest test / beta values of the wiki table of that day
+-- Left out on purpose (user, 2026-11-06): `plunderstorm` (Plunderstorm, `WoWLabs`) and `wowhack` (Talebound) are on the wiki's list but are Blizzard-only
+-- modes no addon can run in, and `retail`, `midnight`, `classic_era` are no game type of the client (only the names above are). A game type the
+-- client does not know counts as "met" in an `AllowLoadGameType`, so a made-up alias must never be accepted silently.
+--
+-- Last revised 2026-11-06 (Forever released: 1.60.1, 16001; before that 2026-10-19); `minimum` and `upcoming` are the released and the newest test / beta values of the wiki table of that day
 -- (https://warcraft.wiki.gg/wiki/Template:LatestPatchInfo, read with tools/toc_wiki_check.py).
 
 ---@class wowToc.game
@@ -51,14 +55,14 @@
 return {
     games = {
         {
-            id = 'standard', display = 'Retail (Midnight)', aliases = { 'retail', 'midnight' }, families = { 'mainline' },
+            id = 'standard', display = 'Retail (Midnight)', families = { 'mainline' },
             suffixes = { 'Standard' }, variable = 'Standard', interface = { first = 60000, last = 199999, minimum = 120105 }, upcoming = 120107,
             note = 'Channels (wiki, 2026-10-19): Standard 120105 (released), Standard Test 120107 (upcoming), Standard Beta 120001.',
         },
         {
             id = 'forever', display = 'Forever', aliases = { 'camelot' }, families = { 'mainline' },
-            suffixes = { 'Forever', 'Camelot' }, variable = 'Camelot', upcoming = 16001,
-            note = 'Not released yet: 16001 is its test / beta number (inside the Classic Era range, so no range is kept for Forever). The wiki says the Camelot name may change to Forever.',
+            suffixes = { 'Forever', 'Camelot' }, variable = 'Camelot', interface = { first = 16000, last = 19999, minimum = 16001 },
+            note = 'Released 2026-11-03 (1.60.1, Interface 16001). Its numbers start at 16000, above Classic Era (11509). The wiki says the Camelot name may change to Forever.',
         },
         {
             id = 'mists', display = 'Mists of Pandaria Classic', families = { 'classic' },
@@ -79,17 +83,9 @@ return {
             note = 'Includes Classic Anniversary Edition.',
         },
         {
-            id = 'vanilla', display = 'Classic Era', aliases = { 'classic_era' }, families = { 'classic' },
-            suffixes = { 'Vanilla' }, variable = 'Vanilla', interface = { first = 10000, last = 19999, minimum = 11509 },
+            id = 'vanilla', display = 'Classic Era', families = { 'classic' },
+            suffixes = { 'Vanilla' }, variable = 'Vanilla', interface = { first = 10000, last = 15999, minimum = 11509 },
             note = 'Vanilla Test uses 11508.',
-        },
-        {
-            id = 'plunderstorm', display = 'Plunderstorm', aliases = { 'wowlabs' }, families = { 'mainline' },
-            suffixes = { 'Plunderstorm', 'WoWLabs' }, variable = 'Plunderstorm',
-        },
-        {
-            id = 'wowhack', display = 'Talebound', families = { 'mainline' },
-            suffixes = { 'WoWHack' }, variable = 'WoWHack',
         },
     },
 

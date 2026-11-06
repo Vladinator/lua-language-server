@@ -435,18 +435,22 @@ end
 local function loadScope(uri, cursor)
     local fileScope, suffix, base = syntax.fileScope(uri)
     local scope = syntax.lineScope(fileScope, cursor.lines, cursor.line)
-    local everything = true
+    ---@type string[]
+    local loads, skips = {}, {}
     for _, id in ipairs(syntax.gameOrder) do
-        if not scope[id] then
-            everything = false
-        end
+        local list = scope[id] and loads or skips
+        list[#list+1] = '- ' .. syntax.gameById[id].display
     end
+    local nl = string.char(10)
     ---@type string
     local summary
-    if everything then
+    if #skips == 0 then
         summary = 'Loads on every game type.'
+    elseif #loads == 0 then
+        summary = 'Loads on no game type.' .. nl .. nl .. 'Does not load on:' .. nl .. nl .. table.concat(skips, nl)
     else
-        summary = 'Loads on: ' .. syntax.describeGames(scope) .. '.'
+        -- (one game per line: a long list of names in a sentence is hard to read in a tooltip)
+        summary = 'Loads on:' .. nl .. nl .. table.concat(loads, nl) .. nl .. nl .. 'Does not load on:' .. nl .. nl .. table.concat(skips, nl)
     end
     ---@type string[]
     local facts = {}

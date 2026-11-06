@@ -53,7 +53,7 @@ local function codes(list)
     return result
 end
 
-local HEADER = '## Interface: 120105' .. nl
+local HEADER = '## Interface: 120105, 16001' .. nl
 
 ---@type string[]
 local failures = {}
@@ -146,8 +146,8 @@ case('LoadWith appends', HEADER .. '## LoadWith: A' .. nl .. '## LoadWith: B' ..
 case('LoadManagers appends', HEADER .. '## LoadManagers: A' .. nl .. '## LoadManagers: B' .. nl, {})
 case('SavedVariables appends', HEADER .. '## SavedVariables: A' .. nl .. '## SavedVariables: B' .. nl, {})
 case('SavedVariablesPerCharacter appends', HEADER .. '## SavedVariablesPerCharacter: A' .. nl .. '## SavedVariablesPerCharacter: B' .. nl, {})
-case('AllowLoadGameType appends', '## Interface: 120105, 40402' .. nl .. '## AllowLoadGameType: mainline' .. nl .. '## AllowLoadGameType: cata' .. nl, {})
-case('ExcludeLoadGameType appends', '## Interface: 120105, 50504, 40402, 30405' .. nl .. '## ExcludeLoadGameType: vanilla' .. nl .. '## ExcludeLoadGameType: tbc' .. nl, {})
+case('AllowLoadGameType appends', '## Interface: 120105, 16001, 40402' .. nl .. '## AllowLoadGameType: mainline' .. nl .. '## AllowLoadGameType: cata' .. nl, {})
+case('ExcludeLoadGameType appends', '## Interface: 120105, 16001, 50504, 40402, 30405' .. nl .. '## ExcludeLoadGameType: vanilla' .. nl .. '## ExcludeLoadGameType: tbc' .. nl, {})
 case('a repeated Title: the last wins', HEADER .. '## Title: A' .. nl .. '## Title: B' .. nl, { 'toc-duplicate-header' })
 case('a repeated Notes', HEADER .. '## Notes: A' .. nl .. '## Notes: B' .. nl, { 'toc-duplicate-header' })
 case('a repeated Interface', HEADER .. '## Interface: 120105' .. nl, { 'toc-duplicate-header' })
@@ -233,6 +233,14 @@ withFile('File.lua [AllowLoadGameType standard] [AllowLoadTextLocale enUS]', {},
 withFile('File.lua [AllowLoadTextLocale enUS,frFR]', {})
 withFile('File.lua [AllowLoadTextLocale enXX]', { 'toc-invalid-value' }, 'an unknown locale in a bracket')
 withFile('File.lua [AllowLoadGameType nonsense]', { 'toc-invalid-value' }, 'an unknown game type in a bracket')
+-- names that are no game type of the client (user, 2026-11-06: the article lists `standard`, `forever` / `camelot`, the classic ones and nothing else)
+for _, name in ipairs { 'retail', 'midnight', 'classic_era', 'plunderstorm', 'wowlabs', 'wowhack' } do
+    withFile('File.lua [AllowLoadGameType ' .. name .. ']', { 'toc-invalid-value' }, 'not a game type: ' .. name)
+    withFile('File.lua [ExcludeLoadGameType ' .. name .. ']', { 'toc-invalid-value', 'toc-redundant-condition' }, 'not a game type, excluded: ' .. name)
+end
+for _, name in ipairs { 'standard', 'forever', 'camelot', 'mainline' } do
+    withFile('File.lua [AllowLoadGameType ' .. name .. ']', {}, 'a real game type: ' .. name)
+end
 withFile('File.lua [allowloadgametype Standard]', {}, 'inline names and values are case-insensitive')
 withFile('File.lua [AllowLoad Game]', {})
 withFile('File.lua [AllowLoad Both]', {})
@@ -282,11 +290,11 @@ case('_Classic with one number only', '## Interface: 11509' .. nl, { 'toc-interf
 case('a line that cannot load in a game suffix file', 'File.lua [AllowLoadGameType standard]' .. nl, { 'toc-unreachable-line', 'toc-missing-interface' }, { toc = 'MyAddon_Vanilla.toc', files = { 'File.lua' } })
 case('a condition the suffix already implies', '## Interface: 120105' .. nl .. 'File.lua [AllowLoadGameType standard]' .. nl, { 'toc-redundant-condition' }, { toc = 'MyAddon_Standard.toc', files = { 'File.lua' } })
 case('a line allowed on a game of the suffix family', '## Interface: 11509, 20506, 30405, 40402, 50504' .. nl .. 'File.lua [AllowLoadGameType vanilla]' .. nl, {}, { toc = 'MyAddon_Classic.toc', files = { 'File.lua' } })
-case('a header Exclude removes games for the lines', HEADER .. '## ExcludeLoadGameType: standard' .. nl .. 'File.lua [AllowLoadGameType standard]' .. nl, { 'toc-unreachable-line', 'toc-interface-missing-game' }, { files = { 'File.lua' } })
-case('Allow then Exclude', HEADER .. '## AllowLoadGameType: mainline' .. nl .. '## ExcludeLoadGameType: forever' .. nl .. 'File.lua [AllowLoadGameType forever]' .. nl, { 'toc-unreachable-line' }, { files = { 'File.lua' } })
+case('a header Exclude removes games for the lines', HEADER .. '## ExcludeLoadGameType: standard' .. nl .. 'File.lua [AllowLoadGameType standard]' .. nl, { 'toc-unreachable-line', 'toc-interface-missing-game', 'toc-interface-mismatch' }, { files = { 'File.lua' } })
+case('Allow then Exclude', HEADER .. '## AllowLoadGameType: mainline' .. nl .. '## ExcludeLoadGameType: forever' .. nl .. 'File.lua [AllowLoadGameType forever]' .. nl, { 'toc-unreachable-line', 'toc-interface-mismatch' }, { files = { 'File.lua' } })
 case('an Allow list nobody knows restricts nothing', HEADER .. '## AllowLoadGameType: nonsense' .. nl, { 'toc-invalid-value' })
 case('an Exclude of an unknown type excludes nothing', HEADER .. '## ExcludeLoadGameType: nonsense' .. nl, { 'toc-invalid-value' })
-case('game type aliases: camelot is forever', HEADER .. '## AllowLoadGameType: camelot' .. nl .. 'File.lua [AllowLoadGameType standard]' .. nl, { 'toc-unreachable-line' }, { files = { 'File.lua' } })
+case('game type aliases: camelot is forever', HEADER .. '## AllowLoadGameType: camelot' .. nl .. 'File.lua [AllowLoadGameType standard]' .. nl, { 'toc-unreachable-line', 'toc-interface-mismatch' }, { files = { 'File.lua' } })
 case('game type aliases: mainline includes standard', HEADER .. '## AllowLoadGameType: mainline' .. nl, {})
 
 -- 5. The Interface number -----------------------------------------------------------------------------------------------------------------------------
@@ -320,7 +328,7 @@ case('a number nobody knows the game of', '## Interface: 900000' .. nl, {})
 case('Interface numbers imply the game: mainline only', HEADER .. '## AllowLoadGameType: mainline' .. nl, {})
 case('Interface for a game the allow list excludes', '## Interface: 120105, 11509' .. nl .. '## AllowLoadGameType: standard' .. nl, { 'toc-interface-mismatch' })
 case('a game of the allow list without a number', HEADER .. '## AllowLoadGameType: mainline, cata' .. nl, { 'toc-interface-missing-game' })
-case('two numbers of one game are fine', '## Interface: 120105, 120107' .. nl .. '## AllowLoadGameType: mainline' .. nl, {})
+case('two numbers of one game are fine', '## Interface: 120105, 120107, 16001' .. nl .. '## AllowLoadGameType: mainline' .. nl, {})
 case('older numbers next to a current one keep older clients working', '## Interface: 120105, 100000, 110000' .. nl, {})
 case('only old numbers: one report, at the newest', '## Interface: 120000, 100000, 110000' .. nl, { 'toc-interface-too-low' })
 case('no narrowing: a single number is fine', '## Interface: 120105' .. nl, {})
@@ -485,16 +493,16 @@ untouch({ 'MyAddon_Cata.toc', 'MyAddon_Mists.toc' })
 case('a plain file with no other files loads everywhere', HEADER .. 'File.lua [AllowLoadGameType cata]' .. nl, {}, { files = { 'File.lua' } })
 touch({ 'MyAddon_Classic.toc' })
 case('a plain file next to _Classic: no classic game', HEADER .. 'File.lua [AllowLoadGameType vanilla]' .. nl, { 'toc-unreachable-line' }, { files = { 'File.lua' } })
-case('a plain file next to _Classic: the mainline games', HEADER .. 'File.lua [AllowLoadGameType plunderstorm]' .. nl, {}, { files = { 'File.lua' } })
+case('a plain file next to _Classic: the mainline games', HEADER .. 'File.lua [AllowLoadGameType standard]' .. nl, {}, { files = { 'File.lua' } })
 untouch({ 'MyAddon_Classic.toc' })
 touch({ 'MyAddon_Vanilla.toc' })
 case('_Classic leaves Vanilla to its own file', '## Interface: 20506' .. nl .. 'File.lua [AllowLoadGameType vanilla]' .. nl, { 'toc-unreachable-line', 'toc-interface-missing-game' }, { toc = 'MyAddon_Classic.toc', files = { 'File.lua' } })
 untouch({ 'MyAddon_Vanilla.toc' })
 do
-    local siblings = { 'MyAddon_Standard.toc', 'MyAddon_Forever.toc', 'MyAddon_Plunderstorm.toc', 'MyAddon_WoWHack.toc' }
+    local siblings = { 'MyAddon_Standard.toc', 'MyAddon_Forever.toc' }
     touch(siblings)
     local set = syntax.fileScope(furi.encode(ADDON .. '/MyAddon_Mainline.toc'))
-    assert(set.standard and set.forever and set.plunderstorm and set.wowhack, 'a family file whose games all have files keeps the family')
+    assert(set.standard and set.forever, 'a family file whose games all have files keeps the family')
     untouch(siblings)
 end
 
@@ -508,7 +516,7 @@ do
         all[game.id] = true
     end
     local scope = syntax.lineScope(all, lines, lines[2])
-    assert(scope.standard and scope.plunderstorm and scope.wowhack and not scope.forever and not scope.vanilla, 'scope of a line: ' .. syntax.describeGames(scope))
+    assert(scope.standard and not scope.forever and not scope.vanilla, 'scope of a line: ' .. syntax.describeGames(scope))
     local set, suffix, base = syntax.fileScope(furi.encode(ADDON .. '/MyAddon_Mainline.toc'))
     assert(suffix == 'Mainline' and base == 'MyAddon' and set.standard and set.forever and not set.cata, 'a family suffix')
     set, suffix = syntax.fileScope(furi.encode(ADDON .. '/MyAddon_TBC.toc'))
@@ -831,10 +839,11 @@ offers('Interface numbers include the upcoming ones', '## Interface: |', { '1201
 offers('Interface numbers are not repeated', '## Interface: 120105, |', { '50504', '120107' }, { '120105' })
 offers('an upcoming number is not repeated', '## Interface: 120107, |', { '120105' }, { '120107' })
 do
-    -- the released number comes before the one the game is about to move to; a game with no release has only the second
+    -- the released number comes before the one the game is about to move to
     local items = labels(completionOf('## Interface: |'))
     assert(items['120105'].sortText < items['120107'].sortText, 'the released number is listed first')
-    assert(items['16001'].detail:find('upcoming', 1, true) and not items['120105'].detail:find('upcoming', 1, true), 'only the upcoming number says so')
+    assert(items['120107'].detail:find('upcoming', 1, true) and not items['120105'].detail:find('upcoming', 1, true), 'only the upcoming number says so')
+    assert(not items['16001'].detail:find('upcoming', 1, true), 'Forever is released: 16001 is its number, not an upcoming one')
 end
 offers('categories', '## Category: |', { 'Combat', 'Dungeons & Raids', 'Action Bars', 'Libraries' }, { 'Kampf' })
 offers('categories while typing', '## Category: Dun|', { 'Dungeons & Raids' })
@@ -1002,21 +1011,37 @@ local function hoverLacks(name, marked, absent, tocName)
 end
 
 hovers('a game type with an upcoming number', '## AllowLoadGameType: stand|ard', { '**Upcoming:**', '`120107`', '`120105`' })
-hovers('a game type that is not released yet', '## ExcludeLoadGameType: for|ever', { '**Not released yet:**', '`16001`' })
+hovers('a released Forever', '## ExcludeLoadGameType: for|ever', { 'Forever', '`16000` to `19999`', '`16001`' })
+hoverLacks('Forever is released', '## ExcludeLoadGameType: for|ever', { 'Not released', 'Upcoming' })
 hovers('the upcoming number', '## Interface: 12|0107', { '**Upcoming:**', 'Retail (Midnight)', '`120105`' })
-hovers('the upcoming number of a game with no release', '## Interface: 16|001', { '**Upcoming:**', 'Forever', 'not released yet' })
+hovers('the number of Forever', '## Interface: 16|001', { 'Forever', 'The lowest number worth declaring today is `16001`' })
+hoverLacks('Forever is not Classic Era', '## Interface: 16|001', { 'Classic Era' })
+-- a game with no release yet (none exists today: the branch stays for the next one): a fake game type added for the test only
+do
+    local syntax = require 'core.diagnostics.extra.wow-toc.syntax'
+    syntax.gameById.zzunreleased = { id = 'zzunreleased', display = 'ZzUnreleased', families = {}, suffixes = {}, variable = 'Zz', upcoming = 99001 }
+    syntax.gameOrder[#syntax.gameOrder+1] = 'zzunreleased'
+    hovers('the number of a game with no release', '## Interface: 99|001', { '**Upcoming:**', 'ZzUnreleased', 'not released yet' })
+    syntax.gameOrder[#syntax.gameOrder] = nil
+    syntax.gameById.zzunreleased = nil
+    hoverLacks('the fake game is gone again', '## Interface: 99|001', { 'ZzUnreleased' })
+end
 hoverLacks('the released number is not called upcoming', '## Interface: 12|0105', { 'Upcoming' })
 hoverLacks('a game with nothing ahead of its release', '## AllowLoadGameType: ca|ta', { 'Upcoming', 'Not released' })
 hoverLacks('a game with an upcoming number says nothing of an unreleased one', '## AllowLoadGameType: stand|ard', { 'Not released' })
-hovers('a family', '## AllowLoadGameType: main|line', { 'game family  mainline', 'Retail (Midnight)', 'Plunderstorm' })
+hovers('a family', '## AllowLoadGameType: main|line', { 'game family  mainline', 'Retail (Midnight)', 'Forever' })
 hovers('an alias', '## ExcludeLoadGameType: camel|ot', { 'Forever' })
 hovers('an inline directive', 'File.lua [AllowLoad|GameType cata]', { '[AllowLoadGameType <game type>' })
 hovers('an inline variable', 'Dir\\[Text|Locale].lua', { '[TextLocale]' })
 hovers('a bracket value', 'File.lua [AllowLoadGameType ca|ta]', { 'Cataclysm Classic' })
 hovers('a bracket word nobody knows', 'File.lua [AllowLoadGameType no|nsense]', {})
 hovers('a file line says where it loads', 'Co|re.lua', { 'Loads on every game type' })
-hovers('a restricted file line', 'Co|re.lua [AllowLoadGameType cata]', { 'Loads on: Cataclysm Classic.' })
-hovers('a file line of a suffix file', 'Co|re.lua', { 'Loads on: The Burning Crusade Classic.', '`_TBC`' }, 'MyAddon_TBC.toc')
+local function lineList(...) return table.concat({ ... }, nl) end
+hovers('a restricted file line', 'Co|re.lua [AllowLoadGameType cata]', { lineList('Loads on:', '', '- Cataclysm Classic', '', 'Does not load on:', '', '- Retail (Midnight)', '- Forever') })
+hoverLacks('a restricted file line is not a comma list', 'Co|re.lua [AllowLoadGameType cata]', { 'Cataclysm Classic, ', ', Classic Era' })
+hovers('a file line of a suffix file', 'Co|re.lua', { lineList('Loads on:', '', '- The Burning Crusade Classic', '', 'Does not load on:', '', '- Retail (Midnight)'), '`_TBC`' }, 'MyAddon_TBC.toc')
+hovers('a line that loads nowhere', 'Co|re.lua [AllowLoadGameType cata][ExcludeLoadGameType cata]', { lineList('Loads on no game type.', '', 'Does not load on:', '', '- Retail (Midnight)') })
+hoverLacks('a file line that loads everywhere lists nothing', 'Co|re.lua', { 'Does not load on' })
 -- a file without a suffix is the fallback of its folder; the files next to it that take game types away are named
 hovers('a file without a suffix is the fallback', 'Co|re.lua', { '**Fallback file:**', '`MyAddon_<Suffix>.toc`', 'a game type added later' })
 hoverLacks('no sibling, nothing taken', 'Co|re.lua', { 'Taken by' })

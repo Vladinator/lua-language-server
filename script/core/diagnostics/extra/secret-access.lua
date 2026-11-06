@@ -422,7 +422,8 @@ local function nameOf(source)
     return nil
 end
 
---- The function a local holds (`local function f` / `local f = function`) when `value` reads that local: how a guard
+--- The function a local holds (`local function f` / `local f = function`, or a local declared first and defined later with
+--- `function f() end`, which is the only assignment of a function to it) when `value` reads that local: how a guard
 --- written as a local function is exported (`ns.Util = { issecretvalue = issecretvalue }`,
 --- `ns.Util.issecretvalue = issecretvalue`). Only this one hop, within the file: nothing is compiled.
 ---@param value parser.object?
@@ -435,7 +436,22 @@ local function localFunctionOf(value)
     if declared and declared.type == 'function' then
         return declared
     end
-    return nil
+    if declared or not value.node then
+        return nil
+    end
+    -- (`local f` ... `function f() end`: the one function that is ever assigned to the local; a second assignment of anything
+    -- makes it ambiguous)
+    ---@type parser.object?
+    local found
+    for _, ref in ipairs(value.node.ref or {}) do
+        if ref.type == 'setlocal' then
+            if found or not ref.value or ref.value.type ~= 'function' then
+                return nil
+            end
+            found = ref.value
+        end
+    end
+    return found
 end
 
 --- Every export of a local function in this file: the table field or field assignment (`name`) and the function it

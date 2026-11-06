@@ -1841,4 +1841,38 @@ do
         assert(#found == 1 and found[1] == 'secret-condition@' .. (3 + 13),
             case.name .. ': only the unguarded condition is reported, got ' .. table.concat(found, ' '))
     end
+
+    -- The guard declared first and defined later (`local guard` ... `function guard(value) end`, found from a real addon,
+    -- 2026-11-06: `coreutil.issecretvalue = issecretvalue` lost the guard for every other file). It counts when that
+    -- function is the only thing ever assigned to the local; a second assignment makes the export ambiguous.
+    local use = lines(
+        '---@secret',
+        '---@return number',
+        'function GetNumber() return 0 end',
+        'local ns = {} ---@class ExportedNS',
+        'local guard = ns.Util.guard',
+        'local n = GetNumber()',
+        'if guard(n) then return end',
+        'return n + 1'
+    )
+    for _, case in ipairs {
+        { name = 'declared first, defined later', expect = 0,
+          body = lines('local guard', 'do', '    ---@secret-guard value is-secret', '    ---@param value any', '    ---@return boolean',
+                       '    function guard(value) return false end', 'end') },
+        { name = 'declared first, defined later, secret-check tag', expect = 0,
+          body = lines('local guard', '---@secret-check', '---@param value any', '---@return boolean',
+                       'function guard(value) return false end') },
+        { name = 'assigned a second time', expect = 1,
+          body = lines('local guard', '---@secret-guard value is-secret', '---@param value any', '---@return boolean',
+                       'function guard(value) return false end', 'guard = function(value) return true end') },
+        { name = 'assigned something that is no function', expect = 1,
+          body = lines('local guard', '---@secret-guard value is-secret', '---@param value any', '---@return boolean',
+                       'function guard(value) return false end', 'guard = print') },
+        { name = 'defined but not tagged', expect = 1,
+          body = lines('local guard', 'function guard(value) return false end') },
+    } do
+        local util = state .. lines('local ns = {} ---@class ExportedNS') .. case.body .. 'ns.Util = { guard = guard }' .. NL
+        local found = secretFindings(util, use)
+        assert(#found == case.expect, case.name .. ': expected ' .. case.expect .. ' report(s), got ' .. table.concat(found, ' '))
+    end
 end

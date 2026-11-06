@@ -6,3 +6,4 @@
 -- feature. Its tests are next to it (wow-toc-language.test.lua).
 require 'core.diagnostics.extra.wow-toc.syntax'
 require 'core.diagnostics.extra.wow-toc.editor'
+require 'core.diagnostics.extra.wow-toc.tokens'

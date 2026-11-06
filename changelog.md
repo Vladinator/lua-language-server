@@ -2,6 +2,7 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `NEW` `.toc` files get semantic tokens (colours) from the server: directive names, game types, locales, numbers and flags, inline directives and variables; a document kind can bring its own through the new `semanticTokens` hook. Off with `Lua.semantic.enable`.
 * `FIX` A function that does not fit a `fun(...)` type says why (the return, the parameter, or the number of arguments) instead of two lines of "`function` cannot match `fun(...)`".
 * `FIX` A secret guard declared first and defined later (`local issecretvalue` ... `function issecretvalue(value)`, then `ns.util.issecretvalue = issecretvalue`) is recognised as a guard in the files that use the export.
 * `FIX` `.toc`: Forever is released (Interface `16001`, its range starts at 16000 so it no longer overlaps Classic Era), `retail` / `midnight` / `classic_era` / `plunderstorm` / `wowlabs` / `wowhack` are no game types of the client and are reported as unknown values, and the hover of a file line lists the game types it loads on and the ones it does not, one per line.

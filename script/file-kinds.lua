@@ -48,6 +48,13 @@ local files   = require 'files'
 ---@field name string the file name below the root of the test workspace, as the kind recognizes it (`Addon.toc`, `.vscode/settings.json`)
 ---@field text string
 
+---@class fileKind.token  a coloured piece of a document: positions are LSP ones (0-based line, character in the client's encoding)
+---@field line      integer
+---@field start     integer
+---@field length    integer
+---@field type      string      a name of `define.TokenTypes` (`keyword`, `enumMember`, `number`, ...)
+---@field modifiers? string[]   names of `define.TokenModifiers`
+
 ---@class fileKind
 ---@field id                  string
 ---@field match               fun(uri: uri): boolean
@@ -56,6 +63,7 @@ local files   = require 'files'
 ---@field hover?              fun(uri: uri, text: string, position: fileKind.position): fileKind.hover?
 ---@field definition?         fun(uri: uri, text: string, position: fileKind.position): table[]?  LSP Location[]
 ---@field codeAction?         fun(uri: uri, text: string, range: fileKind.range, diagnostics: fileKind.clientDiagnostic[]): table[]?  LSP CodeAction[] (`edit.changes` / `edit.documentChanges` in LSP positions)
+---@field semanticTokens?     fun(uri: uri, text: string): fileKind.token[]  the colours of the document (LSP semantic tokens): what the editor's grammar does not know
 ---@field triggerCharacters?  string[] characters that open completion in a document of this kind
 ---@field samples?            fileKind.sample[] typical documents of the kind: the test that damages every registered kind (test/other/file-kind-damage.lua) starts from them
 ---@field needsWorkspace?     boolean the diagnostics depend on the whole workspace: they wait until it is loaded and are made again when it reloads
@@ -282,6 +290,61 @@ function m.hover(uri, position)
         contents = { kind = 'markdown', value = hover.value },
         range    = hover.range,
     }
+end
+
+--- The semantic tokens of an open document of a kind in the LSP wire form (`deltaLine, deltaStart, length, type, modifiers` per token), or nil when it
+--- is not ours / the kind colours nothing / `Lua.semantic.enable` is off. `firstLine` and `lastLine` (0-based) cut the answer to a range request.
+---@param uri       uri
+---@param firstLine? integer
+---@param lastLine?  integer
+---@return integer[]?
+function m.semanticTokens(uri, firstLine, lastLine)
+    local document = documents[uri]
+    if not document or not document.kind.semanticTokens or not config.get(uri, 'Lua.semantic.enable') then
+        return nil
+    end
+    local ok, tokens = xpcall(document.kind.semanticTokens, log.error, uri, document.text)
+    if not ok or not tokens then
+        return nil
+    end
+    ---@type fileKind.token[]
+    local kept = {}
+    for _, token in ipairs(tokens) do
+        if  define.TokenTypes[token.type]
+        and token.length > 0
+        and (not firstLine or token.line >= firstLine)
+        and (not lastLine  or token.line <= lastLine) then
+            kept[#kept+1] = token
+        end
+    end
+    table.sort(kept, function (a, b)
+        if a.line ~= b.line then
+            return a.line < b.line
+        end
+        return a.start < b.start
+    end)
+    ---@type integer[]
+    local data = {}
+    local lastRow, lastStart = 0, 0
+    local lastFinish = -1
+    for _, token in ipairs(kept) do
+        -- (tokens must not overlap: the first one of a place wins)
+        if token.line ~= lastRow or token.start >= lastFinish then
+            local deltaLine = token.line - lastRow
+            local deltaStart = deltaLine == 0 and (token.start - lastStart) or token.start
+            local bits = 0
+            for _, name in ipairs(token.modifiers or {}) do
+                bits = bits | (define.TokenModifiers[name] or 0)
+            end
+            data[#data+1] = deltaLine
+            data[#data+1] = deltaStart
+            data[#data+1] = token.length
+            data[#data+1] = define.TokenTypes[token.type]
+            data[#data+1] = bits
+            lastRow, lastStart, lastFinish = token.line, token.start, token.start + token.length
+        end
+    end
+    return data
 end
 
 ---@param uri      uri

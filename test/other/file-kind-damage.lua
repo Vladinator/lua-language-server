@@ -70,6 +70,15 @@ for _, kind in ipairs(kinds.all()) do
                     end
                 end
             end
+            if kind.semanticTokens then
+                local ok4, tokens = guarded(kind.semanticTokens, uri, text)
+                assert(ok4, ('%s: semanticTokens of %s: %s'):format(kind.id, what, tostring(tokens)))
+                for _, token in ipairs(tokens --[[@as fileKind.token[] ]]) do
+                    assert(math.type(token.line) == 'integer' and token.line >= 0 and math.type(token.start) == 'integer' and token.start >= 0
+                        and math.type(token.length) == 'integer' and token.length > 0 and require 'proto.define'.TokenTypes[token.type],
+                        ('%s: a bad token in %s: %s %s %s %s'):format(kind.id, what, tostring(token.line), tostring(token.start), tostring(token.length), tostring(token.type)))
+                end
+            end
             if kind.codeAction then
                 local range = { start = { line = 0, character = 0 }, ['end'] = { line = 1000, character = 0 } }
                 local ok3, err = guarded(kind.codeAction, uri, text, range, client)

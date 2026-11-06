@@ -1155,4 +1155,53 @@ pcall(fs.remove, fs.path(TESTROOT .. 'MyAddon/MyAddon.toc'))
 pcall(fs.remove, fs.path(ADDON .. '/Dir'))
 pcall(fs.remove, fs.path(ADDON .. '/Sub'))
 
+-- 10. Colours (semantic tokens) ------------------------------------------------------------------------------------------------------------------------
+
+do
+    local tokenizer = require 'core.diagnostics.extra.wow-toc.tokens'
+
+    --- The tokens of a text as `row:start-length type` strings.
+    ---@param text string
+    ---@return string[]
+    local function tokensOf(text)
+        ---@type string[]
+        local found = {}
+        for _, token in ipairs(tokenizer.tokensOf(text)) do
+            found[#found+1] = ('%d:%d-%d %s'):format(token.line, token.start, token.length, token.type)
+        end
+        return found
+    end
+    ---@param name   string
+    ---@param text   string
+    ---@param wanted string[]
+    local function tokensAre(name, text, wanted)
+        local got = tokensOf(text)
+        assert(table.concat(got, ' | ') == table.concat(wanted, ' | '), name .. ': ' .. table.concat(got, ' | '))
+    end
+
+    tokensAre('a header with a number list', '## Interface: 120105, 16001',
+        { '0:3-9 keyword', '0:14-6 number', '0:22-5 number' })
+    tokensAre('a game type value: known words only', '## AllowLoadGameType: standard, retail',
+        { '0:3-17 keyword', '0:22-8 enumMember' })
+    tokensAre('Exclude is coloured like Allow', '## ExcludeLoadGameType: classic',
+        { '0:3-19 keyword', '0:24-7 enumMember' })
+    tokensAre('a locale list', 'Core.lua [AllowLoadTextLocale enUS, xxXX]',
+        { '0:10-19 keyword', '0:30-4 enumMember' })
+    tokensAre('a flag', '## LoadOnDemand: 1', { '0:3-12 keyword', '0:17-1 number' })
+    tokensAre('a custom key', '## X-Website: https://example.com', { '0:3-9 property' })
+    tokensAre('an unknown key is left to the grammar', '## Bogus: 1', {})
+    tokensAre('a comment and a plain file line are left to the grammar', '# a comment' .. nl .. 'Core.lua', {})
+    tokensAre('a variable in a path', '[Game]\\Core.lua', { '0:1-4 variable' })
+    tokensAre('inline directives of a file line', 'Core.lua [AllowLoad Game] [ExcludeLoadGameType vanilla]',
+        { '0:10-9 keyword', '0:20-4 enumMember', '0:27-19 keyword', '0:47-7 enumMember' })
+    tokensAre('an unknown inline directive is left to the grammar', 'Core.lua [Nonsense x]', {})
+    tokensAre('characters, not bytes', '\u{e9}.lua [AllowLoadGameType cata]', { '0:7-17 keyword', '0:25-4 enumMember' })
+    tokensAre('an empty text', '', {})
+    assert(type(syntax.kind.semanticTokens) == 'function' and #syntax.kind.semanticTokens('x.toc', '## Interface: 1') == 2, 'the kind hands the tokens to the server')
+    -- every line of a real file is covered without raising
+    for _, line in ipairs { '## Title-deDE: x', '## ', '##', 'File.lua [', 'File.lua []', 'File.lua [AllowLoadGameType', '## AllowLoadGameType:' } do
+        tokensOf(HEADER .. line .. nl)
+    end
+end
+
 assert(#failures == 0, nl .. table.concat(failures, nl .. nl))

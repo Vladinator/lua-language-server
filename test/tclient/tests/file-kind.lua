@@ -62,6 +62,16 @@ local kind = {
             edit  = { changes = { [uri] = { { range = range, newText = 'GOOD' } } } },
         } }
     end,
+    -- (listed out of order, with an overlapping one, an unknown type and an empty one: the answer must be sorted and clean)
+    semanticTokens = function (_uri, _text)
+        return {
+            { line = 1, start = 8, length = 3, type = 'keyword', modifiers = { 'deprecated' } },
+            { line = 0, start = 0, length = 4, type = 'string' },
+            { line = 1, start = 9, length = 1, type = 'number' },
+            { line = 1, start = 0, length = 4, type = 'no-such-type' },
+            { line = 1, start = 0, length = 0, type = 'keyword' },
+        }
+    end,
 }
 kinds.register(kind)
 
@@ -188,6 +198,40 @@ lclient():start(function (client)
         context = { diagnostics = { { range = range, message = 'x', code = CODE } } },
     })
     assert(actions and actions[1].title == 'zz fix 1' and actions[1].edit.changes[uri][1].newText == 'GOOD', 'code action')
+
+    -- semantic tokens ask the kind: sorted, relative to the one before, no overlap, no unknown type, no empty one
+    local function same(a, b)
+        if #a ~= #b then
+            return false
+        end
+        for i = 1, #a do
+            if a[i] ~= b[i] then
+                return false
+            end
+        end
+        return true
+    end
+    -- (this client asks by range, so the full request is not registered here: the function both handlers call is tested directly)
+    local wanted = {
+        0, 0, 4, define.TokenTypes.string, 0,
+        1, 8, 3, define.TokenTypes.keyword, define.TokenModifiers.deprecated,
+    }
+    local direct = kinds.semanticTokens(uri)
+    assert(direct and same(direct, wanted), 'semantic tokens: ' .. table.concat(direct or {}, ','))
+    local whole = client:awaitRequest('textDocument/semanticTokens/range', {
+        textDocument = { uri = uri }, range = { start = { line = 0, character = 0 }, ['end'] = { line = 1000, character = 0 } },
+    })
+    assert(whole and whole.data and same(whole.data, wanted), 'semantic tokens of the whole document by range')
+    -- a range request keeps the lines of the range (the first token is relative to the start of the document)
+    local ranged = client:awaitRequest('textDocument/semanticTokens/range', {
+        textDocument = { uri = uri }, range = { start = { line = 1, character = 0 }, ['end'] = { line = 1, character = 20 } },
+    })
+    assert(ranged and ranged.data and same(ranged.data, { 1, 8, 3, define.TokenTypes.keyword, define.TokenModifiers.deprecated }), 'semantic tokens of a range')
+    -- the setting that switches the colours off applies to the document of a kind too
+    config.set(uri, 'Lua.semantic.enable', false)
+    assert(kinds.semanticTokens(uri) == nil, 'no tokens with Lua.semantic.enable off')
+    config.set(uri, 'Lua.semantic.enable', true)
+    assert(kinds.semanticTokens(uri) and #(kinds.semanticTokens(uri) --[[@as integer[] ]]) == 10, 'tokens again with the setting on')
 
     -- an incremental change is merged and the diagnostics are sent again
     client:notify('textDocument/didChange', {

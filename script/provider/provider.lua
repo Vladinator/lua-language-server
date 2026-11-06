@@ -1535,6 +1535,10 @@ client.event(function (ev)
                     ---@type provider.textDocumentItem
                     local doc = params.textDocument
                     local uri = files.getRealUri(doc.uri)
+                    local kindTokens = require 'file-kinds'.semanticTokens(uri)
+                    if kindTokens then
+                        return { data = kindTokens }
+                    end
                     workspace.awaitReady(uri)
                     await.sleep(0.0)
                     local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_SEMANTIC_FULL, 0.5)
@@ -1568,6 +1572,10 @@ m.register 'textDocument/semanticTokens/range' {
         ---@type provider.textDocumentItem
         local doc = params.textDocument
         local uri = files.getRealUri(doc.uri)
+        local kindTokens = require 'file-kinds'.semanticTokens(uri, params.range.start.line, params.range['end'].line)
+        if kindTokens then
+            return { data = kindTokens }
+        end
         workspace.awaitReady(uri)
         local _ <close> = progress.create(uri, lang.script.WINDOW_PROCESSING_SEMANTIC_RANGE, 0.5)
         await.sleep(0.0)

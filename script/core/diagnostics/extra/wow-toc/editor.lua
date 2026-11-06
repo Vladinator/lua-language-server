@@ -453,8 +453,8 @@ local function loadScope(uri, cursor)
         summary = 'Loads on:' .. nl .. nl .. table.concat(loads, nl) .. nl .. nl .. 'Does not load on:' .. nl .. nl .. table.concat(skips, nl)
     end
     if #skips > 0 then
-        -- (a blank paragraph: the facts below are a list too, and would be one more item of the list of games without it)
-        summary = summary .. nl .. nl .. '&nbsp;'
+        -- (a rule: the facts below are a list too, and would be one more item of the list of games without it; a blank paragraph took two lines)
+        summary = summary .. nl .. nl .. '---'
     end
     ---@type string[]
     local facts = {}

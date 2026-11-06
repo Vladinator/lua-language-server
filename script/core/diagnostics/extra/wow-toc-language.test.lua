@@ -290,12 +290,12 @@ withFile('File.lua [Bootstrap yes]', { 'toc-invalid-value' }, 'Bootstrap takes n
 withFile('File.lua [AllowLoadGameTyp standard]', { 'toc-invalid-value' }, 'a misspelt directive')
 withFile('File.lua [AllowLoadGameType standard', { 'toc-invalid-value' }, 'an unclosed bracket')
 withFile('File.lua []', { 'toc-invalid-value' }, 'an empty bracket')
-withFile('Localization\\[TextLocale].lua', {}, 'the wiki example: Localization\\[TextLocale].lua (a variable in the path is not checked on disk)')
-withFile('Nowhere\\[TextLocale].lua', {}, 'a variable inside a path of a folder that is not there')
-withFile('Nowhere\\[TextLocale].lua [AllowLoadGameType cata]', {}, 'a variable inside a path, then a condition')
+withFile('Localization\\[TextLocale].lua', { 'toc-variable-file-missing' }, 'the wiki example: Localization\\[TextLocale].lua with the file of one locale only')
+withFile('Nowhere\\[TextLocale].lua', { 'toc-nonexistent-file' }, 'a variable inside a path of a folder that is not there')
+withFile('Nowhere\\[TextLocale].lua [AllowLoadGameType cata]', { 'toc-nonexistent-file' }, 'a variable inside a path, then a condition')
 withFile('Nowhere\\Missing.lua', { 'toc-nonexistent-file' }, 'the same folder without the variable')
-withFile('[Family]\\Core.lua', {}, '[Family] in a path')
-withFile('[Game]\\Core.lua', {}, '[Game] in a path')
+withFile('[Family]\\Core.lua', { 'toc-variable-file-missing' }, '[Family] in a path: only the Mainline folder is there')
+withFile('[Game]\\Core.lua', { 'toc-nonexistent-file' }, '[Game] in a path: no folder of any game is there')
 withFile('[Family]\\Core.lua [AllowLoadGameType mainline]', {})
 withFile('[TextLocale] File.lua', {}, 'a variable in the name is not expanded: the file is not checked on disk')
 withFile('File.lua [Family extra]', { 'toc-invalid-value' }, 'a variable takes no value')
@@ -1156,6 +1156,76 @@ pcall(fs.remove, fs.path(TESTROOT .. 'ZzNoToc'))
 pcall(fs.remove, fs.path(TESTROOT .. 'MyAddon/MyAddon.toc'))
 pcall(fs.remove, fs.path(ADDON .. '/Dir'))
 pcall(fs.remove, fs.path(ADDON .. '/Sub'))
+
+-- variables in a path: every file the game would ask for is looked up (`[Game]` and `[Family]` for the games the line loads on, `[TextLocale]` for the
+-- locales a client reports, not `enGB`), user report 2026-11-06 (`locale/[TextLocale].lua` next to nine files of locales)
+do
+    local LOCALES = { 'enUS', 'deDE', 'esES', 'esMX', 'frFR', 'itIT', 'koKR', 'ptBR', 'ruRU', 'zhCN', 'zhTW' }
+    ---@param names string[]
+    ---@param folder string
+    ---@param skip? string
+    ---@return string[]
+    local function localeFiles(names, folder, skip)
+        ---@type string[]
+        local found = {}
+        for _, name in ipairs(names) do
+            if name ~= skip then
+                found[#found+1] = folder .. '/' .. name .. '.lua'
+            end
+        end
+        return found
+    end
+    ---@param line string
+    ---@param files string[]
+    ---@return string[] codes, string[] messages
+    local function run(line, files)
+        touch(files)
+        local list = diagnose(HEADER .. line .. nl)
+        untouch(files)
+        ---@type string[], string[]
+        local found, said = {}, {}
+        for _, diag in ipairs(list) do
+            found[#found+1] = diag.code
+            said[#said+1] = diag.message
+        end
+        return found, said
+    end
+    local function none(name, line, files)
+        local found = run(line, files)
+        assert(#found == 0, name .. ': ' .. table.concat(found, ' '))
+    end
+
+    none('every locale has its file', 'Loc\\[TextLocale].lua', localeFiles(LOCALES, 'Loc'))
+    -- (`enGB` is no value of [TextLocale]: no file is wanted for it)
+    local found, said = run('Loc\\[TextLocale].lua', localeFiles(LOCALES, 'Loc', 'esMX'))
+    assert(#found == 1 and found[1] == 'toc-variable-file-missing' and said[1]:find('no file for: esMX.', 1, true), 'one locale without a file: ' .. tostring(said[1]))
+    assert(not said[1]:find('enGB', 1, true), 'enGB is not asked for')
+    found, said = run('Loc\\[TextLocale].lua', { 'Loc/enUS.lua' })
+    assert(#found == 1 and found[1] == 'toc-variable-file-missing' and said[1]:find('deDE', 1, true) and not said[1]:find('enUS', 1, true), 'ten locales without a file')
+    found = run('Loc\\[TextLocale].lua', {})
+    assert(#found == 1 and found[1] == 'toc-nonexistent-file', 'no file at all is the plain report')
+    -- the folder of a slash is the same
+    none('forward slashes', 'Loc/[TextLocale].lua', localeFiles(LOCALES, 'Loc'))
+    -- a locale-restricted line is still judged for every locale (the condition on locales is not applied to the expansion)
+    -- [Game]: the games the line loads on
+    none('[Game], both files', '[Game]\\Core.lua [AllowLoadGameType standard, forever]', { 'Standard/Core.lua', 'Camelot/Core.lua' })
+    found, said = run('[Game]\\Core.lua [AllowLoadGameType standard, forever]', { 'Standard/Core.lua' })
+    assert(#found == 1 and found[1] == 'toc-variable-file-missing' and said[1]:find('no file for: Forever.', 1, true), '[Game], the file of Forever is missing: ' .. tostring(said[1]))
+    none('[Game], only the games the line loads on count', '[Game]\\Core.lua [AllowLoadGameType standard]', { 'Standard/Core.lua' })
+    found = run('[Game]\\Core.lua [AllowLoadGameType cata][ExcludeLoadGameType cata]', {})
+    assert(#found == 1 and found[1] == 'toc-unreachable-line', '[Game] on a line that loads nowhere is not judged for files: ' .. table.concat(found, ' '))
+    -- [Family]
+    none('[Family]', '[Family]\\Core.lua [AllowLoadGameType standard, forever]', { 'Mainline/Core.lua' })
+    found = run('[Family]\\Core.lua [AllowLoadGameType standard, vanilla]', { 'Mainline/Core.lua' })
+    assert(#found == 1 and found[1] == 'toc-variable-file-missing', '[Family], the Classic folder is missing')
+    -- both: one expansion per game and locale
+    found, said = run('[Game]\\[TextLocale].lua [AllowLoadGameType standard]', { 'Standard/enUS.lua' })
+    assert(#found == 1 and found[1] == 'toc-variable-file-missing' and said[1]:find('Retail (Midnight) deDE', 1, true), 'game and locale together: ' .. tostring(said[1]))
+    -- a variable that is not judged: the regional locale (the file names depend on the region), an unknown one
+    none('[RegionalTextLocale] is not judged', 'Loc\\[RegionalTextLocale].lua', {})
+    local unknownFound = run('Loc\\[Nonsense].lua', {})
+    assert(#unknownFound == 0 or unknownFound[1] ~= 'toc-nonexistent-file', 'an unknown variable is left to the invalid-value check')
+end
 
 -- 10. Colours (semantic tokens) ------------------------------------------------------------------------------------------------------------------------
 

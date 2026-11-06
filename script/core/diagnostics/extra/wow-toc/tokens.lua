@@ -98,6 +98,12 @@ function m.tokensOf(text)
                 push(tokens, line, line.keyStart, line.keyFinish, 'property')
             end
         elseif line.kind == 'file' then
+            -- (the variables written inside the path)
+            for _, bracket in ipairs(line.variables or {}) do
+                if syntax.variableByName[bracket.name:lower()] then
+                    push(tokens, line, bracket.nameStart, bracket.nameFinish, 'variable')
+                end
+            end
             for _, bracket in ipairs(line.brackets) do
                 local lower = bracket.name:lower()
                 local inline = inlineByName[lower]

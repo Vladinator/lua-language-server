@@ -29,6 +29,7 @@ local DIAGNOSTICS = {
     { 'toc-unknown-header',      'Hint',    'Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.' },
     { 'toc-invalid-value',       'Warning', 'Enable diagnostics for a value that does not fit its directive: a flag that is not 0 or 1, an unknown game type or locale, an unknown or unclosed `[inline directive]`.' },
     { 'toc-nonexistent-file',    'Warning', 'Enable diagnostics for a file line of a `.toc` that is not on disk.' },
+    { 'toc-variable-file-missing', 'Hint',  'Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are).' },
     { 'toc-line-too-long',       'Warning', 'Enable diagnostics for a `.toc` line over 1024 characters: the game reads only the first 1024.' },
     { 'toc-localized-before-base', 'Hint',  'Enable diagnostics for a localized `Title-deDE` that comes before the plain `Title`, or has none: the localized ones go unused.' },
     { 'toc-restricted-header',   'Hint',    'Enable diagnostics for a directive that only Blizzard code may use.' },
@@ -312,6 +313,7 @@ local MAX_LINE = 1024
 ---@field directive? wowToc.directive
 ---@field locale?  string
 ---@field custom?  boolean
+---@field variables? wowToc.bracket[]  a file line: the variables written inside its path (`Localization\\[TextLocale].lua`, `[Game]\\Core.lua`)
 ---@field path?    string   a file line: the text before the first bracket, trimmed
 ---@field pathStart? integer
 ---@field pathFinish? integer
@@ -415,11 +417,14 @@ local function parseLine(rowText, row)
     -- a variable written inside the path (`Localization\[TextLocale].lua`) is part of the path, not a condition
     ---@type integer?
     local firstBracket
+    ---@type wowToc.bracket[]
+    local inPath = {}
     for _, bracket in ipairs(all) do
         local lower = bracket.name:lower()
         local touching = text:sub(bracket.start - 1, bracket.start - 1):match('%S') or text:sub(bracket.finish + 1, bracket.finish + 1):match('%S')
-        if bracket.closed and bracket.value == '' and variableByName[lower] and touching and bracket.start > 1 and not text:sub(1, bracket.start - 1):match('^%s*$') then
-            -- in the path
+        if bracket.closed and bracket.value == '' and variableByName[lower] and touching then
+            -- in the path (also at the start of the line: `[Game]\\Core.lua`)
+            inPath[#inPath+1] = bracket
         else
             firstBracket = bracket.start
             break
@@ -439,6 +444,7 @@ local function parseLine(rowText, row)
         path, pathStart, pathFinish = trimmedValue(text:sub(last.finish + 1), last.finish + 1)
     end
     line.path, line.pathStart, line.pathFinish = path, pathStart, pathFinish
+    line.variables = inPath
     return line
 end
 
@@ -795,6 +801,72 @@ function m.suppressionsOf(lines)
         end
         return disabled
     end, expects
+end
+
+--- The paths a file line with variables (`Localization\[TextLocale].lua`, `[Game]\Core.lua`) makes the game ask for: one per game the line loads on for
+--- `[Game]` / `[Family]` and one per locale a client reports for `[TextLocale]`. nil when the path has a variable that is not one of those (`[RegionalTextLocale]`,
+--- or one nobody knows: other checks speak of it), so nothing is judged.
+---@param path  string
+---@param scope table<string, true>  the games the line loads on
+---@return { path: string, label: string }[]?
+local function expandPath(path, scope)
+    local hasGame, hasLocale = false, false
+    for name in path:gmatch('%[(%a+)%]') do
+        local lower = name:lower()
+        if lower == 'game' or lower == 'family' then
+            hasGame = true
+        elseif lower == 'textlocale' then
+            hasLocale = true
+        else
+            return nil
+        end
+    end
+    ---@type { path: string, label: string }[]
+    local combos = {}
+    ---@type { text: string, label: string }[]
+    local byGame = { { text = path, label = '' } }
+    if hasGame then
+        byGame = {}
+        for _, id in ipairs(sortedIds(scope)) do
+            local game = gameById[id]
+            local text = path:gsub('%[[Gg][Aa][Mm][Ee]%]', (game.variable:gsub('%%', '%%%%')))
+            local family = games.families[1]
+            for _, familyId in ipairs(game.families) do
+                for _, candidate in ipairs(games.families) do
+                    if candidate.id == familyId then
+                        family = candidate
+                    end
+                end
+            end
+            text = text:gsub('%[[Ff][Aa][Mm][Ii][Ll][Yy]%]', (family.variable:gsub('%%', '%%%%')))
+            byGame[#byGame+1] = { text = text, label = game.display }
+        end
+    end
+    ---@type string[]
+    local locales = {}
+    if hasLocale then
+        ---@type table<string, true>
+        local skip = {}
+        for _, name in ipairs(games.regionalOnlyLocales) do
+            skip[name] = true
+        end
+        for _, name in ipairs(games.locales) do
+            if not skip[name] then
+                locales[#locales+1] = name
+            end
+        end
+    end
+    for _, entry in ipairs(byGame) do
+        if hasLocale then
+            for _, locale in ipairs(locales) do
+                local text = entry.text:gsub('%[[Tt][Ee][Xx][Tt][Ll][Oo][Cc][Aa][Ll][Ee]%]', locale)
+                combos[#combos+1] = { path = text, label = entry.label ~= '' and (entry.label .. ' ' .. locale) or locale }
+            end
+        else
+            combos[#combos+1] = { path = entry.text, label = entry.label }
+        end
+    end
+    return combos
 end
 
 ---@param uri uri
@@ -1217,6 +1289,27 @@ function m.diagnose(uri, text)
                     local ok, exists = pcall(fs.exists, fs.path(dirPath .. '/' .. path:gsub('\\', '/')))
                     if ok and not exists then
                         report(line.row, line.pathStart or 1, line.pathFinish or 1, 'toc-nonexistent-file', ('The file `%s` does not exist.'):format(path))
+                    end
+                else
+                    -- every file the game would ask for, for the games and locales the line is read in
+                    local combos = expandPath(path, m.lineScope(fileScope, lines, line))
+                    if combos and #combos > 0 then
+                        ---@type string[]
+                        local missing = {}
+                        for _, combo in ipairs(combos) do
+                            local ok, exists = pcall(fs.exists, fs.path(dirPath .. '/' .. combo.path:gsub('\\', '/')))
+                            if ok and not exists then
+                                missing[#missing+1] = combo.label
+                            end
+                        end
+                        if #missing == #combos then
+                            report(line.row, line.pathStart or 1, line.pathFinish or 1, 'toc-nonexistent-file',
+                                ('No file exists for `%s`: `%s` is not there%s.'):format(path, combos[1].path,
+                                    #combos > 1 and (' (nor %d other expansion%s)'):format(#combos - 1, #combos > 2 and 's' or '') or ''))
+                        elseif #missing > 0 then
+                            report(line.row, line.pathStart or 1, line.pathFinish or 1, 'toc-variable-file-missing',
+                                ('`%s` has no file for: %s.'):format(path, table.concat(missing, ', ')))
+                        end
                     end
                 end
             end

@@ -2,6 +2,8 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `NEW` Diagnostic `toc-variable-file-missing` (hint): a file line of a `.toc` whose path has `[Game]`, `[Family]` or `[TextLocale]` is checked for every file the game would ask for (the games the line loads on, the locales a client reports); when only some are there the hint lists the missing ones, when none is there it is the plain `toc-nonexistent-file`.
+* `FIX` `.toc`: a variable at the start of a file line (`[Game]\Core.lua`) is part of the path, not a condition; the path used to come out as `\Core.lua`.
 * `NEW` `.toc` files get semantic tokens (colours) from the server: directive names, game types, locales, numbers and flags, inline directives and variables; a document kind can bring its own through the new `semanticTokens` hook. Off with `Lua.semantic.enable`.
 * `FIX` A function that does not fit a `fun(...)` type says why (the return, the parameter, or the number of arguments) instead of two lines of "`function` cannot match `fun(...)`".
 * `FIX` A secret guard declared first and defined later (`local issecretvalue` ... `function issecretvalue(value)`, then `ns.util.issecretvalue = issecretvalue`) is recognised as a guard in the files that use the export.

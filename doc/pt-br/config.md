@@ -500,6 +500,7 @@ Array<string>
 * ``"toc-unknown-category"``: Enable diagnostics for a `## Category:` that is not one of the recommended names of the Addon Categories wiki page (a custom category is allowed, the page recommends its names).
 * ``"toc-unknown-header"``: Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
 * ``"toc-unreachable-line"``: Enable diagnostics for a line of a `.toc` whose load conditions and file name suffix leave no game type it can load on.
+* ``"toc-variable-file-missing"``: Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are).
 * ``"trailing-space"``: Espaços à direita
 * ``"type-mismatch"``
 * ``"unbalanced-assignments"``: Habilita diagnóstico em múltiplas atribuições se nem todas as variáveis recebem valor (ex.: `local x,y = 1`).
@@ -757,6 +758,7 @@ object<string, string>
     * toc-unknown-category
     * toc-unknown-header
     * toc-unreachable-line
+    * toc-variable-file-missing
     */
     "toc": "Fallback",
     /*
@@ -960,6 +962,7 @@ object<string, string>
     * toc-unknown-category
     * toc-unknown-header
     * toc-unreachable-line
+    * toc-variable-file-missing
     */
     "toc": "Fallback",
     /*
@@ -1518,6 +1521,10 @@ object<string, string>
     */
     "toc-unreachable-line": "Any",
     /*
+    Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are).
+    */
+    "toc-variable-file-missing": "Any",
+    /*
     Espaços à direita
     */
     "trailing-space": "Opened",
@@ -2072,6 +2079,10 @@ object<string, string>
     Enable diagnostics for a line of a `.toc` whose load conditions and file name suffix leave no game type it can load on.
     */
     "toc-unreachable-line": "Warning",
+    /*
+    Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are).
+    */
+    "toc-variable-file-missing": "Hint",
     /*
     Espaços à direita
     */

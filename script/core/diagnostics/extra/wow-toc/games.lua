@@ -49,6 +49,7 @@
 ---@field games     wowToc.game[]
 ---@field families  wowToc.family[]
 ---@field locales   string[]
+---@field regionalOnlyLocales string[]
 ---@field retiredSuffixes wowToc.retiredSuffix[]
 
 ---@type wowToc.games
@@ -103,4 +104,8 @@ return {
 
     -- the values `GetLocale` returns
     locales = { 'enUS', 'enGB', 'deDE', 'esES', 'esMX', 'frFR', 'itIT', 'koKR', 'ptBR', 'ruRU', 'zhCN', 'zhTW' },
+
+    -- the ones of `locales` that `[TextLocale]` never expands to: a client in the EU region reports `enUS` (and `ptBR`); `enGB` and `ptPT` only come
+    -- out of `[RegionalTextLocale]` (wiki, 2026-11-06)
+    regionalOnlyLocales = { 'enGB' },
 }

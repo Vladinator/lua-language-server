@@ -29,7 +29,7 @@ local DIAGNOSTICS = {
     { 'toc-unknown-header',      'Hint',    'Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.' },
     { 'toc-invalid-value',       'Warning', 'Enable diagnostics for a value that does not fit its directive: a flag that is not 0 or 1, an unknown game type or locale, an unknown or unclosed `[inline directive]`.' },
     { 'toc-nonexistent-file',    'Warning', 'Enable diagnostics for a file line of a `.toc` that is not on disk.' },
-    { 'toc-variable-file-missing', 'Hint',  'Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are).' },
+    { 'toc-variable-file-missing', 'Warning', 'Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are): the game reports an error for a file it cannot load.' },
     { 'toc-line-too-long',       'Warning', 'Enable diagnostics for a `.toc` line over 1024 characters: the game reads only the first 1024.' },
     { 'toc-localized-before-base', 'Hint',  'Enable diagnostics for a localized `Title-deDE` that comes before the plain `Title`, or has none: the localized ones go unused.' },
     { 'toc-restricted-header',   'Hint',    'Enable diagnostics for a directive that only Blizzard code may use.' },

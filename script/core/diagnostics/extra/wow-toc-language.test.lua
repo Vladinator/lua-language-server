@@ -1028,6 +1028,7 @@ hovers('the @diagnostic keyword', '# @diag|nostic disable-next-line: toc-file-na
 hovers('a mode', '# @diagnostic disable-next|-line: toc-file-name', { '# @diagnostic disable-next-line:', 'next line' })
 hovers('the expect mode', '# @diagnostic expect|-next-line: toc-file-name', { '# @diagnostic expect-next-line:', 'toc-unfulfilled-expect' })
 hovers('a code', '# @diagnostic disable-next-line: toc-file|-name', { 'diagnostic  toc-file-name', '**Default severity:** warning', 'does not match its folder' })
+hovers('a file that is missing for some expansions is a warning like a missing file', '# @diagnostic disable-next-line: toc-variable-file|-missing', { 'diagnostic  toc-variable-file-missing', '**Default severity:** warning' })
 hovers('the second code', '# @diagnostic disable: toc-file-name, toc-unknown|-header', { 'diagnostic  toc-unknown-header', '**Default severity:** hint' })
 hovers('a word nobody knows', '# @diagnostic disable: bog|us', {})
 hovers('a plain comment', '# diag|nostic', {})

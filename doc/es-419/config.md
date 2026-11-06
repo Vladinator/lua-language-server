@@ -500,7 +500,7 @@ Array<string>
 * ``"toc-unknown-category"``: Enable diagnostics for a `## Category:` that is not one of the recommended names of the Addon Categories wiki page (a custom category is allowed, the page recommends its names).
 * ``"toc-unknown-header"``: Enable diagnostics for a `## Key:` that is not a known directive, an `X-*` custom key or a localized variant.
 * ``"toc-unreachable-line"``: Enable diagnostics for a line of a `.toc` whose load conditions and file name suffix leave no game type it can load on.
-* ``"toc-variable-file-missing"``: Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are).
+* ``"toc-variable-file-missing"``: Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are): the game reports an error for a file it cannot load.
 * ``"trailing-space"``: Habilita el diagnóstico de espacios al final de línea.
 * ``"type-mismatch"``
 * ``"unbalanced-assignments"``: Habilita el diagnóstico para asignaciones múltiplies si no todas las variables obtienen un valor (por ejemplo, `local x,y = 1`).
@@ -1521,7 +1521,7 @@ object<string, string>
     */
     "toc-unreachable-line": "Any",
     /*
-    Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are).
+    Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are): the game reports an error for a file it cannot load.
     */
     "toc-variable-file-missing": "Any",
     /*
@@ -2080,9 +2080,9 @@ object<string, string>
     */
     "toc-unreachable-line": "Warning",
     /*
-    Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are).
+    Enable diagnostics for a file line whose path has a variable (`[Game]`, `[Family]`, `[TextLocale]`) where some of the files the game would ask for are not on disk (the other ones are): the game reports an error for a file it cannot load.
     */
-    "toc-variable-file-missing": "Hint",
+    "toc-variable-file-missing": "Warning",
     /*
     Habilita el diagnóstico de espacios al final de línea.
     */

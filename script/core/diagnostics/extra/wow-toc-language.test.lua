@@ -1079,6 +1079,8 @@ hoverLacks('a restricted file line is not a comma list', 'Co|re.lua [AllowLoadGa
 hovers('a file line of a suffix file', 'Co|re.lua', { lineList('Loads on:', '', '- The Burning Crusade Classic', '', 'Does not load on:', '', '- Retail (Midnight)'), '`_TBC`' }, 'MyAddon_TBC.toc')
 hovers('a line that loads nowhere', 'Co|re.lua [AllowLoadGameType cata][ExcludeLoadGameType cata]', { lineList('Loads on no game type.', '', 'Does not load on:', '', '- Retail (Midnight)') })
 hoverLacks('a file line that loads everywhere lists nothing', 'Co|re.lua', { 'Does not load on' })
+hovers('a gap between the list of games and the facts', 'Co|re.lua [AllowLoadGameType cata]', { lineList('- The Burning Crusade Classic', '- Classic Era', '', '&nbsp;') })
+hoverLacks('no gap when there is no list', 'Co|re.lua', { '&nbsp;' })
 -- a file without a suffix is the fallback of its folder; the files next to it that take game types away are named
 hovers('a file without a suffix is the fallback', 'Co|re.lua', { '**Fallback file:**', '`MyAddon_<Suffix>.toc`', 'a game type added later' })
 hoverLacks('no sibling, nothing taken', 'Co|re.lua', { 'Taken by' })

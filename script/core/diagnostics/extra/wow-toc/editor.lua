@@ -452,6 +452,10 @@ local function loadScope(uri, cursor)
         -- (one game per line: a long list of names in a sentence is hard to read in a tooltip)
         summary = 'Loads on:' .. nl .. nl .. table.concat(loads, nl) .. nl .. nl .. 'Does not load on:' .. nl .. nl .. table.concat(skips, nl)
     end
+    if #skips > 0 then
+        -- (a blank paragraph: the facts below are a list too, and would be one more item of the list of games without it)
+        summary = summary .. nl .. nl .. '&nbsp;'
+    end
     ---@type string[]
     local facts = {}
     if suffix then

@@ -10,6 +10,7 @@ local tm      = require 'text-merger'
 local await   = require 'await'
 local ws      = require 'workspace'
 local files   = require 'files'
+local fw      = require 'filewatch'
 
 -- File KINDS: documents that are not Lua (a WoW addon's `.toc`) but that the server can still help with: diagnostics, completion, hover,
 -- definition. A kind is registered by a plugin, like a diagnostic or a LuaDoc tag; the server then keeps the text of an open document of that
@@ -66,6 +67,7 @@ local files   = require 'files'
 ---@field semanticTokens?     fun(uri: uri, text: string): fileKind.token[]  the colours of the document (LSP semantic tokens): what the editor's grammar does not know
 ---@field triggerCharacters?  string[] characters that open completion in a document of this kind
 ---@field samples?            fileKind.sample[] typical documents of the kind: the test that damages every registered kind (test/other/file-kind-damage.lua) starts from them
+---@field watchesFiles?       boolean the diagnostics depend on the files on disk next to the document (a `.toc` names its files): judged again when a file is created or deleted
 ---@field needsWorkspace?     boolean the diagnostics depend on the whole workspace: they wait until it is loaded and are made again when it reloads
 ---@field prepare?             async fun(uri: uri, text: string) with `needsWorkspace`: runs before every verdict, to build the full picture of the workspace (compile the files nobody opened); nothing is published before it ends
 
@@ -407,6 +409,30 @@ files.watch(function (ev) ---@async
     await.sleep(1.0)
     for uri, document in pairs(documents) do
         if document.kind.needsWorkspace then
+            m.publish(uri)
+        end
+    end
+end)
+
+-- A kind that judges the files next to its document (`watchesFiles`) is judged again when a file is created or deleted: a file written to
+-- fix a "no such file" report must make the report go away without a touch of the document. Debounced like the one above.
+fw.event(function (ev) ---@async
+    if ev ~= 'create' and ev ~= 'delete' then
+        return
+    end
+    local any = false
+    for _, document in pairs(documents) do
+        if document.kind.watchesFiles then
+            any = true
+        end
+    end
+    if not any then
+        return
+    end
+    await.unique('file-kinds: judge the files again')
+    await.sleep(1.0)
+    for uri, document in pairs(documents) do
+        if document.kind.watchesFiles then
             m.publish(uri)
         end
     end

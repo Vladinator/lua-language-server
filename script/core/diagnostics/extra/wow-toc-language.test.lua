@@ -193,11 +193,18 @@ case('Author is not localizable', HEADER .. '## Author-deDE: B' .. nl, { 'toc-un
 case('the unlocalized one has to come first', HEADER .. '## Title-frFR: B' .. nl .. '## Title: A' .. nl, { 'toc-localized-before-base' })
 case('a localized one with no plain one', HEADER .. '## Title-frFR: B' .. nl, { 'toc-localized-before-base' })
 case('an unknown locale', HEADER .. '## Title: A' .. nl .. '## Title-frFX: B' .. nl, { 'toc-invalid-value' })
-case('every locale of the data is known', HEADER .. '## Title: A' .. nl .. (function ()
+case('every locale a client reports is known', HEADER .. '## Title: A' .. nl .. (function ()
     ---@type string[]
     local out = {}
     for _, locale in ipairs(games.locales) do
-        out[#out+1] = '## Title-' .. locale .. ': A'
+        -- (the ones no client reports have a message of their own, below)
+        local regional = false
+        for _, name in ipairs(games.regionalOnlyLocales) do
+            regional = regional or name == locale
+        end
+        if not regional then
+            out[#out+1] = '## Title-' .. locale .. ': A'
+        end
     end
     return table.concat(out, nl) .. nl
 end)(), {})
@@ -1156,6 +1163,38 @@ pcall(fs.remove, fs.path(TESTROOT .. 'ZzNoToc'))
 pcall(fs.remove, fs.path(TESTROOT .. 'MyAddon/MyAddon.toc'))
 pcall(fs.remove, fs.path(ADDON .. '/Dir'))
 pcall(fs.remove, fs.path(ADDON .. '/Sub'))
+
+-- locales no client reports (user, 2026-11-06: `GetLocale` / `[TextLocale]` give `enUS` for an EU English client; the CurseForge localization page, which
+-- the BigWigs packager reads, lists exactly enUS deDE esES esMX frFR itIT koKR ptBR ruRU zhCN zhTW)
+do
+    ---@param text string
+    ---@return string[]
+    local function invalidMessages(text)
+        ---@type string[]
+        local found = {}
+        for _, diag in ipairs(diagnose(HEADER .. text .. nl, nil)) do
+            if diag.code == 'toc-invalid-value' then
+                found[#found+1] = diag.message
+            end
+        end
+        return found
+    end
+    for _, locale in ipairs { 'enGB', 'ptPT', 'engb' } do
+        local found = invalidMessages('Core.lua [AllowLoadTextLocale ' .. locale .. ']')
+        assert(#found == 1 and found[1]:find('a locale no client reports', 1, true) and found[1]:find('it never matches', 1, true), 'a bracket with ' .. locale .. ': ' .. tostring(found[1]))
+        found = invalidMessages('Core.lua [AllowLoadTextLocale enUS, ' .. locale .. ']')
+        assert(#found == 1 and found[1]:find('a locale no client reports', 1, true), 'next to a real locale ' .. locale .. ': ' .. tostring(found[1]))
+    end
+    for _, locale in ipairs { 'enUS', 'deDE', 'esES', 'esMX', 'frFR', 'itIT', 'koKR', 'ptBR', 'ruRU', 'zhCN', 'zhTW' } do
+        assert(#invalidMessages('Core.lua [AllowLoadTextLocale ' .. locale .. ']') == 0, 'a locale the clients report: ' .. locale)
+    end
+    -- an unknown one is still unknown, and does not suggest a locale no client reports
+    local unknown = invalidMessages('Core.lua [AllowLoadTextLocale enXX]')
+    assert(#unknown == 1 and unknown[1]:find('Unknown locale `enXX`', 1, true) and not unknown[1]:find('enGB', 1, true), 'an unknown locale: ' .. tostring(unknown[1]))
+    local key = invalidMessages('## Title: x' .. nl .. '## Title-enGB: y')
+    assert(#key == 1 and key[1]:find('this localized line is never used', 1, true), 'a localized key with enGB: ' .. tostring(key[1]))
+    assert(#invalidMessages('## Title: x' .. nl .. '## Title-deDE: y') == 0, 'a localized key with a real locale')
+end
 
 -- variables in a path: every file the game would ask for is looked up (`[Game]` and `[Family]` for the games the line loads on, `[TextLocale]` for the
 -- locales a client reports, not `enGB`), user report 2026-11-06 (`locale/[TextLocale].lua` next to nine files of locales)

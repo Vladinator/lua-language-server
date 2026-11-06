@@ -263,6 +263,34 @@ end
 --- The message for a word of an `AllowLoadGameType` / `ExcludeLoadGameType` value that is no game type. What it does depends on the directive: an
 --- unknown type in an Exclude excludes nothing; in an Allow the known types still decide, unless none of the listed ones is known: the client then
 --- treats the condition as met (the wiki's warning), so the file or line loads on every game, the opposite of what the author wrote.
+--- What is wrong with a locale word of `AllowLoadTextLocale` or of a localized key (`Title-xxXX`), or nil when it is one a client reports.
+---@param word string
+---@param what string  what the word is used for, for the message ("this never matches")
+---@return string?
+local function localeProblem(word, what)
+    for _, name in ipairs(games.regionalOnlyLocales) do
+        if name:lower() == word:lower() then
+            return ('`%s` is a locale no client reports (an EU client reports `enUS`, or `ptBR` for Portuguese; `enGB` and `ptPT` only come out of `[RegionalTextLocale]`), so %s.'):format(word, what)
+        end
+    end
+    if not localeByName[word:lower()] then
+        ---@type string[]
+        local reported = {}
+        for _, name in ipairs(games.locales) do
+            local regional = false
+            for _, other in ipairs(games.regionalOnlyLocales) do
+                regional = regional or other == name
+            end
+            if not regional then
+                reported[#reported+1] = name
+            end
+        end
+        local suggestion = nearest(word, reported)
+        return ('Unknown locale `%s`%s.'):format(word, suggestion and (' (did you mean `%s`?)'):format(suggestion) or '')
+    end
+    return nil
+end
+
 ---@param word    string
 ---@param allow   boolean  the directive is an `AllowLoadGameType`
 ---@param nothing boolean  every word of the value is unknown
@@ -988,10 +1016,9 @@ function m.diagnose(uri, text)
                 end
                 -- localized variants
                 if line.locale then
-                    if not localeByName[line.locale:lower()] then
-                        local suggestion = nearest(line.locale, games.locales)
-                        report(line.row, (line.keyStart or 1) + #key - #line.locale, line.keyFinish or 1, 'toc-invalid-value',
-                            ('Unknown locale `%s`%s.'):format(line.locale, suggestion and (' (did you mean `%s`?)'):format(suggestion) or ''))
+                    local problem = localeProblem(line.locale, 'this localized line is never used')
+                    if problem then
+                        report(line.row, (line.keyStart or 1) + #key - #line.locale, line.keyFinish or 1, 'toc-invalid-value', problem)
                     end
                     if not firstBase[directive.name] then
                         report(line.row, line.keyStart or 1, line.keyFinish or 1, 'toc-localized-before-base',
@@ -1246,10 +1273,9 @@ function m.diagnose(uri, text)
                     end
                 elseif inline.value == 'locales' then
                     for first, word, last in bracket.value:gmatch('()([^,%s]+)()') --[==[@as fun(): (integer, string, integer)]==] do
-                        if not localeByName[word:lower()] then
-                            local suggestion = nearest(word, games.locales)
-                            report(line.row, bracket.valueStart + first - 1, bracket.valueStart + last - 2, 'toc-invalid-value',
-                                ('Unknown locale `%s`%s.'):format(word, suggestion and (' (did you mean `%s`?)'):format(suggestion) or ''))
+                        local problem = localeProblem(word, 'it never matches')
+                        if problem then
+                            report(line.row, bracket.valueStart + first - 1, bracket.valueStart + last - 2, 'toc-invalid-value', problem)
                         end
                     end
                 end
@@ -1364,6 +1390,7 @@ m.normalizeName     = normalizeName
 ---@type fileKind
 m.kind = {
     id       = 'toc',
+    watchesFiles = true,   -- the file lines are looked up on disk
     match    = function (uri) return uri:lower():sub(-4) == '.toc' end,
     diagnose = m.diagnose,
     samples  = {

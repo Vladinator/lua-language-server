@@ -105,7 +105,9 @@ return {
     -- the values `GetLocale` returns
     locales = { 'enUS', 'enGB', 'deDE', 'esES', 'esMX', 'frFR', 'itIT', 'koKR', 'ptBR', 'ruRU', 'zhCN', 'zhTW' },
 
-    -- the ones of `locales` that `[TextLocale]` never expands to: a client in the EU region reports `enUS` (and `ptBR`); `enGB` and `ptPT` only come
-    -- out of `[RegionalTextLocale]` (wiki, 2026-11-06)
-    regionalOnlyLocales = { 'enGB' },
+    -- the locales that no client reports (`GetLocale`, `[TextLocale]`): a client in the EU region reports `enUS` (and `ptBR`); `enGB` and `ptPT` only come
+    -- out of `[RegionalTextLocale]` (wiki, 2026-11-06). The eleven the clients do report are the ones of the CurseForge localization page (the list the
+    -- BigWigs packager reads): enUS deDE esES esMX frFR itIT koKR ptBR ruRU zhCN zhTW (user, 2026-11-06). `enGB` stays in `locales` so that it is
+    -- recognised: it gets its own message instead of "unknown locale".
+    regionalOnlyLocales = { 'enGB', 'ptPT' },
 }

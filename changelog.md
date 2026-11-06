@@ -2,6 +2,8 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `FIX` An open `.toc` is judged again when a file is created or deleted next to it: the report of a missing file (`toc-nonexistent-file`, `toc-variable-file-missing`) used to stay until the `.toc` itself was edited.
+* `FIX` `.toc`: `enGB` and `ptPT` are reported where a locale is used (`[AllowLoadTextLocale ...]`, `## Title-enGB:`): no client reports them (an EU client reports `enUS` / `ptBR`), so the line never matches.
 * `NEW` Diagnostic `toc-variable-file-missing` (hint): a file line of a `.toc` whose path has `[Game]`, `[Family]` or `[TextLocale]` is checked for every file the game would ask for (the games the line loads on, the locales a client reports); when only some are there the hint lists the missing ones, when none is there it is the plain `toc-nonexistent-file`.
 * `FIX` `.toc`: a variable at the start of a file line (`[Game]\Core.lua`) is part of the path, not a condition; the path used to come out as `\Core.lua`.
 * `NEW` `.toc` files get semantic tokens (colours) from the server: directive names, game types, locales, numbers and flags, inline directives and variables; a document kind can bring its own through the new `semanticTokens` hook. Off with `Lua.semantic.enable`.

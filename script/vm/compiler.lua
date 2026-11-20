@@ -3328,7 +3328,11 @@ local compilerSwitch = util.switch()
             ---@type string[]
             local literalKeys = {}
             local onlyLiterals = true
-            for k in key:eachObject() do
+            --- One type a key can have; a type parameter that nothing has bound yet (`---@generic K : Name`, `---@param name K`) is only known by
+            --- its constraint, so what that allows is what the key can be.
+            ---@param k     vm.node.object
+            ---@param depth integer
+            local function addKey(k, depth)
                 if k.type == 'global' and k.cate == 'type' then
                     ---@cast k vm.global
                     if k.name == 'string' then
@@ -3339,7 +3343,18 @@ local compilerSwitch = util.switch()
                     end)
                 elseif (k.type == 'string' or k.type == 'doc.type.string') and type(k[1]) == 'string' then
                     literalKeys[#literalKeys+1] = k[1]
+                elseif k.type == 'doc.generic.name' and not k._resolved and depth < 4 then
+                    ---@cast k parser.object
+                    local constraint = k.generic and k.generic.extends
+                    if constraint then
+                        for allowed in vm.compileNode(constraint):eachObject() do
+                            addKey(allowed, depth + 1)
+                        end
+                    end
                 end
+            end
+            for k in key:eachObject() do
+                addKey(k, 0)
             end
             -- `t[cond and "a" or "b"]`, `t[key]` with `key: "a"|"b"`: the union of those fields (like TypeScript's `T["a"|"b"]`)
             if onlyLiterals and guide.isGet(source) then

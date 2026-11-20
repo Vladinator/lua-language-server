@@ -9911,3 +9911,87 @@ TEST 'string' [[
 local m = {}
 for <?k?> in pairs(m) do end
 ]]
+
+-- a class indexed by a key whose type is an unbound type parameter: the fields its constraint allows
+TEST 'GkpLegacy|GkpMenu' [[
+---@alias GkpName "Legacy"|"Menu"
+---@class GkpLegacy
+---@field level integer
+---@class GkpMenu
+---@field tag string
+---@class GkpStates
+---@field Legacy GkpLegacy
+---@field Menu GkpMenu
+---@type GkpStates
+local States = {}
+
+---@generic K : GkpName
+---@param name K
+local function get(name)
+    local <?state?> = States[name]
+end
+]]
+
+TEST 'GkpLegacy2' [[
+---@class GkpLegacy2
+---@field level integer
+---@class GkpMenu2
+---@field tag string
+---@class GkpStates2
+---@field Legacy GkpLegacy2
+---@field Menu GkpMenu2
+---@type GkpStates2
+local States = {}
+
+---@generic K : "Legacy"
+---@param name K
+local function get(name)
+    local <?state?> = States[name]
+end
+]]
+
+TEST 'GkpLegacy3|GkpMenu3' [[
+---@class GkpLegacy3
+---@field level integer
+---@class GkpMenu3
+---@field tag string
+---@class GkpStates3
+---@field Legacy GkpLegacy3
+---@field Menu GkpMenu3
+---@type GkpStates3
+local States = {}
+
+---@generic K : keyof GkpStates3
+---@param name K
+local function get(name)
+    local <?state?> = States[name]
+end
+]]
+
+-- ... and nothing is made up without a constraint
+TEST 'unknown' [[
+---@class GkpStates4
+---@field Legacy integer
+---@type GkpStates4
+local States = {}
+
+---@generic K
+---@param name K
+local function get(name)
+    local <?state?> = States[name]
+end
+]]
+
+-- type parameters that constrain each other in a circle say nothing and must not run forever
+TEST 'unknown' [[
+---@class GkpStates5
+---@field Legacy integer
+---@type GkpStates5
+local States = {}
+
+---@generic A : B, B : A
+---@param name A
+local function get(name)
+    local <?state?> = States[name]
+end
+]]

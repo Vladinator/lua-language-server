@@ -2,6 +2,7 @@
 
 ## Unreleased
 <!-- Add all new changes here. They will be moved under a version at release -->
+* `FIX` A local alias of a global table (`local Menu = Menu`) narrowed by `type(Menu) == "table"` keeps the fields assigned through the global (`function Menu.F() end`); they were `unknown` after the guard.
 * `FIX` A class or table indexed by a key whose type is a type parameter (`---@generic K : Name`, `---@param name K`, then `States[name]`) is no longer `unknown`: the read is the union of the fields the constraint allows (an alias or an inline union of literals, one literal, `keyof T`).
 * `FIX` An open `.toc` is judged again when a file is created or deleted next to it: the report of a missing file (`toc-nonexistent-file`, `toc-variable-file-missing`) used to stay until the `.toc` itself was edited.
 * `FIX` `.toc`: `enGB` and `ptPT` are reported where a locale is used (`[AllowLoadTextLocale ...]`, `## Title-enGB:`): no client reports them (an EU client reports `enUS` / `ptBR`), so the line never matches.

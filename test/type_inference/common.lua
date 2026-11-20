@@ -9995,3 +9995,52 @@ local function get(name)
     local <?state?> = States[name]
 end
 ]]
+
+-- a local alias of a global table keeps the fields assigned through the global when a `type()` guard narrows it (found in a user's addon:
+-- `local Menu = Menu` then `if type(Menu) ~= "table" or type(Menu.GetManager) ~= "function" then return end`)
+TEST 'function' [[
+GaaMenu = {}
+function GaaMenu.GetManager() end
+local Menu = GaaMenu
+if type(Menu) ~= "table" or type(Menu.GetManager) ~= "function" then return end
+local <?manager?> = Menu.GetManager
+]]
+
+TEST 'function' [[
+GaaMenu2 = {}
+function GaaMenu2.GetManager() end
+local Menu = GaaMenu2
+if type(Menu) == "table" then
+    local <?manager?> = Menu.GetManager
+end
+]]
+
+-- ... inside a function that runs later
+TEST 'function' [[
+GaaMenu3 = {}
+function GaaMenu3.GetManager() end
+local Menu = GaaMenu3
+if type(Menu) ~= "table" then return end
+local function get()
+    local <?manager?> = Menu.GetManager
+end
+]]
+
+-- ... and a global that is a number first stays a table only after the guard (a global's type is its first assignment)
+TEST 'table' [[
+GaaMixed = 1
+GaaMixed = { Tag = "a" }
+local x = GaaMixed
+if type(x) ~= "table" then return end
+local <?y?> = x
+]]
+
+-- ... and a guard for another type does not leave the variable behind as the only member
+TEST 'string' [[
+GaaMenu5 = {}
+function GaaMenu5.GetManager() end
+local Menu = GaaMenu5
+if type(Menu) == "string" then
+    local <?s?> = Menu
+end
+]]

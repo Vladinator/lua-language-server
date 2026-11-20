@@ -414,8 +414,16 @@ function mt:narrow(uri, name, anyStays)
     end
     ---@type boolean?
     local replaced
+    -- the global variables of the node: they have no type of their own but carry the fields assigned through the global
+    -- (`Menu = {}`, `function Menu.F() end`), so they stay when anything else of the node survives
+    ---@type vm.node.object[]?
+    local variables
     for index = #self, 1, -1 do
         local c = self[index]
+        if c.type == 'global' and c.cate == 'variable' then
+            variables = variables or {}
+            variables[#variables+1] = c
+        end
         if (c.type == name)
         or (c.type == 'doc.type.integer'  and (name == 'number' or name == 'integer'))
         or (c.type == 'doc.type.boolean'  and name == 'boolean')
@@ -455,6 +463,13 @@ function mt:narrow(uri, name, anyStays)
     end
     if #self == 0 then
         self[#self+1] = vm.getGlobal('type', name)
+    elseif variables then
+        for _, variable in ipairs(variables) do
+            if not self[variable] then
+                self[#self+1] = variable
+                self[variable] = true
+            end
+        end
     end
     return self
 end
